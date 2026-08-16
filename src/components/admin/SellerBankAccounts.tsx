@@ -208,7 +208,7 @@ export default function SellerBankAccounts() {
       </div>
 
       <form
-        className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-start"
+        className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-start"
         onSubmit={handleSubmit}
         noValidate
       >
@@ -338,7 +338,7 @@ export default function SellerBankAccounts() {
             return (
               <article
                 key={account.id}
-                className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center"
+                className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center"
               >
                 <img
                   src={bank?.asset || `/images/payment/${account.bank_code.toLowerCase()}.svg`}

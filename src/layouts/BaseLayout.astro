@@ -1,18 +1,9 @@
 ---
 import type { ComponentProps } from 'astro/types';
 import { SEO } from 'astro-seo';
-// The shipped Inter ramp is 400/600/700. The tree also declares 500 (`font-medium`)
-// and 800 (`font-extrabold`); per CSS Fonts 4 weight matching those resolve to the
-// 400 and 700 faces respectively — nearest-face substitution, not faux-bold — so the
-// ramp flattens rather than smears. Closing that gap costs ~48KB of latin woff2 on
-// the highest-traffic routes and is a type-ramp decision, not a bug fix. See A-32.
-import '@fontsource/inter/400.css';
-import '@fontsource/inter/600.css';
-import '@fontsource/inter/700.css';
-// Cinzel ships the weight the markup asks for. It used to ship 600, which no rule in
-// the tree declared, while SiteBrand, ProofsSection and the PDP review avatars all
-// declare `font-bold`. Same file count, 20 bytes lighter (A-32).
-import '@fontsource/cinzel/700.css';
+// Font faces are imported by `src/styles/global.css`, which every route loads.
+// Importing them here put them in this layout's own stylesheet, which the admin,
+// the login screen and the embedded checkout never request — see the note there.
 import GoogleAdsBase from '../components/tracking/GoogleAdsBase.astro';
 import MetaPageViewTracker from '../components/tracking/MetaPageViewTracker.astro';
 import MetaPixelBase from '../components/tracking/MetaPixelBase.astro';
@@ -186,7 +177,11 @@ const preloadImageUrls =
     <MetaDebugTracker />
   </head>
   <body>
-    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-emerald-700 focus:text-white focus:px-4 focus:py-2 focus:font-bold focus:rounded-br-lg">Lewati ke konten utama</a>
+    <!-- Ink, not emerald. This is the first focusable element on six of the seven
+         checkout routes, so tabbing into a page the design system requires to carry
+         no green painted a solid emerald block across it. Square, like everything
+         else on these routes. -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-[#111111] focus:text-white focus:px-4 focus:py-2 focus:font-bold">Lewati ke konten utama</a>
     <div class="flex min-h-screen w-full justify-center">
       <div
         class:list={[

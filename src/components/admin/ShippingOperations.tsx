@@ -235,7 +235,7 @@ function LoadingState() {
       aria-label="Memuat data pengiriman"
       aria-busy="true"
     >
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
@@ -560,7 +560,7 @@ export function ShippingOperations() {
               event.preventDefault();
               void schedulePickup();
             }}
-            className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_1fr_1.3fr_auto] lg:items-end"
+            className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_1fr_1.3fr_auto] lg:items-end"
           >
             <label>
               <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-600">

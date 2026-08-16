@@ -47,7 +47,7 @@ const callbackUrl = new URL('/api/webhooks/autolaris', Astro.url.origin).toStrin
         </p>
       </div>
 
-      <div class="mt-4 grid gap-4 lg:grid-cols-3">
+      <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <!-- COD Toggle Card -->
         <article class="rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition-all hover:bg-slate-50" data-payment-master-card="cod">
           <div class="flex items-start justify-between gap-3">
@@ -129,7 +129,7 @@ const callbackUrl = new URL('/api/webhooks/autolaris', Astro.url.origin).toStrin
     <section class="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs md:p-6">
       <h3 class="border-b border-slate-100 pb-3 text-sm font-bold text-slate-900">2. Kesiapan API & Callback Webhook AutoLaris</h3>
       <p class="mt-3 text-xs leading-5 text-slate-600">Integrasi siap penuh setelah API key dan callback secret tersimpan. Pemeriksaan di halaman ini membaca konfigurasi lokal untuk memastikan kesiapan transaksi.</p>
-      <div class="mt-4 grid gap-5 lg:grid-cols-3">
+      <div class="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div>
           <p class="mb-1.5 text-xs font-bold text-slate-700">AutoLaris API Key</p>
           <div class="admin-input-flat flex items-center justify-between bg-slate-50 font-mono text-xs text-slate-700" aria-live="polite">
@@ -166,7 +166,7 @@ const callbackUrl = new URL('/api/webhooks/autolaris', Astro.url.origin).toStrin
         <p class="mt-1 max-w-3xl text-xs leading-5 text-slate-600">Tentukan pihak yang memikul biaya admin per metode. Jika diset Pembeli, fee ditambahkan ke total checkout. Jika diset Seller, fee dipotong dari hasil bersih.</p>
       </div>
 
-      <div class="mt-4 grid gap-4 lg:grid-cols-2">
+      <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <article class="rounded-xl border border-slate-200 bg-slate-50/70 p-4" data-fee-policy-card="online">
           <div class="flex items-start justify-between gap-4">
             <div>

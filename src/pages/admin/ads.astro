@@ -13,10 +13,10 @@ export const prerender = false;
       description="Kelola Meta dan Google secara terpisah dengan status konfigurasi yang mudah diaudit."
     />
 
-    <div id="adsLoading" class="grid gap-4 lg:grid-cols-2" role="status" aria-live="polite" aria-busy="true" aria-atomic="true"><span class="sr-only">Memuat status channel tracking.</span><div class="h-56 animate-pulse rounded-xl bg-slate-100 text-slate-950 shadow-sm"></div><div class="h-56 animate-pulse rounded-xl bg-slate-100 text-slate-950 shadow-sm"></div></div>
+    <div id="adsLoading" class="grid grid-cols-1 gap-4 lg:grid-cols-2" role="status" aria-live="polite" aria-busy="true" aria-atomic="true"><span class="sr-only">Memuat status channel tracking.</span><div class="h-56 animate-pulse rounded-xl bg-slate-100 text-slate-950 shadow-sm"></div><div class="h-56 animate-pulse rounded-xl bg-slate-100 text-slate-950 shadow-sm"></div></div>
     <div id="adsError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
 
-    <section id="adsChannels" class="hidden grid gap-4 lg:grid-cols-2" aria-label="Channel tracking">
+    <section id="adsChannels" class="hidden grid grid-cols-1 gap-4 lg:grid-cols-2" aria-label="Channel tracking">
       <article class="rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm p-6">
         <div class="flex items-start justify-between gap-3"><div><p class="text-[10px] font-black uppercase tracking-wider text-sky-700">Meta</p><h3 class="mt-1 text-lg font-black text-slate-950">Pixel & Conversions API</h3></div><span id="metaBadge" class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">Memuat</span></div>
         <p class="mt-3 text-xs leading-5 text-slate-500">Kelola Pixel browser, token server-side, dan test event dari halaman khusus Meta.</p>
@@ -27,7 +27,7 @@ export const prerender = false;
       <article class="rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm p-6">
         <div class="flex items-start justify-between gap-3"><div><p class="text-[10px] font-black uppercase tracking-wider text-amber-700">Google</p><h3 class="mt-1 text-lg font-black text-slate-950">Tag Manager & Ads</h3></div><span id="googleBadge" class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">Memuat</span></div>
         <p class="mt-3 text-xs leading-5 text-slate-500">Kelola GTM ecommerce dan conversion action Purchase tanpa membuka konfigurasi Meta.</p>
-        <dl class="mt-5 grid gap-3 text-xs sm:grid-cols-3"><div class="min-w-0 rounded-xl bg-slate-50 p-3"><dt class="font-bold text-slate-500">GTM</dt><dd id="googleTagManagerState" class="mt-1 truncate font-mono font-black text-slate-900">Belum diperiksa</dd></div><div class="min-w-0 rounded-xl bg-slate-50 p-3"><dt class="font-bold text-slate-500">Conversion ID</dt><dd id="googleIdState" class="mt-1 truncate font-mono font-black text-slate-900">Belum diperiksa</dd></div><div class="min-w-0 rounded-xl bg-slate-50 p-3"><dt class="font-bold text-slate-500">Label</dt><dd id="googleLabelState" class="mt-1 truncate font-mono font-black text-slate-900">Belum diperiksa</dd></div></dl>
+        <dl class="mt-5 grid grid-cols-1 gap-3 text-xs sm:grid-cols-3"><div class="min-w-0 rounded-xl bg-slate-50 p-3"><dt class="font-bold text-slate-500">GTM</dt><dd id="googleTagManagerState" class="mt-1 truncate font-mono font-black text-slate-900">Belum diperiksa</dd></div><div class="min-w-0 rounded-xl bg-slate-50 p-3"><dt class="font-bold text-slate-500">Conversion ID</dt><dd id="googleIdState" class="mt-1 truncate font-mono font-black text-slate-900">Belum diperiksa</dd></div><div class="min-w-0 rounded-xl bg-slate-50 p-3"><dt class="font-bold text-slate-500">Label</dt><dd id="googleLabelState" class="mt-1 truncate font-mono font-black text-slate-900">Belum diperiksa</dd></div></dl>
         <a href="/admin/ads/google" class="btn-secondary mt-5 min-h-11 w-full px-5 text-xs sm:w-auto">Kelola Google</a>
       </article>
     </section>

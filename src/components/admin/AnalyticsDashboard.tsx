@@ -300,7 +300,7 @@ export function AnalyticsDashboard() {
       </section>
 
       {dateFilter === "custom" && (
-        <section className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <section className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="grid-cols-1 grid gap-1.5">
             <span className="text-xs font-bold text-slate-700">
               Tanggal mulai
@@ -387,7 +387,7 @@ export function AnalyticsDashboard() {
         ))}
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.75fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.75fr)]">
         <Card aria-labelledby="trend-heading" className="min-w-0 border-slate-200 shadow-sm">
           <CardHeader className="border-b border-slate-100 pb-4">
             <CardTitle as="h3" id="trend-heading" className="text-sm font-bold text-slate-950 md:text-base">

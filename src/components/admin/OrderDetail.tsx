@@ -420,7 +420,7 @@ function EditCustomerDialog({
           </p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block space-y-1 text-xs font-bold text-slate-700">
               <span>Nama Lengkap</span>
               <Input
@@ -966,7 +966,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
     return (
       <div className="space-y-6">
         <div className="h-24 animate-pulse rounded-2xl bg-slate-200/70" />
-        <div className="grid gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
             <div className="h-48 animate-pulse rounded-2xl bg-slate-200/70" />
             <div className="h-64 animate-pulse rounded-2xl bg-slate-200/70" />
@@ -1184,7 +1184,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
       </section>
 
       {/* Main Grid: Left Column (Details) + Right Column (Summary & Actions) */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left Column: Customer, Address & Products */}
         <div className="lg:col-span-2 space-y-6">
           {/* Customer & Address Card */}
@@ -1196,7 +1196,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 sm:p-6 space-y-5">
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Nama Lengkap</span>
                   <p className="mt-1 text-base font-black text-slate-950">{order.customer_name || "—"}</p>

@@ -150,7 +150,7 @@ export function HeadlessApiManagement() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <Card className="min-w-0">
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">

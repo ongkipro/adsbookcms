@@ -275,7 +275,7 @@ export function ExpeditionSettings() {
   };
 
   if (loading) {
-    return <div className="grid gap-4 sm:grid-cols-2" aria-label="Memuat pengaturan ekspedisi" aria-busy="true">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-36 animate-pulse rounded-xl bg-slate-100" />)}</div>;
+    return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Memuat pengaturan ekspedisi" aria-busy="true">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-36 animate-pulse rounded-xl bg-slate-100" />)}</div>;
   }
 
   if (loadError) {
@@ -285,7 +285,7 @@ export function ExpeditionSettings() {
   return (
     <div className="space-y-6">
       {/* Metric Cards */}
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Ringkasan ekspedisi">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Ringkasan ekspedisi">
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-4">
             <span className="grid size-12 place-items-center rounded-xl bg-slate-100 text-slate-600"><PackageIcon className="size-6" /></span>
@@ -345,7 +345,7 @@ export function ExpeditionSettings() {
             </div>
           </div>
           
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {PROVINCE_REGIONS.map((region) => {
               const visibleCodes = region.codes.filter(c => filteredProvinces.some(p => p.code === c));
               if (visibleCodes.length === 0) return null;
@@ -446,7 +446,7 @@ export function ExpeditionSettings() {
           <h2 className="text-lg font-black tracking-tight text-slate-950 flex items-center gap-2"><CalculatorIcon className="size-5" /> Simulasi Ongkir (Live)</h2>
           <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">Gunakan fitur ini untuk mengetes respon ongkir Mengantar berdasarkan pengaturan kurir yang aktif.</p>
         </div>
-        <div className="mt-5 grid gap-4 sm:grid-cols-[1fr,1fr,auto] items-end">
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-[1fr,1fr,auto] items-end">
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-700">ID Area Tujuan (Kecamatan)</label>
             <Input type="text" placeholder="Misal: ID-3273050" value={calcDest} onChange={(e) => setCalcDest(e.target.value)} />

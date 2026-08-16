@@ -414,7 +414,7 @@ export function AccessManager() {
       </section>
 
       {/* Main Grid: User List & Add Form */}
-      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
         {/* Left Column: User Directory */}
         <Card className="min-w-0 rounded-2xl border-slate-200 shadow-xs">
           <CardHeader className="border-b border-slate-100 pb-4">

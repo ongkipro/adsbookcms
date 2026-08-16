@@ -1,6 +1,26 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+
+/* The font faces live here, not in a layout, because this file is the one
+   stylesheet every route loads and the `body` rule below names Inter.
+
+   They used to be imported by BaseLayout alone, which put all 23 @font-face
+   rules into BaseLayout's own emitted stylesheet. The 26 admin routes, the
+   login screen and the embedded checkout load this file and never that one —
+   so they asked for a family whose faces were declared nowhere they could see,
+   and silently rendered in system-ui. The entire operator UI, plus the
+   checkout merchants iframe onto their own pages.
+
+   The ramp stays 400/600/700 (A-32): 500 and 800 resolve to the nearest face
+   by CSS Fonts 4 weight matching, which flattens the ladder rather than
+   smearing it, and widening the ramp is a type decision rather than this fix.
+   Cinzel ships 700, the weight SiteBrand actually declares. */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/cinzel/700.css";
+
 @custom-variant dark (&:is(.dark *));
 
 /* ./form-hybrid.css is deliberately NOT imported here. It is checkout-only
@@ -480,6 +500,40 @@ input[type="number"] {
   .admin-shell [data-slot="dialog-content"] [data-slot="dialog-close"] {
     min-height: 2.75rem;
     min-width: 2.75rem;
+  }
+
+  /* Three holes the rules above left open, each found by reading the built
+     stylesheet rather than the source.
+
+     An anchor is not a button. `ProductCatalog`'s embed dialog offers its
+     "preview" as `<a class="h-8">` — 32px, inside the very dialog the net was
+     written for, and matched by none of the selectors because they name
+     `button` and `input`. */
+  .admin-shell [data-slot="dialog-content"] a:not([data-slot="dialog-close"]) {
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* A Sheet is not a Dialog. Both the mobile menu and the mobile search are
+     Sheets, and they portal to <body> exactly as dialogs do, so `.admin-main`
+     never reaches them either. They happen to be usable today because their
+     rows hardcode `min-h-13`; nothing was holding that. */
+  .admin-shell [data-slot="sheet-content"] :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+
+  .admin-shell [data-slot="sheet-content"] :where(a, button:not([data-slot="checkbox"]):not([data-slot="radio-group-item"]):not([data-slot="switch"])) {
+    min-height: 2.75rem;
+  }
+
+  /* Portaled menu rows are divs, so neither the dialog rules nor the
+     `.admin-main` rules see them. shadcn ships them at `py-1 text-sm` — about
+     28px — and seven admin components open one. */
+  .admin-shell :where([data-slot="select-item"], [data-slot="dropdown-menu-item"], [data-slot="command-item"]) {
+    min-height: 2.75rem;
+    font-size: 1rem;
   }
 
   .admin-shell .admin-bottom-nav {

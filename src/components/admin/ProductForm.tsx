@@ -311,7 +311,7 @@ export function ProductForm({ productId }: { productId?: string }) {
   return (
     <form
       onSubmit={submit}
-      className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]"
+      className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]"
       noValidate
     >
       <div className="space-y-6">
@@ -324,7 +324,7 @@ export function ProductForm({ productId }: { productId?: string }) {
               Identitas katalog dan status storefront.
             </p>
           </div>
-          <div className="grid gap-4 p-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
             <label>
               <span className="mb-1.5 block text-xs font-black text-slate-700">
                 Nama produk
@@ -362,7 +362,7 @@ export function ProductForm({ productId }: { productId?: string }) {
               >
                 Foto produk
               </label>
-              <div className="grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-[112px_1fr] sm:items-center">
+              <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-[112px_1fr] sm:items-center">
                 <div className="flex aspect-square items-center justify-center overflow-hidden bg-slate-50">
                   {imageUrl ? (
                     <img
@@ -442,7 +442,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                 <legend className="px-2 text-xs font-black text-slate-700">
                   Varian {index + 1}
                 </legend>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <label>
                     <div className="mb-1 flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-600">

@@ -171,7 +171,7 @@ export function ContentWorkbench() {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Card>
         <CardHeader className="border-b border-slate-100">
           <CardTitle as="h3" className="text-base font-black">Draft Storefront</CardTitle>
@@ -210,7 +210,7 @@ export function ContentWorkbench() {
               className="admin-input-flat min-h-[30rem] resize-y bg-slate-950 p-4 font-mono text-xs leading-5 text-slate-100"
             />
           </label>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Button type="button" variant="outline" disabled={saving} onClick={() => void mutate("generate")}>
               Generate Workers AI
             </Button>

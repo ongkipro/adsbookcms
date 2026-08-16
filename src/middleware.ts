@@ -115,7 +115,16 @@ function isInstallerPath(pathname: string): boolean {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
-  const url = new URL(context.request.url);
+  // `context.url`, never a URL built from the raw request. Astro routes on a
+  // normalized pathname — it decodes percent-escapes in a loop and collapses
+  // duplicate slashes — and exposes the result here, while leaving
+  // `context.request` at the raw bytes the client sent. Reading the raw URL
+  // meant this middleware classified one path while Astro served another:
+  // `//api/admin/settings` and `/%61pi/admin/settings` were not "private", so
+  // the session check, the role check, the CSRF origin check and the rotation
+  // gate were all skipped and the handler ran anyway. Every admin surface was
+  // readable, and writable cross-site, with no session at all.
+  const url = context.url;
   const runtime = getRuntimeEnv(context.locals);
 
   // Store identity is resolved once per request and handed to every consumer
@@ -152,7 +161,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     try {
       const canonical = new URL(siteUrl);
       if (url.hostname.slice(4) === canonical.hostname) {
-        const targetUrl = new URL(context.request.url);
+        const targetUrl = new URL(url);
         targetUrl.hostname = canonical.hostname;
         targetUrl.protocol = canonical.protocol;
         targetUrl.port = canonical.port;
@@ -176,7 +185,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
       )
     : undefined;
   const isLoginPage = url.pathname === '/hello';
-  const isAdminPage = url.pathname.startsWith('/admin');
+  // Not `startsWith('/admin')`: that also claims `/admin-sale` and
+  // `/administrasi`, so a landing page whose slug merely begins with those
+  // letters would send every customer to the login screen.
+  const isAdminPage =
+    url.pathname === '/admin' || url.pathname.startsWith('/admin/');
   const isAdminApi =
     url.pathname === '/api/admin' || url.pathname.startsWith('/api/admin/');
   const isPrivate = isAdminPage || isAdminApi;

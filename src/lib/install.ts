@@ -134,9 +134,19 @@ export function planInstall(
  * the credential land together or not at all — the half-installed state this
  * guards against is the one an operator cannot diagnose.
  *
- * The store insert carries `WHERE NOT EXISTS`, so two operators submitting the
- * form at the same moment cannot produce two stores; the second writes nothing
- * and is told the install already completed.
+ * Both statements are guarded, and that is not belt-and-braces. Guarding only
+ * the store insert left the credential UPDATE unconditional: a zero-row insert
+ * is not an error, so D1 kept the batch, the second submission was told
+ * "already installed" — and had nonetheless just replaced the operator's
+ * username and password with its own. Anyone polling an un-installed Worker
+ * would own the store the moment its real operator installed it, because
+ * `hashAdminPassword` parks every request in ~100 ms of PBKDF2 before the write.
+ *
+ * The credential guard is `must_change_password = 1`: only the seeded, never-
+ * configured credential may be claimed, and it may be claimed once. That
+ * predicate is unaffected by the store insert, so it holds whatever order the
+ * batch runs in — a property `NOT EXISTS (SELECT 1 FROM stores)` would lose the
+ * moment the insert landed first.
  */
 export async function runInstall(
   database: D1Database,
@@ -145,8 +155,24 @@ export async function runInstall(
   const passwordHash = await hashAdminPassword(plan.adminPassword);
   const now = new Date().toISOString();
 
+  // Without a seeded credential row the UPDATE would match nothing while the
+  // store insert succeeded, leaving an install with no admin account and no
+  // wizard to make one. Checked here so the operator is told which of the two
+  // things went wrong.
+  const seat = await database
+    .prepare("SELECT COUNT(*) AS total FROM admin_credentials")
+    .first<{ total: number }>();
+  if (!seat?.total) {
+    console.error("install-no-credential-row");
+    return {
+      ok: false,
+      error:
+        "Tabel admin_credentials kosong, jadi tidak ada akun admin yang bisa dipakai. Jalankan ulang migrasi database sebelum memasang.",
+    };
+  }
+
   try {
-    const [storeResult] = await database.batch([
+    const [storeResult, credentialResult] = await database.batch([
       database
         .prepare(
           `INSERT INTO stores (name, slug, site_url, tagline, locale, storefront_template, admin_name, support_whatsapp, created_at)
@@ -168,12 +194,13 @@ export async function runInstall(
         .prepare(
           `UPDATE admin_credentials
              SET username = ?, password_hash = ?, must_change_password = 0, updated_at = ?
-           WHERE id = (SELECT MIN(id) FROM admin_credentials)`,
+           WHERE id = (SELECT MIN(id) FROM admin_credentials)
+             AND must_change_password = 1`,
         )
         .bind(plan.adminUsername, passwordHash, now),
     ]);
 
-    if (!storeResult.meta.changes) {
+    if (!storeResult.meta.changes || !credentialResult.meta.changes) {
       return { ok: false, error: "Instalasi sudah pernah diselesaikan." };
     }
     return { ok: true };

@@ -513,6 +513,28 @@ function createCredentialDatabase(row: CredentialRow) {
   } as unknown as D1Database;
 }
 
+/**
+ * Astro's own path normalization, reproduced closely enough to test the gate
+ * against the shapes an attacker sends: it decodes percent-escapes repeatedly
+ * (so `%25%36%31` becomes `a`) and collapses runs of slashes.
+ */
+function normalizeAstroUrl(rawUrl: string): URL {
+  const url = new URL(rawUrl);
+  let pathname = url.pathname;
+  for (let pass = 0; pass < 5; pass += 1) {
+    let decoded: string;
+    try {
+      decoded = decodeURI(pathname);
+    } catch {
+      break;
+    }
+    if (decoded === pathname) break;
+    pathname = decoded;
+  }
+  url.pathname = pathname.replace(/\/{2,}/g, '/');
+  return url;
+}
+
 async function runAdminRequest(options: {
   pathname: string;
   token: string | null;
@@ -521,8 +543,15 @@ async function runAdminRequest(options: {
 }) {
   const headers = new Headers();
   if (options.token) headers.set('cookie', `adsbook_session=${encodeURIComponent(options.token)}`);
+  const request = new Request(`https://admin.test${options.pathname}`, { headers });
   const context = {
-    request: new Request(`https://admin.test${options.pathname}`, { headers }),
+    request,
+    // Astro hands middleware a normalized URL — percent-escapes decoded,
+    // duplicate slashes collapsed — separately from the raw request, and the
+    // gate reads that one. This harness previously supplied only `request`,
+    // which is why it kept passing while `//api/admin/settings` walked past
+    // every check in the built Worker.
+    url: normalizeAstroUrl(request.url),
     locals: {
       runtimeEnv: {
         AUTH_SECRET,
@@ -540,3 +569,36 @@ async function runAdminRequest(options: {
   assert.ok(response instanceof Response);
   return response;
 }
+
+test('the admin gate holds against paths Astro normalizes before routing', async () => {
+  // Every one of these was measured returning 200 with real data on the built
+  // Worker, with no cookie at all, because middleware classified the raw path
+  // while Astro served the normalized one.
+  const shapes = [
+    '//api/admin/settings',
+    '/api//admin/settings',
+    '/%61pi/admin/settings',
+    '//api/admin/orders',
+    '//api/admin/analytics',
+  ];
+
+  for (const pathname of shapes) {
+    const response = await runAdminRequest({
+      pathname,
+      token: null,
+      stored: null,
+      credential: null,
+    });
+    assert.equal(response.status, 401, `${pathname} must not reach a handler`);
+  }
+
+  for (const pathname of ['//admin/dashboard', '/%61dmin/orders', '//admin/orders']) {
+    const response = await runAdminRequest({
+      pathname,
+      token: null,
+      stored: null,
+      credential: null,
+    });
+    assert.equal(response.status, 302, `${pathname} must be sent to the login screen`);
+  }
+});

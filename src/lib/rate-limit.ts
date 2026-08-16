@@ -79,28 +79,55 @@ export function adminLoginRateLimitBuckets(username: string, ip: string) {
     // Address ceiling: one source spraying many usernames. Loose enough that a
     // shared NAT egress does not trip it on ordinary typos.
     { key: `admin-login:ip:${ip}`, limit: 20 },
-    // Identifier backstop: a distributed attempt on one account. Deliberately
-    // high, because this is the bucket that can lock a real operator out — an
-    // attacker needs ten addresses to reach it, and the damage is a wait of at
-    // most one window, not a lost account.
+    // Identifier backstop: a distributed attempt on one account. It counts
+    // everywhere but only denies an address that has itself failed for this
+    // account — see `checkAdminLoginRateLimit`.
     { key: `admin-login:id:${username}`, limit: 50 },
   ];
 }
 
-/** Reads every login bucket without spending from any of them. */
+/**
+ * Reads every login bucket without spending from any of them.
+ *
+ * The identifier bucket is deliberately not allowed to deny on its own. It
+ * could be reached by anyone who knows the operator's username — sixty requests
+ * from ten addresses, no password guessing required — and it then refused the
+ * real operator, with the correct password, from an address that had never
+ * failed. Measured: 10 addresses × 5 (the pair limit) = 50 = the ceiling, after
+ * which the operator got a 429 for the rest of the window, repeatable
+ * indefinitely at four requests a minute. A backstop that hands an attacker the
+ * ability to lock the merchant out of their own admin is not a backstop.
+ *
+ * So it denies only an address that has itself failed for this account inside
+ * the window. An attacker cannot put a failure on an address they do not
+ * control, which leaves the operator a way in from anywhere; a distributed
+ * attempt still hits its ceiling on every address it actually uses.
+ *
+ * lazy: the pair bucket is the real brake and KV cannot make it exact —
+ * `checkRateLimit` is a non-atomic get-then-put, so N simultaneous guesses all
+ * read the same count and spend one slot between them. It damps sequential
+ * guessing, which is what a credential-stuffing script does; it does not stop a
+ * parallel one. Making it exact needs a Durable Object, tracked as A-71.
+ */
 export async function checkAdminLoginRateLimit(
   sessions: KVNamespace | undefined,
   username: string,
   ip: string,
 ): Promise<RateLimitResult> {
-  const results = await Promise.all(
-    adminLoginRateLimitBuckets(username, ip).map((bucket) =>
+  const buckets = adminLoginRateLimitBuckets(username, ip);
+  const [pair, address, identifier] = await Promise.all(
+    buckets.map((bucket) =>
       checkRateLimit(sessions, bucket.key, bucket.limit, ADMIN_LOGIN_WINDOW_MS, false),
     ),
   );
-  const blocked = results.find((result) => !result.allowed);
-  if (blocked) return blocked;
-  return results.reduce((tightest, result) =>
+
+  if (!pair.allowed) return pair;
+  if (!address.allowed) return address;
+  // `remaining < limit` is "this address has already failed for this account".
+  const addressHasFailedHere = pair.remaining < buckets[0].limit;
+  if (!identifier.allowed && addressHasFailedHere) return identifier;
+
+  return [pair, address].reduce((tightest, result) =>
     result.remaining < tightest.remaining ? result : tightest,
   );
 }

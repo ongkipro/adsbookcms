@@ -102,17 +102,18 @@ test('one address spraying many usernames trips the address ceiling', async () =
   );
 });
 
-test('a distributed attempt on one account hits the identifier backstop', async () => {
+test('a distributed attempt is stopped on every address it uses', async () => {
   const { kv } = createKv();
 
   // Ten addresses, five failures each — every pair bucket is full and no single
-  // address ceiling is, so this is the bucket that catches it. It is also the
-  // documented lockout: the operator waits out the window.
+  // address ceiling is. This used to also deny the account everywhere, which
+  // made the backstop a lockout weapon; it now denies only the addresses that
+  // spent the failures. See `checkAdminLoginRateLimit`.
   for (let host = 0; host < 10; host += 1) {
     await failTimes(kv, 'admin', `198.51.100.${host}`, 5);
   }
 
-  assert.equal((await checkAdminLoginRateLimit(kv, 'admin', '203.0.113.4')).allowed, false);
+  assert.equal((await checkAdminLoginRateLimit(kv, 'admin', '198.51.100.3')).allowed, false);
   assert.equal(
     (await checkAdminLoginRateLimit(kv, 'owner', '203.0.113.4')).allowed,
     true,
@@ -152,4 +153,48 @@ test('the client address prefers the Cloudflare header over forwarded ones', () 
   );
   assert.equal(getClientIp(new Headers({ 'x-forwarded-for': '203.0.113.5, 70.41.3.18' })), '203.0.113.5');
   assert.equal(getClientIp(new Headers()), 'unknown');
+});
+
+test('a distributed attempt cannot lock the operator out of their own admin', async () => {
+  const { kv } = createKv();
+
+  // Ten addresses, each spending its full pair allowance. That is 50 failures
+  // on the identifier bucket — exactly its ceiling — for the cost of knowing
+  // nothing but the username.
+  for (let host = 0; host < 10; host += 1) {
+    await failTimes(kv, 'operator', `203.0.113.${host}`, 5);
+  }
+  const identifierKey = adminLoginRateLimitBuckets('operator', 'x')[2].key;
+  const windowStart =
+    Math.floor(Date.now() / ADMIN_LOGIN_WINDOW_MS) * ADMIN_LOGIN_WINDOW_MS;
+  assert.equal(Number(await kv.get(`${identifierKey}:${windowStart}`)), 50);
+
+  // The operator, from an address that has never failed, must still get in.
+  const operator = await checkAdminLoginRateLimit(kv, 'operator', '198.51.100.7');
+  assert.equal(
+    operator.allowed,
+    true,
+    'the identifier ceiling must not deny an address that has not failed here',
+  );
+
+  // Every address the attacker actually used stays shut.
+  for (let host = 0; host < 10; host += 1) {
+    const attacker = await checkAdminLoginRateLimit(kv, 'operator', `203.0.113.${host}`);
+    assert.equal(attacker.allowed, false, `203.0.113.${host} must stay blocked`);
+  }
+});
+
+test('the identifier ceiling still closes an address once it has failed here', async () => {
+  const { kv } = createKv();
+
+  for (let host = 0; host < 10; host += 1) {
+    await failTimes(kv, 'operator', `203.0.113.${host}`, 5);
+  }
+
+  // A fresh address is open, then spends one failure of its own. From that
+  // point the identifier ceiling applies to it, four short of its pair limit.
+  const fresh = '198.51.100.9';
+  assert.equal((await checkAdminLoginRateLimit(kv, 'operator', fresh)).allowed, true);
+  await recordAdminLoginFailure(kv, 'operator', fresh);
+  assert.equal((await checkAdminLoginRateLimit(kv, 'operator', fresh)).allowed, false);
 });

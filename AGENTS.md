@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `PENDING`
+> Verified against disk: 2026-08-17 @ `d5f3cd8`
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 

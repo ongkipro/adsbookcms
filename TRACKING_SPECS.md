@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, TikTok, and Google Ads Specification
 
-> Verified against disk: 2026-08-17 @ `6550d8a`
+> Verified against disk: 2026-08-17 @ `c6e7dd2`
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 

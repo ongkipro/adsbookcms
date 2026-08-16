@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `6550d8a`
+> Verified against disk: 2026-08-17 @ `c6e7dd2`
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 

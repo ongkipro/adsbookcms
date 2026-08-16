@@ -1,6 +1,6 @@
 # Architecture Decision Record — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `6550d8a`
+> Verified against disk: 2026-08-17 @ `c6e7dd2`
 
 Append-only. One decision per entry. A decision is recorded here only when it constrains future work; implementation detail belongs in `ARCHITECTURE.md`, remaining work in `UNIMPLEMENTED_SPECS.md`.
 

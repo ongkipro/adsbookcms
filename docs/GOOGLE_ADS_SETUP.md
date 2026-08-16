@@ -1,6 +1,6 @@
 # Google Ads Conversion Signal & Merchant Center Setup Guide
 
-> Verified against disk: 2026-08-17 @ `6550d8a`
+> Verified against disk: 2026-08-17 @ `c6e7dd2`
 
 > **Product:** AdsBookCMS (single) — one installer, one Worker, one store.
 > **Repository role:** product. Examples below name `permatamall.shop`, the first install, which lives in its own repository (`ongkipro/permatamall`); substitute your own install's domain.

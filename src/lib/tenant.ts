@@ -159,13 +159,19 @@ export function resolveTenantConfig(
  *                   inserts one, so this is exactly a database that has been
  *                   migrated but never set up. It is what routes an operator
  *                   to the install wizard.
- * - `unknown`     — the query failed. A broken database must never be mistaken
- *                   for an empty one, or a transient fault would send a live
- *                   store to the installer.
+ * - `unmigrated`  — the `stores` table does not exist. This is not a fault and
+ *                   not transient: it means the migration chain was never
+ *                   applied. Folding it into `unknown` made a Worker pointed at
+ *                   an empty database serve a placeholder storefront with a 200
+ *                   and tell nobody.
+ * - `unknown`     — the query failed for some other reason. A broken database
+ *                   must never be mistaken for an empty one, or a transient
+ *                   fault would send a live store to its own installer.
  */
 export type StoreIdentityRead =
   | { state: "installed"; row: StoreIdentityRow }
   | { state: "uninstalled" }
+  | { state: "unmigrated" }
   | { state: "unknown" };
 
 export async function readStoreIdentity(
@@ -179,6 +185,12 @@ export async function readStoreIdentity(
       .first<StoreIdentityRow>();
     return row ? { state: "installed", row } : { state: "uninstalled" };
   } catch (error) {
+    // SQLite reports a missing table as "no such table". D1 wraps it, so match
+    // on the message rather than an error code it does not expose.
+    if (/no such table/i.test(String((error as Error)?.message ?? error))) {
+      console.error("tenant-identity-unmigrated");
+      return { state: "unmigrated" };
+    }
     console.error("tenant-identity-load", error);
     return { state: "unknown" };
   }

@@ -1108,6 +1108,19 @@ A-50 install topology (blocked until A-10 removes the build-time constraint)
 - [x] **A-66** — Five page-level admin components emit no headings at all. **Fixed 2026-08-16.**
  -> `ContentWorkbench`, `HeadlessApiManagement`, `SellerBankAccounts`, `OperationalHealth`, and `AnalyticsDashboard`'s success branch. Every visual heading is a `CardTitle`, which shadcn renders as a `<div>`, so those pages contribute nothing to the document outline below the topbar `h1` — a screen-reader user cannot navigate them by heading.
 
+- [x] **A-68** — A fresh install could be completed and then not logged into. **Fixed 2026-08-16.**
+ -> REQ: REQ-3 · LOGIN-1 · The login route needs `AUTH_SECRET` at 32 characters or more to sign a session and returns 503 without it, but the wizard never checked. An operator could complete the install and be locked out of the store they had just created, with no indication why. This is the **fourth** install blocker found, after the migration chain, the unopenable credential, and the missing store row — each was hidden behind the one before it.
+ · `/api/install` now checks before writing anything and names the exact command to run. Refusing costs a retry; refusing after the write costs an install nobody can enter.
+ · **Found by running the built Worker against a real empty database over HTTP** — no unit test would have caught it, because every unit test supplies its own secret.
+
+- [x] **A-69** — An unmigrated database served a placeholder storefront with a 200. **Fixed 2026-08-16.**
+ -> REQ: REQ-2 · `readStoreIdentity` folded "the `stores` table does not exist" into `unknown`, and `unknown` deliberately never redirects so a transient fault cannot send a live store to its own installer. But a missing table is neither a fault nor transient — it means the migration chain was never applied, and treating the two alike meant a Worker pointed at an empty database rendered a working-looking store with fallback identity and told nobody.
+ · There is now a fourth state, `unmigrated`, matched on the SQLite message rather than an error code D1 does not expose. It routes to `/install`, where the operator gets an accurate message. Genuine faults still do not redirect.
+ · Found by accident: a migration command was cut short during live testing, producing exactly this state.
+
+- [x] **A-70** — Every fresh store announced itself as "not configured". **Fixed 2026-08-16.**
+ -> The `wrangler.jsonc` template shipped `PUBLIC_SITE_TAGLINE: "Belum Dikonfigurasi"`, and the wizard collected no tagline — so a store's `<title>` read *"Toko Anda — Belum Dikonfigurasi"* on every page from the moment it went live. My own defect, introduced when writing the template. The template value is now empty, and the wizard collects an optional tagline.
+
 ## A5 — Operability
 
 - [x] **A-40** — Enable Workers Logs. **Done 2026-08-16.**

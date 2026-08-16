@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 
-import { getRuntimeEnv } from "../../lib/env";
+import { getEnvValue, getRuntimeEnv } from "../../lib/env";
 import { planInstall, runInstall } from "../../lib/install";
 import { readStoreIdentity } from "../../lib/tenant";
 
@@ -27,6 +27,24 @@ export const POST: APIRoute = async ({ request, locals }) => {
     console.error("install-no-database-binding");
     return json(
       { success: false, error: "Database belum tersambung ke Worker ini." },
+      503,
+    );
+  }
+
+  // Checked before anything is written, because the alternative is an operator
+  // who completes the wizard and is then locked out of their own store: the
+  // login route needs AUTH_SECRET at 32 characters or more to sign a session,
+  // and returns 503 without it. Refusing here costs a retry; refusing after the
+  // write costs an install nobody can enter.
+  const authSecret = getEnvValue("AUTH_SECRET", getRuntimeEnv(locals));
+  if (authSecret.length < 32) {
+    console.error("install-missing-auth-secret");
+    return json(
+      {
+        success: false,
+        error:
+          "AUTH_SECRET belum diatur di Worker ini (minimal 32 karakter). Jalankan `npx wrangler secret put AUTH_SECRET`, lalu muat ulang halaman ini. Tanpa itu, instalasi berhasil tetapi Anda tidak akan bisa login.",
+      },
       503,
     );
   }
@@ -60,6 +78,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     adminUsername: body.admin_username,
     adminPassword: body.admin_password,
     adminPasswordConfirm: body.admin_password_confirm,
+    tagline: body.tagline,
     supportWhatsapp: body.support_whatsapp,
     locale: body.locale,
     storefrontTemplate: body.storefront_template,

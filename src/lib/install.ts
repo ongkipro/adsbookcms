@@ -12,6 +12,7 @@ export interface InstallInput {
   adminUsername: unknown;
   adminPassword: unknown;
   adminPasswordConfirm: unknown;
+  tagline?: unknown;
   supportWhatsapp: unknown;
   locale?: unknown;
   storefrontTemplate?: unknown;
@@ -23,6 +24,7 @@ export interface InstallPlan {
   slug: string;
   adminUsername: string;
   adminPassword: string;
+  tagline: string;
   supportWhatsapp: string;
   locale: string;
   storefrontTemplate: string;
@@ -117,6 +119,7 @@ export function planInstall(
       storeName,
       siteUrl,
       slug: slugFromStoreName(storeName),
+      tagline: text(input.tagline, 120),
       adminUsername,
       adminPassword,
       supportWhatsapp,
@@ -146,14 +149,15 @@ export async function runInstall(
     const [storeResult] = await database.batch([
       database
         .prepare(
-          `INSERT INTO stores (name, slug, site_url, locale, storefront_template, admin_name, support_whatsapp, created_at)
-           SELECT ?, ?, ?, ?, ?, ?, ?, ?
+          `INSERT INTO stores (name, slug, site_url, tagline, locale, storefront_template, admin_name, support_whatsapp, created_at)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
            WHERE NOT EXISTS (SELECT 1 FROM stores)`,
         )
         .bind(
           plan.storeName,
           plan.slug,
           plan.siteUrl,
+          plan.tagline || null,
           plan.locale,
           plan.storefrontTemplate,
           `${plan.storeName} Ops`,

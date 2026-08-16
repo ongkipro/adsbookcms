@@ -136,7 +136,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // sites that each silently read null. Only `uninstalled` redirects —
   // `unknown` means the query failed, and a transient database fault must never
   // route a live store to its own installer.
-  if (identity.state === 'uninstalled' && !isInstallerPath(url.pathname)) {
+  if (
+    (identity.state === 'uninstalled' || identity.state === 'unmigrated') &&
+    !isInstallerPath(url.pathname)
+  ) {
     return applySecurityHeaders(context.redirect('/install'), true);
   }
   // Once installed the wizard is gone for good; it is unauthenticated, so it

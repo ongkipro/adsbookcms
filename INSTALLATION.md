@@ -1,6 +1,6 @@
 # Installing AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `d5f3cd8`
+> Verified against disk: 2026-08-17 @ `6550d8a`
 
 This document describes how an install is actually stood up today, and where that process is still rougher than the product intends to be. It contains no commands that do not exist. Where a step is manual because the tooling has not been built yet, it says so and points at the gap.
 

@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying the bundled demo dataset (ADR-011). Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-08-17 @ `d5f3cd8`
+> Verified against disk: 2026-08-17 @ `6550d8a`
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 

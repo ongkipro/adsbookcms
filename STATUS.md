@@ -1,6 +1,6 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `d5f3cd8`
+> Verified against disk: 2026-08-17 @ `6550d8a`
 >
 > `main` was re-founded as AdsBookCMS and its history rewritten (ADR-012), so the
 > commit range this document once cited no longer exists on this branch; the

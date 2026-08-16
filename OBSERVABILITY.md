@@ -1,6 +1,6 @@
 # Observability — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `d5f3cd8`
+> Verified against disk: 2026-08-17 @ `6550d8a`
 
 This document describes what can and cannot currently be observed about a running install. It is deliberately blunt about the gaps, because for an installable product the inability to diagnose someone else's install is a product defect, not a nice-to-have.
 

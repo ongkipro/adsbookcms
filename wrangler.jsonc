@@ -93,7 +93,7 @@
 
     // Root-relative or absolute. Replace the placeholder wordmark in
     // public/images/ with the store's own brand assets.
-    "PUBLIC_SITE_LOGO": "/images/logo.webp",
+    "PUBLIC_SITE_LOGO": "/images/adsbook-mark.webp",
 
     // Must match #rrggbb or the code falls back to its own default.
     "PUBLIC_SITE_THEME_COLOR": "#111111",

@@ -102,11 +102,25 @@ async function loadStoredEmbedAllowedOrigins(
  * unreachable until the wizard has run, because everything else assumes a store
  * row that is not there yet.
  */
-function isInstallerPath(pathname: string): boolean {
+function isInstallerRoute(pathname: string): boolean {
   return (
     pathname === '/install' ||
     pathname === '/install/' ||
-    pathname === '/api/install' ||
+    pathname === '/api/install'
+  );
+}
+
+/**
+ * The installer's own routes plus the assets its page needs to render. Used
+ * only while the store is *not* installed, to let the wizard through.
+ *
+ * Deliberately not reused for the installed case: an installed store that
+ * redirected `/images/…` would answer a missing image with a 302 to the login
+ * screen instead of a 404 — which is what it did.
+ */
+function isInstallerPath(pathname: string): boolean {
+  return (
+    isInstallerRoute(pathname) ||
     pathname.startsWith('/_astro/') ||
     pathname.startsWith('/images/') ||
     pathname === '/favicon.ico' ||
@@ -153,7 +167,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
   // Once installed the wizard is gone for good; it is unauthenticated, so it
   // must not linger as a re-runnable surface.
-  if (identity.state === 'installed' && isInstallerPath(url.pathname)) {
+  if (identity.state === 'installed' && isInstallerRoute(url.pathname)) {
     return applySecurityHeaders(context.redirect('/hello'), true);
   }
   const siteUrl = getEnvValue('PUBLIC_SITE_URL', runtime);

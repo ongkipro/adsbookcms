@@ -28,12 +28,19 @@ import {
 } from "./admin-navigation";
 import { CMS_VERSION } from "@/lib/version";
 
+// A store that has not set its own logo gets the product's neutral mark,
+// never another store's wordmark. /images/logo.webp was the demo store's,
+// and it was hardcoded here, so every install wore it. Same defect as
+// LOGIN-10, one surface over.
+const PRODUCT_MARK = "/images/adsbook-mark.webp";
+
 export function AppSidebar({
   activeMenu,
   currentPath,
   siteUrl = "",
   adminName,
   siteName,
+  siteLogo,
   adminRole,
 }: {
   activeMenu: string;
@@ -41,6 +48,7 @@ export function AppSidebar({
   siteUrl?: string;
   adminName: string;
   siteName?: string;
+  siteLogo?: string;
   adminRole: AdminRole;
 }) {
   const rawName = siteName || adminName;
@@ -85,8 +93,8 @@ export function AppSidebar({
             <SidebarMenuButton asChild size="lg" tooltip={`${storeName} Dashboard`} className="h-14 rounded-xl px-2 hover:bg-sidebar-accent">
               <a href="/admin/dashboard" aria-label={`Buka dashboard ${storeName}`}>
                 <img
-                  src="/images/logo.webp"
-                  alt="CMS Logo"
+                  src={siteLogo || PRODUCT_MARK}
+                  alt={storeName}
                   className="size-9 shrink-0 object-contain"
                 />
                 <span className="grid-cols-1 grid min-w-0 flex-1 text-left leading-tight">

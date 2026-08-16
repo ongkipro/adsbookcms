@@ -13,7 +13,7 @@ export default function ProductImageSlider({
   badgeText = 'Bestseller',
   discountPercentage = 0,
 }: ProductImageSliderProps) {
-  const gallery = images && images.length > 0 ? images : ['/images/logo.webp'];
+  const gallery = images && images.length > 0 ? images : ['/images/adsbook-mark.webp'];
   const [activeIndex, setActiveIndex] = useState(0);
   const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const touchStartX = useRef<number | null>(null);

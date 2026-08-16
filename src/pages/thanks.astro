@@ -16,6 +16,10 @@ Astro.response.headers.set('Cache-Control', 'no-store');
 
 const products = await getStorefrontProducts(Astro.locals);
 const csPhone = await getStoreSupportWhatsapp(Astro.locals);
+// This store's own logo. It used to be a hardcoded `/images/logo.webp` — the
+// demo store's wordmark — so every install's confirmation page carried another
+// merchant's brand at the moment the customer trusts it most.
+const storeLogo = Astro.locals.tenant.logo;
 const productCatalog = products.map((item) => ({
   slug: item.slug,
   productName: item.productName,
@@ -96,7 +100,7 @@ const productCatalog = products.map((item) => ({
         <div class="relative grid size-[84px] shrink-0 place-items-center overflow-hidden rounded-md">
           <img
             id="product-image"
-            src="/images/logo.webp"
+            src={storeLogo}
             alt=""
             class="h-full w-full rounded-md object-contain"
             loading="lazy"
@@ -407,7 +411,7 @@ const productCatalog = products.map((item) => ({
     }
   </style>
 
-  <script is:inline define:vars={{ csPhone, productCatalog }}>
+  <script is:inline define:vars={{ csPhone, productCatalog, storeLogo }}>
     const fmt = (n) =>
       `Rp${Math.round(Number(n || 0))
         .toLocaleString('id-ID')
@@ -472,7 +476,7 @@ const productCatalog = products.map((item) => ({
     );
     const productName = catalogProduct?.productName || rawProductName;
     const variantLabel = catalogVariant?.label || rawVariantLabel;
-    const productImage = pick('product_image', catalogProduct?.image || '/images/logo.webp');
+    const productImage = pick('product_image', catalogProduct?.image || storeLogo);
     const productHeadline = pick('product_headline', catalogProduct?.headline || '');
     const quantity = Math.max(1, pickNum('quantity', 1));
     const productPrice = pickNum('product_price', pickNum('value', catalogVariant?.price || 0));

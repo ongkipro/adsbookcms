@@ -290,8 +290,11 @@ Define the applicable consent behaviour before loading optional browser tags. Tr
 
 This repository was re-founded from a prior deployment. Most of the inherited
 identity is gone; what remains is listed here, and `src/lib/brand-contamination.test.ts`
-now fails the build if the reference store's brand re-enters `src/` or `public/`
-outside a test fixture. That guard exists because this leaked five times on five
+now fails the build on two axes: if the reference store's brand re-enters `src/`
+or `public/` as text, and if any top-level entry under `public/images/` is
+referenced by nothing. The second exists because a `.webp` carries no matchable
+text — the demo store's wordmark shipped as `logo.webp`, hardcoded in eight
+places, alongside 500 unreferenced files of a former merchant's photography. That guard exists because this leaked five times on five
 surfaces that each looked like the last one: the login artwork, the login card's
 logo, the storefront wordmark, the favicon every admin page loads, and
 `robots.txt`, which handed every merchant's crawler someone else's sitemap.

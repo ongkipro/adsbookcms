@@ -45,17 +45,25 @@ interface AdminShellProps {
   title: string;
   adminName: string;
   siteName?: string;
+  siteLogo?: string;
   activeMenu: string;
   currentPath: string;
   siteUrl: string;
   adminRole: AdminRole;
 }
 
+// A store that has not set its own logo gets the product's neutral mark,
+// never another store's wordmark. /images/logo.webp was the demo store's,
+// and it was hardcoded here, so every install wore it. Same defect as
+// LOGIN-10, one surface over.
+const PRODUCT_MARK = "/images/adsbook-mark.webp";
+
 export function AdminShell({
   children,
   title,
   adminName,
   siteName,
+  siteLogo,
   activeMenu,
   currentPath,
   siteUrl,
@@ -163,6 +171,7 @@ export function AdminShell({
         <AppSidebar
           adminName={adminName}
           siteName={siteName}
+          siteLogo={siteLogo}
           activeMenu={activeMenu}
           currentPath={currentPath}
           siteUrl={siteUrl}
@@ -173,7 +182,7 @@ export function AdminShell({
             <div className="flex min-w-0 flex-1 items-center gap-2.5 md:gap-3">
               <SidebarTrigger className="hidden size-9 rounded-lg text-slate-500 hover:bg-slate-100 md:inline-flex" />
               <a href="/admin/dashboard" className="flex size-9 shrink-0 items-center justify-center md:hidden" aria-label={`Dashboard ${adminName}`}>
-                <img src="/images/logo.webp" alt="Logo" className="size-8 object-contain" />
+                <img src={siteLogo || PRODUCT_MARK} alt={siteName || adminName} className="size-8 object-contain" />
               </a>
               <div className="min-w-0">
                 <h1 className="truncate text-[15px] font-extrabold tracking-[-0.02em] text-slate-950 md:text-base">

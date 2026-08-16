@@ -156,7 +156,7 @@ export function mergeStorefrontCatalog(
     if (variants.length === 0) continue;
 
     const firstVariant = variants[0];
-    const image = product.image_url || "/images/logo.webp";
+    const image = product.image_url || "/images/adsbook-mark.webp";
 
     const categoryLabel = product.category?.trim() || "Produk";
     const details = getCatalogProductDetails(productName, categoryLabel);

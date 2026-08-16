@@ -42,6 +42,8 @@ const adminRole = Astro.locals.admin?.role ?? 'customer_service';
       client:load
       title={title}
       adminName={Astro.locals.tenant.adminName}
+      siteName={Astro.locals.tenant.name}
+      siteLogo={Astro.locals.tenant.logo}
       activeMenu={activeMenu}
       currentPath={currentPath}
       siteUrl={Astro.locals.tenant.siteUrl}

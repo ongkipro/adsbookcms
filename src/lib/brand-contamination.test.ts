@@ -75,3 +75,64 @@ test("product code carries no reference-store branding", () => {
       "`window.location.origin` (client island):\n  " + offenders.join("\n  "),
   );
 });
+
+/**
+ * An asset nobody references is the shape brand contamination takes when the
+ * scanner above cannot see it: the demo store's wordmark is a `.webp`, so no
+ * amount of text matching finds it, and `wrangler.jsonc` plus eight source files
+ * pointed straight at it. Every install's admin shell, sidebar and confirmation
+ * page rendered another merchant's brand.
+ *
+ * Around it sat 500 more files — a former merchant's entire product
+ * photography, 12MB, referenced by nothing at all and shipped in every bundle.
+ *
+ * So: every top-level entry under `public/images/` must be named somewhere the
+ * product actually reads. That catches the orphan directly, and catches the
+ * wordmark indirectly, because removing the last hardcoded reference to a
+ * store-specific asset is what makes it an orphan.
+ */
+test("no image asset ships without something referencing it", () => {
+  const base = "public/images";
+  const haystack = ["src", "scripts", "public", "wrangler.jsonc"]
+    .flatMap((root) => collect(root))
+    .join("\n");
+
+  const orphans = readdirSync(base).filter(
+    (entry) => !haystack.includes(`images/${entry}`),
+  );
+
+  assert.deepEqual(
+    orphans,
+    [],
+    "These ship in every install and nothing points at them. Delete them, or " +
+      "reference them — an unreferenced asset is how a former merchant's entire " +
+      "catalogue stayed in the bundle:\n  " + orphans.join("\n  "),
+  );
+});
+
+/** Every readable file under a root, for substring searching. */
+function collect(root: string): string[] {
+  if (!statSync(root).isDirectory()) {
+    return [safeRead(root)];
+  }
+  const out: string[] = [];
+  for (const entry of readdirSync(root)) {
+    const full = join(root, entry);
+    if (statSync(full).isDirectory()) {
+      // public/images is the subject, not the evidence.
+      if (full === "public/images") continue;
+      out.push(...collect(full));
+    } else if (/\.(ts|tsx|astro|js|css|json|jsonc|sql|md|txt)$/.test(entry)) {
+      out.push(safeRead(full));
+    }
+  }
+  return out;
+}
+
+function safeRead(file: string): string {
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    return "";
+  }
+}

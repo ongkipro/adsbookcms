@@ -2231,3 +2231,59 @@ endpoint returns, so that round trip works.
 
 Gates: `npm test` 303/303 · `npm run check` 318 files, 0/0/0 · `npm run build`
 complete.
+
+---
+
+## 2026-08-17 (later still) — The rewrite removed the history, not the files
+
+Verifying the force-push turned up something the history rewrite could not have
+fixed, because it was never only in history.
+
+Scanning every object reachable from the new `main` for former merchants' names
+returned nine matches. They were not orphaned blobs — they were **tracked files
+in the current tree**. `public/images/` held a former merchant's entire product
+photography: `produk/` with 133 files, plus `duku/`, `jamblang/`,
+`jeruk-santang/`, `markisa/`, `sawo/`, `lampu/`, `pompa-portable/`, `sealant/`,
+`pasta-dinding/`, `vegetable-cutter/`, `kacamata-radiasi/`, `bunga-sutra/` and
+four loose `.webp` files. 500 files, roughly 12 MB, referenced by no code, no
+seed, no migration and no content — shipped in every install's bundle.
+
+The demo catalogue lives under `products/` (22 entries, referenced by
+`scripts/seed-catalog.sql`); `produk/` was the inherited one and nothing had
+pointed at it for a long time.
+
+Worse, `logo.webp` — which *was* referenced — is the demo store's wordmark, and
+it was hardcoded in eight places: `AdminShell`, `AppSidebar`, `/thanks` twice,
+the product-image fallback in `catalog-data.ts`, the default home content, the
+storefront image slider, and `wrangler.jsonc` as `PUBLIC_SITE_LOGO`. Every
+install's admin chrome and order-confirmation page rendered another merchant's
+brand — the confirmation page being the exact moment a customer decides whether
+the shop is real.
+
+This is the sixth surface of the same defect, after the login artwork, the login
+card's logo, the storefront wordmark, the favicon, and `robots.txt`.
+`brand-contamination.test.ts` could not see it: a `.webp` carries no matchable
+text. So the guard gained a second test on a different axis — **every top-level
+entry under `public/images/` must be referenced somewhere the product reads**.
+That catches an orphaned directory directly, and catches a store-specific asset
+indirectly, because removing its last hardcoded reference is what makes it an
+orphan. Mutation-verified.
+
+The logo now flows through the identity chain that already carried the store
+name: `AdminLayout` → `AdminShell` → `AppSidebar`, from
+`Astro.locals.tenant.logo`. Product-owned fallbacks point at the neutral
+`adsbook-mark.webp`. `public/images` went 21 MB → 9.1 MB.
+
+One more defect fell out of the live check. A request for an absent image
+answered **302 to `/hello`** rather than 404, because `isInstallerPath` — which
+deliberately covers `/images/`, `/_astro/` and the favicons so the wizard can
+render before a store exists — was also used for the installed case. An `<img>`
+was being handed an HTML login page. Split into `isInstallerRoute` for the
+installed branch and `isInstallerPath` for the uninstalled one.
+
+Verified against the running Worker: no broken image on `/`, `/produk/…`,
+`/thanks` or `/hello`; absent images 404; `/install` still locked on an
+installed store.
+
+Gates: `npm test` 305/305 · `npm run check` 318 files, 0/0/0 · `npm run build`
+complete. `.git` is 26 MB after `gc --prune=now`, down from 135 MB.

@@ -86,7 +86,7 @@ test('CRM rendering replaces order variables and produces an encoded WhatsApp UR
     district: 'Krembangan',
     province: 'Jawa Timur',
     orderNumber: 'INV-1',
-    productName: 'Aussie',
+    productName: 'Alpha',
     totalAmount: 183000,
     courierCode: 'SiCepat',
   });

@@ -33,19 +33,19 @@ function product(slug: string, productId: string): Product {
   };
 }
 
-const aussie = product("aussie", "10001");
-const bensu = product("bensu", "10002");
+const alpha = product("alpha", "10001");
+const beta = product("beta", "10002");
 
 test("D1 product identity and sellable variants override editorial catalog operations", () => {
   const products = mergeStorefrontCatalog(
-    [aussie, bensu],
+    [alpha, beta],
     [
       {
         id: 10001,
-        title: "Aussie Admin",
-        slug: "aussie-admin",
+        title: "Alpha Admin",
+        slug: "alpha-admin",
         category: "Admin Category",
-        image_url: "/assets/uploads/aussie.webp",
+        image_url: "/assets/uploads/alpha.webp",
         is_active: 1,
       },
     ],
@@ -70,13 +70,13 @@ test("D1 product identity and sellable variants override editorial catalog opera
   );
 
   const merged = products.find(
-    (product) => product.productId === aussie.productId,
+    (product) => product.productId === alpha.productId,
   );
   assert.ok(merged);
-  assert.equal(merged.productName, "Aussie Admin");
-  assert.equal(merged.slug, "aussie-admin");
+  assert.equal(merged.productName, "Alpha Admin");
+  assert.equal(merged.slug, "alpha-admin");
   assert.equal(merged.category, "Admin Category");
-  assert.equal(merged.image, "/assets/uploads/aussie.webp");
+  assert.equal(merged.image, "/assets/uploads/alpha.webp");
   assert.equal(merged.price, 151000);
   assert.deepEqual(merged.variants, [
     {
@@ -87,25 +87,25 @@ test("D1 product identity and sellable variants override editorial catalog opera
       comparePrice: 229000,
     },
   ]);
-  assert.ok(!products.some((product) => product.productId === bensu.productId));
+  assert.ok(!products.some((product) => product.productId === beta.productId));
 });
 
 test("inactive or checkout-incomplete D1 products are hidden from storefront output", () => {
   const baseRow = {
     id: 10001,
-    title: "Aussie",
-    slug: "aussie",
+    title: "Alpha",
+    slug: "alpha",
     category: null,
     image_url: null,
   };
 
   assert.deepEqual(
-    mergeStorefrontCatalog([aussie], [{ ...baseRow, is_active: 0 }], []),
+    mergeStorefrontCatalog([alpha], [{ ...baseRow, is_active: 0 }], []),
     [],
   );
   assert.deepEqual(
     mergeStorefrontCatalog(
-      [aussie],
+      [alpha],
       [{ ...baseRow, is_active: 1 }],
       [
         {

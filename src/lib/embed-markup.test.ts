@@ -12,7 +12,7 @@ const markup = buildEmbedMarkup({
   embedUrl:
     "https://forms.example/embed/form?mode=hybrid&product_id=10001&variant_id=20002",
   elementId: "adsbook-order-form-10001",
-  title: 'Form pemesanan Aussie "Sample"',
+  title: 'Form pemesanan Alpha "Sample"',
   productId: "10001",
   variantId: "20002",
   mode: "hybrid",
@@ -25,7 +25,7 @@ test("widget keeps a usable iframe fallback and canonical form identity", () => 
   assert.match(markup.widget, /mode="hybrid"/);
   assert.match(markup.widget, /<iframe [^>]*loading="eager"/);
   assert.match(markup.widget, /src="https:\/\/forms\.example\/embed\/form\?/);
-  assert.match(markup.widget, /Form pemesanan Aussie &quot;Sample&quot;/);
+  assert.match(markup.widget, /Form pemesanan Alpha &quot;Sample&quot;/);
   assert.match(markup.widget, /<script async src="https:\/\/forms\.example\/adsbook-form-widget\.js\?v=\d+"><\/script>$/);
 });
 

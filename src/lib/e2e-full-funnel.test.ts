@@ -285,7 +285,7 @@ test("checkout promotes one abandoned lead and queues one attributable Purchase"
     async () => {
       const landingClickIds = parseClickIdsFromUrl(
         new URL(
-          "https://shop.example/produk/aussie?gclid=google-click_123&_fbp=fb.1.1700000000.111&_fbc=fb.1.1700000000.click-222&ttclid=tiktok-click_333",
+          "https://shop.example/produk/alpha?gclid=google-click_123&_fbp=fb.1.1700000000.111&_fbc=fb.1.1700000000.click-222&ttclid=tiktok-click_333",
         ),
       );
       const submitRequest = new Request("https://shop.example/api/submit-order", {
@@ -384,7 +384,7 @@ test("checkout promotes one abandoned lead and queues one attributable Purchase"
           userAgent: "full-funnel-test",
         },
         customData: {
-          contentName: "Aussie Sample",
+          contentName: "Alpha Sample",
           contentIds: ["10001"],
           contentType: "product",
           value: order.totalAmount,
@@ -474,10 +474,10 @@ test("5. product and storefront JSON-LD builders generate complete schema", () =
     siteUrl,
     organization,
     product: {
-      name: "Aussie Sample",
+      name: "Alpha Sample",
       description: "Produk sampel resmi Permata Mall.",
-      image: ["/products/aussie.webp"],
-      url: "/produk/aussie",
+      image: ["/products/alpha.webp"],
+      url: "/produk/alpha",
       sku: "AUS-500",
       category: "Home & Garden",
       offers: [
@@ -500,21 +500,21 @@ test("5. product and storefront JSON-LD builders generate complete schema", () =
     url: string;
   };
   assert.equal(product["@type"], "Product");
-  assert.equal(product.url, "https://shop.example/produk/aussie");
-  assert.deepEqual(product.image, ["https://shop.example/products/aussie.webp"]);
+  assert.equal(product.url, "https://shop.example/produk/alpha");
+  assert.deepEqual(product.image, ["https://shop.example/products/alpha.webp"]);
   assert.equal(product.sku, "AUS-500");
   assert.equal(offer["@type"], "Offer");
   assert.equal(offer.price, 150000);
   assert.equal(offer.priceCurrency, "IDR");
   assert.equal(offer.availability, "https://schema.org/InStock");
   assert.equal(offer.itemCondition, "https://schema.org/NewCondition");
-  assert.equal(offer.url, "https://shop.example/produk/aussie");
+  assert.equal(offer.url, "https://shop.example/produk/alpha");
 
   const breadcrumbs = buildBreadcrumbJsonLd({
     siteUrl,
     breadcrumbs: [
       { name: "Beranda", url: "/" },
-      { name: "Aussie Sample", url: "/produk/aussie" },
+      { name: "Alpha Sample", url: "/produk/alpha" },
     ],
   });
   assert.equal(breadcrumbs["@type"], "BreadcrumbList");
@@ -522,7 +522,7 @@ test("5. product and storefront JSON-LD builders generate complete schema", () =
     breadcrumbs.itemListElement.map(({ position, item }) => ({ position, item })),
     [
       { position: 1, item: "https://shop.example/" },
-      { position: 2, item: "https://shop.example/produk/aussie" },
+      { position: 2, item: "https://shop.example/produk/alpha" },
     ],
   );
 

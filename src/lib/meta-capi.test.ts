@@ -34,7 +34,7 @@ test('Meta CAPI uses supported API version and forwards test event code', async 
   const result = await sendMetaCapiEvent(
     'PageView',
     'settings_test_1',
-    'https://petanisejahtera.com/admin/ads/meta',
+    'https://contoh-toko.example/admin/ads/meta',
     { phone: '081234567890', name: 'Siti', clientIp: '127.0.0.1', userAgent: 'test' },
     { contentName: 'AdsBookCMS Meta CAPI connection test' },
     '123456789',

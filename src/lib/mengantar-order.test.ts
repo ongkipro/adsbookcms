@@ -18,7 +18,7 @@ test("builds canonical Mengantar order payload for COD", () => {
     customerName: " Customer One ",
     customerPhone: "0812-3456-7890",
     customerAddress: "Jl. Merdeka 10",
-    productTitle: "Pupuk Aussies",
+    productTitle: "Pupuk Alphas",
     variantTitle: "1 Liter",
     unitWeightKg: 1.2,
     quantity: 2,
@@ -36,7 +36,7 @@ test("builds canonical Mengantar order payload for COD", () => {
   assert.equal(first.customerName, "Customer One");
   assert.equal(first.customerPhone, "081234567890");
   assert.equal(first.customerAddressDataId, "dest_456");
-  assert.equal(first.parcelContent, "Pupuk Aussies - 1 Liter");
+  assert.equal(first.parcelContent, "Pupuk Alphas - 1 Liter");
   assert.equal(first.weight, 2.4);
   assert.equal(first.quantity, 2);
   assert.equal(first.COD, 320000);

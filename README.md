@@ -1,16 +1,44 @@
 # AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `6550d8a`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 A self-contained direct-response commerce CMS that installs onto Cloudflare Workers. One install runs one store: storefront, landing-page builder, checkout with COD and online payment, order management, courier dispatch, ad-signal tracking, and an admin dashboard — in a single Worker with its own database.
 
-**Install model: 1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from tenant routing inside the application. See `DECISIONS.md` ADR-001.
+**Install model: 1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from tenant routing inside the application (`DECISIONS.md` ADR-001).
 
-Ships with a demo dataset — 22 products with photography — so a fresh install has something real to look at. It is replaced through the CMS when a merchant onboards (`DECISIONS.md` ADR-011).
+**This repository is the product. It deploys nothing.** An install lives in its own repository, with its own Worker, D1, KV, R2 and domain, and deploys from there. `wrangler.jsonc` here is a template of placeholders, and there are no Cloudflare credentials in this repository by design (ADR-012).
 
-**This repository is the product. It deploys nothing.** An install lives in its own repository, with its own Worker, D1, KV, R2 and domain, and deploys from there. `wrangler.jsonc` here is a template of placeholders.
+The first install built on this code is `permatamall.shop`, in the separate `ongkipro/permatamall` repository. Its Cloudflare resources still carry `cmsads-*` names inherited from the upstream engine; those are legacy and deliberately not renamed, because renaming a Worker creates a new one and drops its custom domain, and D1 and R2 names cannot be changed in place.
 
-The first install built on this code is `permatamall.shop`, which lives in the separate `ongkipro/permatamall` repository. Its Cloudflare resources still carry `cmsads-*` names inherited from the upstream engine; those are legacy and are not renamed, because renaming a Worker creates a new one and drops its custom domain, and D1 and R2 names cannot be changed in place.
+---
+
+## What an install looks like
+
+Point a Worker with an empty, migrated D1 at a domain and open it. Every route redirects to `/install`, which asks once for the store name, address, optional tagline and support number, the admin username and password **you choose**, and a storefront template. Submitting writes the store row and your credential in a single transaction, then the wizard refuses to run again.
+
+Two things that will otherwise cost an afternoon:
+
+- **Set `AUTH_SECRET` (32+ characters) before installing.** The installer checks it and refuses before writing anything, because the login route needs it to sign a session — without it the install completes and then locks you out.
+- **Apply the migrations first.** An unmigrated database also routes to `/install`, and the installer will tell you so rather than half-writing a store.
+
+`admin` / `admin` remains a fallback only for an install whose credential was never claimed by a wizard, and a session on it can reach nothing but its own password change (`PRD-ADMIN-LOGIN.md`).
+
+Full procedure, including creating the Cloudflare resources: `INSTALLATION.md`.
+
+---
+
+## Quick start (local)
+
+```bash
+npm ci
+npm run db:migrate:local      # 37 migrations, applied to a local D1
+npm run db:reset:demo:local   # optional demo catalog — DESTRUCTIVE to catalog rows
+npm run cf:dev                # wrangler dev --local, closest to production
+```
+
+`npm run dev` is faster for pure UI work but runs without the Worker bindings, so anything touching D1, KV or R2 needs `cf:dev`.
+
+Ships with a demo dataset — 22 products and 110 variants, with photography — so a fresh install has something real to look at. It is demo data, not a merchant's, and is replaced through the CMS at onboarding (ADR-011).
 
 ---
 
@@ -34,36 +62,36 @@ Requires Node 22+ and npm 10+.
 
 ## Commands
 
-Every command below exists in `package.json`. There are no `tenant:*` commands; earlier documentation that referenced them described a different repository.
+Every command below exists in `package.json`.
 
 ```bash
-npm install            # or npm ci for a clean, lockfile-exact install
-
-npm run dev            # astro dev on :4321
-npm run cf:dev         # wrangler dev --local, closer to production
+npm run dev            # astro dev on :4321 — no Worker bindings
+npm run cf:dev         # wrangler dev --local
 
 npm test               # node --test over src/lib/*.test.ts  (303 tests)
 npm run check          # astro check && tsc --noEmit
 npm run build          # astro build
 
 npm run db:migrate:local     # apply migrations to local D1
-npm run db:reset:demo:local  # reload the demo catalog locally — DESTRUCTIVE to catalog rows
+npm run db:reset:demo:local  # reload the demo catalog — DESTRUCTIVE to catalog rows
 
-# The two below act on real infrastructure and belong to an install, not to this
+# The two below act on live infrastructure and belong to an install, not to this
 # repository. Run from an install's checkout, against its own wrangler.jsonc.
 npm run db:migrate:remote    # apply migrations to that install's D1 — approval required
 npm run deploy               # wrangler deploy — deploys that install
 ```
 
-There is no migration generator. Drizzle was removed entirely (ADR-005) — `db:generate` no longer exists as a script and drizzle-kit is not a dependency. Write migrations by hand.
+There is no migration generator. Drizzle was removed entirely (ADR-005) — `db:generate` is not a script and drizzle-kit is not a dependency. Write migrations by hand, forward only; never edit one that has been applied.
+
+A green build is not proof the storefront works. For any browser-visible change, open the page — an unterminated `.astro` frontmatter block once returned 404 on a live route while every static check stayed green.
 
 ---
 
 ## Deploying
 
-**Pushing to `main` here deploys nothing.** `.github/workflows/ci.yml` runs check → test → build only. This repository has no Cloudflare credentials and no deploy target by design.
+**Pushing to `main` here deploys nothing.** `.github/workflows/ci.yml` runs check → test → build only.
 
-Deploying is an install's job, from an install's repository. Full detail, including migrations and rollback, is in `RELEASE.md`.
+Deploying is an install's job, from an install's repository. Migrations are a separate, separately approved step and always precede the deploy. Full detail, including rollback and how an install takes product updates: `RELEASE.md`.
 
 ---
 
@@ -78,33 +106,44 @@ src/
   layouts/          BaseLayout, AdminLayout, EmbedLayout
   styles/           global.css (Tailwind v4 entry), form-hybrid.css (checkout)
   data/             reference data (Indonesian districts) + legal page templates
-  middleware.ts     host redirect, click-id capture, session, role policy, embed CSP
-scripts/            one-off maintenance scripts and the catalog seed
+  middleware.ts     identity resolution, install gate, session, role policy, embed CSP
+scripts/            maintenance scripts and the demo catalog seed
 public/             static assets served by the Cloudflare adapter
 ```
 
 ---
 
-## Documentation map
+## Configuration
 
-See `AGENTS.md` §2 for the ownership table. It is not repeated here: when both files carried a copy, they drifted.
+Identity resolves **row first, environment second, product default last**, on every request:
 
-Documentation states only what is verifiable against the tree, and carries the date it was verified (`DECISIONS.md` ADR-010). If a document and the code disagree, the code is right and the document is a bug.
+- **D1 `stores` row** — store name, canonical URL, description, tagline, logo, theme colour, locale, storefront template, and the provider half: API keys, tracking IDs, fee policy, payment toggles, CRM templates, support contact. Edited from `/admin`, effective on the next request with no rebuild.
+- **Worker runtime env** — secrets and a few public vars, read through `getRuntimeEnv()`. A deploy, no rebuild.
+- **Build-time bundle** — the `PUBLIC_SITE_*` vars reach `import.meta.env` from `wrangler.jsonc` `vars` and `.env`, frozen by `astro build`. They are the fallback for a store that has not set a field, which before the wizard runs is every field, so keep them accurate — but they are no longer where a running store's identity lives.
+
+Provider credentials follow a **D1-first, env-fallback** rule, and `provider-config.ts` reports which source won.
 
 ---
 
-## Configuration
+## Integrating
 
-Configuration currently resolves from three independent places, and the difference matters:
+- **Headless API** — `/api/v1/*`, key-authenticated, documented in `STOREFRONT_INTEGRATION.md`.
+- **Embeddable checkout** — `/embed/form`, origin-restricted through a stored allowlist.
+- **Ad signals** — Meta Pixel + CAPI with `event_id` deduplication, Google Ads with Enhanced Conversions and Consent Mode v2. `TRACKING_SPECS.md` is the contract.
+- **Catalog feeds** — `/feed/google-catalog.xml` and `/feed/meta-catalog.xml`. The `id` they publish is the string the Pixel sends as `content_ids`, byte for byte: `p{product}-v{variant}`, grouped by `p{product}`. If those ever diverge, catalog retargeting stops matching and nothing reports it (ADR-015).
 
-- **Baked at build time** — site name, URL, description, logo, tagline, theme colour, locale, storefront template. These reach `import.meta.env` from `wrangler.jsonc` `vars` and `.env`, and are frozen into the bundle by `astro build`. Changing them requires a **rebuild**; redeploying an existing bundle with new vars changes nothing.
-- **Worker runtime env** — secrets and a few public vars, read through `getRuntimeEnv()`. Changing these needs a deploy but no rebuild.
-- **D1 `stores` row** — provider keys, tracking IDs, fee policy, payment toggles, CRM templates, support contact. Editable from `/admin` and effective immediately.
+---
 
-Renaming the store in `/admin` changes storefront branding on the next request: identity is read from the `stores` row per request (`DECISIONS.md` ADR-003, gap **G1** closed 2026-08-16). The `PUBLIC_SITE_*` vars are the fallback for a store that has not set a field.
+## Documentation
+
+`AGENTS.md` §2 owns the ownership table — which document is authoritative for which subject. It is not repeated here; when both files carried a copy, they drifted.
+
+Every document carries the date and commit it was verified against (ADR-010). **If a document and the code disagree, the code is right and the document is the bug.**
 
 ---
 
 ## Status
 
-The product goal is a WordPress-style installable CMS for Cloudflare. Point a fresh Worker with an empty, migrated D1 at a domain and it redirects to `/install`, where one form writes the store and the operator's own credential. What remains is tracked as gaps **G3**, **G5** and **G6** in `ARCHITECTURE.md` §10 — schema auto-upgrade, an honest fresh-install home state, and adding templates without a rebuild. The active backlog is Phase A in `TASKS.md`.
+The install path exists end to end and has been exercised against a real Worker on a real empty D1. Three structural gaps remain, tracked in `ARCHITECTURE.md` §10: **G3** schema auto-upgrade, **G5** an honest fresh-install home state instead of a generic storefront, **G6** adding a storefront template without a rebuild.
+
+Current state is `STATUS.md`; the active backlog is Phase A in `TASKS.md`; history is `BUILD-LOG.md`.

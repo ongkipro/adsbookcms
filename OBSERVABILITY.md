@@ -1,28 +1,37 @@
 # Observability — AdsBookCMS
 
-> Verified against disk: 2026-08-16 @ `0a145c5`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 This document describes what can and cannot currently be observed about a running install. It is deliberately blunt about the gaps, because for an installable product the inability to diagnose someone else's install is a product defect, not a nice-to-have.
 
 ---
 
-## 1. Current state: essentially none
+## 1. Current state: logs yes, alerting no
 
-**`wrangler.jsonc` has no `observability` block.** Cloudflare Workers Logs are therefore off. There is no log retention, no queryable history, and no way to answer "what happened on this install at 14:20 yesterday" after the fact.
+**`wrangler.jsonc` carries an `observability` block**, enabled at
+`head_sampling_rate: 1`. Cloudflare Workers Logs are on, so the labelled error
+calls below are retained and queryable after the fact — "what happened on this
+install at 14:20 yesterday" is answerable.
+
+> Until 2026-08-17 this section said the opposite: that the block was absent and
+> logs were off. It also handed the reader the exact JSON to paste, which was
+> byte-identical to what the file already contained. An operator diagnosing a
+> dead install would have concluded there were no logs and stopped looking.
 
 What exists:
 
 | Capability | Status |
 | --- | --- |
-| Workers Logs / Logpush | **Not configured** |
+| Workers Logs / Logpush | **Configured** — `observability.enabled: true`, full sampling |
 | Error reporting (Sentry or equivalent) | **None** |
 | Uptime / synthetic checks | **None** |
-| Structured logging | **Partial** — 76 `console.error` calls with stable string labels |
+| Structured logging | **Partial** — 98 `console.error` calls with stable string labels |
 | Request tracing / correlation id | **None** |
-| Business metrics | Present, but only as a live D1 query in `/admin/dashboard` |
+| Business metrics | Live D1 query in `/admin/dashboard`, plus `/api/admin/health` |
 | Alerting | **None** |
 
-The only way to see a runtime error today is `npx wrangler tail` while the error is happening, which requires knowing in advance that something is wrong.
+`npx wrangler tail` still gives the live view; the difference is that it is no
+longer the only view.
 
 ---
 
@@ -34,7 +43,7 @@ Error logging follows a consistent convention worth preserving: a stable kebab-c
 console.error("storefront-support-whatsapp-load", error);
 ```
 
-Roughly 40 distinct labels are in use, named after the surface that produced them — `admin-products-patch`, `autolaris-webhook`, `mengantar-dispatch-lease-release`, `shipping-pickup`, `settings-put`, `google-catalog-xml-error`, and so on. These are already greppable and would become queryable the moment Workers Logs is enabled. **Keep this convention.** A new log line without a stable label is a log line nobody will ever find.
+Roughly 85 distinct labels are in use, named after the surface that produced them — `admin-products-patch`, `autolaris-webhook`, `mengantar-dispatch-lease-release`, `shipping-pickup`, `settings-put`, `google-catalog-xml-error`, and so on. These are already greppable and would become queryable the moment Workers Logs is enabled. **Keep this convention.** A new log line without a stable label is a log line nobody will ever find.
 
 Three `console.log` calls exist and should be reviewed — informational logging in a Worker costs money at scale and usually indicates leftover debugging.
 
@@ -64,19 +73,22 @@ The pattern across all of them: the system is **correctly defensive** and **comp
 
 Ordered by value per unit of effort.
 
-1. **Turn on Workers Logs.** Add to `wrangler.jsonc`:
-   ```jsonc
-   "observability": { "enabled": true, "head_sampling_rate": 1 }
-   ```
-   This alone makes the existing 76 labelled error calls queryable, with zero code changes.
+1. **Log the outbox depth.** A single periodic count of `capi_event_outbox` rows in `status != 'delivered'` distinguishes a healthy pipeline from a stalled one. This is the metric most likely to silently cost money, because a stalled outbox means unattributed ad spend.
 
-2. **Log the outbox depth.** A single periodic count of `capi_event_outbox` rows in `status != 'delivered'` distinguishes a healthy pipeline from a stalled one. This is the metric most likely to silently cost money, because a stalled outbox means unattributed ad spend.
+2. **Distinguish degradation from success.** Where the code falls back — home
+   content, support WhatsApp, embed origins — log a labelled warning on the
+   fallback path. Partly done: `tenant-content.ts` logs
+   `home-content-unpublished`, and the identity resolver logs
+   `tenant-identity-unmigrated`. Others are still silent.
 
-3. **Distinguish degradation from success.** Where the code falls back — home content, support WhatsApp, embed origins — log a labelled warning on the fallback path. Today those paths are indistinguishable from the happy path in every observable way.
+3. **Uptime check on `/` and `/produk`.** External, per install.
 
-4. **Surface provider health in `/admin`.** Last successful Mengantar call, last AutoLaris callback received, last CAPI delivery. The data already exists in D1; nothing reads it as a health signal.
+4. **Alerting.** Nothing watches anything; every item above is pull, not push.
 
-5. **Uptime check on `/` and `/produk`.** External, per install.
+**Done since this list was written:** provider health in `/admin`.
+`operational-health.ts` classifies Mengantar, AutoLaris and the CAPI outbox,
+`/api/admin/health` serves it, and `OperationalHealth.tsx` renders it on the
+dashboard — that route's header comment cites this very list as its spec.
 
 ---
 
@@ -86,9 +98,10 @@ Once there is more than one install, observability stops being a single-site con
 
 - Logs are **per Worker**. There is no aggregate view across installs unless one is built, and building one means shipping telemetry off the install, which is a decision with privacy consequences that must be made deliberately (see `DECISIONS.md`).
 - **Order and customer data must never leave the install** as part of any telemetry. Counts, durations, and error labels are safe; payloads are not.
-- Each install carries its own `src/lib/version.ts`. Any future health endpoint should report version and applied schema version, because "which version is this customer actually running" is otherwise unanswerable without shell access.
-
-This gap is tracked as **G7** in `ARCHITECTURE.md` §10.
+- Each install carries its own `src/lib/version.ts`. `/api/admin/health` reports
+  version and applied schema version, because "which version is this customer
+  actually running" is otherwise unanswerable without shell access. What remains
+  missing is the aggregate view, not the per-install signal.
 
 ---
 

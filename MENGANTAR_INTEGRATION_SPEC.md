@@ -1,12 +1,12 @@
 # Mengantar Integration — Technical Contract and Gap Register
 
-> Verified against disk: 2026-08-16 @ `0a145c5`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 This document is the technical source of truth for AdsBookCMS behavior at the Mengantar boundary. It separates repository-observed transport code, locally verified application behavior, operator-gated live mutations, and provider contracts that remain unknown.
 
 AdsBookCMS installs as **one Worker = one store**, so every statement below describes a single install's provider credentials and D1 database. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the install model and [`DECISIONS.md`](./DECISIONS.md) (ADR-001, ADR-002) for why there is no tenant abstraction in code.
 
-Normative product behavior lives in `PRD.md` (`REQ-13`–`REQ-16`, `REQ-38`, `REQ-41`, and `REQ-74`–`REQ-76`). Current evidence lives in `STATUS.md`; genuine remaining work lives in `UNIMPLEMENTED_SPECS.md` and in the gap register in `ARCHITECTURE.md` §10.
+Normative product behavior lives in `PRD.md` (`REQ-40`–`REQ-46`). Earlier revisions of this line cited `REQ-38`, `REQ-74`, `REQ-75` and `REQ-76`, none of which exist, and `REQ-13`–`REQ-16`, which are about home content, templates, feeds and ratings. Current evidence lives in `STATUS.md`; genuine remaining work lives in `UNIMPLEMENTED_SPECS.md` and in the gap register in `ARCHITECTURE.md` §10.
 
 ## 1. Boundary and Authentication
 
@@ -36,8 +36,8 @@ Status distinguishes three separate things: whether the **transport method** exi
 | --- | --- | --- | --- | --- |
 | `/address/search?keyword=` | `GET` | Resolve Mengantar area identities | Implemented and locally verified | Public checkout starts with the bundled district index; server/admin flows resolve provider district/subdistrict data before quoting or dispatch. |
 | `/address` | `GET` | List seller pickup addresses | Transport implemented | `getPickupAddresses()` exists; provider synchronization is not presented as complete. |
-| `/address` | `POST` | Create or update pickup address | Transport implemented; workflow pending | `createPickupAddress()` exists. Persist provider-confirmed identity only after an accepted response. |
-| `/time` | `POST` | Schedule pickup | Transport implemented; workflow pending | `schedulePickupTime()` exists. A local D1 schedule is not provider confirmation. |
+| `/address` | `POST` | Create or update pickup address | Implemented (`PRD.md` REQ-44) | `createPickupAddress()` exists. Persist provider-confirmed identity only after an accepted response. |
+| `/time` | `POST` | Schedule pickup | Implemented (`PRD.md` REQ-44) | `schedulePickupTime()` exists. A local D1 schedule is not provider confirmation. |
 | `/time?address=` | `GET` | List pickup times | Transport implemented | `getPickupTimes()` exists; no complete synchronized admin lifecycle is claimed. |
 | `/order/estimate` | `GET` | Quote retail courier services | Implemented and locally verified | Read-only quote used by checkout, order editing, and admin tariff checks; a quote is never a shipment. |
 | `/order/allEstimate3PL` | `GET` | Quote base 3PL pricing | Not implemented | No transport method, application path, or UI. |

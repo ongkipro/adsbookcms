@@ -1,6 +1,6 @@
 # PRD — Admin Login and First-Run Access
 
-> Verified against disk: 2026-08-16 @ `392e06c`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 Scope: everything between an operator opening the admin and reaching a working dashboard — the login screen at `/hello`, the first-run credential, the forced password rotation, and the session that carries them. It does not cover the dashboard itself.
 
@@ -30,7 +30,7 @@ Two things made this worth specifying rather than assuming.
 | LOGIN-6 | The login screen shall state, before the operator asks, that the default credential is `admin` / `admin` on a fresh install and must be replaced immediately. | Implemented — shown only while all three hold: a database binding exists, no `BOOTSTRAP_ADMIN_PASSWORD` is configured, and the stored hash is still the seeded one. The copy is built from the same constants that open the account, so it cannot announce a credential that does not work |
 | LOGIN-7 | The install shall make the un-rotated state visible to the operator wherever they look — not only on the profile screen they are redirected to. | **Planned** |
 
-**On the risk.** A known default on a publicly reachable admin is a real exposure, and it is accepted deliberately. The mitigation is that it opens nothing: LOGIN-3 confines the session to changing its own password, so the window is an operator inconvenience rather than a data exposure. The window closes for good once the install wizard (`PRD.md` REQ-6, ADR-004) collects the password during installation, at which point LOGIN-1 becomes a fallback rather than the normal path.
+**On the risk.** A known default on a publicly reachable admin is a real exposure, and it is accepted deliberately. The mitigation is that it opens nothing: LOGIN-3 confines the session to changing its own password, so the window is an operator inconvenience rather than a data exposure. The window is closed on the normal path: the install wizard (`PRD.md` REQ-6, ADR-004) collects the operator's own password during installation and writes it with `must_change_password = 0`, so LOGIN-1 is now the fallback for an install whose credential was never claimed, not the way in.
 
 ---
 
@@ -49,7 +49,7 @@ Route `/hello`, deliberately not `/admin/login`, and disallowed in `robots.txt`.
 | LOGIN-16 | The screen shall be usable at 320 px wide without horizontal scrolling, and shall respect `env(safe-area-inset-*)`. | Implemented — safe-area insets previously applied only below 768 px, so a notched phone in landscape got none. Now all four sides at every width. Budget proved by construction at 320 px; **not seen on a real device** |
 | LOGIN-17 | Submission shall be disabled while in flight and shall show that it is working, so a slow network does not produce a double submit. | Implemented — the lock existed but a page restored from the back/forward cache kept the button disabled, locking the operator out of their own login. A `pageshow` handler now resets it |
 | LOGIN-18 | The screen shall carry no marketing, no third-party assets, and no imagery that cannot be shipped to a merchant's own customers. | Implemented 2026-08-16 — **this was recorded as done before it was.** The vendor advertisement had been replaced, but with the *reference store's* brand mark, which every install would then have worn. The stage is now colour only. The page also loaded a Google Fonts stylesheet and two preconnects for a family it never applied, announcing every operator's address to a third party for no rendering benefit; removed |
-| LOGIN-19 | Repeated failures shall be rate-limited per identifier and per address. | Implemented — three buckets over a 15-minute window: the pair `username\|ip` at 5 is the brake, the address at 20 absorbs Indonesian mobile CGNAT, the identifier at 50 backstops a distributed attempt. Keyed on the pair so knowing an operator's username cannot lock them out, and spent only on failure so a correct password never costs an attempt |
+| LOGIN-19 | Repeated failures shall be rate-limited per identifier and per address, and no ceiling shall be reachable by someone who knows only the username. | Implemented — three buckets over a 15-minute window: the pair `username\|ip` at 5 is the brake, the address at 20 absorbs Indonesian mobile CGNAT, the identifier at 50 backstops a distributed attempt. Spent only on failure, so a correct password never costs an attempt. **The identifier ceiling was reachable and did lock operators out** — ten addresses spending their pair allowance is exactly 50 — so it now denies only an address that has itself failed for that account (ADR-014). Known ceiling: the KV counter is not atomic, so a parallel guesser is damped rather than braked (A-71) |
 
 ---
 
@@ -68,6 +68,11 @@ Route `/hello`, deliberately not `/admin/login`, and disallowed in `robots.txt`.
 ## 5. What "done" looks like
 
 One requirement is open: **LOGIN-7**, making the un-rotated state visible wherever the operator looks rather than only on the screen they are redirected to.
+
+One was found to be *unreachable rather than wrong*: LOGIN-3's rotation gate is a
+correct default-deny allowlist and could not be walked past — but middleware
+classified paths from the raw request URL, so `//admin/...` never reached the
+gate at all. Fixed 2026-08-17 (ADR-013); the gate itself needed no change.
 
 Everything else is implemented but **not one line of it has been seen rendered**. That distinction is the point of this section. Two requirements in the first draft of this document were marked done and were not — LOGIN-18 shipped the reference store's brand to every install, and LOGIN-10 hardcoded it — which is precisely what happens when a status is written from intent instead of from disk.
 

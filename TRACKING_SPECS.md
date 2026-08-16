@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, TikTok, and Google Ads Specification
 
-> Verified against disk: 2026-08-16 @ `0a145c5`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -171,7 +171,7 @@ Click-ID preservation is owned by `src/lib/click-ids.ts`, `src/middleware.ts`, a
 Flow:
 
 1. **Capture.** `src/middleware.ts` runs `parseClickIdsFromUrl(url)` on every non-private request. Values must match `/^[A-Za-z0-9._-]{1,256}$/` or they are dropped. When `fbclid` arrives without `_fbc`, the library synthesizes `_fbc` as `fb.1.<timestamp>.<fbclid>`.
-2. **Store.** Matching values are JSON-serialized into the cookie named by `CLICK_ID_COOKIE` — currently the literal string `zanoby_click_ids` — with `Max-Age` of 90 days, `Path=/`, and `SameSite=None; Secure` on HTTPS (`SameSite=Lax` otherwise). `_fbp` and `_fbc` are additionally re-issued as their own first-party cookies so Meta's own readers find them.
+2. **Store.** Matching values are JSON-serialized into the cookie named by `CLICK_ID_COOKIE` — currently `adsbook_click_ids` — with `Max-Age` of 90 days, `Path=/`, and `SameSite=None; Secure` on HTTPS (`SameSite=Lax` otherwise). `_fbp` and `_fbc` are additionally re-issued as their own first-party cookies so Meta's own readers find them.
 3. **Read back.** `readClickIdCookie(request)` is called by `src/pages/api/submit-order.ts`, `src/pages/api/submit-middle-order.ts`, and `src/pages/api/v1/checkout.ts`. Cookies ride along with the submit request, so no hidden form fields are needed. Malformed or hand-edited cookie values parse to `{}` rather than throwing inside the order path.
 4. **Persist.** The serialized value is written to `orders.ad_click_ids` (migration `0024_daily_typhoid_mary.sql`).
 5. **Classify.** `src/lib/traffic-source.ts` reads that stored JSON and derives a `TrafficSourceType` of `meta`, `google`, `tiktok`, `organic`, or `custom`, precedence Meta → Google → TikTok → UTM heuristics. The admin surfaces it through `TrafficSourceBadge` in `OrdersTable.tsx` and `OrderDetail.tsx`.
@@ -182,7 +182,7 @@ Why this matters for COD: the real conversion happens days after the click, when
 
 ### Cross-frame and cross-page preservation
 
-- `src/lib/checkout-navigation.ts` re-attaches all twelve tracking keys to intermediate checkout navigation URLs, reading from the current query string first and the `zanoby_click_ids` `sessionStorage` entry second. Checkout **completion** URLs are deliberately restricted to opaque order lookup values so no PII or attribution string leaks into a shareable confirmation link.
+- `src/lib/checkout-navigation.ts` re-attaches all twelve tracking keys to intermediate checkout navigation URLs, reading from the current query string first and the `adsbook_click_ids` `sessionStorage` entry second. Checkout **completion** URLs are deliberately restricted to opaque order lookup values so no PII or attribution string leaks into a shareable confirmation link.
 - `public/adsbook-form-widget.js` carries the parent-page logic for embedded storefronts. It syncs the same twelve keys into the iframe `src`, recovers `_fbp`/`_fbc` from parent cookies when absent from the URL, and listens for origin-checked `postMessage` events. It is served by the store, so a merchant page picks up fixes on deploy — unlike the inline variant it replaced, which froze the same logic onto the merchant's page permanently and was removed on 2026-08-16.
 
 ## 8. TikTok Signal Boundary
@@ -193,7 +193,7 @@ What exists:
 
 - `ttclid` is a first-class member of `CLICK_ID_KEYS`, so it is captured in middleware, stored in the cookie for 90 days, persisted to `orders.ad_click_ids`, and forwarded through checkout navigation and embed frames exactly like `gclid` and `fbclid`.
 - `src/lib/traffic-source.ts` classifies an order as `tiktok` when `ttclid` is present, or when `utm_source` contains `tiktok` or `tt`.
-- The embed snippets fire **no conversion events of their own**. Until `c967faa` (2026-08-16) the parent listener fired Meta `Purchase`, a Google `conversion`, and TikTok `CompletePayment` on `checkout-redirect`/`order-complete` on a positive total alone — unqualified, before payment was verified, and with no `event_id`. That code is gone, and `src/lib/embed-markup.test.ts` now asserts that no generated snippet contains `fbq`, `ttq`, `gtag`, `dataLayer`, or any conversion event name.
+- The embed snippets fire **no Purchase of their own**. `public/adsbook-form-widget.js` does fire Meta `AddToCart` / `InitiateCheckout` and a `gtag` event on the host page when those pixels are already present; what it never fires is a conversion. Until `c967faa` (2026-08-16) the parent listener fired Meta `Purchase`, a Google `conversion`, and TikTok `CompletePayment` on `checkout-redirect`/`order-complete` on a positive total alone — unqualified, before payment was verified, and with no `event_id`. That code is gone, and `src/lib/embed-markup.test.ts` now asserts that no generated snippet contains `fbq`, `ttq`, `gtag`, `dataLayer`, or any conversion event name.
 
 What does **not** exist:
 
@@ -238,7 +238,7 @@ Google `user_data` fields sent:
 - `sha256_first_name` — SHA-256 of the first whitespace-delimited token of the name;
 - `sha256_last_name` — SHA-256 of the remaining tokens joined by a space.
 
-Names are trimmed and split but are **not** lowercased in the current implementation. Email is not part of the browser Enhanced Conversions payload today.
+Names are trimmed, lowercased and split before hashing (`MetaThanksTracker.astro:41`), which is what Meta's normalization requires. Email is not part of the browser Enhanced Conversions payload today.
 
 ### Consent Mode v2 — region-scoped, two calls
 
@@ -281,7 +281,7 @@ Consequences to keep in mind:
 ### Transaction ID deduplication
 
 1. Every conversion payload includes `transaction_id` set to the persisted **order number**, not a numeric row ID.
-2. Order numbers come from `src/lib/order-persistence.ts` and use `` `INV-${10000 + id}` `` for completed orders — e.g. order row `1` is `INV-10001`. Abandoned/partial leads use `` `ABN-${10000 + id}` `` and are converted to the `INV-` form when the order completes. There is no `ORD-` prefix anywhere in the codebase.
+2. Order numbers come from `src/lib/order-persistence.ts` and use `` `INV-${10000 + id}` `` for completed orders — e.g. order row `1` is `INV-10001`. Abandoned/partial leads use `` `ABN-${10000 + id}` `` and are converted to the `INV-` form when the order completes. No order number is ever minted with an `ORD-` prefix. The string appears three times as operator-facing example copy in `src/pages/admin/ads/meta.astro` and `google.astro`; it is not produced by `order-persistence.ts`.
 3. Deduplication applies across GTM ecommerce `purchase` events, direct `gtag` conversion events, and any future Google Ads API offline conversion upload — all three must send the identical `INV-` string.
 4. Refreshing `/thanks` or revisiting the confirmation URL does not re-trigger the conversion, thanks to the `once('Purchase_order_' + orderId)` local guard.
 
@@ -351,7 +351,7 @@ Conceptual Purchase data:
 ```json
 {
   "event_name": "Purchase",
-  "event_id": "purchase_<product>_<unique-order-attempt>",
+  "event_id": "INV-10001",                       // the order number, on both legs
   "event_source_url": "https://shop.example.com/thanks",
   "user_data": {
     "ph": ["<sha256-e164-digits-only>"],
@@ -429,7 +429,7 @@ For the selected storefront:
 
 - inspect `PageView`, `ViewContent`, qualified `AddToCart`, `InitiateCheckout`, and Purchase triggers;
 - verify `content_ids`, `value`, `currency`, event ID, source URL, and customer-data boundaries;
-- compare the browser `eventID` against the server CAPI `event_id` for the same order — today they differ (§6); record the observed pair rather than assuming they match;
+- compare the browser `eventID` against the server CAPI `event_id` for the same order — §6 and the code say they now match on the `INV-` order number; record the observed pair rather than assuming it;
 - verify `transaction_id` matches the persisted `INV-` order number;
 - verify refresh/revisit guards;
 - verify COD and online gates;

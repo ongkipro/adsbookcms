@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-08-16 @ `0a145c5`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -23,6 +23,8 @@ Exactly one document owns each subject. Do not restate another document's truth;
 
 | Document | Owns |
 | --- | --- |
+| `README.md` | Repository entry point and orientation. Owns nothing else — it links |
+| `AGENTS.md` | Working rules for anyone editing this repository, including this table |
 | `ARCHITECTURE.md` | System structure, data layer, config resolution, gap register §10 |
 | `DECISIONS.md` | Architecture decisions (ADR). Append-only |
 | `RELEASE.md` | Deploy, migrations, versioning, rollback, approval boundary |
@@ -40,7 +42,16 @@ Exactly one document owns each subject. Do not restate another document's truth;
 | `PRD-ADMIN-LOGIN.md` | Admin login, first-run access, session |
 | `docs/GOOGLE_ADS_SETUP.md` | Google Ads / Merchant Center setup |
 
-Every document carries a `> Verified against disk: <date> @ <sha>` line. If you change what a document describes, update that line or the document is lying about its own freshness.
+Every document carries a `> Verified against disk: <date> @ <sha>` line, this one
+included. If you change what a document describes, update that line or the
+document is lying about its own freshness. A rewritten history orphans every SHA
+those headers cite, so re-stamp them all when `main` is re-founded — sixteen
+documents were left pointing at commits reachable only from
+`backup/pre-history-rewrite`.
+
+**This table is the only copy.** `README.md` links to it rather than repeating
+it; the two drifted apart the last time both carried a list, which is the exact
+failure mode this section exists to prevent.
 
 ---
 
@@ -78,11 +89,11 @@ npm run build     # astro build
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Baseline on `main`: **293 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
+Baseline on `main`: **303 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 
-`src/lib/auth.ts` is covered by `src/lib/auth.test.ts` (12 tests, mutation-verified). That suite asserts security *properties* — a tampered signature is rejected, a rotated credential closes the session, a role never reaches a route it should not. Keep it that way: a test that merely asserts a valid token is valid buys nothing.
+`src/lib/auth.ts` is covered by `src/lib/auth.test.ts` (14 tests, mutation-verified). That suite asserts security *properties* — a tampered signature is rejected, a rotated credential closes the session, a role never reaches a route it should not. Keep it that way: a test that merely asserts a valid token is valid buys nothing.
 
 ---
 
@@ -114,13 +125,11 @@ Deliberate corner-cuts get a `// lazy:` comment naming the ceiling and the upgra
 
 Do not "fix" these silently or treat them as bugs to be surprised by — they are known, tracked, and have decisions attached:
 
-- Identity is build-time (`G1`, ADR-003). `stores.name` and the storefront name are different values.
-- There is no install wizard (`G2`, ADR-004).
-- Home content falls back to compiled copy instead of failing closed (`G5`, ADR-007).
+- Home content falls back to built-in copy instead of failing closed (`G5`, ADR-007). The fallback is composed from this store's own identity and logs `home-content-unpublished`; it is still not an honest setup state.
+- `theme_color`, `locale` and `admin_name` are stored per install but have no admin editor yet.
 - The admin session cookie is `adsbook_session`, declared once as `SESSION_COOKIE_NAME` in `src/lib/auth.ts`. Never write the literal string; a writer and reader that disagree is a silent lockout.
 - The click cookie is `adsbook_click_ids`. The former `zanoby_click_ids` is still **read** as a fallback so an upgrading install does not lose 90 days of in-flight attribution. Never write the legacy name; it ages out on its own.
 - Newly issued developer API keys carry `adsbook_live_`. Keys issued as `cmsads_live_` still validate — the stored value is a SHA-256 digest, so the prefix never took part in matching, and rewriting it would have broken them. The legacy prefix survives only in `maskApiKeySecret` so an old key still renders a coherent preview.
-- `pnpm-lock.yaml` and `pnpm-workspace.yaml` are stale artifacts pending deletion (ADR-009).
 
 ---
 

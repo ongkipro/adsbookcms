@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-08-16 @ `0a145c5`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -17,13 +17,25 @@ an install:  push to main → its own deploy workflow → …same gates… → n
 
 Releasing means an install pulls this code into its own repository and deploys from there, against its own Worker, D1, KV, R2 and domain. In an install repository that carries the deploy workflow, **pushing to `main` does reach live traffic with no staging and no approval step**, so a merge there carries the same weight as running a deploy by hand.
 
-The workflow also triggers on `v*` tags and on manual dispatch. No git tag has ever been created in this repository, so the tag path is untested.
+The workflow triggers on push to `main`, on pull requests, and on manual
+dispatch. It declares **no GitHub environment and no secrets** — those three
+lines are the whole trigger block in `ci.yml`.
 
-The job runs on Node 22 under the `CLOUDFLARE_API_TOKEN` GitHub environment, using secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+> The previous version of this section described a `CLOUDFLARE_API_TOKEN` GitHub
+> environment and two Cloudflare secrets as if they existed here. They never
+> did: that text belonged to the deleted `deploy.yml` and survived six lines
+> below the sentence saying it had been removed. Keeping Cloudflare credentials
+> out of this repository is the entire point of ADR-012, so a line implying they
+> are already present is the most expensive kind of wrong — someone reconciling
+> the document against reality would have *added* them.
 
 ### Manual deploy
 
-`npx wrangler deploy` (or `npm run deploy`) is a valid and supported path. It deploys whatever is in the working tree to the same production Worker. Use it only when CI is unavailable and the change has passed the local gates below.
+`npx wrangler deploy` (or `npm run deploy`) deploys the working tree to whatever
+Worker `wrangler.jsonc` names. In **this** repository that file is placeholders
+(`example.com`, placeholder binding ids), so there is no production Worker to
+reach; the command belongs in an install, run against that install's own
+resources.
 
 ---
 
@@ -37,7 +49,7 @@ npm run check     # astro check && tsc --noEmit
 npm run build     # astro build
 ```
 
-Current baseline on `main`: **227 tests passing**, `tsc` clean, `astro check` 0 errors / 0 warnings / 38 hints.
+Current baseline on `main`: **303 tests passing**, `tsc` clean, `astro check` 317 files, 0 errors / 0 warnings / 0 hints.
 
 A green build is not proof the storefront works. For any browser-visible change, open the affected page before merging. Neither `tsc` nor `astro check` catches a route that fails to compose — an unterminated `.astro` frontmatter block silently produced a 404 on `/disclaimer` while every static check stayed green.
 
@@ -63,25 +75,33 @@ npm run db:migrate:remote   # wrangler d1 migrations apply OMS_DB --remote  ← 
 
 ## 4. Version registry
 
-Two registries currently disagree and both are shipped:
+Two registries, currently in step:
 
 | Source | Field | Value |
 | --- | --- | --- |
 | `src/lib/version.ts` | `version` | `1.2.0` |
 | `src/lib/version.ts` | `releaseTag` | `2026.08-hardened` |
-| `src/lib/version.ts` | `schemaVersion` | `34` |
-| `package.json` | `version` | `1.2.0` (reconciled 2026-08-16) |
+| `src/lib/version.ts` | `schemaVersion` | `37` |
+| `package.json` | `version` | `1.2.0` |
 
-`src/lib/version.ts` is what the admin sidebar renders and is the value users see; `package.json` was reconciled to match on 2026-08-16. Keep them in step when bumping. Note that `schemaVersion` is currently read by nothing in `src/` — it is a declaration, not an enforced contract, which is why it was able to drift.
+`src/lib/version.ts` is what the admin sidebar renders and is the value users
+see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration *files*. The tree currently holds 36 (`0000`–`0035`) while `src/lib/version.ts` still declares `34`, so the registry lags the schema — reconcile it when bumping, and see task A-13 for the boot-time check that would have caught this automatically.
+`schemaVersion` counts migration *files*, and the tree holds 37 (`0000`–`0036`),
+so it matches. It is **enforced**, not merely declared: `schema-version.test.ts`
+counts the directory and fails CI on drift, `operational-health.ts` reads it, and
+`dashboard.astro` surfaces a mismatch to the operator.
+
+> This section previously declared the two drifted (`34` against `36`) and said
+> `schemaVersion` was "read by nothing in `src/`". Both were false, and acting on
+> them meant editing a correct constant until the test guarding it went red.
 
 ### Bumping a release
 
 1. Update `src/lib/version.ts` (`version`, `releaseTag`, `lastUpdated`, and `schemaVersion` if migrations were added).
 2. Record the change in `BUILD-LOG.md` as a new entry.
 3. Update `STATUS.md` if the system state changed.
-4. Merge to `main`, which deploys.
+4. Merge to `main`. In this repository that ships nothing; an install picks the change up through §7.
 
 ---
 
@@ -89,7 +109,7 @@ Two registries currently disagree and both are shipped:
 
 There is no automated rollback. Options, in order of preference:
 
-1. **Revert the commit and merge** — goes through the same gates and redeploys the previous behaviour.
+1. **Revert the commit and merge** — goes through the same gates, and an install redeploys the previous behaviour when it next follows §7.
 2. **Cloudflare dashboard rollback** to a previous Worker version — immediate, but the repository no longer matches production until you also revert in git.
 
 **Migrations do not roll back.** A schema change that must be undone requires a new forward migration written for that purpose. Plan destructive schema changes accordingly.
@@ -153,7 +173,7 @@ git merge product/main                  # resolve conflicts; keep the install's 
 npm ci                                  # only if the lockfile moved
 npm run check && npm test               # gates, before touching anything live
 npm run db:migrate:remote               # ONLY if new migrations arrived — separate approval
-npm run build                           # store identity is baked here
+npm run build                           # identity is runtime-owned; this is code only
 npx wrangler deploy
 ```
 
@@ -161,7 +181,12 @@ npx wrangler deploy
 
 **Migrations precede the deploy.** Code that reads a new column will fail against a database that does not have it yet. Migrations never ride along with a deploy; they are a separate, separately approved step (§3).
 
-**The build follows the configuration.** Store identity is compiled into the bundle (`ARCHITECTURE.md` §5, gap **G1**), so building while `wrangler.jsonc` still holds the product's placeholders produces a bundle that calls itself "Your Store" no matter which Worker it is later deployed to.
+**Identity is not in the build.** It was, and gap G1 tracked that; the `stores`
+row now owns it (migration `0036`, `readStoreIdentity`), resolved per request in
+middleware. The `PUBLIC_SITE_*` vars in `wrangler.jsonc` are a fallback for a
+store that has none, so a build carrying the product's placeholders no longer
+produces a bundle stuck calling itself "Your Store" — but keep them accurate
+anyway, because they are what an install shows before the wizard runs.
 
 **Confirm the target before deploying.** `npx wrangler deploy --dry-run` prints the resolved Worker name, bindings and routes. If it prints `adsbookcms-your-store`, or a database id of all zeros, the merge overwrote the install's configuration — stop and restore it.
 
@@ -171,11 +196,12 @@ It is manual, and nothing verifies that an install ran it. Drift between the pro
 
 ---
 
-## 7. Approval boundary
+## 8. Approval boundary
 
-Because `main` is production, these all require explicit approval before they happen:
+`main` is **not** production here (§1), but everything downstream of it is.
+These require explicit approval before they happen:
 
-- merging or pushing to `main`;
+- merging or pushing to `main` **in an install repository**, where it deploys;
 - `npx wrangler deploy` / `npm run deploy`;
 - `npm run db:migrate:remote` or any `--remote` D1 command;
 - creating or deleting Cloudflare resources (D1, KV, R2, custom domains);

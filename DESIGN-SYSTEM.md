@@ -1,6 +1,6 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-08-16 @ `36778e7`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 This document describes the presentation layer **as it ships**, extracted from the code rather than from intent. Every concrete value below carries a `file:line` reference. Anything that could not be verified against the tree was left out — see `DECISIONS.md` ADR-010.
 
@@ -18,10 +18,10 @@ The shipped storefront is a champagne-on-ebony boutique palette. Counts are lite
 
 | Hex | Role | Uses | Representative definition |
 | --- | --- | ---: | --- |
-| `#111111` | Primary ink / ebony — body text, announcement bar, primary button fill | 93 | `src/components/shared/SiteHeader.astro:6` |
-| `#C5A880` | Accent — champagne gold; hover, active, badges, focus outline | 50 | `src/components/shared/SiteHeader.astro:6` |
-| `#E5E5E5` | Hairline border — the only border colour in storefront chrome | 44 | `src/components/shared/SiteHeader.astro:16` |
-| `#F8F7F4` | Canvas — warm alabaster page background | 40 | `src/components/shared/SiteHeader.astro:16` |
+| `#111111` | Primary ink / ebony — body text, announcement bar, primary button fill | 128 | `src/components/shared/SiteHeader.astro:6` |
+| `#C5A880` | Accent — champagne gold; hover, active, badges, focus outline | 49 | `src/components/shared/SiteHeader.astro:6` |
+| `#E5E5E5` | Hairline border — the only border colour in storefront chrome | 64 | `src/components/shared/SiteHeader.astro:16` |
+| `#F8F7F4` | Canvas — warm alabaster page background | 49 | `src/components/shared/SiteHeader.astro:16` |
 | `#555555` | Secondary text | 22 | `src/components/shared/Breadcrumb.astro:21` |
 | `#8A704F` | Muted gold — eyebrow labels, sub-brand text | 12 | `src/components/shared/SiteBrand.astro:37` |
 | `#77736C` | Placeholder / tertiary text | 7 | `src/components/home/ProductsSection.astro:52` |
@@ -58,7 +58,7 @@ Admin colour **is** tokenised. `.admin-shell` redefines the shadcn variables in 
 - Accent is a single JS constant: `export const ADMIN_ACCENT = "#2563eb"` — `src/components/admin/admin-navigation.ts:24`, injected as `--admin-accent` inline on `<body>` (`src/layouts/AdminLayout.astro:40`) and used for `--primary` (`src/styles/global.css:283`), focus ring (`:325`), and input focus (`:371-372`).
 - Shell background is a radial gradient over `#f6f7f9` — `src/styles/global.css:300-302`, matched by `bg-[#f6f7f9]` on the body class (`src/layouts/AdminLayout.astro:39`).
 - Table chrome: header `#f8fafc`, header text `#64748b` at `0.68rem / 700 / 0.055em` uppercase — `src/styles/global.css:379-389`.
-- Admin login is a fixed dark image stage, independent of everything else: `background: #070707` — `src/styles/global.css:466-490`.
+- Admin login is a plain stage owned by the product, carrying no imagery at all (LOGIN-18). Colour only; it used to paint the reference store's own brand mark across the login screen of every install.
 
 ### 1.4 Base shadcn tokens
 
@@ -194,7 +194,7 @@ The focused label is `#111111` (`form-hybrid.css`).
 
 | State | Rule | Reference |
 | --- | --- | --- |
-| Focus | `border-color: #2e7d32; background: #ffffff; box-shadow: 0 0 0 2px rgba(46,125,50,.12)` | `form-hybrid.css:334-340` |
+| Focus | `border-color: #111111; background: #ffffff` | `form-hybrid.css` |
 | Focus | `border-color: #111111 !important; box-shadow: 0 0 0 2px rgba(197,168,128,.3)` | `form-hybrid.css` |
 | Valid `.field-valid` | `border-color: #8bc58f; background: #ffffff !important; box-shadow: none` | `form-hybrid.css:396-403` |
 | Valid | `border-color: #C5A880; background: #F8F7F4 !important` | `form-hybrid.css` |
@@ -249,7 +249,7 @@ Rows — `:827-848`: `padding: 0.62rem 0.85rem`, `border-bottom: 1px solid #f1f5
 
 ### 4.7 Submit button
 
-Layer 1 `.submit-main` — `form-hybrid.css:938-956`: full width, `min-height: 2.75rem`, `border-radius: 0.65rem`, an **orange gradient** `linear-gradient(135deg,#f97316,#ea580c)` with `box-shadow: 0 10px 20px -5px rgba(234,88,12,.35)`. States `ready` / `disabled` (`#cbd5e1`) / `loading` are driven by `data-state` (`:980-1011`).
+Layer 1 `.submit-main` — `form-hybrid.css`: full width, `min-height: 2.75rem`, square, `background: #111111`. States `ready` / `disabled` (`#e5e5e5` fill, `#555` text) / `loading` are driven by `data-state`. There is no orange anywhere in the build: `f97316` and `ea580c` appear zero times under `dist/`.
 
 The submit button is `background: #111111 !important; color: #ffffff !important` (`:949-950`), with `border-color: #C5A880` on hover (`:964`). It carries its own `:focus-visible` indicator — that used to live only in the deleted override, so `/hybrid-form` had no keyboard focus ring at all.
 
@@ -266,7 +266,7 @@ The storefront ships two templates, enumerated in `src/lib/tenant-contract.ts:1`
    - `compact` → `max-w-[480px] shadow-[0_0_40px_rgba(15,23,42,0.08)]`
    - `wide` → `max-w-none`
    Both sit inside `flex min-h-screen w-full justify-center` (`:182`) on a `bg-white` panel (`:185`).
-3. `src/components/shared/Breadcrumb.astro:22` — reads `tenantConfig.storefrontTemplate` **directly** rather than taking a prop: `max-w-6xl lg:px-6` for wide, `max-w-[480px]` for compact.
+3. `src/components/shared/Breadcrumb.astro:20` — reads `Astro.locals.tenant.storefrontTemplate` **directly** rather than taking a prop: `max-w-6xl lg:px-6` for wide, `max-w-[480px]` for compact.
 
 Because Breadcrumb re-derives the branch instead of inheriting it, a page that passes an explicit `contentWidth` diverges from its own breadcrumb. Two pages do exactly that: `src/pages/produk/index.astro:16` and `src/pages/produk/[slug].astro:111` both hard-code `contentWidth="compact"`.
 
@@ -311,7 +311,7 @@ Class-variance-authority variants for storefront primitives live in `src/lib/ui-
 
 ## 7. Component inventory
 
-### 7.1 `src/components/ui/` — shadcn primitives (23 files)
+### 7.1 `src/components/ui/` — shadcn primitives (21 files)
 
 Importer counts measured across `src/**/*.{ts,tsx,astro}`, excluding the file itself:
 
@@ -381,7 +381,7 @@ Two of the four Base UI consumers (`popover.tsx`) and its siblings are partly de
 
 **8.3 The literal `#047857` appears nowhere under `src/`** — 0 occurrences. Emerald reaches the page only through Tailwind utility classes, so any doc quoting that hex as the brand colour is describing a value the build never emits.
 
-**8.4 — RESOLVED 2026-08-16.** `/hybrid-form` and every other checkout route look different. `GeoIpResolvedForm.astro`'s `[data-canonical-order-form]` overrides (`:66-174`) are the boutique checkout; `/hybrid-form` bypasses that wrapper (`src/pages/hybrid-form.astro:3-4`) and renders raw `form-hybrid.css` — green float labels (`form-hybrid.css:330`), green focus ring (`:337-339`), orange gradient submit (`:943`). Two visually distinct checkouts, same product.
+**8.4 — RESOLVED 2026-08-16.** The two checkouts diverged: `GeoIpResolvedForm.astro`'s `[data-canonical-order-form]` overrides were the boutique palette, while `/hybrid-form` bypassed that wrapper and rendered raw `form-hybrid.css` — green float labels, green focus ring, orange gradient submit. Resolved by deleting the override layer and folding the boutique palette into `form-hybrid.css` itself: `data-canonical-order-form` now appears in the build only as a DOM attribute, in zero CSS rules, and the seven checkout routes resolve to one palette.
 
 **8.5 — RESOLVED 2026-08-16.** The checkout is styled by override, not by token. Layer 2 is 110 lines of `:global()` selectors re-stating layer 1 with `!important` in seven places. Any edit to `form-hybrid.css` colour must be checked against `GeoIpResolvedForm.astro` or it silently has no effect.
 
@@ -391,9 +391,9 @@ Two of the four Base UI consumers (`popover.tsx`) and its siblings are partly de
 
 **8.8 Font weights are used that were never imported.** Inter ships 400/600/700 (`BaseLayout.astro:4-6`), but the tree asks for 500 (`form-hybrid.css:281`), 800 (`:97`, `:229`, `:241`, `:914`; `PageIntro.astro:26`), and 900 (`form-hybrid.css:691`). Cinzel ships 600 only (`BaseLayout.astro:7`) but `SiteBrand.astro:23` applies `font-extrabold` and `:29` `font-bold` to Cinzel spans. Those render as synthetic (browser-faux) bold.
 
-**8.9 Breadcrumb re-derives the width branch.** `Breadcrumb.astro:22` reads `tenantConfig.storefrontTemplate` directly instead of accepting the `contentWidth` its host layout already resolved (`BaseLayout.astro:53`). A page overriding `contentWidth` gets a breadcrumb of the other width.
+**8.9 Breadcrumb re-derives the width branch.** `Breadcrumb.astro:20` reads `Astro.locals.tenant.storefrontTemplate` directly instead of accepting the `contentWidth` its host layout already resolved (`BaseLayout.astro:51`). A page overriding `contentWidth` gets a breadcrumb of the other width.
 
-**8.10 `tenantConfig.themeColor` defaults to `#0F172A`** (`src/lib/tenant.ts:32`) — slate 900, emitted as the `<meta name="theme-color">` (`BaseLayout.astro:124`). It matches neither the storefront ebony `#111111` nor the champagne accent. The browser chrome colour and the site do not agree.
+**8.10 — RESOLVED.** The resolved `themeColor` default is `#111111`, the storefront ebony, and it is emitted as `<meta name="theme-color">`. This entry previously reported a `#0F172A` default at a line number and under a symbol name that no longer exist; it was a defect report for a bug that had already been fixed.
 
 **8.11 `.admin-shell` is defined in the shared stylesheet.** The admin block (`global.css:276-463`) plus the admin login stage (`:465-536`) is ~260 lines that parse and ship on every storefront request. It is inert there, but it is the largest contiguous region of the file.
 
@@ -406,11 +406,11 @@ Two of the four Base UI consumers (`popover.tsx`) and its siblings are partly de
 The commands CI runs, in order (`ARCHITECTURE.md` §9):
 
 ```bash
-npm test          # 227 tests, node --test over src/lib/*.test.ts
+npm test          # 303 tests, node --test over src/lib/*.test.ts
 npm run check     # astro check && tsc --noEmit
 npm run build     # astro build
 ```
 
-Observed on this tree at `0a145c5`: `tests 227 · pass 227 · fail 0`.
+Observed on this tree: `tests 303 · pass 303 · fail 0`.
 
 There is no design-specific test suite and no visual regression check. Browser-visible changes have no automated proof — open the affected route at the shipped width (480px for `compact-market`) and inspect interaction, focus, console, and horizontal overflow. Do not record a test count in a design document; record it in `STATUS.md` / `BUILD-LOG.md` where it is expected to move.

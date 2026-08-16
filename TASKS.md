@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-08-16 @ `0a145c5`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 ## Provenance — read before citing any task
 
@@ -9,7 +9,7 @@ Phases 1–80 (T1–T295) were inherited from the upstream CMSAds engine when th
 - **Phase numbers 71–80 appear twice** with different subjects.
 - **T243 and T244 do not exist**; numbering jumps from T242 to T245.
 - **Traceability is broken from T266 onward** — those tasks reference `SEC-*`, `PAY-*`, `ORD-*`, `TRK-*`, `TYP-*`, `DOC-*`, `CAT-*`, and `UI-*` identifiers that exist in no version of `PRD.md`.
-- Several completed tasks assert behaviour that is false in this repository, most importantly T71 (`./scripts/install.sh` — the file does not exist) and T100/T107 (pushing to `main` does not deploy — it does).
+- Several completed tasks assert behaviour that is false in this repository, most importantly T71 (`./scripts/install.sh` — the file does not exist) and T100/T107 (pushing to `main` does not deploy — correct for this repository; ADR-012 and `ci.yml`).
 - T174 and T175 remain unchecked although the contracts they describe now ship.
 
 Historical rows are left exactly as they landed. Do not retro-fit them and do not treat an inherited `[x]` as evidence. Active work starts at **Phase A** at the end of this file and references the requirement IDs in the current `PRD.md`.
@@ -919,14 +919,14 @@ A-10 runtime identity  →  A-11 /install wizard  →  A-12b fail-closed setup s
 A-50 install topology (blocked until A-10 removes the build-time constraint)
 ```
 
-`A-10` is the keystone. While store identity is baked into the bundle at build time, a wizard cannot set a store's name, one build cannot serve two installs, and the topology question in A-50 cannot be judged fairly. Nothing else in Phase A unblocks as much.
+`A-10` was the keystone, and it has landed. Identity now resolves from the `stores` row per request, so the wizard can set a store's name, one build can serve two installs, and the topology question in **A-50** can finally be judged on its merits — which makes A-50 the next decision, not the next implementation task.
 
 **Independent of the critical path** — these touch disjoint files and can proceed in any order, including in parallel: A-5, A-7, A-8, A-9, A-13, A-21, A-24, A-25, A-30, A-31, A-32, A-41, A-42.
 
 **Ordering constraints that are not obvious:**
 - `A-13` (schema version check at boot) is small and independent, but it is what makes `A-51` measurable — without it there is no way to ask an install which product version it is running.
 - `A-30`/`A-31`/`A-32` are browser-visible. They need visual verification, not just a green build; `A-37` is the precedent for why.
-- `A-24` (Drizzle) should be settled before anyone writes a migration by hand again, because the broken journal is a trap for the next contributor, not a defect in what ships.
+- `A-24` (Drizzle) is settled: retired, not repaired. There is no journal left to trap the next contributor; migrations are hand-authored and `wrangler` reads the directory.
 
 ---
 
@@ -973,7 +973,7 @@ A-50 install topology (blocked until A-10 removes the build-time constraint)
 - [~] **A-12a** — Stop inheriting marketing copy on missing home content (`src/lib/tenant-content.ts`). **Done 2026-08-16.**
  -> REQ: REQ-13 · gap: G5 · ADR-007 · Done when: the fallback carries only this store's own identity and generic section labels, never marketing claims; the unpublished path and the missing-binding path each log a distinct label so a degraded render is visible in logs. A D1 query failure was already logged separately as `storefront-home-content-load`.
 - [ ] **A-12b** — Render an explicit setup state instead of the structural shell.
- -> REQ: REQ-13 · gap: G5 · ADR-007 · deps: [A-12a] · Done when: an install with no published home row renders the setup state that already exists in `src/pages/index.astro`, and `DEFAULT_HOME_CONTENT` is deleted.
+ -> REQ: REQ-13 · gap: G5 · ADR-007 · deps: [A-12a] · Done when: an install with no published home row renders the setup state that already exists in `src/pages/index.astro`. `getTenantHomeContent` never returns `null`, so that branch is currently unreachable — the work is making the absence of a published row observable to the page, not deleting a symbol (`DEFAULT_HOME_CONTENT` is already gone; the fallback is `buildDefaultHomeContent`).
  · **Blocked on data, not code:** the reference install has no published `storefront_content` row, so flipping this today would replace a live storefront homepage with a setup notice. Publish home content from `/admin/content` first, then flip.
 - [x] **A-13** — Schema version check. **Done 2026-08-16.**
  -> REQ: REQ-8 · gap: G3 · Done when: the applied migration count is compared with `CMS_VERSION.schemaVersion` and a mismatch is surfaced to the operator instead of failing at the first broken query.
@@ -1049,7 +1049,7 @@ A-50 install topology (blocked until A-10 removes the build-time constraint)
 - [x] **A-56** — Fresh installs could not be created at all. **Fixed 2026-08-16.** *(found while retiring Drizzle)*
  -> REQ: REQ-2 · Migration `0017` seeded a sample product with `INSERT INTO products … SELECT … FROM stores`, a no-op on the empty `stores` table of a new database, then inserted two variants with a hardcoded `product_id = 10001` — violating the foreign key and aborting the chain at migration 17 of 36. **No new install could get past it**, which is fatal for a product whose premise is installability. Reproduced independently in an isolated SQLite before fixing.
  · A forward migration cannot repair this, because `0017` fails before any later migration runs. `0017` was edited in place — the one documented exception — with the reasoning in its header: `0034` already deletes that row, so a migrated database and a fresh one converge on the same end state and the edit creates no divergence.
- · Verified: all 36 migrations apply from zero, producing 17 tables and no foreign sample product.
+ · Verified: all 37 migrations apply from zero, producing 15 tables and no foreign sample product.
 
 - [x] **A-57** — Two maintenance scripts point at a repository that no longer exists. **Deleted 2026-08-16.** Their inputs, their dependencies and the repository they pointed at were all gone, and their outputs matched nothing in the tree.
  -> `scripts/generate-logo-assets.cjs` and `scripts/generate-webp-logo.cjs` hardcode `projectRoot = '/home/ongki/Projects/cmsads'` and `require` sharp from that checkout's `node_modules`. That repository is gone. Both are unrunnable from this tree and would write into the wrong project if it returned. Done when: they resolve paths relative to this repository and take their dependency from it, or they are deleted. They also still emit `adscms-logo.*` filenames.
@@ -1139,10 +1139,50 @@ A-50 install topology (blocked until A-10 removes the build-time constraint)
  · **repo per install** (today, ADR-012) — maximum isolation, maximum drift; every install upgraded by hand.
  · **one config file per install inside the product repo** (`wrangler deploy --config installs/<slug>.jsonc`) — least drift, but store configuration re-enters the product repository, which is precisely how another merchant's content once reached a live storefront.
  · **`env.<slug>` blocks in one config** — what the upstream engine did. Same drift profile as the previous option, with a smaller surface.
- · Do not decide before **A-10**: while identity is baked at build time, one build serves exactly one store, so any shared-repo option still means one build per install and the comparison is unfair to it.
+ · **A-10 has landed**, so the blocking condition is gone: identity is no longer in the bundle, one build can serve every install, and the shared-repo option can now be compared on its merits rather than against a handicap. This is the next decision in Phase A.
 
 - [~] **A-51** — Define how an install receives product updates. **Procedure written 2026-08-16; automation still open.**
  -> deps: [A-50] · `RELEASE.md` §7 now documents the merge-then-deploy procedure, its ordering constraints, and the `merge=keepours` driver that protects an install's `wrangler.jsonc` and deploy workflow from being overwritten by the product's placeholders. Still open: nothing verifies an install actually ran it, and nothing reports which product version an install is on. Done when an install's version is discoverable and drift is detectable without opening its repository.
 
 - [ ] **A-52** — Decide whether the product ships as a package.
  -> deps: [A-50] · Done when: either the product is published as an installable artifact so installs depend on a version rather than copying a tree, or the idea is recorded as rejected with its reason. This is what would make "one product, many installs" true rather than aspirational.
+
+---
+
+## Phase A — added 2026-08-17
+
+Found by an adversarial audit of the install and auth paths against the built
+Worker, and by reading the emitted stylesheets rather than the source.
+
+- [x] **A-68b** — The admin gate read the raw request path while Astro routed on a normalized one. **Done 2026-08-17.**
+ -> gap: — · ADR-013 · `//api/admin/settings` returned 200 with provider settings and no cookie; a cross-site `PUT` on the same path rewrote the courier API key. `src/middleware.ts` now derives every path decision from `context.url`. Pinned by `middleware-path-source.test.ts` and by `auth.test.ts`, whose harness previously supplied only `request` — which is why this passed CI. Verified before and after against `wrangler dev` on a real installed D1.
+
+- [x] **A-72** — The installer's credential write was unguarded, so a second submission took the admin account. **Done 2026-08-17.**
+ -> REQ: REQ-6 · A zero-row `INSERT` is not an error, so D1 kept the batch: the second caller was told "already installed" and had just replaced the operator's username and password. `hashAdminPassword` parks every request in ~100ms of PBKDF2 before the write, so an attacker polling an un-installed Worker owns the store the moment its operator installs it. The credential `UPDATE` now carries `AND must_change_password = 1` — order-independent, claimable once — and `runInstall` refuses outright when no credential row exists rather than writing a store with no admin. Reproduced and pinned in `install.test.ts` against real SQLite.
+
+- [x] **A-73** — Anyone knowing the admin username could lock the operator out. **Done 2026-08-17.**
+ -> ADR-014 · Ten addresses × the 5-per-pair allowance is exactly the 50 identifier ceiling, so sixty requests denied the real operator, with the correct password, from a clean address — repeatable indefinitely. The identifier bucket now denies only an address that has itself failed for that account.
+
+- [x] **A-74** — `robots.txt` told Google nothing and shipped the demo store's sitemap. **Done 2026-08-17.**
+ -> Per RFC 9309 a crawler obeys only its most specific matching group; the named groups held nothing but `Allow: /`, so six crawlers saw no disallows and `/admin` and `/hello` were fair game. It also carried `Sitemap: <demo domain>`. Now served from `src/pages/robots.txt.ts` against the store's own identity, with the disallow list repeated in every group.
+
+- [x] **A-75** — Reference-store branding was still shipping on three surfaces. **Done 2026-08-17.**
+ -> The storefront wordmark was the demo name in literal text while its own `aria-label` resolved correctly; the favicon every admin page and the login screen load spelled it out in two 62px words; and the Google/Meta ads pages printed the demo store's feed URLs for the operator to register. All now resolve from identity, and `brand-contamination.test.ts` fails the build if any of it returns.
+
+- [x] **A-76** — 27 routes asked for Inter and loaded no font faces at all. **Done 2026-08-17.**
+ -> The `@fontsource` imports lived in `BaseLayout`, so all 23 `@font-face` rules landed in that layout's stylesheet. The 26 admin routes, `/hello` and `/embed/form` load `global.css` and never that one, while `global.css` names Inter for `body` and `.admin-shell` — the entire operator UI, plus the checkout merchants iframe onto their own pages, silently rendered in `system-ui`. Faces moved to `global.css`; the 400/600/700 ramp is unchanged (A-32).
+
+- [x] **A-77** — The mobile grid guard passed the defect it exists to stop. **Done 2026-08-17.**
+ -> It accepted `grid-cols-*` "at any breakpoint prefix", so `grid gap-3 sm:grid-cols-2` — which below `sm` has no `grid-template-columns` at all — was green, and 48 live admin grids matched that shape. It also read only double-quoted `class` attributes, missing `cn()`, template literals, single-quoted Astro attributes and `class:list`: six of seven spellings. Guard rewritten and mutation-verified against all seven; the 48 grids given an explicit mobile column; scope widened to `src/components/ui` and `src/layouts`.
+
+- [x] **A-78** — Three holes in the mobile tap-target net. **Done 2026-08-17.**
+ -> An `<a class="h-8">` inside the very dialog the net was written for (anchors were not in any selector); `sheet-content`, which portals exactly as dialogs do and carries the mobile menu and search; and portaled `select-item` / `dropdown-menu-item` / `command-item` rows at ~28px across seven admin components.
+
+- [x] **A-79** — A fresh store described itself to customers as unconfigured. **Done 2026-08-17.**
+ -> Same defect as A-70, one field over: `PUBLIC_SITE_DESCRIPTION` shipped `"Belum dikonfigurasi."`, which becomes the meta description Google prints under the store and the second half of the home page `<title>`. Both the template value and the code default are now empty, and the resolver composes a plain sentence from the store's own name.
+
+- [ ] **A-71** — Make the login brake exact under concurrency.
+ -> ADR-014 · `checkRateLimit` is a non-atomic KV get-then-put, so N simultaneous guesses read the same count and spend one slot between them: measured, 50 parallel wrong passwords cost 1 of a 5-attempt bucket. It damps sequential credential stuffing, not parallel. Done when the pair bucket is exact under concurrency — which means a Durable Object, since Workers KV has no atomic increment.
+
+- [ ] **A-80** — See the admin rendered in a browser.
+ -> deps: [A-58] · Everything in A-76, A-77 and A-78 is a cascade change reasoned from the built stylesheet, not from pixels. Not established: that the 44px floors do not break a compact row, that growing `dialog-close` to 44×44 under `absolute top-2 right-2` clears the header in `OrderDetail`'s `p-0` dialog, or that admin reads acceptably now that it renders in Inter rather than the platform's `system-ui`. Done when the admin has been opened at 320px, 390px and desktop.

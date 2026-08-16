@@ -1,6 +1,6 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-08-16 @ `0a145c5`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 ## 0. About this document
 
@@ -46,7 +46,7 @@ AdsBookCMS gives one merchant a complete direct-response storefront: catalog, la
 | REQ-4 | Where a provider credential exists both in the database and in the environment, the system shall prefer the database value and shall report which source is active. | Implemented |
 | REQ-5 | The system shall never return a stored secret through a browser-facing API; masked previews only. | Implemented |
 | REQ-6 | When the database has not been initialised, the system shall present a first-run install wizard that collects store identity, administrator credentials, and locale, writes them to D1, and refuses to run again once complete. | Implemented 2026-08-16 |
-| REQ-7 | Store identity — name, canonical URL, description, logo, tagline, theme colour, locale, storefront template — shall resolve at runtime from D1 so that changing it requires no rebuild. | Implemented 2026-08-16 for resolution; only `name` has an admin editor so far, so the remaining seven fields are settable at install time but not afterwards |
+| REQ-7 | Store identity — name, canonical URL, description, logo, tagline, theme colour, locale, storefront template — shall resolve at runtime from D1 so that changing it requires no rebuild. | Implemented 2026-08-16 for resolution. Six fields have an admin editor at `/admin/settings/store` — name, canonical URL, description, tagline, logo, storefront template. `theme_color`, `locale` and `admin_name` resolve at runtime but have no editor; `theme_color` is not collected by the wizard either |
 | REQ-8 | On boot, the system shall compare its applied schema version with the version the code expects and shall surface a mismatch rather than failing silently. | Planned — G3 |
 | REQ-9 | A fresh install shall contain no data belonging to any other merchant, and any sample record it ships shall be neutral, clearly labelled, and deletable. | Implemented — migration `0034` removes the inherited row; the optional demo reset uses a neutral, editable catalog |
 
@@ -152,10 +152,10 @@ AdsBookCMS gives one merchant a complete direct-response storefront: catalog, la
 
 | ID | Requirement | Status |
 | --- | --- | --- |
-| REQ-80 | Merging to the release branch shall deploy production, and this shall be documented as the release action rather than contradicted. | Implemented |
+| REQ-80 | Merging to the release branch shall deploy production, and this shall be documented as the release action rather than contradicted. | Implemented **in an install repository**. Not true of this one: the product repository deploys nothing and holds no Cloudflare credentials (ADR-012, `RELEASE.md` §1) |
 | REQ-81 | Schema migrations shall be applied as a separate, explicitly approved step, never as part of deployment. | Implemented |
-| REQ-82 | The system shall emit structured, labelled error logs, and those logs shall be retained and queryable. | Implemented — ~76 labelled `console.error` calls, with Workers Logs enabled at full sampling in `wrangler.jsonc`. Reaction is a separate requirement: nothing alerts, and degraded paths still log nothing (A-41) |
-| REQ-83 | An install shall report its version and applied schema version so an operator can determine what a given deployment is running. | Partial — version is rendered in the admin; no health endpoint |
+| REQ-82 | The system shall emit structured, labelled error logs, and those logs shall be retained and queryable. | Implemented — 98 labelled `console.error` calls across roughly 85 distinct labels, with Workers Logs enabled at full sampling in `wrangler.jsonc`. Reaction is a separate requirement: nothing alerts, and degraded paths still log nothing (A-41) |
+| REQ-83 | An install shall report its version and applied schema version so an operator can determine what a given deployment is running. | Implemented — `src/pages/api/admin/health.ts`, role-gated, reporting version and applied schema version; surfaced on the dashboard |
 | REQ-84 | Telemetry, if collected across installs, shall never include order, customer, or payment payloads. | Planned — no cross-install telemetry exists |
 
 ---

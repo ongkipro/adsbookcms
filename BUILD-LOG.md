@@ -1,5 +1,7 @@
 # BUILD LOG: AdsBookCMS
 
+> Verified against disk: 2026-08-17 @ `PENDING`
+
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
@@ -2074,3 +2076,100 @@ Scope: Comprehensive UI/UX redesign and backend enhancement for `/admin/orders`,
   - `npm run build`: **complete** (Cloudflare server bundle).
   - Browser: **public menu 8/8**, **current-role admin menu/profile 5/5**, both skip links functional, no 390 px horizontal overflow, `/thanks` and `/payment` clean before downstream requests, and `/api/order-status` observed as POST JSON only.
   - No deploy, remote database write, commit, or push was performed.
+
+---
+
+## 2026-08-17 — Audit findings: an open admin, an install anyone could take, and 27 routes with no fonts
+
+Three adversarial audits ran against the tree left by the 2026-08-16 work: one
+attacking the install and auth paths on the built Worker, one checking every
+markdown file against disk, one reading the emitted stylesheets rather than the
+source. All three were told to refute rather than confirm. Between them they
+found more than the day that produced the code did.
+
+**The admin gate was open, and one character of URL opened it.** `src/middleware.ts`
+classified requests from `new URL(context.request.url)`. Astro routes on a
+normalized pathname — percent-decoded in a loop, duplicate slashes collapsed —
+and exposes it as `context.url`, leaving `context.request` at the raw bytes. So
+middleware judged one path and Astro served another. Measured on the built Worker
+under `wrangler dev`, with no cookie: `/api/admin/settings` → 401,
+`//api/admin/settings` → 200 with the store's provider settings; `//admin/dashboard`
+→ 200; `/%61dmin/orders` → 200; and `PUT //api/admin/settings` from
+`https://evil.example` → 200, rewriting the courier API key and base URL. The
+session check, role check, CSRF origin check and rotation gate all sat inside the
+block that was skipped. The gate itself was correctly built — it was simply never
+reached. Fixed by binding `url` to `context.url`; ADR-013.
+
+The bypass was reproduced on the pre-fix build and re-tested on the fixed one, on
+the same box, same database: 200 → 401/302 on every shape. `auth.test.ts`'s
+harness had been supplying only `request`, never `url`, which is why 294 green
+tests said nothing about this; it now reproduces Astro's normalization and drives
+the real handler with the shapes that got through.
+
+**The installer gave the store away.** Only the store `INSERT` carried a guard. A
+zero-row insert is not an error, so D1 kept the batch: the second submission was
+told "already installed" *and had just overwritten the operator's username and
+password with its own*. Since `hashAdminPassword` parks every request in ~100ms
+of PBKDF2 before the write, anyone polling an un-installed Worker owns the store
+the moment its real operator installs it. The credential `UPDATE` now carries
+`AND must_change_password = 1` — order-independent, claimable exactly once — and
+`runInstall` refuses outright rather than writing a store with no admin account.
+Both reproduced against real SQLite in `install.test.ts`.
+
+**The lockout was a feature.** The identifier rate-limit bucket, documented as a
+backstop, was reachable by anyone who knew the username: ten addresses × the
+5-per-pair allowance is exactly its 50 ceiling, so sixty requests denied the real
+operator, with the correct password, from an address that had never failed —
+repeatable indefinitely at four requests a minute. It now denies only an address
+that has itself failed for that account. ADR-014, which also records the ceiling
+that remains: KV's get-then-put is not atomic, so 50 parallel guesses cost one
+slot of five (A-71).
+
+**Branding leaked on three more surfaces**, each of which looked like the last
+one had been the end of it: the storefront wordmark spelled the demo store's name
+in literal text while its own `aria-label` resolved correctly; the favicon loaded
+by every admin page and the login screen spelled it out in two 62px words; and
+the Google and Meta ads pages printed the demo store's feed URLs for merchants to
+register with their own accounts. `robots.txt` did the same with its `Sitemap:`
+line — and, per RFC 9309, its named `Googlebot`/`Bingbot`/AI-crawler groups held
+nothing but `Allow: /`, so six crawlers saw no disallows at all and `/admin` and
+`/hello` were fair game. It is now a route resolved from identity.
+`brand-contamination.test.ts` fails the build if any of this returns.
+
+**Twenty-seven routes asked for a font they never loaded.** The `@fontsource`
+imports lived in `BaseLayout`, so all 23 `@font-face` rules landed in that
+layout's stylesheet — which the 26 admin routes, `/hello` and `/embed/form` never
+request, while `global.css` names Inter for `body` and `.admin-shell`. The entire
+operator UI, plus the checkout merchants iframe onto their own pages, silently
+rendered in `system-ui`.
+
+**The mobile grid guard passed the defect it was written to stop.** It accepted a
+column declaration "at any breakpoint prefix" — exactly backwards for a mobile
+guard, since `grid gap-3 sm:grid-cols-2` has no `grid-template-columns` at all
+below `sm`. 48 live admin grids matched that shape while the suite was green. It
+also read only double-quoted `class` attributes, missing six of seven spellings.
+Rewritten, mutation-verified against all seven, scope widened; the 48 grids
+given an explicit mobile column.
+
+**Documentation.** The docs audit found drift in nearly every file, and the worst
+items were not stale but *never true*: `RELEASE.md` named a `CLOUDFLARE_API_TOKEN`
+GitHub environment and two Cloudflare secrets as present in this repository —
+surviving text from the deleted deploy workflow, six lines below the sentence
+saying it had been removed, in a repository whose entire ADR-012 exists to keep
+those credentials out. `OBSERVABILITY.md` declared observability off and handed
+the reader the exact block to paste, byte-identical to what `wrangler.jsonc`
+already contained. `STATUS.md` said the default password fails closed, which is
+the behaviour that shipped, made a fresh install unopenable, and was reverted.
+`ARCHITECTURE.md` called `auth.ts` "the highest-risk untested module" with its
+14-test suite sitting beside it, and asserted that an unknown template returns
+500 on every route — refuted by a passing test written to record that fix.
+
+Sixteen documents also carried verification headers citing commits that the
+history rewrite had orphaned. All re-stamped.
+
+Gates: `npm test` 303/303 · `npm run check` 317 files, 0 errors / 0 warnings /
+0 hints · `npm run build` complete. Install, gate and `robots.txt` verified live
+against `wrangler dev --local` on a real migrated D1. No deploy, no remote
+database write.
+
+Not verified: nothing in the UI work has been seen in a browser (A-58, A-80).

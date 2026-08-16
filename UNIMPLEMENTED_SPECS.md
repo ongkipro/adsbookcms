@@ -1,6 +1,6 @@
 # AdsBookCMS — Remaining Work and Blockers
 
-> Verified against disk: 2026-08-16 @ `0a145c5`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 This is the single ledger of work that is **not** done. Implemented behaviour belongs in `STATUS.md`, history in `BUILD-LOG.md`, accepted product behaviour in `PRD.md`, real architecture in `ARCHITECTURE.md`, and constraining decisions in `DECISIONS.md`.
 
@@ -13,9 +13,22 @@ Two rules govern every entry, per ADR-010:
 
 ## 1. Product Gaps — owned by the gap register
 
-The seven open structural gaps between "the store that runs today" and "an installable product" live in **`ARCHITECTURE.md` §10** and are not restated here. In summary: **G1** build-time identity · **G2** no install wizard · **G3** no schema auto-upgrade · **G5** home content does not fail closed · **G6** compile-time theme set · **G7** no observability · **G8** broken Drizzle journal. **G4** is closed: migration `0034` removes the inherited sample row from a fresh schema.
+**Three** structural gaps remain open, and they live in **`ARCHITECTURE.md`
+§10** — that register is authoritative and this section defers to it rather than
+restating it:
 
-Their governing decisions are ADR-003 (runtime identity), ADR-004 (install wizard), ADR-005 (raw SQL data layer), ADR-006 (neutral sample data), and ADR-007 (fail closed). G1 → G2 is the hard dependency: identity must resolve at runtime before a first-run wizard can write it.
+- **G3** no schema auto-upgrade
+- **G5** home content does not fail closed
+- **G6** a template cannot be *added* without a rebuild (switching one works)
+
+Closed: G1 (runtime identity, migration `0036`), G2 (`/install`), G4 (migration
+`0034`), G8 (Drizzle retired), G9 and G10 (Purchase deduplication). G7 is partial
+— Workers Logs and a health endpoint exist; alerting and a cross-install view do
+not.
+
+Governing decisions: ADR-003 (runtime identity), ADR-004 (install wizard),
+ADR-005 (raw SQL data layer), ADR-006 (neutral sample data), ADR-007 (fail
+closed).
 
 Everything below is work the gap register does **not** cover: external provider contracts, the headless API surface, inherited-identity cleanup, merchant inputs, and operator-gated actions.
 
@@ -97,12 +110,12 @@ Per ADR-002, remnants of the upstream multi-tenant engine and of previous mercha
 
 | # | Remnant | Where | Note |
 | --- | --- | --- | --- |
-| C1 | `CONTENT_PACK_IDS` | `src/lib/tenant-contract.ts:5` | Exactly one value, `"runtime-managed"`, plus an `isTenantContentPackId` guard that can only ever return true for it. The whole mechanism is inert. There is no "legacy petanisejahtera content pack" and no compiled migration fallback keyed on one — delete the constant, the type, and the guard along with `PUBLIC_CONTENT_PACK` in `src/env.d.ts`. |
-| C2 | `zanoby_click_ids` cookie | `src/lib/click-ids.ts:15`, `src/pages/embed/form.astro:78,82`, `src/lib/checkout-navigation.ts:39` | Load-bearing runtime string with three call sites. Renaming is a deliberate migration, not a find-and-replace: change the constant, both embed writers, and the reader in one commit, and ship a dual-read fallback first or accept losing click IDs captured under the old name. |
-| C3 | `Zanoby Purchase` conversion label | `src/pages/admin/ads/google.astro:226` | Operator-facing copy naming a conversion action configured in a **Google Ads account**. Editing the string does not rename the conversion action; coordinate with whoever owns that account. |
-| C4 | `petanisejahtera.com` test fixture | `src/lib/meta-capi.test.ts:37` | Test-only, no runtime effect. Replace with a neutral origin during the next touch of that test. |
-| C5 | `PUBLIC_TENANT_SLUG` | `src/env.d.ts:11` | Declared, unset, unused. Remove with the identity work in G1/ADR-003. |
-| C6 | `pnpm-lock.yaml` + `pnpm-workspace.yaml` | repo root | Per ADR-009, npm is authoritative. Both are to be deleted. |
+| ~~C1~~ | ~~`CONTENT_PACK_IDS`~~ | — | **Done.** The constant, its type and its guard are gone; `tenant-contract.ts` now holds only `STOREFRONT_TEMPLATE_IDS`. |
+| ~~C2~~ | ~~`zanoby_click_ids` cookie~~ | — | **Done.** The cookie is `adsbook_click_ids`; the legacy name survives as a read-only fallback in `click-ids.ts` so an upgrading install keeps 90 days of in-flight attribution, and appears nowhere else. |
+| C3 | `Zanoby Purchase` conversion label | `src/pages/admin/ads/google.astro` | Operator-facing copy naming a conversion action configured in a **Google Ads account**. Editing the string does not rename the conversion action; coordinate with whoever owns that account. **The only row here still true.** |
+| ~~C4~~ | ~~`petanisejahtera.com` test fixture~~ | — | **Done.** Replaced with a neutral origin. |
+| ~~C5~~ | ~~`PUBLIC_TENANT_SLUG`~~ | — | **Withdrawn.** It is not in `src/env.d.ts` and it is not unused: it is a live fallback key in `tenant.ts`, between `stores.slug` and the product default. Deleting it, as this row instructed, would have removed working behaviour. |
+| ~~C6~~ | ~~`pnpm-lock.yaml` + `pnpm-workspace.yaml`~~ | — | **Done.** Neither file exists. |
 
 ---
 
@@ -117,7 +130,7 @@ These are not engineering gaps. They require an explicit human decision and, whe
 | Meta test events | Operator-provided test code plus explicit outbound-call approval. |
 | Remote D1 migration (`npm run db:migrate:remote`) | Separate approval, independent of any deploy approval. |
 | Production release | **Not possible from this repository.** It is the product: `.github/workflows/ci.yml` runs `npm ci → npm run check → npm test → npm run build` and stops. There are no Cloudflare credentials and no deploy target here (ADR-012). Releasing means an install pulls this code into its own repository and deploys from there, where merging to `main` does reach live traffic with no staging and no approval step. |
-| Provisioning a second install in another Cloudflare account | Explicit approval. No installer exists (gap G2), so this is currently a manual Wrangler procedure and cannot be claimed as proven. |
+| Provisioning a second install in another Cloudflare account | Explicit approval. `/install` covers store setup, but creating the Worker, D1, KV and R2 and applying the schema is still a Wrangler procedure, and it has not been proven end to end against a second account. |
 
 ---
 
@@ -132,7 +145,7 @@ Repository implementation for the content workbench is complete; publication is 
 5. Publish each validated home and product record explicitly.
 6. Exercise the resulting storefront and its metadata in a browser.
 
-Product presentation already fails closed — an unpublished product is omitted from the storefront. Home content does **not** yet (gap G5), so an unpublished home silently serves compiled copy.
+Neither surface fails closed today. `mergeStorefrontCatalog` omits an **inactive** product, but an *active* product with no published presentation is re-added with copy generated from its own row (`catalog-data.ts`). Home content behaves the same way: with no published row, `buildDefaultHomeContent` composes a shell from this store's identity, logged as `home-content-unpublished`. Both are gap **G5**.
 
 **Never seed production merchant instructions, credentials, claims, testimonials, ratings, or customer data into Git.**
 
@@ -140,16 +153,18 @@ Product presentation already fails closed — an unpublished product is omitted 
 
 ## 8. Execution Order
 
-1. **G1 → G2** identity at runtime, then the install wizard. Everything else in the gap register depends on or is cheapened by these.
-2. **G5** make home content fail closed; a fresh install must not silently inherit compiled marketing copy (ADR-007).
-3. **C1, C5, C6** delete the inert remnants. They are small, safe, and stop new code from being written against them.
-4. **H4, H6, H7, H8** complete the remaining Headless API product surface: key scope and quota, order-status read, a published contract, and an executable adapter.
-5. **G8** — closed 2026-08-16. Drizzle retired rather than repaired; see `DECISIONS.md` ADR-005.
-6. **G7** add an `observability` block; nothing above can be diagnosed on a customer install without it.
-7. **C2** the click-ID cookie migration, deliberately, with the dual-read fallback.
-8. **§3A** the unpaid-recovery operator surface, after an approved live capture.
-9. **§3B** re-verify the pickup contracts, then prove them live under approval.
-10. **§2** resolve tracking, wallet, and AutoLaris signature blockers only from canonical provider documentation.
+1. **G5** make home content fail closed; a fresh install must not render a
+   generic storefront in place of a setup state (ADR-007, task A-12b).
+2. **H4, H6, H7, H8** complete the remaining Headless API product surface: key
+   scope and quota, order-status read, a published contract, and an executable
+   adapter.
+3. **G7** error reporting and alerting. Workers Logs and `/api/admin/health`
+   already exist; what is missing is anything that *pushes*.
+4. **G3** compare `schemaVersion` to the applied chain at boot.
+5. **G6** allow a template to be added without a rebuild.
+6. **§3A** the unpaid-recovery operator surface, after an approved live capture.
+7. **§3B** re-verify the pickup contracts, then prove them live under approval.
+8. **§2** resolve tracking, wallet, and AutoLaris signature blockers only from canonical provider documentation.
 11. **H4, H6, H7, H8** and the consent adapter, once the installer product shape is settled.
 
 ---

@@ -1,6 +1,6 @@
 # AdsBookCMS — Storefront, Form, and Ads Integration Contract
 
-> Verified against disk: 2026-08-16 @ `0a145c5`
+> Verified against disk: 2026-08-17 @ `PENDING`
 
 This document is the implementation handoff for anyone — human or agent — building a public storefront experience against an **AdsBookCMS** install. Two integration shapes are supported and both are shipping today:
 
@@ -61,12 +61,12 @@ These serve the built-in forms. They are same-origin and take no API key.
 | `/api/form-config` | GET | Resolve one active product/variant plus canonical middle/full/hybrid render URLs. |
 | `/api/locations` | GET | Search district/city and provider location identities. |
 | `/api/geo-province` | GET | Resolve the trusted province for form-mode routing. |
-| `/api/shipping-rates` | POST | Server-authoritative eligible courier rates. |
+| `/api/shipping-rates` | GET | Server-authoritative eligible courier rates. Query parameters, not a body. |
 | `/api/shipping-options` | GET | Configured public shipping choices. |
 | `/api/payment-methods` | GET | Eligible payment methods and COD exclusions. |
 | `/api/submit-order` | POST | Persist the full/hybrid validated order. |
 | `/api/submit-middle-order` | POST | Persist the compact middle-order contract. |
-| `/api/order-status` | GET | Recorded payment state for a known order. |
+| `/api/order-status` | POST | Recorded payment state for a known order. Token-scoped, requires a JSON body. |
 | `/api/record-abandoned-order` | POST | Record an abandoned checkout attempt. |
 | `/api/meta-event` | POST | Validate and forward supported server CAPI events when configured. |
 
@@ -113,10 +113,10 @@ Both admin fields accept one exact origin or wildcard subdomain pattern per line
 
 `src/pages/api/v1/storefront.ts`. Methods: `GET`, `OPTIONS`.
 
-The bootstrap contract. Returns three groups:
+The bootstrap contract. Returns four groups:
 
-- `storefront` — `slug`, `name`, `tagline`, `description`, `site_url`, `logo`, `theme_color`, `locale`, `template`, `admin_name`. All of these come from `tenantConfig`, which is **frozen into the bundle at build time** (ARCHITECTURE §5, gap G1). They will not change until a rebuild and redeploy, and they are *not* the same values as the `stores` row edited in admin.
-- `content` — the published home content object from `getTenantHomeContent`. Note gap G5: with no published home row this silently returns `DEFAULT_HOME_CONTENT` compiled into the bundle rather than an honest empty state.
+- `storefront` — `slug`, `name`, `tagline`, `description`, `site_url`, `logo`, `theme_color`, `locale`, `template`, `admin_name`. All of these come from `resolveTenantConfig`, which reads the `stores` row per request and falls back to the `PUBLIC_SITE_*` vars only where the row has not set a field (ARCHITECTURE §5; gap G1 closed). They are the same values the admin edits, and they change on the next request.
+- `content` — the published home content object from `getTenantHomeContent`. Note gap G5: with no published home row this returns a shell from `buildDefaultHomeContent`, composed from this store's own identity and logged as `home-content-unpublished`, rather than an honest empty state.
 - `tracking` — `meta_pixel_id`, `google_ads_conversion_id`, `google_ads_conversion_label`, `google_tag_manager_id`, each `null` when unset. Read live from the `stores` row. **The Meta CAPI token is never included and must never be added here.**
 - `payment` — `cod_enabled` (hardcoded `true`), `cod_disabled_provinces` (live from `stores.cod_disabled_province_codes`), and `supported_methods: ["COD","BANK_TRANSFER","E_WALLET","QRIS"]` (a static list, not a live eligibility check — use `/api/payment-methods` for eligibility).
 
@@ -280,18 +280,26 @@ Define the applicable consent behaviour before loading optional browser tags. Tr
 
 ## 7. Brand Contamination Guardrail
 
-This repository was re-founded from a prior deployment and still carries a previous merchant's identity, **Zanoby**, in live code paths. These are load-bearing strings, not comments — renaming any of them changes runtime behaviour and will silently break attribution for in-flight sessions:
+This repository was re-founded from a prior deployment. Most of the inherited
+identity is gone; what remains is listed here, and `src/lib/brand-contamination.test.ts`
+now fails the build if the reference store's brand re-enters `src/` or `public/`
+outside a test fixture. That guard exists because this leaked five times on five
+surfaces that each looked like the last one: the login artwork, the login card's
+logo, the storefront wordmark, the favicon every admin page loads, and
+`robots.txt`, which handed every merchant's crawler someone else's sitemap.
+
+The rows below are load-bearing strings, not comments — renaming one changes
+runtime behaviour and will silently break attribution for in-flight sessions:
 
 | Path | What it is | Consequence of a careless rename |
 | --- | --- | --- |
 | `src/lib/click-ids.ts` | `CLICK_ID_COOKIE = "adsbook_click_ids"`, with `LEGACY_CLICK_ID_COOKIE` read-only | Renamed 2026-08-16 with a read fallback, so no in-flight attribution was lost. Delete the fallback only after 90 days from deploy |
-| `src/pages/embed/form.astro` | Writes the same name to `sessionStorage` and `document.cookie` | Must change in the same commit as the constant or the embed form and the reader disagree |
 | `src/lib/checkout-navigation.ts` | Reads the `adsbook_click_ids` `sessionStorage` key | Writer and reader ship in one page load, so no migration window was needed |
 | `src/pages/admin/ads/google.astro` | Documents the Google Ads conversion name `Zanoby Purchase` | Operator-facing copy that references a conversion action **configured in a Google Ads account**; changing the docs does not rename the conversion action |
 
 Do not relabel these opportunistically while doing unrelated work. Renaming the cookie is a deliberate migration: change the constant, both embed writers, and the reader together, and accept that click IDs captured under the old name are lost unless a dual-read fallback ships first.
 
-Two further contaminations, non-blocking but worth knowing: `src/lib/meta-capi.test.ts` asserts against a `petanisejahtera.com` URL, and `src/lib/meta-event-contract.test.ts` documents Zanoby catalog IDs. Those are test fixtures — no runtime effect.
+One further contamination, non-blocking: `src/lib/meta-event-contract.test.ts` documents Zanoby catalog IDs. That is a test fixture — no runtime effect. The `petanisejahtera.com` fixture was removed.
 
 ---
 
@@ -316,7 +324,7 @@ An integration is complete only when:
 
 - the storefront and its target install are named explicitly;
 - public storefront routes stay owned by the storefront; system routes are never forked;
-- checkout entry points emit the canonical `/hybrid-form`, `/middle-form`, `/full-form` — legacy `/form-*` aliases are not exposed to users, and the legacy URLs returned by `/api/v1/products*` are rewritten;
+- checkout entry points emit the canonical `/hybrid-form`, `/middle-form`, `/full-form` — legacy `/form-*` aliases are not exposed to users, and `/api/v1/products*` never emits a legacy `/form-*` URL, so there is nothing for a client to rewrite;
 - no Zanoby, Petani Sejahtera, or other prior-merchant content, cookie name, or conversion label is introduced into new code;
 - product and variant data comes from `/api/v1/products` and `/api/v1/products/[slug]` (external) or `src/lib/catalog.ts` (built-in) — never from a fixture, a copied JSON blob, or a manually maintained parallel catalog;
 - the developer API key is stored as a server-side secret in the storefront and never shipped to the browser;
@@ -338,7 +346,7 @@ npm run check     # astro check && tsc --noEmit
 npm run build     # astro build
 ```
 
-A green build is not proof the customer journey works. For any browser-visible change, open the page and exercise the path. **Pushing to `main` deploys production** — see ADR-008.
+A green build is not proof the customer journey works. For any browser-visible change, open the page and exercise the path. Pushing to `main` in the **product** repository deploys nothing (ADR-012, `RELEASE.md` §1); ADR-008 describes an install repository and is superseded here.
 
 ---
 
@@ -383,7 +391,9 @@ DATA AND COMMERCE INTEGRATION
    build-time-frozen on the install side; it will not change without a redeploy there.
 2. Render the catalog from GET /api/v1/products and GET /api/v1/products/[slug]. Use the
    numeric `id` as the canonical product identity everywhere, including content_ids.
-3. Rewrite the returned form URLs from /form-* to the canonical /hybrid-form, /middle-form,
+3. (No longer required — the API never returns a legacy /form-* URL. Kept so a
+   client written against the older advice can see it was withdrawn.)
+   Rewrite the returned form URLs from /form-* to the canonical /hybrid-form, /middle-form,
    /full-form before rendering a CTA.
 4. Resolve destinations with GET /api/v1/geo/districts and quote with
    GET|POST /api/v1/geo/shipping-rates. Re-quote before submit; never trust a cached price.

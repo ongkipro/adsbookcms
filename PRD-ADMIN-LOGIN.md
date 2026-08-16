@@ -1,6 +1,6 @@
 # PRD — Admin Login and First-Run Access
 
-> Verified against disk: 2026-08-17 @ `c6e7dd2`
+> Verified against disk: 2026-08-17 @ `8111d24`
 
 Scope: everything between an operator opening the admin and reaching a working dashboard — the login screen at `/hello`, the first-run credential, the forced password rotation, and the session that carries them. It does not cover the dashboard itself.
 

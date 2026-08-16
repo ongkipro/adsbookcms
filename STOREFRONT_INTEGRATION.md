@@ -1,6 +1,6 @@
 # AdsBookCMS — Storefront, Form, and Ads Integration Contract
 
-> Verified against disk: 2026-08-17 @ `8111d24`
+> Verified against disk: 2026-08-17 @ `3de2b01`
 
 This document is the implementation handoff for anyone — human or agent — building a public storefront experience against an **AdsBookCMS** install. Two integration shapes are supported and both are shipping today:
 

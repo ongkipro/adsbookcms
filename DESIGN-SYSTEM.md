@@ -1,6 +1,6 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-08-17 @ `8111d24`
+> Verified against disk: 2026-08-17 @ `3de2b01`
 
 This document describes the presentation layer **as it ships**, extracted from the code rather than from intent. Every concrete value below carries a `file:line` reference. Anything that could not be verified against the tree was left out — see `DECISIONS.md` ADR-010.
 

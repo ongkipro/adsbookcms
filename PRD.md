@@ -1,6 +1,6 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-08-17 @ `8111d24`
+> Verified against disk: 2026-08-17 @ `3de2b01`
 
 ## 0. About this document
 

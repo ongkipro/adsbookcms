@@ -47,7 +47,14 @@ const defaults = {
   slug: "adsbook",
   name: "AdsBookCMS Store",
   siteUrl: "https://example.com",
-  description: "Storefront online yang belum dikonfigurasi.",
+  // Deliberately empty, for the reason PUBLIC_SITE_TAGLINE is: a placeholder
+  // sentence here does not stay in the config file. It becomes the meta
+  // description Google prints under the store's result and, on the home page,
+  // the second half of the <title> — so an unconfigured install advertised
+  // itself to customers as unconfigured. The resolver below builds a plain,
+  // factual sentence from the store's own name instead. Same defect as A-70,
+  // one field over.
+  description: "",
   // A neutral product mark, never a store's. An install that has not set its
   // own logo must announce that it is unconfigured, not wear someone else's
   // brand — /images/logo.webp belongs to whichever store supplied it.
@@ -127,11 +134,9 @@ export function resolveTenantConfig(
     slug: pick(row?.slug, "PUBLIC_TENANT_SLUG", defaults.slug),
     name,
     siteUrl: siteOrigin(pick(row?.site_url, "PUBLIC_SITE_URL", defaults.siteUrl)),
-    description: pick(
-      row?.description,
-      "PUBLIC_SITE_DESCRIPTION",
-      defaults.description,
-    ),
+    description:
+      pick(row?.description, "PUBLIC_SITE_DESCRIPTION", defaults.description) ||
+      `Belanja online di ${name}.`,
     logo: pick(row?.logo, "PUBLIC_SITE_LOGO", defaults.logo),
     tagline,
     themeColor: themeColor(

@@ -80,7 +80,10 @@
   "vars": {
     "PUBLIC_SITE_NAME": "Your Store",
     "PUBLIC_SITE_URL": "https://example.com",
-    "PUBLIC_SITE_DESCRIPTION": "Belum dikonfigurasi.",
+    // Deliberately empty, like the tagline below. A placeholder here becomes
+    // the meta description Google prints under the store, and the second half
+    // of the home page <title>.
+    "PUBLIC_SITE_DESCRIPTION": "",
     // Deliberately empty. A non-empty default here becomes the second half of
     // every unconfigured store's <title>, which is how a fresh install came to
     // announce itself as "Toko Anda — Belum Dikonfigurasi".

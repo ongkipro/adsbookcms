@@ -183,6 +183,13 @@ export function sanitizePreviewHtml(value: string) {
   return parsedDocument.body.innerHTML;
 }
 
+// Both preview strips spelled out the reference store's domain, so an operator
+// was shown a URL that belongs to someone else's shop. This island is mounted
+// `client:only`, so it already runs on the store's own origin — no prop needs
+// threading through two pages to say so.
+const previewOrigin =
+  typeof window === "undefined" ? "" : window.location.origin;
+
 export default function LandingPageEditor({ landingPageId }: Props) {
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -369,7 +376,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
               )}
             </h2>
             <p className="text-xs text-slate-500 font-mono mt-0.5">
-              {slug ? `https://permatamall.shop/${slug}` : "Lengkapi konfigurasi judul & produk di panel kiri"}
+              {slug ? `${previewOrigin}/${slug}` : "Lengkapi konfigurasi judul & produk di panel kiri"}
             </p>
           </div>
         </div>
@@ -601,7 +608,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
               {/* Device Header Bar */}
               <div className="bg-slate-900 px-4 py-2 text-white flex items-center justify-between text-[11px] font-mono">
                 <span className="truncate max-w-[300px] text-slate-300">
-                  https://permatamall.shop/{slug || "preview"}
+                  {previewOrigin}/{slug || "preview"}
                 </span>
                 <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-slate-800 text-slate-200 border-slate-700">
                   480px Storefront

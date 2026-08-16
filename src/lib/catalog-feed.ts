@@ -64,7 +64,7 @@ export function formatCatalogItemId(
 
 export function generateGoogleCatalogXml(
   products: CatalogProduct[],
-  siteOrigin: string = "https://permatamall.shop",
+  siteOrigin: string,
   title?: string,
   description?: string,
 ): string {
@@ -127,7 +127,7 @@ export function generateGoogleCatalogXml(
 
 export function generateMetaCatalogXml(
   products: CatalogProduct[],
-  siteOrigin: string = "https://permatamall.shop",
+  siteOrigin: string,
   title?: string,
   description?: string,
 ): string {

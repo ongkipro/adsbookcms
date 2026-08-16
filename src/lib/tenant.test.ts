@@ -108,3 +108,25 @@ test("the resolved config is frozen so a page cannot mutate shared identity", ()
     (tenant as { name: string }).name = "diubah";
   }, TypeError);
 });
+
+test("an unconfigured store never advertises itself as unconfigured", () => {
+  // Both fields shipped a placeholder sentence as their default, and both
+  // surface to customers: the tagline in the <title> (A-70), the description in
+  // the <title> and in the meta description Google prints under the result.
+  const config = resolveTenantConfig(null);
+
+  assert.equal(config.tagline, "");
+  assert.doesNotMatch(config.description, /belum dikonfigurasi/i);
+  assert.doesNotMatch(config.defaultTitle, /belum dikonfigurasi/i);
+  assert.ok(
+    config.description.includes(config.name),
+    "the fallback description must describe this store, not a placeholder",
+  );
+
+  // A store that has set its own description keeps it verbatim.
+  const configured = resolveTenantConfig({
+    name: "Toko Bunga",
+    description: "Bunga segar diantar hari ini.",
+  } as never);
+  assert.equal(configured.description, "Bunga segar diantar hari ini.");
+});

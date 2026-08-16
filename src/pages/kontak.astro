@@ -1,0 +1,24 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import LegalPage from '../components/shared/LegalPage.astro';
+import { getTenantLegalPage } from '../data/legal';
+import { getStoreSupportWhatsapp } from '../lib/public-store';
+
+const supportWhatsapp = await getStoreSupportWhatsapp(Astro.locals);
+const data = getTenantLegalPage('contact', Astro.locals.tenant.name, {
+  supportWhatsapp: supportWhatsapp ? `+${supportWhatsapp.replace(/^0/, '62')}` : '',
+});
+---
+
+<BaseLayout title={`${data.title} - ${Astro.locals.tenant.name}`} description={data.description}>
+  <LegalPage
+    badge={data.badge}
+    title={data.title}
+    description={data.description}
+    sections={data.sections}
+    breadcrumbs={[
+      { label: 'Beranda', href: '/' },
+      { label: data.badge, href: '/kontak' },
+    ]}
+  />
+</BaseLayout>

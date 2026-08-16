@@ -1,0 +1,246 @@
+---
+import type { ComponentProps } from 'astro/types';
+import { SEO } from 'astro-seo';
+// The shipped Inter ramp is 400/600/700. The tree also declares 500 (`font-medium`)
+// and 800 (`font-extrabold`); per CSS Fonts 4 weight matching those resolve to the
+// 400 and 700 faces respectively — nearest-face substitution, not faux-bold — so the
+// ramp flattens rather than smears. Closing that gap costs ~48KB of latin woff2 on
+// the highest-traffic routes and is a type-ramp decision, not a bug fix. See A-32.
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
+// Cinzel ships the weight the markup asks for. It used to ship 600, which no rule in
+// the tree declared, while SiteBrand, ProofsSection and the PDP review avatars all
+// declare `font-bold`. Same file count, 20 bytes lighter (A-32).
+import '@fontsource/cinzel/700.css';
+import GoogleAdsBase from '../components/tracking/GoogleAdsBase.astro';
+import MetaPageViewTracker from '../components/tracking/MetaPageViewTracker.astro';
+import MetaPixelBase from '../components/tracking/MetaPixelBase.astro';
+import GtmBase from '../components/tracking/GtmBase.astro';
+import MetaDebugTracker from '../components/tracking/MetaDebugTracker.astro';
+import JsonLdSchema from '../components/seo/JsonLdSchema.astro';
+import SiteFooter from '../components/shared/SiteFooter.astro';
+import SiteHeader from '../components/shared/SiteHeader.astro';
+import { getStoreAdsConfig } from '../lib/store-ads';
+import '../styles/global.css';
+
+type JsonLdProps = ComponentProps<typeof JsonLdSchema>;
+
+type PreloadImageItem = string | { srcset: string; imagesizes?: string; sizes?: string };
+
+interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+  canonical?: string;
+  hideHeader?: boolean;
+  hideFooter?: boolean;
+  noindex?: boolean;
+  breadcrumbs?: JsonLdProps['breadcrumbs'];
+  product?: JsonLdProps['product'];
+  faqs?: JsonLdProps['faqs'];
+  itemList?: JsonLdProps['itemList'];
+  contentWidth?: 'compact' | 'wide';
+  preloadImages?: PreloadImageItem | readonly PreloadImageItem[];
+  shell?: string;
+}
+
+const {
+  title: rawTitle = Astro.locals.tenant.defaultTitle,
+  description = Astro.locals.tenant.description,
+  image = Astro.locals.tenant.logo,
+  canonical: canonicalProp,
+  hideHeader = false,
+  hideFooter = false,
+  noindex = false,
+  breadcrumbs,
+  product,
+  faqs,
+  itemList,
+  contentWidth = Astro.locals.tenant.storefrontTemplate === 'wide-catalog' ? 'wide' : 'compact',
+  preloadImages,
+} = Astro.props;
+
+// Clean title: remove any "landing page" or "(landing page)" phrasing to focus strictly on product/brand name
+const title = (rawTitle || Astro.locals.tenant.defaultTitle)
+  .replace(/\s*\(?\s*landing\s*page\s*\)?/gi, '')
+  .replace(/\s+-\s+-\s+/g, ' - ')
+  .trim();
+
+const publicSiteUrl = Astro.locals.tenant.siteUrl;
+const adsConfig = await getStoreAdsConfig(Astro.locals);
+const canonical = canonicalProp ?? new URL(Astro.url.pathname, publicSiteUrl).toString();
+const imageUrl = new URL(image, publicSiteUrl).toString();
+const preloadImageUrls =
+  typeof preloadImages === 'string' || (typeof preloadImages === 'object' && preloadImages !== null && !Array.isArray(preloadImages))
+    ? [preloadImages as PreloadImageItem]
+    : ((preloadImages as readonly PreloadImageItem[] | undefined) ?? []);
+---
+
+<!doctype html>
+<html lang={Astro.locals.tenant.locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <slot name="head" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+    <link rel="dns-prefetch" href="https://connect.facebook.net" />
+    <link rel="preconnect" href="https://connect.facebook.net" crossorigin />
+    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+    {
+      preloadImageUrls.map((item) =>
+        typeof item === 'string' ? (
+          <link rel="preload" as="image" href={item} fetchpriority="high" />
+        ) : (
+          <link rel="preload" as="image" imagesrcset={item.srcset} imagesizes={item.imagesizes || item.sizes} fetchpriority="high" />
+        )
+      )
+    }
+    <SEO
+      title={title}
+      description={description}
+      canonical={canonical}
+      noindex={noindex}
+      openGraph={{
+        basic: {
+          title,
+          type: 'website',
+          image: imageUrl,
+          url: canonical,
+        },
+        optional: {
+          description,
+          locale: Astro.locals.tenant.openGraphLocale,
+          siteName: Astro.locals.tenant.name,
+        },
+        image: {
+          url: imageUrl,
+          alt: title,
+        },
+      }}
+      twitter={{
+        card: 'summary_large_image',
+        title,
+        description,
+        image: imageUrl,
+        imageAlt: title,
+      }}
+      extend={{
+        meta: [
+          { name: 'robots', content: noindex ? 'noindex, nofollow' : 'index, follow' },
+          { name: 'theme-color', content: Astro.locals.tenant.themeColor },
+          { name: 'author', content: Astro.locals.tenant.name },
+          { name: 'publisher', content: Astro.locals.tenant.name },
+          { property: 'article:publisher', content: publicSiteUrl },
+        ],
+        link: [
+          { rel: 'icon', href: '/favicon.png', type: 'image/png' },
+          { rel: 'apple-touch-icon', href: '/favicon-192.png' },
+        ],
+      }}
+    />
+    <JsonLdSchema
+      siteUrl={publicSiteUrl}
+      organization={{
+        name: Astro.locals.tenant.name,
+        url: publicSiteUrl,
+        logo: Astro.locals.tenant.logo,
+        description: Astro.locals.tenant.description,
+      }}
+      website={{
+        name: Astro.locals.tenant.name,
+        url: publicSiteUrl,
+        description: Astro.locals.tenant.description,
+        inLanguage: Astro.locals.tenant.locale,
+      }}
+      product={product}
+      breadcrumbs={breadcrumbs}
+      faqs={faqs}
+      itemList={itemList}
+    />
+    <style is:global>
+      :where(html) {
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+
+      :where(img, video, iframe) {
+        max-width: 100%;
+      }
+
+      :where(img[width][height], video[width][height], iframe[width][height]) {
+        aspect-ratio: attr(width type(<number>)) / attr(height type(<number>));
+      }
+
+      :where(img, video) {
+        height: auto;
+      }
+    </style>
+    <GtmBase gtmId={adsConfig.googleTagManagerId} />
+    <GoogleAdsBase
+      googleAdsId={adsConfig.googleAdsConversionId}
+      googleAdsLabel={adsConfig.googleAdsConversionLabel}
+    />
+    <MetaPixelBase pixelId={adsConfig.metaPixelId} />
+    <MetaPageViewTracker />
+    <MetaDebugTracker />
+  </head>
+  <body>
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:bg-emerald-700 focus:text-white focus:px-4 focus:py-2 focus:font-bold focus:rounded-br-lg">Lewati ke konten utama</a>
+    <div class="flex min-h-screen w-full justify-center">
+      <div
+        class:list={[
+          'min-h-screen w-full bg-white',
+          contentWidth === 'compact'
+            ? 'max-w-[480px] shadow-[0_0_40px_rgba(15,23,42,0.08)]'
+            : 'max-w-none',
+        ]}
+      >
+        {!hideHeader && <SiteHeader />}
+        <div id="main-content" tabindex="-1" class="outline-none">
+          <slot />
+        </div>
+        {!hideFooter && <SiteFooter />}
+      </div>
+    </div>
+
+    <script is:inline>
+      const menu = document.getElementById('mobile-menu');
+      const backdrop = document.getElementById('menu-backdrop');
+      const toggle = document.getElementById('menu-toggle');
+      const close = document.getElementById('menu-close');
+      const menuLinks = menu?.querySelectorAll('a') ?? [];
+
+      const openMenu = () => {
+        menu?.classList.remove('invisible');
+        requestAnimationFrame(() => {
+          menu?.classList.remove('translate-x-full');
+        });
+        backdrop?.classList.remove('pointer-events-none', 'opacity-0');
+        backdrop?.classList.add('opacity-100');
+        toggle?.setAttribute('aria-expanded', 'true');
+        menu?.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+      };
+
+      const closeMenu = () => {
+        menu?.classList.add('translate-x-full');
+        backdrop?.classList.add('pointer-events-none', 'opacity-0');
+        backdrop?.classList.remove('opacity-100');
+        toggle?.setAttribute('aria-expanded', 'false');
+        menu?.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        setTimeout(() => {
+          if (menu?.classList.contains('translate-x-full')) {
+            menu?.classList.add('invisible');
+          }
+        }, 200);
+      };
+
+      toggle?.addEventListener('click', openMenu);
+      close?.addEventListener('click', closeMenu);
+      backdrop?.addEventListener('click', closeMenu);
+      menuLinks.forEach((link) => link.addEventListener('click', closeMenu));
+    </script>
+  </body>
+</html>

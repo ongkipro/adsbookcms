@@ -1,0 +1,253 @@
+---
+import '../styles/global.css';
+import {
+  BOOTSTRAP_FALLBACK_PASSWORD,
+  DEFAULT_ADMIN_PASSWORD_HASH,
+  DEFAULT_ADMIN_USERNAME,
+  getAdminCredential,
+  isDefaultAdminCredential,
+  normalizeAdminUsername,
+  verifyAdminLoginPassword,
+} from '../lib/admin-credentials';
+import { SESSION_COOKIE_NAME, secureEqual, signJwt, verifyPasswordHash } from '../lib/auth';
+import { getEnvValue, getRuntimeEnv } from '../lib/env';
+import {
+  checkAdminLoginRateLimit,
+  clearAdminLoginFailures,
+  getClientIp,
+  recordAdminLoginFailure,
+} from '../lib/rate-limit';
+
+export const prerender = false;
+
+let errorMessage = '';
+let submittedUsername = '';
+let focusPassword = false;
+
+const env = getRuntimeEnv(Astro.locals);
+const database = env?.OMS_DB as D1Database | undefined;
+const bootstrapAdminPassword = getEnvValue('BOOTSTRAP_ADMIN_PASSWORD', env);
+
+// The middleware's cross-site guard only covers /api/admin/*, and this form
+// posts to itself — so the login POST needs its own origin check. Without it a
+// third-party page can silently log an admin into an attacker's session.
+const loginOrigin = Astro.request.headers.get('origin');
+const loginFetchSite = Astro.request.headers.get('sec-fetch-site');
+const crossSiteLogin =
+  (loginOrigin !== null && loginOrigin !== Astro.url.origin) ||
+  loginFetchSite === 'cross-site';
+
+if (Astro.request.method === 'POST' && crossSiteLogin) {
+  Astro.response.status = 403;
+  errorMessage = 'Permintaan login ditolak karena berasal dari domain lain.';
+} else if (Astro.request.method === 'POST') {
+  const sessions = env?.SESSION as KVNamespace | undefined;
+  const authSecret = getEnvValue('AUTH_SECRET', env);
+  const clientIp = getClientIp(Astro.request.headers);
+
+  try {
+    if (!sessions || !database || authSecret.length < 32) {
+      Astro.response.status = 503;
+      errorMessage = 'Login admin belum dikonfigurasi di server.';
+    } else {
+      const data = await Astro.request.formData();
+      const username = normalizeAdminUsername(data.get('username'));
+      submittedUsername = username;
+      const password = String(data.get('password') || '').slice(0, 1024);
+
+      // LOGIN-19. Checked before the credential is even looked up, so the limit
+      // behaves identically for a username that exists and one that does not —
+      // otherwise the rate limiter itself answers the question the error message
+      // refuses to. Nothing is spent here; only a failure is recorded, below.
+      const attempts = await checkAdminLoginRateLimit(sessions, username, clientIp);
+      if (!attempts.allowed) {
+        Astro.response.status = 429;
+        Astro.response.headers.set(
+          'retry-after',
+          String(Math.max(1, Math.ceil((attempts.resetAt - Date.now()) / 1000))),
+        );
+        errorMessage = 'Terlalu banyak percobaan login. Coba lagi dalam beberapa menit.';
+      } else {
+        const credential = await getAdminCredential(database, username);
+
+        // LOGIN-13. Every branch here must cost the same. Verifying a rotated
+        // password is one PBKDF2 pass at 100k iterations; the seeded credential
+        // is a digest compare, and an unknown username used to cost nothing at
+        // all — so those two run a discarded verification against the seeded
+        // hash. Without it a fast 401 means "no such operator" and a slow one
+        // means "that one exists", which is the fact the message withholds.
+        const needsWorkFloor = credential === null || isDefaultAdminCredential(credential);
+        const [usernameMatches, passwordMatches] = await Promise.all([
+          credential ? secureEqual(username, credential.username) : Promise.resolve(false),
+          credential
+            ? verifyAdminLoginPassword(password, credential, bootstrapAdminPassword)
+            : Promise.resolve(false),
+          needsWorkFloor
+            ? verifyPasswordHash(password, DEFAULT_ADMIN_PASSWORD_HASH)
+            : Promise.resolve(false),
+        ]);
+
+        if (credential && usernameMatches && passwordMatches) {
+          const { token, session } = await signJwt({ username: credential.username, role: credential.role }, authSecret);
+          await Promise.all([
+            sessions.put(
+              `admin-session:${session.jti}`,
+              JSON.stringify({
+                username: session.username,
+                role: session.role,
+                must_change_password: credential.mustChangePassword,
+                credential_updated_at: credential.updatedAt,
+              }),
+              { expirationTtl: 60 * 60 * 24 },
+            ),
+            clearAdminLoginFailures(sessions, username, clientIp),
+          ]);
+          Astro.cookies.set(SESSION_COOKIE_NAME, token, {
+            path: '/',
+            httpOnly: true,
+            secure: import.meta.env.PROD,
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24,
+          });
+          return Astro.redirect(credential.mustChangePassword ? '/admin/profile' : '/admin/dashboard');
+        }
+
+        await recordAdminLoginFailure(sessions, username, clientIp);
+        Astro.response.status = 401;
+        focusPassword = true;
+        errorMessage = 'Username atau password salah.';
+      }
+    }
+  } catch (error) {
+    console.error('admin-login', error);
+    Astro.response.status = 500;
+    errorMessage = 'Terjadi kesalahan sistem login.';
+  }
+}
+
+/**
+ * LOGIN-6. The seeded credential is announced only while it is the credential
+ * that actually opens this install: the stored row is still the seeded default
+ * *and* no BOOTSTRAP_ADMIN_PASSWORD is configured. Once the operator rotates,
+ * the hash changes and this goes quiet on its own. Where a bootstrap password
+ * is configured the default never opened anything (LOGIN-2), so announcing it
+ * would be both false and a free hint about the account name.
+ */
+let showsDefaultCredential = false;
+if (database && !bootstrapAdminPassword) {
+  try {
+    const seeded = await getAdminCredential(database, DEFAULT_ADMIN_USERNAME);
+    showsDefaultCredential = seeded !== null && isDefaultAdminCredential(seeded);
+  } catch (error) {
+    // A database that cannot answer is not an install we can vouch for; say nothing.
+    console.error('admin-login-default-notice', error);
+  }
+}
+---
+
+<!DOCTYPE html>
+<html lang={Astro.locals.tenant.locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Login AdsBookCMS - {Astro.locals.tenant.adminName}</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg" />
+    <!-- LOGIN-18: no third-party asset. This page loaded a Google Fonts
+         stylesheet for a family it never applied, which told Google the address
+         of every operator opening the admin and bought nothing back. -->
+  </head>
+  <body class="admin-login-page text-slate-900 antialiased">
+    <main class="admin-login-stage">
+    <div class="admin-login-card w-full max-w-sm rounded-2xl border border-slate-200 bg-white text-slate-950 shadow-2xl">
+      <!-- Header. The mark is the store's own, resolved per request (LOGIN-10). -->
+      <div class="admin-login-header flex flex-col items-center px-6 pt-7 pb-3 text-center">
+        <img src={Astro.locals.tenant.logo} alt={Astro.locals.tenant.adminName} width="180" height="188" class="mx-auto mb-3 h-24 w-auto max-w-[200px] object-contain" />
+      </div>
+
+      <div class="p-6 pt-0">
+        {errorMessage && (
+          <div id="loginError" class="mb-4 rounded-xl bg-rose-50 p-3 text-center text-sm font-semibold text-rose-700" role="alert" aria-live="assertive">
+            {errorMessage}
+          </div>
+        )}
+
+        {showsDefaultCredential && (
+          <div id="defaultCredentialNotice" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">
+            <p>
+              Instalasi ini masih pakai akses bawaan: username <b>{DEFAULT_ADMIN_USERNAME}</b>, password <b>{BOOTSTRAP_FALLBACK_PASSWORD}</b>.
+            </p>
+            <p class="mt-1">
+              Ganti passwordnya begitu masuk. Selama belum diganti, akun ini cuma bisa membuka halaman ganti password — bukan pesanan, pelanggan, atau pengaturan.
+            </p>
+          </div>
+        )}
+
+        <form id="loginForm" method="POST" class="space-y-4" aria-busy="false" aria-describedby={[errorMessage && 'loginError', showsDefaultCredential && 'defaultCredentialNotice'].filter(Boolean).join(' ') || undefined}>
+          <div class="space-y-2">
+            <label for="username" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Username Admin</label>
+            <input id="username" type="text" name="username" required autocomplete="username" autofocus={!focusPassword} value={submittedUsername} class="admin-input-flat" />
+          </div>
+
+          <div class="space-y-2">
+            <label for="password" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Password</label>
+            <div class="relative">
+              <input id="password" type="password" name="password" required autocomplete="current-password" autofocus={focusPassword} class="admin-input-flat pr-28" />
+              <button id="togglePassword" type="button" class="absolute right-0 top-0 h-full px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300" aria-controls="password" aria-label="Tampilkan password" aria-pressed="false">Lihat</button>
+            </div>
+          </div>
+          <button id="loginSubmit" type="submit" class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-slate-900 text-slate-50 hover:bg-slate-900/90 h-11 px-4 py-2 w-full">
+            Masuk Dashboard
+          </button>
+        <p id="loginStatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+        </form>
+      </div>
+      <script>
+        const form = document.getElementById('loginForm') as HTMLFormElement | null;
+        const submit = document.getElementById('loginSubmit') as HTMLButtonElement | null;
+        const password = document.getElementById('password') as HTMLInputElement | null;
+        const toggle = document.getElementById('togglePassword') as HTMLButtonElement | null;
+        const status = document.getElementById('loginStatus');
+        const submitLabel = submit?.textContent?.trim() || 'Masuk Dashboard';
+        let pending = false;
+
+        // A page restored from the back/forward cache keeps the DOM it was
+        // unloaded with. Without this the operator comes back to a permanently
+        // disabled button still reading "Memverifikasi…" and cannot log in.
+        window.addEventListener('pageshow', (event) => {
+          if (!event.persisted || !submit) return;
+          pending = false;
+          form?.setAttribute('aria-busy', 'false');
+          submit.disabled = false;
+          submit.textContent = submitLabel;
+          if (status) status.textContent = '';
+        });
+
+        form?.addEventListener('submit', (event) => {
+          if (pending) {
+            event.preventDefault();
+            return;
+          }
+          if (!form.checkValidity() || !submit) return;
+          pending = true;
+          form.setAttribute('aria-busy', 'true');
+          submit.disabled = true;
+          submit.textContent = 'Memverifikasi…';
+          if (status) status.textContent = 'Memverifikasi kredensial admin.';
+        });
+
+        toggle?.addEventListener('click', () => {
+          if (!password) return;
+          const visible = password.type === 'text';
+          password.type = visible ? 'password' : 'text';
+          toggle.textContent = visible ? 'Lihat' : 'Sembunyikan';
+          toggle.setAttribute('aria-label', visible ? 'Tampilkan password' : 'Sembunyikan password');
+          toggle.setAttribute('aria-pressed', String(!visible));
+        });
+      </script>
+    </div>
+    </main>
+  </body>
+</html>

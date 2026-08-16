@@ -1,0 +1,24 @@
+-- Adds the store-level COD province exclusion list.
+--
+-- EDITED IN PLACE 2026-08-16, which the project otherwise forbids. The reason
+-- the rule exists is that an edit never reaches a database that already ran the
+-- migration — so an edit that changes behaviour creates divergence. This one
+-- does not, and it is the only possible fix:
+--
+-- This migration used to seed a sample product (10001, 'Aussie Sample') with
+-- `INSERT INTO products … SELECT … FROM stores`, followed by two variants with a
+-- hardcoded `product_id = 10001`. On a fresh install `stores` is empty, so the
+-- SELECT inserted nothing and the variant insert then violated the foreign key.
+-- The chain aborted here, and **no new install could be created at all** —
+-- migration 0017 of 36. A forward migration cannot repair that, because 0017
+-- fails before any later migration runs.
+--
+-- Removing the seed is safe for databases that already applied it: migration
+-- 0034 deletes exactly that row (ADR-006), and on a fresh database 0034 becomes
+-- a harmless no-op. Both paths therefore converge on the same end state — no
+-- sample product — which is why editing here creates no divergence.
+--
+-- Sample data is the bundled demo catalog (ADR-011), seeded deliberately by
+-- `npm run db:reset:demo:local`. It is not something a schema migration plants.
+
+ALTER TABLE `stores` ADD `cod_disabled_province_codes` text DEFAULT 'PA,PB,PD,PT,PE,PS,MA,MU,NT,KU,SR,GO,KR,AC,BE' NOT NULL;

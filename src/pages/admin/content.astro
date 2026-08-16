@@ -1,0 +1,18 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { ContentWorkbench } from '../../components/admin/ContentWorkbench';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
+
+export const prerender = false;
+---
+
+<AdminLayout title="Konten Storefront" activeMenu="content">
+  <section class="mx-auto max-w-7xl space-y-5">
+    <AdminPageHeader
+      eyebrow="Storefront"
+      title="Konten & media"
+      description="Kelola copy, aset, dan draft storefront tenant tanpa menyentuh konfigurasi aplikasi."
+    />
+    <ContentWorkbench client:load />
+  </section>
+</AdminLayout>

@@ -1,0 +1,91 @@
+---
+import PageIntro from '../../components/shared/PageIntro.astro';
+import ProductListItem from '../../components/shared/ProductListItem.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { formatIdr } from '../../lib/format-idr';
+import { getStorefrontProducts } from '../../lib/catalog';
+
+const products = await getStorefrontProducts(Astro.locals);
+const INITIAL_COUNT = 10;
+---
+
+<BaseLayout
+  title={`Produk - ${Astro.locals.tenant.name}`}
+  description={`Pilih produk ${Astro.locals.tenant.name}, lihat varian, stok, dan harga sebelum memesan.`}
+  contentWidth="compact"
+  breadcrumbs={[
+    { name: 'Beranda', url: '/' },
+    { name: 'Produk', url: '/produk' },
+  ]}
+>
+  <main id="konten-utama" class="min-h-screen bg-[#F8F7F4] text-[#111111]">
+    <PageIntro
+      badge="Semua Produk"
+      title={`Produk ${Astro.locals.tenant.name}`}
+      description="Pilih produk berdasarkan kebutuhan Anda, lalu lihat varian dan harga sebelum memesan."
+      breadcrumbs={[{ label: 'Beranda', href: '/' }, { label: 'Produk' }]}
+    />
+
+    <section aria-label="Daftar produk" class="mx-auto max-w-[480px] px-4 py-8">
+      {products.length > 0 ? (
+        <>
+          <div class="grid grid-cols-2 gap-3" id="product-grid">
+            {products.map((product, index) => (
+              <div class={`product-card-item ${index >= INITIAL_COUNT ? 'hidden' : ''}`} data-index={index}>
+                <ProductListItem product={product} formatPrice={formatIdr} />
+              </div>
+            ))}
+          </div>
+
+          {products.length > INITIAL_COUNT && (
+            <div class="mt-8 text-center" id="load-more-container">
+              <p class="mb-3 text-xs font-medium text-[#555555]">
+                Menampilkan <span id="visible-count">{Math.min(INITIAL_COUNT, products.length)}</span> dari <span id="total-count">{products.length}</span> produk
+              </p>
+              <button
+                id="load-more-btn"
+                type="button"
+                class="inline-flex min-h-11 w-full items-center justify-center rounded-none border border-[#111111] bg-white px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-[#111111] shadow-2xs hover:bg-[#111111] hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A880]"
+              >
+                Muat Lebih Banyak
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div class="border-y border-[#E5E5E5] py-10 text-center">
+          <h2 class="text-lg font-semibold text-[#111111]">Katalog sedang disiapkan</h2>
+          <p class="mt-2 text-sm leading-6 text-[#555555]">Produk akan muncul setelah konten dan varian diterbitkan.</p>
+        </div>
+      )}
+    </section>
+  </main>
+
+  <script>
+    const INITIAL_COUNT = 10;
+    const STEP = 10;
+    let visibleCount = INITIAL_COUNT;
+
+    const items = document.querySelectorAll<HTMLElement>('.product-card-item');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const visibleCountEl = document.getElementById('visible-count');
+
+    if (loadMoreBtn && items.length > 0) {
+      loadMoreBtn.addEventListener('click', () => {
+        const nextCount = Math.min(visibleCount + STEP, items.length);
+        for (let i = visibleCount; i < nextCount; i++) {
+          if (items[i]) {
+            items[i].classList.remove('hidden');
+          }
+        }
+        visibleCount = nextCount;
+        if (visibleCountEl) {
+          visibleCountEl.textContent = String(visibleCount);
+        }
+        if (visibleCount >= items.length) {
+          loadMoreBtn.classList.add('hidden');
+        }
+      });
+    }
+  </script>
+</BaseLayout>

@@ -1,0 +1,173 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+export const prerender = false;
+---
+
+<AdminLayout title="Store & Customer Service" activeMenu="settings">
+  <div class="space-y-6">
+    <AdminPageHeader
+      eyebrow="Merchant identity"
+      title="Store & customer service"
+      description="Informasi merchant dan kontak yang dipakai dalam komunikasi pelanggan."
+      backHref="/admin/settings"
+      backLabel="Pengaturan"
+    />
+    <div id="storeLoading" class="h-60 animate-pulse rounded-xl bg-slate-100" role="status" aria-live="polite" aria-busy="true" aria-atomic="true"><span class="sr-only">Memuat profil store.</span></div>
+    <div id="storeError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
+    <form id="storeForm" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm" novalidate aria-busy="false">
+      <div class="grid gap-5 p-5 md:grid-cols-2 md:p-6"><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Nama store</span><input id="storeName" required maxlength="120" autocomplete="organization" class="admin-input-flat h-11 text-base md:text-sm" /></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">WhatsApp customer service</span><input id="supportWhatsapp" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="081234567890" class="admin-input-flat h-11 font-mono text-base md:text-sm" /><span class="mt-1.5 block text-[11px] text-slate-500">Gunakan 9–15 digit; awalan + diperbolehkan.</span></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Alamat storefront</span><input id="storeSiteUrl" inputmode="url" maxlength="200" placeholder="https://tokosaya.com" class="admin-input-flat h-11 text-base md:text-sm" /><span class="mt-1.5 block text-[11px] text-slate-500">Harus https. Dipakai untuk canonical, sitemap, dan feed katalog.</span></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Tagline</span><input id="storeTagline" maxlength="120" class="admin-input-flat h-11 text-base md:text-sm" /><span class="mt-1.5 block text-[11px] text-slate-500">Muncul di judul halaman dan header storefront.</span></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Deskripsi</span><input id="storeDescription" maxlength="300" class="admin-input-flat h-11 text-base md:text-sm" /><span class="mt-1.5 block text-[11px] text-slate-500">Meta description bawaan dan teks Open Graph.</span></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Logo</span><input id="storeLogo" maxlength="300" placeholder="/images/logo.webp" class="admin-input-flat h-11 text-base md:text-sm" /><span class="mt-1.5 block text-[11px] text-slate-500">Kosongkan untuk memakai logo bawaan AdsBookCMS.</span></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Tampilan storefront</span><select id="storeTemplate" class="admin-input-flat h-11 text-base md:text-sm"><option value="compact-market">Compact Market</option><option value="wide-catalog">Wide Catalog</option></select><span class="mt-1.5 block text-[11px] text-slate-500">Berlaku langsung tanpa build ulang.</span></label></div>
+      <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"><p id="storeStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p><button id="saveStore" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">Simpan profil store</button></div>
+    </form>
+    <form id="embedOriginsForm" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm" novalidate aria-busy="false">
+      <div class="p-5 md:p-6">
+        <h2 class="text-base font-black text-slate-950">Domain untuk embed checkout</h2>
+        <p class="mt-1 text-xs leading-5 text-slate-500">Tentukan situs eksternal yang boleh menampilkan checkout AdsBookCMS di dalam iframe.</p>
+        <label class="mt-5 block" for="embedAllowedOrigins">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Origin HTTPS yang diizinkan</span>
+          <textarea id="embedAllowedOrigins" rows="5" maxlength="7524" spellcheck="false" aria-describedby="embedOriginsHelp" placeholder="https://toko.example&#10;https://promo.toko.example:8443" class="admin-input-flat min-h-36 resize-y py-3 font-mono text-base md:text-sm"></textarea>
+        </label>
+        <p id="embedOriginsHelp" class="mt-2 text-[11px] leading-5 text-slate-500">Satu origin per baris, maksimal 25. Wajib memakai <code>https://</code> dan hanya boleh berisi domain atau subdomain serta port opsional. Domain dan subdomain berbeda, jadi daftarkan keduanya bila diperlukan. Path, query, fragment, kredensial, dan wildcard tidak diterima.</p>
+      </div>
+      <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"><p id="embedOriginsStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p><button id="saveEmbedOrigins" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">Simpan domain embed</button></div>
+    </form>
+  </div>
+  <script>
+    const form = document.getElementById('storeForm') as HTMLFormElement | null;
+    const name = document.getElementById('storeName') as HTMLInputElement | null;
+    const phone = document.getElementById('supportWhatsapp') as HTMLInputElement | null;
+    const siteUrl = document.getElementById('storeSiteUrl') as HTMLInputElement | null;
+    const tagline = document.getElementById('storeTagline') as HTMLInputElement | null;
+    const description = document.getElementById('storeDescription') as HTMLInputElement | null;
+    const logo = document.getElementById('storeLogo') as HTMLInputElement | null;
+    const template = document.getElementById('storeTemplate') as HTMLSelectElement | null;
+    const save = document.getElementById('saveStore') as HTMLButtonElement | null;
+    const status = document.getElementById('storeStatus');
+    const loading = document.getElementById('storeLoading');
+    const embedForm = document.getElementById('embedOriginsForm') as HTMLFormElement | null;
+    const embedOrigins = document.getElementById('embedAllowedOrigins') as HTMLTextAreaElement | null;
+    const saveEmbedOrigins = document.getElementById('saveEmbedOrigins') as HTMLButtonElement | null;
+    const embedStatus = document.getElementById('embedOriginsStatus');
+    let embedPending = false;
+    let pending = false;
+
+    const show = (message: string, state: 'idle' | 'success' | 'error') => {
+      if (!status) return;
+      status.setAttribute('role', state === 'error' ? 'alert' : 'status');
+      status.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
+      status.textContent = message;
+      status.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+    };
+    const showEmbedStatus = (message: string, state: 'idle' | 'success' | 'error') => {
+      if (!embedStatus) return;
+      embedStatus.setAttribute('role', state === 'error' ? 'alert' : 'status');
+      embedStatus.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
+      embedStatus.textContent = message;
+      embedStatus.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+    };
+
+    const setEmbedPending = (next: boolean) => {
+      embedPending = next;
+      if (saveEmbedOrigins) {
+        saveEmbedOrigins.disabled = next;
+        saveEmbedOrigins.textContent = next ? 'Menyimpan…' : 'Simpan domain embed';
+      }
+      embedForm?.setAttribute('aria-busy', String(next));
+    };
+
+
+    const setPending = (next: boolean) => {
+      pending = next;
+      if (save) {
+        save.disabled = next;
+        save.textContent = next ? 'Menyimpan…' : 'Simpan profil store';
+      }
+      form?.setAttribute('aria-busy', String(next));
+    };
+
+    fetch('/api/admin/settings', { headers: { Accept: 'application/json' } }).then(async response => {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal memuat profil store.');
+      return payload.data.store;
+    }).then(data => {
+      if (name) name.value = data.name || '';
+      if (phone) phone.value = data.support_whatsapp || '';
+      if (siteUrl) siteUrl.value = data.site_url || '';
+      if (tagline) tagline.value = data.tagline || '';
+      if (description) description.value = data.description || '';
+      if (logo) logo.value = data.logo || '';
+      if (template && data.storefront_template) template.value = data.storefront_template;
+      if (embedOrigins) embedOrigins.value = Array.isArray(data.embed_allowed_origins) ? data.embed_allowed_origins.join('\n') : '';
+      loading?.setAttribute('aria-busy', 'false');
+      loading?.classList.add('hidden');
+      form?.classList.remove('hidden');
+      embedForm?.classList.remove('hidden');
+    }).catch(error => {
+      loading?.setAttribute('aria-busy', 'false');
+      loading?.classList.add('hidden');
+      const box = document.getElementById('storeError');
+      if (box) {
+        box.textContent = error instanceof Error ? error.message : 'Gagal memuat profil store.';
+        box.classList.remove('hidden');
+      }
+    });
+
+    form?.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (pending || !form.reportValidity()) return;
+      setPending(true);
+      show('Menyimpan profil store…', 'idle');
+      try {
+        const response = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'save-store',
+            store_name: name?.value,
+            support_whatsapp: phone?.value,
+            site_url: siteUrl?.value,
+            store_tagline: tagline?.value,
+            store_description: description?.value,
+            store_logo: logo?.value,
+            storefront_template: template?.value,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal menyimpan profil store.');
+        show(payload.message || 'Profil store tersimpan.', 'success');
+      } catch (error) {
+        show(error instanceof Error ? error.message : 'Gagal menyimpan profil store.', 'error');
+      } finally {
+        setPending(false);
+      }
+    });
+
+    embedForm?.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (embedPending || !embedForm.reportValidity()) return;
+      const origins = (embedOrigins?.value || '')
+        .split(/\r?\n/)
+        .map(value => value.trim())
+        .filter(Boolean);
+      setEmbedPending(true);
+      showEmbedStatus('Menyimpan daftar origin embed…', 'idle');
+      try {
+        const response = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'save-embed-origins', embed_allowed_origins: origins }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal menyimpan daftar origin embed.');
+        if (embedOrigins && Array.isArray(payload.data?.embed_allowed_origins)) {
+          embedOrigins.value = payload.data.embed_allowed_origins.join('\n');
+        }
+        showEmbedStatus(payload.message || 'Daftar origin embed tersimpan.', 'success');
+      } catch (error) {
+        showEmbedStatus(error instanceof Error ? error.message : 'Gagal menyimpan daftar origin embed.', 'error');
+      } finally {
+        setEmbedPending(false);
+      }
+    });
+  </script>
+</AdminLayout>

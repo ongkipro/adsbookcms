@@ -1,0 +1,40 @@
+---
+import PageIntro from '../components/shared/PageIntro.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  shell="storefront"
+  title={`Tentang ${Astro.locals.tenant.name}`}
+  description={`Profil dan informasi tentang ${Astro.locals.tenant.name}.`}
+  breadcrumbs={[
+    { name: 'Beranda', url: '/' },
+    { name: 'Tentang Kami', url: '/tentang' },
+  ]}
+>
+  <main id="konten-utama" class="min-h-screen bg-[#FAFAFA] text-[#16191F]">
+    <PageIntro
+      badge="Tentang Kami"
+      title={`Tentang ${Astro.locals.tenant.name}`}
+      description={Astro.locals.tenant.description}
+      breadcrumbs={[{ label: 'Beranda', href: '/' }, { label: 'Tentang Kami' }]}
+    />
+
+    <section class="mx-auto max-w-[480px] px-5 py-8">
+      <div class="border-b border-[#EAEDED] pb-6">
+        <p class="text-[11px] font-medium uppercase tracking-[0.12em] text-[#232F3E]">Profil Toko</p>
+        <h2 class="mt-2 text-[22px] font-semibold tracking-[-0.02em] text-[#16191F]">
+          Selamat datang di {Astro.locals.tenant.name}
+        </h2>
+        <div class="mt-4 space-y-4 text-[14px] leading-7 text-[#545B64]">
+          <p>
+            {Astro.locals.tenant.description}
+          </p>
+          <p>
+            Jelajahi katalog kami untuk menemukan produk yang Anda butuhkan.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

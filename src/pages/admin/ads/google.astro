@@ -1,0 +1,643 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+
+export const prerender = false;
+---
+
+<AdminLayout title="Google Ads Signal & Catalog Engine" activeMenu="ads">
+  <div class="space-y-6">
+    <!-- Header Page -->
+    <AdminPageHeader
+      eyebrow="Google Ads Signal OS"
+      title="Google Ads & Merchant Center Engine"
+      description="Kelola GTM Container, Google Ads Purchase Conversion, Enhanced Conversions, Consent Mode v2, dan Catalog XML Feed dari satu tempat."
+      backHref="/admin/ads"
+      backLabel="Ads & tracking"
+    >
+      <div slot="actions" class="flex items-center gap-2">
+        <a
+          href="/feed/google-catalog.xml"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-secondary inline-flex min-h-9 items-center gap-1.5 px-3 text-xs"
+        >
+          <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          XML Feed
+        </a>
+        <span id="googleBadge" class="inline-flex min-h-9 items-center rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-600">
+          Memuat…
+        </span>
+      </div>
+    </AdminPageHeader>
+
+    <!-- Top KPI Cards Overview -->
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">GTM Container</span>
+          <span id="kpiGtmStatus" class="h-2 w-2 rounded-full bg-slate-300"></span>
+        </div>
+        <div id="kpiGtmVal" class="mt-2 font-mono text-sm font-extrabold text-slate-900">--</div>
+        <p class="mt-1 text-[11px] text-slate-500">Google Tag Manager</p>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Ads Conversion</span>
+          <span id="kpiAdsStatus" class="h-2 w-2 rounded-full bg-slate-300"></span>
+        </div>
+        <div id="kpiAdsVal" class="mt-2 font-mono text-sm font-extrabold text-slate-900">--</div>
+        <p class="mt-1 text-[11px] text-slate-500">Purchase Tag (AW-)</p>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Enhanced Conv.</span>
+          <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+        </div>
+        <div class="mt-2 text-sm font-extrabold text-emerald-700">SHA-256 Web</div>
+        <p class="mt-1 text-[11px] text-slate-500">Phone E.164 + Name</p>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Catalog Feed</span>
+          <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+        </div>
+        <div class="mt-2 text-sm font-extrabold text-blue-700">GPC Auto-Mapped</div>
+        <p class="mt-1 text-[11px] text-slate-500">PMax & Shopping XML</p>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="flex overflow-x-auto border-b border-slate-200 text-sm font-bold [&>button]:shrink-0 [&>button]:whitespace-nowrap">
+      <button
+        id="tabBtnConfig"
+        type="button"
+        class="tab-btn border-b-2 border-blue-600 px-4 py-2.5 text-blue-600 focus:outline-none"
+        data-target="tabConfig"
+      >
+        ⚙️ Konfigurasi ID
+      </button>
+      <button
+        id="tabBtnTutorial"
+        type="button"
+        class="tab-btn border-b-2 border-transparent px-4 py-2.5 text-slate-500 hover:text-slate-900 focus:outline-none"
+        data-target="tabTutorial"
+      >
+        📘 Tutorial Step-by-Step
+      </button>
+      <button
+        id="tabBtnFeed"
+        type="button"
+        class="tab-btn border-b-2 border-transparent px-4 py-2.5 text-slate-500 hover:text-slate-900 focus:outline-none"
+        data-target="tabFeed"
+      >
+        🛒 Catalog XML Feed
+      </button>
+      <button
+        id="tabBtnSpecs"
+        type="button"
+        class="tab-btn border-b-2 border-transparent px-4 py-2.5 text-slate-500 hover:text-slate-900 focus:outline-none"
+        data-target="tabSpecs"
+      >
+        🔬 Sinyal & Payload Inspector
+      </button>
+    </div>
+
+    <!-- Loading Skeleton -->
+    <div id="googleLoading" class="h-64 animate-pulse rounded-xl bg-slate-100 shadow-sm" role="status" aria-live="polite" aria-busy="true">
+      <span class="sr-only">Memuat konfigurasi Google tracking...</span>
+    </div>
+
+    <!-- Error Banner -->
+    <div id="googleError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert"></div>
+
+    <!-- TAB 1: Konfigurasi Form -->
+    <div id="tabConfig" class="tab-content">
+      <form id="googleForm" class="hidden rounded-xl border border-slate-200 bg-white text-slate-950 shadow-sm" novalidate aria-busy="false">
+        <div class="border-b border-slate-200 p-5 md:p-6">
+          <div class="flex items-center justify-between">
+            <label for="googleTagManagerId" class="block text-xs font-black text-slate-900">
+              Google Tag Manager Container ID
+            </label>
+            <span class="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-600">Opsional</span>
+          </div>
+          <input
+            id="googleTagManagerId"
+            type="text"
+            maxlength="24"
+            autocomplete="off"
+            placeholder="GTM-XXXXXXX"
+            pattern="GTM-[A-Za-z0-9]{4,20}"
+            class="admin-input-flat mt-2 h-11 font-mono text-base uppercase md:text-sm"
+          />
+          <p class="mt-1.5 text-[11px] leading-5 text-slate-500">
+            Mengaktifkan container GTM tenant untuk event e-commerce <code>view_item</code>, <code>add_to_cart</code>, <code>begin_checkout</code>, dan <code>purchase</code>.
+          </p>
+        </div>
+
+        <div class="grid gap-5 p-5 md:grid-cols-2 md:p-6">
+          <div>
+            <label for="googleId" class="block text-xs font-black text-slate-900">
+              Google Ads Conversion ID
+            </label>
+            <input
+              id="googleId"
+              type="text"
+              maxlength="24"
+              autocomplete="off"
+              placeholder="AW-998877665"
+              pattern="AW-[0-9]{5,20}"
+              class="admin-input-flat mt-2 h-11 font-mono text-base uppercase md:text-sm"
+            />
+            <p class="mt-1.5 text-[11px] text-slate-500">Format standar Google Tag: <code>AW-XXXXXXXXX</code></p>
+          </div>
+
+          <div>
+            <label for="googleLabel" class="block text-xs font-black text-slate-900">
+              Purchase Conversion Label
+            </label>
+            <input
+              id="googleLabel"
+              type="text"
+              maxlength="100"
+              autocomplete="off"
+              placeholder="AbCd_EFGHIJKlm"
+              pattern="[A-Za-z0-9_-]{1,100}"
+              class="admin-input-flat mt-2 h-11 font-mono text-base md:text-sm"
+            />
+            <p class="mt-1.5 text-[11px] text-slate-500">Conversion Label khusus untuk event Purchase di Google Ads Manager.</p>
+          </div>
+        </div>
+
+        <div class="mx-5 mb-5 rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-xs leading-5 text-blue-900 md:mx-6">
+          <div class="flex items-start gap-2.5">
+            <span class="text-base">💡</span>
+            <div>
+              <strong>Ketentuan Pengisian:</strong>
+              <ul class="mt-1 list-disc space-y-0.5 pl-4 text-[11px]">
+                <li>Google Ads Conversion ID dan Label <strong>harus diisi bersamaan</strong> untuk mengaktifkan tag Purchase langsung.</li>
+                <li>Jika Anda menggunakan GTM, GTM ID dapat diisi secara independen.</li>
+                <li>Sistem secara otomatis menangani <strong>Consent Mode v2</strong> dan <strong>Enhanced Conversions</strong> client-side.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p id="googleStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite">
+            Perubahan belum disimpan.
+          </p>
+          <button id="saveGoogle" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">
+            Simpan Konfigurasi
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- TAB 2: Step-by-Step Tutorial -->
+    <div id="tabTutorial" class="tab-content hidden space-y-4">
+      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div>
+            <h3 class="text-base font-extrabold text-slate-900">Panduan Setup Google Ads & Merchant Center Step-by-Step</h3>
+            <p class="mt-1 text-xs text-slate-500">Ikuti 5 langkah mudah di bawah ini untuk menghubungkan toko Anda dengan Google Ads & PMax Campaign.</p>
+          </div>
+          <span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-black text-blue-800">5 Langkah Praktis</span>
+        </div>
+
+        <div class="mt-6 space-y-6">
+          <!-- Step 1 -->
+          <div class="relative pl-8 before:absolute before:left-3.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-slate-200">
+            <span class="absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">1</span>
+            <div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+              <h4 class="text-sm font-black text-slate-900">Buat Conversion Action "Purchase" di Google Ads</h4>
+              <p class="mt-1 text-xs text-slate-600">Buka dashboard <a href="https://ads.google.com" target="_blank" rel="noopener noreferrer" class="font-bold text-blue-600 underline">Google Ads Manager</a> $\rightarrow$ Goals $\rightarrow$ Conversions $\rightarrow$ Summary.</p>
+              
+              <div class="mt-3 space-y-2 text-xs">
+                <div class="grid gap-2 sm:grid-cols-2">
+                  <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase">Kategori & Nama</span>
+                    <p class="mt-1 font-semibold text-slate-800">Category: <span class="text-blue-600 font-bold">Purchase (Pembelian)</span></p>
+                    <p class="text-slate-600">Conversion name: <code class="bg-slate-100 px-1 font-mono">Zanoby Purchase</code></p>
+                  </div>
+
+                  <div class="rounded-lg border border-slate-200 bg-white p-3">
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase">Nilai & Hitungan</span>
+                    <p class="mt-1 font-semibold text-slate-800">Value: <span class="text-emerald-600 font-bold">Use different values for each conversion</span></p>
+                    <p class="text-slate-600">Count: <span class="font-bold">Every (Setiap konversi)</span> | Currency: <code class="bg-slate-100 px-1 font-mono">IDR</code></p>
+                  </div>
+                </div>
+
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                  <span class="block text-[11px] font-bold text-slate-400 uppercase">Metode Attribution & Deduplication</span>
+                  <p class="mt-1 text-slate-700">Gunakan model <strong class="text-slate-900">Data-driven attribution</strong>. Sistem Permata Mall secara otomatis mengirimkan <code class="bg-slate-100 px-1 font-mono">transaction_id</code> (Nomor Pesanan) untuk mencegah duplikasi data.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="relative pl-8 before:absolute before:left-3.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-slate-200">
+            <span class="absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">2</span>
+            <div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+              <h4 class="text-sm font-black text-slate-900">Aktifkan Enhanced Conversions for Web</h4>
+              <p class="mt-1 text-xs text-slate-600">Di halaman detail Conversion Action yang baru dibuat, buka bagian <strong class="text-slate-900">Enhanced Conversions</strong>.</p>
+              
+              <ul class="mt-3 list-disc space-y-1.5 pl-4 text-xs text-slate-700">
+                <li>Centang opsi <strong class="text-slate-900">Turn on enhanced conversions</strong>.</li>
+                <li>Pilih metode setup: <strong class="text-blue-600">Google Tag</strong> (jika menggunakan AW-ID) atau <strong class="text-blue-600">Google Tag Manager</strong>.</li>
+                <li>Sistem toko otomatis melakukan enkripsi <strong class="text-slate-900">SHA-256 client-side</strong> untuk Nomor HP (E.164 format <code class="bg-slate-100 px-1 font-mono">+62...</code>), Nama, dan Email sebelum sinyal dikirimkan ke Google.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="relative pl-8 before:absolute before:left-3.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-slate-200">
+            <span class="absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">3</span>
+            <div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+              <h4 class="text-sm font-black text-slate-900">Salin & Simpan Conversion ID / GTM ID di Form Admin</h4>
+              <p class="mt-1 text-xs text-slate-600">Setelah menyimpan Conversion Action di Google Ads Manager, dapatkan nilai ID berikut:</p>
+              
+              <div class="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-100 text-slate-700">
+                    <tr>
+                      <th class="p-2.5 font-bold">Bidang Field</th>
+                      <th class="p-2.5 font-bold">Contoh Format</th>
+                      <th class="p-2.5 font-bold">Fungsi</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 font-mono text-[11px]">
+                    <tr>
+                      <td class="p-2.5 font-sans font-semibold text-slate-900">GTM Container ID</td>
+                      <td class="p-2.5 text-blue-600 font-bold">GTM-K9X28M1</td>
+                      <td class="p-2.5 font-sans text-slate-600">Tag container GTM opsional</td>
+                    </tr>
+                    <tr>
+                      <td class="p-2.5 font-sans font-semibold text-slate-900">Google Ads Conversion ID</td>
+                      <td class="p-2.5 text-blue-600 font-bold">AW-1122334455</td>
+                      <td class="p-2.5 font-sans text-slate-600">ID Utama Google Tag Ads</td>
+                    </tr>
+                    <tr>
+                      <td class="p-2.5 font-sans font-semibold text-slate-900">Purchase Conversion Label</td>
+                      <td class="p-2.5 text-blue-600 font-bold">xYz_9876543210</td>
+                      <td class="p-2.5 font-sans text-slate-600">Label khusus event Purchase</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="relative pl-8 before:absolute before:left-3.5 before:top-8 before:bottom-0 before:w-0.5 before:bg-slate-200">
+            <span class="absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">4</span>
+            <div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+              <h4 class="text-sm font-black text-slate-900">Submit XML Catalog Feed ke Google Merchant Center (PMax / Shopping)</h4>
+              <p class="mt-1 text-xs text-slate-600">Untuk mengaktifkan kampanye <strong class="text-slate-900">Performance Max (PMax)</strong> dan <strong class="text-slate-900">Google Shopping Ads</strong>:</p>
+              
+              <div class="mt-3 space-y-2 text-xs">
+                <div class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <div class="min-w-0">
+                    <span class="block text-[11px] font-bold text-slate-400 uppercase">Primary Feed URL</span>
+                    <code id="feedUrlText" class="mt-0.5 block break-all font-mono font-bold text-blue-700">https://permatamall.shop/feed/google-catalog.xml</code>
+                  </div>
+                  <button
+                    id="btnCopyFeedUrl"
+                    type="button"
+                    class="btn-secondary min-h-8 shrink-0 px-3 text-[11px]"
+                  >
+                    📋 Salin URL Feed
+                  </button>
+                </div>
+
+                <div class="rounded-lg border border-slate-200 bg-white p-3">
+                  <span class="block text-[11px] font-bold text-slate-400 uppercase">Pengaturan Feed di Merchant Center</span>
+                  <p class="mt-1 text-slate-700">Target Country: <strong class="text-slate-900">Indonesia</strong> | Language: <strong class="text-slate-900">Indonesian</strong> | Method: <strong class="text-slate-900">Scheduled Fetch (Pengambilan Terjadwal Daily)</strong>.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="relative pl-8">
+            <span class="absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-black text-white">5</span>
+            <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+              <h4 class="text-sm font-black text-emerald-950">Verifikasi & Test Sinyal Live</h4>
+              <p class="mt-1 text-xs text-emerald-800">Gunakan extension browser <strong class="text-emerald-950">Google Tag Assistant Companion</strong> untuk menguji event konversi saat checkout.</p>
+              
+              <div class="mt-2 text-xs text-emerald-900">
+                <p>💡 <strong>Checklist Uji Coba:</strong></p>
+                <ul class="mt-1 list-disc space-y-0.5 pl-4 text-[11px]">
+                  <li>Event <code class="font-mono font-bold">conversion</code> terdeteksi dengan <code class="font-mono">send_to</code> sesuai ID & Label.</li>
+                  <li>Parameter <code class="font-mono">value</code> bernilai IDR angka bersih (misal <code class="font-mono">249000</code>).</li>
+                  <li>Parameter <code class="font-mono">transaction_id</code> sesuai dengan nomor invoice pesanan.</li>
+                  <li>Parameter <code class="font-mono">user_data</code> berisi hash SHA-256 nomor HP/email.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Catalog XML Feed Manager -->
+    <div id="tabFeed" class="tab-content hidden space-y-4">
+      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <span class="inline-block rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-black uppercase text-blue-800">Automated XML Engine</span>
+            <h3 class="mt-1 text-base font-extrabold text-slate-900">Google Merchant Center Product Catalog Feed</h3>
+            <p class="mt-1 text-xs text-slate-500">Feed XML otomatis yang mengadaptasi seluruh produk D1 dengan pemetaan taksonomi <code>google_product_category</code> (GPC ID).</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              id="btnCopyFeedUrl2"
+              type="button"
+              class="btn-secondary min-h-10 px-4 text-xs"
+            >
+              Salin Link Feed
+            </button>
+            <a
+              href="/feed/google-catalog.xml"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn-blue min-h-10 px-4 text-xs"
+            >
+              Buka Feed XML ↗
+            </a>
+          </div>
+        </div>
+
+        <!-- Taxonomy Auto-Map Specs Table -->
+        <div class="mt-6">
+          <h4 class="text-xs font-black uppercase tracking-wider text-slate-700">Tabel Pemetaan Otomatis Taksonomi Google (GPC ID)</h4>
+          <div class="mt-2 overflow-x-auto rounded-lg border border-slate-200">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-700">
+                <tr>
+                  <th class="p-3 font-bold">Kategori Produk Toko</th>
+                  <th class="p-3 font-bold">Google Product Category (GPC ID)</th>
+                  <th class="p-3 font-bold">Jalur Taksonomi Resmi Google</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-slate-800">
+                <tr>
+                  <td class="p-3 font-semibold text-slate-900">Pertanian / Sawit / Pupuk</td>
+                  <td class="p-3 font-mono font-bold text-blue-600">2863</td>
+                  <td class="p-3 text-slate-600">Business & Industrial > Agriculture > Lawn & Garden > Gardening > Fertilizer</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-slate-900">Skincare / Kecantikan</td>
+                  <td class="p-3 font-mono font-bold text-blue-600">2547</td>
+                  <td class="p-3 text-slate-600">Health & Beauty > Personal Care > Cosmetics > Skincare</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-slate-900">Herbal / Kesehatan / Vitalitas</td>
+                  <td class="p-3 font-mono font-bold text-blue-600">642</td>
+                  <td class="p-3 text-slate-600">Health & Beauty > Health Care > Fitness & Nutrition > Herbal Supplements</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-slate-900">Perkakas / Dapur / Asahan</td>
+                  <td class="p-3 font-mono font-bold text-blue-600">645</td>
+                  <td class="p-3 text-slate-600">Home & Garden > Kitchen & Dining > Kitchen Knives > Knife Sharpeners</td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-slate-900">Kategori Lainnya (Fallback)</td>
+                  <td class="p-3 font-mono font-bold text-slate-600">Default</td>
+                  <td class="p-3 text-slate-600">Otomatis ter-resolve berdasarkan analisis keyword nama produk</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Technical Signal Specs & Inspector -->
+    <div id="tabSpecs" class="tab-content hidden space-y-4">
+      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <h3 class="text-base font-extrabold text-slate-900">Spesifikasi Sinyal & Payload Inspector</h3>
+        <p class="mt-1 text-xs text-slate-500">Detail spesifikasi teknis sinyal konversi yang dikirimkan oleh sistem Permata Mall.</p>
+
+        <div class="mt-4 grid gap-4 md:grid-cols-2">
+          <!-- Code snippet -->
+          <div class="rounded-xl border border-slate-800 bg-slate-950 p-4 text-white">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <span class="font-mono text-xs font-bold text-slate-400">gtag('event', 'conversion', payload)</span>
+              <span class="rounded bg-blue-900/60 px-2 py-0.5 text-[10px] font-mono text-blue-300">Web Script</span>
+            </div>
+            <pre class="mt-3 overflow-x-auto font-mono text-[11px] leading-5 text-emerald-400"><code>window.gtag('event', 'conversion', &#123;
+  send_to: 'AW-XXXXXXXXX/AbCd_EFGHIJKlm',
+  value: 249000,
+  currency: 'IDR',
+  transaction_id: 'ORD-2026-88192',
+  user_data: &#123;
+    sha256_phone_number: '...',
+    sha256_first_name: '...'
+  &#125;
+&#125;);</code></pre>
+          </div>
+
+          <!-- Consent Mode Matrix -->
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs">
+            <h4 class="font-black text-slate-900">Consent Mode v2 Matrix Compliance</h4>
+            <ul class="mt-2 space-y-1.5 text-slate-700">
+              <li class="flex items-center justify-between border-b border-slate-200 pb-1">
+                <span>Wilayah ID & MY (Default)</span>
+                <span class="font-bold text-emerald-600">Granted All</span>
+              </li>
+              <li class="flex items-center justify-between border-b border-slate-200 pb-1">
+                <span>Wilayah EEA & UK (GDPR)</span>
+                <span class="font-bold text-amber-600">Denied Default</span>
+              </li>
+              <li class="flex items-center justify-between border-b border-slate-200 pb-1">
+                <span>Ad Storage & Personalization</span>
+                <span class="font-mono font-bold text-slate-900">ad_user_data</span>
+              </li>
+              <li class="flex items-center justify-between">
+                <span>Attribution Click-IDs</span>
+                <span class="font-mono text-slate-900">gclid, gbraid, wbraid</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    type GoogleAdsConfig = {
+      google_tag_manager_id?: string;
+      google_ads_conversion_id?: string;
+      google_ads_conversion_label?: string;
+    };
+
+    // Tab Switching Logic
+    const tabBtns = document.querySelectorAll<HTMLButtonElement>('.tab-btn');
+    const tabContents = document.querySelectorAll<HTMLDivElement>('.tab-content');
+
+    tabBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-target');
+        tabBtns.forEach((b) => {
+          b.classList.remove('border-blue-600', 'text-blue-600');
+          b.classList.add('border-transparent', 'text-slate-500');
+        });
+        btn.classList.remove('border-transparent', 'text-slate-500');
+        btn.classList.add('border-blue-600', 'text-blue-600');
+
+        tabContents.forEach((c) => {
+          if (c.id === targetId) {
+            c.classList.remove('hidden');
+          } else {
+            c.classList.add('hidden');
+          }
+        });
+      });
+    });
+
+    // Form elements
+    const form = document.getElementById('googleForm') as HTMLFormElement | null;
+    const tagManagerInput = document.getElementById('googleTagManagerId') as HTMLInputElement | null;
+    const idInput = document.getElementById('googleId') as HTMLInputElement | null;
+    const labelInput = document.getElementById('googleLabel') as HTMLInputElement | null;
+    const save = document.getElementById('saveGoogle') as HTMLButtonElement | null;
+    const status = document.getElementById('googleStatus');
+    const loading = document.getElementById('googleLoading');
+
+    // KPI Elements
+    const kpiGtmVal = document.getElementById('kpiGtmVal');
+    const kpiGtmStatus = document.getElementById('kpiGtmStatus');
+    const kpiAdsVal = document.getElementById('kpiAdsVal');
+    const kpiAdsStatus = document.getElementById('kpiAdsStatus');
+    let pending = false;
+
+    const showStatus = (message: string, state: 'idle' | 'success' | 'error') => {
+      if (!status) return;
+      status.setAttribute('role', state === 'error' ? 'alert' : 'status');
+      status.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
+      status.textContent = message;
+      status.className = `min-h-5 text-xs font-bold ${
+        state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'
+      }`;
+    };
+
+    const setPending = (next: boolean) => {
+      pending = next;
+      if (save) {
+        save.disabled = next;
+        save.textContent = next ? 'Menyimpan…' : 'Simpan Konfigurasi';
+      }
+      form?.setAttribute('aria-busy', String(next));
+    };
+
+    const render = (data: GoogleAdsConfig) => {
+      const gtmId = (data.google_tag_manager_id || '').trim();
+      const adsId = (data.google_ads_conversion_id || '').trim();
+      const adsLabel = (data.google_ads_conversion_label || '').trim();
+
+      if (tagManagerInput) tagManagerInput.value = gtmId;
+      if (idInput) idInput.value = adsId;
+      if (labelInput) labelInput.value = adsLabel;
+
+      const tagManagerReady = Boolean(gtmId);
+      const adsReady = Boolean(adsId && adsLabel);
+
+      // Update KPI
+      if (kpiGtmVal) kpiGtmVal.textContent = gtmId || 'Belum Set';
+      if (kpiGtmStatus) kpiGtmStatus.className = `h-2 w-2 rounded-full ${tagManagerReady ? 'bg-emerald-500' : 'bg-slate-300'}`;
+
+      if (kpiAdsVal) kpiAdsVal.textContent = adsId ? `${adsId.substring(0, 10)}…` : 'Belum Set';
+      if (kpiAdsStatus) kpiAdsStatus.className = `h-2 w-2 rounded-full ${adsReady ? 'bg-emerald-500' : 'bg-slate-300'}`;
+
+      const badge = document.getElementById('googleBadge');
+      if (badge) {
+        badge.textContent = tagManagerReady && adsReady ? 'GTM + Ads Aktif' : tagManagerReady || adsReady ? 'Sebagian Aktif' : 'Belum Dikonfigurasi';
+        badge.className = tagManagerReady && adsReady
+          ? 'inline-flex min-h-9 items-center rounded-full bg-blue-100 px-3 text-xs font-bold text-blue-800'
+          : tagManagerReady || adsReady
+            ? 'inline-flex min-h-9 items-center rounded-full bg-amber-100 px-3 text-xs font-bold text-amber-800'
+            : 'inline-flex min-h-9 items-center rounded-full bg-slate-100 px-3 text-xs font-bold text-slate-600';
+      }
+    };
+
+    fetch('/api/admin/ads', { headers: { Accept: 'application/json' } })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal memuat Google tracking.');
+        return payload.data as GoogleAdsConfig;
+      })
+      .then((data) => {
+        render(data);
+        loading?.setAttribute('aria-busy', 'false');
+        loading?.classList.add('hidden');
+        form?.classList.remove('hidden');
+      })
+      .catch((error) => {
+        loading?.setAttribute('aria-busy', 'false');
+        loading?.classList.add('hidden');
+        const box = document.getElementById('googleError');
+        if (box) {
+          box.textContent = error instanceof Error ? error.message : 'Gagal memuat Google tracking.';
+          box.classList.remove('hidden');
+        }
+      });
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (pending || !form.reportValidity()) return;
+      const hasId = Boolean(idInput?.value.trim());
+      const hasLabel = Boolean(labelInput?.value.trim());
+      if (hasId !== hasLabel) {
+        showStatus('Conversion ID dan Label harus diisi berpasangan.', 'error');
+        (hasId ? labelInput : idInput)?.focus();
+        return;
+      }
+      setPending(true);
+      showStatus('Menyimpan konfigurasi Google…', 'idle');
+      try {
+        const response = await fetch('/api/admin/ads', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'save-google',
+            google_tag_manager_id: tagManagerInput?.value,
+            google_ads_conversion_id: idInput?.value,
+            google_ads_conversion_label: labelInput?.value,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal menyimpan Google tracking.');
+        render(payload.data);
+        showStatus(payload.message || 'Konfigurasi Google tersimpan.', 'success');
+      } catch (error) {
+        showStatus(error instanceof Error ? error.message : 'Gagal menyimpan Google tracking.', 'error');
+      } finally {
+        setPending(false);
+      }
+    });
+
+    // Feed URL copy buttons
+    const handleCopyFeed = (btn: HTMLButtonElement | null) => {
+      if (!btn) return;
+      btn.addEventListener('click', async () => {
+        const url = 'https://permatamall.shop/feed/google-catalog.xml';
+        await navigator.clipboard.writeText(url).catch(() => {});
+        const oldText = btn.textContent;
+        btn.textContent = '✅ Disalin!';
+        setTimeout(() => {
+          btn.textContent = oldText;
+        }, 2000);
+      });
+    };
+
+    handleCopyFeed(document.getElementById('btnCopyFeedUrl') as HTMLButtonElement | null);
+    handleCopyFeed(document.getElementById('btnCopyFeedUrl2') as HTMLButtonElement | null);
+  </script>
+</AdminLayout>

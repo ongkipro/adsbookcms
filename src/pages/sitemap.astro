@@ -1,0 +1,141 @@
+---
+import PageIntro from '../components/shared/PageIntro.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { footerLegal, footerNavigation } from '../data/site';
+import { getStorefrontProducts } from '../lib/catalog';
+import { listLandingPages } from '../lib/landing-pages';
+
+const mainLinks = [{ label: 'Beranda (Halaman Depan)', href: '/' }, ...footerNavigation];
+
+// Read from D1 like /sitemap.xml does. This page used to render from compiled
+// arrays that are now empty, so it listed no products at all.
+const products = await getStorefrontProducts(Astro.locals);
+const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
+  .filter((page) => Boolean(page.is_active) && !page.id.startsWith('static:'));
+---
+
+<BaseLayout
+  shell="storefront"
+  title={`Sitemap Halaman - ${Astro.locals.tenant.name}`}
+  description={`Daftar lengkap halaman penting website ${Astro.locals.tenant.name} untuk memudahkan penelusuran navigasi.`}
+  noindex={true}
+  breadcrumbs={[
+    { name: 'Beranda', url: '/' },
+    { name: 'Sitemap', url: '/sitemap' },
+  ]}
+>
+  <main id="konten-utama" class="min-h-screen bg-[#FAFAFA] text-slate-800">
+    <PageIntro
+      badge="Peta Situs"
+      title="Sitemap Halaman"
+      description={`Daftar lengkap halaman penting website ${Astro.locals.tenant.name} dalam satu tempat agar mudah ditelusuri.`}
+      breadcrumbs={[{ label: 'Beranda', href: '/' }, { label: 'Sitemap' }]}
+    />
+
+    <div class="mx-auto max-w-[800px] px-5 py-8 space-y-6">
+      <!-- Section 1: Halaman Utama & Navigasi -->
+      <div class="rounded-xl border border-[#EAEDED] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <h2 class="text-[16px] font-extrabold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-[#FF9900]"></span>
+          Navigasi Utama
+        </h2>
+        <div class="mt-4 grid grid-cols-1 gap-2.5">
+          {
+            mainLinks.map((link) => (
+              <a
+                href={link.href}
+                class="flex items-center justify-between rounded-lg border border-[#EAEDED]/70 bg-[#FAFAFA] px-4 py-2.5 text-[13.5px] font-semibold text-[#414B57] hover:border-[#232F3E]/30 hover:bg-[#FFF5E5] hover:text-[#232F3E] transition-all"
+              >
+                <span>{link.label}</span>
+                <span class="text-xs text-[#879596]">→</span>
+              </a>
+            ))
+          }
+        </div>
+      </div>
+
+      <!-- Section 2: Produk & Landing Page -->
+      <div class="rounded-xl border border-[#EAEDED] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <h2 class="text-[16px] font-extrabold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-[#EC7211]"></span>
+          Produk & Solusi Khusus
+        </h2>
+
+        <div class="mt-4 space-y-4">
+          <div>
+            <h3 class="text-[12px] font-bold uppercase tracking-wider text-[#545B64]">Kategori Produk</h3>
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              {
+                products.map((product) => (
+                  <a
+                    href={`/produk/${product.slug}`}
+                    class="block rounded-lg border border-[#EAEDED]/60 bg-[#FAFAFA] p-3 text-center hover:border-[#232F3E]/30 hover:bg-[#FFF5E5] transition-all"
+                  >
+                    <p class="text-[14px] font-extrabold text-[#16191F]">{product.productName}</p>
+                    <p class="mt-0.5 text-[10px] font-medium text-[#545B64]">{product.variants[0]?.label || ''}</p>
+                  </a>
+                ))
+              }
+            </div>
+          </div>
+
+          <div class="border-t border-[#F3F4F6] pt-3">
+            <h3 class="text-[12px] font-bold uppercase tracking-wider text-[#545B64]">Landing Page Solusi</h3>
+            <div class="mt-2 space-y-2">
+              {
+                landingPages.map((item) => (
+                  <a
+                    href={`/${item.slug}`}
+                    class="flex items-center justify-between rounded-lg border border-[#EAEDED]/60 bg-[#FAFAFA] px-4 py-2.5 text-[13px] font-semibold text-[#414B57] hover:border-[#232F3E]/30 hover:bg-[#FFF5E5] hover:text-[#232F3E] transition-all"
+                  >
+                    <span class="truncate">{item.title}</span>
+                    <span class="text-[10px] font-bold uppercase text-[#232F3E]/80 bg-[#FFF5E5] px-2 py-0.5 rounded border border-[#232F3E]/10 shrink-0">
+                      Live
+                    </span>
+                  </a>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Halaman Legal & Informasi -->
+      <div class="rounded-xl border border-[#EAEDED] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+        <h2 class="text-[15px] font-extrabold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full bg-slate-400"></span>
+          Legal & Informasi Tambahan
+        </h2>
+        <div class="mt-3 grid grid-cols-1 gap-2 text-[13px]">
+          {
+            footerLegal.map((link) => (
+              <a
+                href={link.href}
+                class="flex items-center justify-between py-1.5 text-slate-500 hover:text-[#232F3E] transition-colors font-semibold"
+              >
+                <span>{link.label}</span>
+                <span class="text-[10px] text-slate-400">#noindex</span>
+              </a>
+            ))
+          }
+        </div>
+      </div>
+
+      <!-- XML sitemap button -->
+      <div class="text-center pt-2">
+        <a
+          href="/sitemap.xml"
+          target="_blank"
+          class="inline-flex items-center gap-2 rounded-lg border border-[#EAEDED] bg-white px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+        >
+          <svg class="h-4 w-4 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M4 11.189v-1.189c0-.552.448-1 1-1h6c.552 0 1 .448 1 1v1.189c0 .552-.448 1-1 1H5c-.552 0-1-.448-1-1zm0 4.811c0-.552.448-1 1-1h6c.552 0 1 .448 1 1v1.189c0 .552-.448 1-1 1H5c-.552 0-1-.448-1-1v-1.189zm8.583-12h2.417c.552 0 1 .448 1 1v1.189c0 .552-.448 1-1 1h-2.417c-.552 0-1-.448-1-1v-1.189c0-.552.448-1 1-1zm2.417 6c.552 0 1 .448 1 1v1.189c0 .552-.448 1-1 1h-2.417c-.552 0-1-.448-1-1v-1.189c0-.552.448-1 1-1h2.417zm-1.417 6v1.189c0 .552-.448 1-1 1h-2.583c-.552 0-1-.448-1-1v-1.189c0-.552.448-1 1-1h2.583c.552 0 1 .448 1 1zm5.417-12c.552 0 1 .448 1 1v1.189c0 .552-.448 1-1 1h-2.417c-.552 0-1-.448-1-1v-1.189c0-.552.448-1 1-1h2.417z"
+            ></path>
+          </svg>
+          Lihat XML Sitemap (Mesin Pencari)
+        </a>
+      </div>
+    </div>
+  </main>
+</BaseLayout>

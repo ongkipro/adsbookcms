@@ -1,0 +1,686 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import MetaThanksTracker from '../components/tracking/MetaThanksTracker.astro';
+import { getStorefrontProducts } from '../lib/catalog';
+import { getStoreSupportWhatsapp } from '../lib/public-store';
+import { cn } from '../lib/cn';
+import { badgeVariants, buttonVariants } from '../lib/ui-variants';
+import Icon from '../components/shared/Icon.astro';
+
+if (
+  Astro.url.searchParams.has('order_id') ||
+  Astro.url.searchParams.has('order_pk') ||
+  Astro.url.searchParams.has('status_token')
+) return Astro.redirect('/thanks', 303);
+Astro.response.headers.set('Cache-Control', 'no-store');
+
+const products = await getStorefrontProducts(Astro.locals);
+const csPhone = await getStoreSupportWhatsapp(Astro.locals);
+const productCatalog = products.map((item) => ({
+  slug: item.slug,
+  productName: item.productName,
+  headline: item.headline,
+  image: item.image,
+  variants: item.variants.map((variant) => ({
+    id: variant.id,
+    label: variant.label,
+    price: variant.price,
+    comparePrice: variant.comparePrice ?? item.comparePrice,
+  })),
+}));
+---
+
+<BaseLayout
+  title={`Terima Kasih - ${Astro.locals.tenant.name}`}
+  description={`Halaman konfirmasi pesanan ${Astro.locals.tenant.name}.`}
+  hideHeader={true}
+  hideFooter={true}
+>
+  <script is:inline slot="head">
+    if (window.location.search) {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
+    }
+  </script>
+  <main id="thanks-shell" hidden class="min-h-screen bg-[#F8F7F4] font-sans text-[14px] text-slate-800 antialiased py-4 sm:py-8">
+    <MetaThanksTracker tenantName={Astro.locals.tenant.name} tenantSlug={Astro.locals.tenant.slug} />
+    <div class="mx-auto w-full max-w-[480px] overflow-hidden rounded-none border border-slate-200 bg-white shadow-xs">
+      <header
+        class="relative z-30 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4"
+      >
+        <span class="logo-text text-slate-950 font-bold tracking-wider text-xs" id="brand-logo">{Astro.locals.tenant.name}</span>
+      </header>
+    <section class="px-5 pb-5 pt-7 text-center" data-motion="hero">
+      <div
+        class="mx-auto mb-4 grid size-16 place-items-center rounded-full bg-emerald-500 text-white shadow-[0_0_0_8px_rgba(16,185,129,0.10)]"
+        data-motion="success-icon"
+      >
+        <Icon name="lucide:circle-check" class="size-9" aria-hidden="true" />
+      </div>
+      <h1
+        id="thanks-title"
+        class="mx-auto mt-2 max-w-[320px] text-[22px] font-semibold leading-tight tracking-[-0.03em] text-slate-950"
+      >
+        Pesanan berhasil dibuat
+      </h1>
+      <p id="thanks-subtitle" class="mx-auto mt-2 max-w-[330px] text-[13px] leading-6 text-slate-500">
+        Pesanan sudah kami terima. Konfirmasi ke admin agar proses verifikasi dan pengiriman lebih cepat.
+      </p>
+    </section>
+
+    <section class="border-y border-slate-100 bg-slate-50 px-5 py-5 text-center" data-motion="summary">
+      <p id="payment-title" class="text-[11px] font-medium uppercase tracking-[0.1em] text-slate-500">
+        Bayar saat paket tiba
+      </p>
+      <p id="total-payment-hero" class="mt-1 text-[32px] font-bold leading-none tracking-[-0.04em] text-slate-950">
+        —
+      </p>
+      <span
+        id="payment-badge"
+        class={cn('mt-3 uppercase tracking-wide', badgeVariants({ variant: 'yellow', size: 'pill' }))}
+      >
+        COD · Bayar di Tempat
+      </span>
+    </section>
+
+    <section class="px-5 py-5" data-motion="section">
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-[15px] font-semibold tracking-[-0.02em] text-slate-950">Produk dipesan</h2>
+        <span
+          id="quantity-badge"
+          class="rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-100"
+          >Qty 1</span
+        >
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="relative grid size-[84px] shrink-0 place-items-center overflow-hidden rounded-md">
+          <img
+            id="product-image"
+            src="/images/logo.webp"
+            alt=""
+            class="h-full w-full rounded-md object-contain"
+            loading="lazy"
+          />
+        </div>
+        <div class="min-w-0 flex-1">
+          <h3
+            id="product-name"
+            class="truncate text-[19px] font-semibold leading-tight tracking-[-0.03em] text-slate-950"
+          >
+            —
+          </h3>
+          <p id="variant-label" class="mt-1 text-[14px] font-medium leading-5 text-emerald-700">—</p>
+          <p id="product-headline" class="mt-1 line-clamp-2 text-[12px] leading-5 text-slate-500"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="border-t border-slate-100 px-5 py-5" data-motion="section">
+      <h2 class="mb-3 text-[15px] font-semibold tracking-[-0.02em] text-slate-950">Ringkasan pembayaran</h2>
+      <div class="divide-y divide-slate-100 overflow-hidden rounded-none border border-slate-200">
+        <div class="flex justify-between gap-3 px-4 py-3 text-[13px]">
+          <span class="text-slate-500">Harga produk</span><span id="product-price" class="font-medium text-slate-900"
+            >—</span
+          >
+        </div>
+        <div id="discount-row" class="flex justify-between gap-3 px-4 py-3 text-[13px]">
+          <span class="text-slate-500">Diskon promo</span><span id="discount-display" class="font-medium text-red-600"
+            >—</span
+          >
+        </div>
+        <div id="product-subtotal-row" hidden>
+          <span>Subtotal produk</span><span id="product-subtotal">—</span>
+        </div>
+        <div class="flex justify-between gap-3 px-4 py-3 text-[13px]">
+          <span class="text-slate-500">Ongkos kirim</span><span id="shipping-cost" class="font-medium text-slate-900"
+            >—</span
+          >
+        </div>
+        <div class="flex items-center justify-between gap-3 bg-[#F8F7F4] px-4 py-4">
+          <div>
+            <p id="total-label" class="text-[13px] font-medium text-slate-900">Total COD</p>
+            <p id="total-note" class="mt-0.5 text-[10px] uppercase tracking-wide text-amber-600">
+              Siapkan uang pas saat kurir tiba
+            </p>
+          </div>
+          <strong id="total-payment" class="text-[21px] font-bold tracking-[-0.03em] text-emerald-700"
+            >—</strong
+          >
+        </div>
+      </div>
+    </section>
+
+    <section class="border-t border-slate-100 px-5 py-5" data-motion="section">
+      <div class="mb-3 flex items-center justify-between gap-3">
+        <h2 class="text-[15px] font-semibold tracking-[-0.02em] text-slate-950">Data pengiriman</h2>
+      </div>
+      <div class="divide-y divide-slate-100 text-[13px]">
+        <div class="grid grid-cols-[112px_1fr] gap-3 py-3">
+          <span class="text-slate-500">No. Pesanan</span><span
+            id="order-id"
+            class="text-right font-medium text-slate-900">—</span
+          >
+        </div>
+        <div class="grid grid-cols-[112px_1fr] gap-3 py-3">
+          <span class="text-slate-500">Nama</span><span id="customer-name" class="text-right font-medium text-slate-900"
+            >—</span
+          >
+        </div>
+        <div class="grid grid-cols-[112px_1fr] gap-3 py-3">
+          <span class="text-slate-500">WhatsApp</span><span
+            id="customer-phone"
+            class="text-right font-medium text-slate-900">—</span
+          >
+        </div>
+        <div class="grid grid-cols-[112px_1fr] gap-3 py-3">
+          <span class="text-slate-500">Alamat</span><span id="full-address" class="text-right leading-6 text-slate-700"
+            >—</span
+          >
+        </div>
+        <div id="area-row" class="grid grid-cols-[112px_1fr] gap-3 py-3">
+          <span class="text-slate-500">Area</span><span id="area-display" class="text-right font-medium text-slate-900"
+            >—</span
+          >
+        </div>
+      </div>
+    </section>
+
+    <section class="border-t border-slate-100 bg-slate-50 px-5 py-5" data-motion="section">
+      <h2 id="status-title" class="mb-4 text-[15px] font-semibold tracking-[-0.02em] text-slate-950">Status pesanan</h2>
+      <div class="space-y-4">
+        <div class="grid grid-cols-[18px_1fr] gap-3">
+          <span class="mt-0.5 size-4 rounded-full bg-emerald-600 ring-4 ring-emerald-100"></span>
+          <div>
+            <p id="step-one-title" class="text-[13px] font-medium text-slate-950">Pesanan diterima</p><p
+              id="step-one-copy"
+              class="mt-0.5 text-xs text-slate-500"
+            >
+              Data order berhasil masuk.
+            </p>
+          </div>
+        </div>
+        <div class="grid grid-cols-[18px_1fr] gap-3">
+          <span class="mt-1 size-3 rounded-full bg-white ring-2 ring-emerald-600 ring-offset-2 ring-offset-slate-50"
+          ></span>
+          <div>
+            <p id="step-two-title" class="text-[13px] font-medium text-slate-950">Verifikasi admin</p><p
+              id="step-two-copy"
+              class="mt-0.5 text-xs text-slate-500"
+            >
+              Konfirmasi WhatsApp membantu proses lebih cepat.
+            </p>
+          </div>
+        </div>
+        <div class="grid grid-cols-[18px_1fr] gap-3 opacity-60">
+          <span class="mt-0.5 size-4 rounded-full bg-slate-200 ring-1 ring-slate-200"></span>
+          <div>
+            <p id="step-three-title" class="text-[13px] font-medium text-slate-950">Packing & pengiriman</p><p
+              id="step-three-copy"
+              class="mt-0.5 text-xs text-slate-500"
+            >
+              Paket dikirim setelah data valid.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="payment-note" class="border-t border-amber-100 bg-[#FFFBEB] px-5 py-5" data-motion="section">
+      <div class="rounded-2xl border border-amber-100 bg-white/70 p-4">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <h2 id="note-title" class="text-[15px] font-semibold tracking-[-0.02em] text-amber-950">
+            Catatan pembayaran COD
+          </h2>
+          <span id="note-badge" class={badgeVariants({ variant: 'yellow', size: 'sm' })}>Wajib dibaca</span>
+        </div>
+        <div id="payment-details" class="mb-4 divide-y divide-amber-100 rounded-xl border border-amber-100 bg-white" hidden>
+          <div class="flex justify-between gap-3 px-3 py-2.5 text-[13px]">
+            <span class="text-slate-500">Channel</span><strong id="payment-channel" class="text-right text-slate-950">-</strong>
+          </div>
+          <div class="flex justify-between gap-3 px-3 py-2.5 text-[13px]">
+            <span class="text-slate-500">Nominal order</span><strong id="payment-amount" class="text-right text-slate-950">-</strong>
+          </div>
+          <div class="flex justify-between gap-3 px-3 py-2.5 text-[13px]">
+            <span class="text-slate-500">Biaya admin</span><strong id="payment-admin-fee" class="text-right text-slate-950">-</strong>
+          </div>
+          <div class="flex justify-between gap-3 px-3 py-2.5 text-[13px]">
+            <span class="text-slate-500">Total tagihan</span><strong id="payment-billed-total" class="text-right text-slate-950">-</strong>
+          </div>
+          <div id="payment-va-row" class="flex justify-between gap-3 px-3 py-2.5 text-[13px]" hidden>
+            <span class="text-slate-500">Virtual Account</span><strong id="payment-va" class="break-all text-right text-slate-950"></strong>
+          </div>
+          <div id="payment-code-row" class="flex justify-between gap-3 px-3 py-2.5 text-[13px]" hidden>
+            <span class="text-slate-500">Kode pembayaran</span><strong id="payment-code" class="break-all text-right text-slate-950"></strong>
+          </div>
+          <div id="payment-qr-row" class="px-3 py-2.5 text-[13px]" hidden>
+            <span class="text-slate-500">QR payload</span><code id="payment-qr" class="mt-1 block max-h-28 overflow-auto break-all rounded-lg bg-slate-50 p-2 text-[11px] leading-5 text-slate-800"></code>
+          </div>
+          <div id="payment-expiry-row" class="flex justify-between gap-3 px-3 py-2.5 text-[13px]" hidden>
+            <span class="text-slate-500">Batas pembayaran</span><strong id="payment-expiry" class="text-right text-slate-950"></strong>
+          </div>
+        </div>
+        <p id="payment-failure" class="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-[13px] leading-5 text-red-800" hidden></p>
+        <div id="note-list" class="space-y-3 text-[13px] leading-6 text-amber-950">
+          <div class="grid grid-cols-[18px_1fr] gap-2.5">
+            <span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>
+              Siapkan uang tunai sesuai total tagihan: <span id="note-total" class="font-bold text-slate-950"
+                >—</span
+              >.
+            </p>
+          </div>
+          <div class="grid grid-cols-[18px_1fr] gap-2.5">
+            <span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>
+              Pastikan nomor WhatsApp <span id="note-phone" class="font-medium text-slate-950">—</span> tetap
+              aktif untuk konfirmasi admin atau kurir.
+            </p>
+          </div>
+          <div class="grid grid-cols-[18px_1fr] gap-2.5">
+            <span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>
+              Mohon terima paket saat kurir datang. Jika alamat sulit ditemukan, kurir dapat menghubungi nomor tersebut.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="whatsapp-section" class="px-5 py-6 text-center" data-motion="cta">
+      <p class="text-[11px] font-medium uppercase tracking-[0.12em] text-emerald-700">Langkah berikutnya</p>
+      <h2 id="cta-title" class="mt-1 text-[20px] font-semibold tracking-[-0.03em] text-slate-950">
+        Konfirmasi ke admin
+      </h2>
+      <p id="cta-copy" class="mx-auto mt-2 max-w-[330px] text-[13px] leading-6 text-slate-500">
+        Kirim pesan konfirmasi supaya admin segera validasi order dan menyiapkan pengiriman.
+      </p>
+
+      <a
+        id="payment-link"
+        href="#"
+        target="_blank"
+        rel="nofollow noopener noreferrer"
+        title={`Lanjutkan pembayaran pesanan ${Astro.locals.tenant.name}`}
+        hidden
+        class={cn('mt-4 flex w-full', buttonVariants({ variant: 'dark', size: 'lg' }))}>Lanjutkan Pembayaran</a
+      >
+      <a
+        id="wa-confirm"
+        href="#"
+        target="_blank"
+        rel="nofollow noopener noreferrer"
+        title={`Konfirmasi pesanan ${Astro.locals.tenant.name} melalui WhatsApp`}
+        class={cn('mt-4 flex w-full', buttonVariants({ variant: 'primary', size: 'lg' }))}
+      >
+        <Icon name="lucide:message-circle" class="size-5" aria-hidden="true" />
+        <span id="wa-label">Konfirmasi via WhatsApp</span>
+      </a>
+    </section>
+
+    <footer class="border-t border-slate-100 px-5 py-5 text-center text-xs text-slate-400">
+      Safe Checkout · Quality Guaranteed
+    </footer>
+    </div>
+  </main>
+
+  <style>
+    .logo-text {
+      display: inline-block;
+      color: #020617;
+      font-size: 25px;
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: -0.065em;
+      text-transform: uppercase;
+      background: linear-gradient(180deg, #111827 0%, #020617 58%, #334155 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.25),
+        0 10px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      [data-motion] {
+        animation: thanks-fade-up 360ms ease-out both;
+        will-change: opacity, transform;
+      }
+
+      [data-motion='success-icon'] {
+        animation-name: thanks-pop-in;
+        animation-duration: 420ms;
+      }
+
+      [data-motion='hero'] {
+        animation-delay: 40ms;
+      }
+
+      [data-motion='summary'] {
+        animation-delay: 100ms;
+      }
+
+      [data-motion='section']:nth-of-type(3) {
+        animation-delay: 160ms;
+      }
+
+      [data-motion='section']:nth-of-type(4) {
+        animation-delay: 205ms;
+      }
+
+      [data-motion='section']:nth-of-type(5) {
+        animation-delay: 250ms;
+      }
+
+      [data-motion='section']:nth-of-type(6) {
+        animation-delay: 295ms;
+      }
+
+      [data-motion='section']:nth-of-type(7) {
+        animation-delay: 340ms;
+      }
+
+      [data-motion='cta'] {
+        animation-delay: 385ms;
+      }
+    }
+
+    @keyframes thanks-fade-up {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes thanks-pop-in {
+      from {
+        opacity: 0;
+        transform: scale(0.92);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+  </style>
+
+  <script is:inline define:vars={{ csPhone, productCatalog }}>
+    const fmt = (n) =>
+      `Rp${Math.round(Number(n || 0))
+        .toLocaleString('id-ID')
+        .replace(/,/g, '.')}`;
+    const escapeHtml = (value) =>
+      String(value ?? '').replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[character] ?? character);
+    let clientState = null;
+    try {
+      clientState = JSON.parse(sessionStorage.getItem('thanks_state') || 'null');
+    } catch {
+      clientState = null;
+    }
+
+    const hasClientState = Boolean(clientState);
+    if (!hasClientState) {
+      document.documentElement.hidden = true;
+      window.location.replace('/produk');
+    }
+
+    const activeState = clientState || {};
+    const pick = (key, fallback = '') => String(activeState?.[key] ?? fallback);
+    const pickNum = (key, fallback = 0) => Number(activeState?.[key] ?? fallback);
+
+    const orderId = pick('order_id', '');
+    const orderPk = pick('order_pk', orderId);
+    const statusToken = pick('status_token', '');
+    const paymentMethod = pick('payment_method', pick('pm', 'cod')).toLowerCase();
+    const paymentUrl = pick('payment_url', '');
+    const leadOnly = ['1', 'true'].includes(pick('lead_only', '').toLowerCase());
+    const paymentStatus = pick('payment_status', 'unpaid').toLowerCase();
+    const paymentChannel = pick('payment_channel', '');
+    const paymentAmount = pickNum('payment_amount', 0);
+    const paymentAdminFee = pickNum('payment_admin_fee', 0);
+    const paymentVirtualAccount = pick('payment_virtual_account', '');
+    const paymentQrPayload = pick('payment_qr_payload', '');
+    const paymentCode = pick('payment_code', '');
+    const paymentExpiresAt = pick('payment_expires_at', '');
+    const paymentError = pick('payment_error', '');
+    const name = pick('name', 'Bapak/Ibu');
+    const phone = pick('phone', '-');
+    const address = pick('address', '-');
+    const district = pick('district', '');
+    const city = pick('city', '');
+    const province = pick('province', '');
+    const postalCode = pick('postal_code', '');
+    const rawProductName = pick('product_name', '');
+    const rawVariantLabel = pick('variant_label', rawProductName);
+    const variantUniqueId = pick('variant_unique_id', '');
+    const catalogProduct = productCatalog.find(
+      (item) =>
+        item.productName.toLowerCase() === rawProductName.toLowerCase() ||
+        item.slug.toLowerCase() === rawProductName.toLowerCase(),
+    );
+    const catalogVariant = catalogProduct?.variants.find(
+      (variant) => variant.id === variantUniqueId || variant.label.toLowerCase() === rawVariantLabel.toLowerCase(),
+    );
+    const productName = catalogProduct?.productName || rawProductName;
+    const variantLabel = catalogVariant?.label || rawVariantLabel;
+    const productImage = pick('product_image', catalogProduct?.image || '/images/logo.webp');
+    const productHeadline = pick('product_headline', catalogProduct?.headline || '');
+    const quantity = Math.max(1, pickNum('quantity', 1));
+    const productPrice = pickNum('product_price', pickNum('value', catalogVariant?.price || 0));
+    const productTotal = productPrice * quantity;
+    const comparePrice = pickNum('compare_price', catalogVariant?.comparePrice || 0);
+    const shippingCost = pickNum('shipping_cost', 0);
+    const totalPayment = pickNum('total_payment', productTotal + shippingCost);
+    const discount = Math.max(0, (comparePrice - productPrice) * quantity);
+    const isCod = paymentMethod === 'cod';
+    const isOnlinePayment = !isCod && !leadOnly;
+    const isPaid = ['paid', 'settled', 'success'].includes(paymentStatus);
+    const area = [district, city, province, postalCode].filter(Boolean).join(', ') || '-';
+    const setPaymentDetail = (rowId, valueId, value) => {
+      const row = document.getElementById(rowId);
+      const target = document.getElementById(valueId);
+      if (!row || !target || !value) return;
+      row.hidden = false;
+      target.textContent = value;
+    };
+
+    const brandLogo = document.getElementById('brand-logo');
+    brandLogo.textContent = productName.toUpperCase();
+    brandLogo.style.fontSize = productName.length >= 8 ? '22px' : '25px';
+    brandLogo.style.letterSpacing = productName.length >= 8 ? '-0.045em' : '-0.065em';
+    document.getElementById('order-id').textContent = orderId.startsWith('#') ? orderId : `#${orderId}`;
+    document.getElementById('customer-name').textContent = name;
+    document.getElementById('customer-phone').textContent = phone;
+    document.getElementById('full-address').textContent = address;
+    const areaRow = document.getElementById('area-row');
+    document.getElementById('area-display').textContent = area;
+    if (!area || area === '-') areaRow.hidden = true;
+    document.getElementById('product-name').textContent = productName;
+    document.getElementById('variant-label').textContent = variantLabel;
+    document.getElementById('quantity-badge').textContent = `Qty ${quantity}`;
+    const headlineEl = document.getElementById('product-headline');
+    if (productHeadline) headlineEl.textContent = productHeadline;
+    else headlineEl.hidden = true;
+    document.getElementById('product-image').src = productImage;
+    document.getElementById('product-image').alt = productName;
+    const productDisplayTotal = comparePrice > productPrice ? comparePrice * quantity : productTotal;
+    document.getElementById('product-price').textContent = fmt(productDisplayTotal);
+    document.getElementById('product-subtotal').textContent = fmt(productTotal);
+    document.getElementById('shipping-cost').textContent = leadOnly
+      ? 'Dikonfirmasi admin'
+      : shippingCost > 0
+        ? fmt(shippingCost)
+        : 'Dikonfirmasi admin';
+    if (discount > 0) document.getElementById('discount-display').textContent = `-${fmt(discount)}`;
+    else {
+      document.getElementById('discount-row')?.remove();
+      document.getElementById('product-subtotal-row')?.remove();
+    }
+    document.getElementById('total-payment').textContent = fmt(totalPayment || productPrice || 0);
+    document.getElementById('total-payment-hero').textContent = fmt(totalPayment || productPrice || 0);
+    document.getElementById('note-total').textContent = fmt(totalPayment || productPrice || 0);
+    document.getElementById('note-phone').textContent = phone;
+
+
+    if (leadOnly) {
+      document.getElementById('thanks-title').textContent = 'Pesanan berhasil dibuat';
+      document.getElementById('thanks-subtitle').textContent =
+        'Order Anda sudah masuk. Customer Service akan menghubungi untuk mengonfirmasi biaya admin, ongkir, dan detail pengiriman.';
+      document.getElementById('payment-title').textContent = 'Estimasi harga produk';
+      document.getElementById('payment-badge').textContent = 'COD · Total Menyusul';
+      document.getElementById('total-label').textContent = 'Estimasi produk';
+      document.getElementById('total-note').textContent = 'Belum termasuk biaya admin dan pengiriman';
+      document.getElementById('status-title').textContent = 'Status pesanan';
+      document.getElementById('step-one-title').textContent = 'Order diterima';
+      document.getElementById('step-one-copy').textContent = 'Pesanan berhasil masuk ke sistem.';
+      document.getElementById('step-two-title').textContent = 'Konfirmasi admin';
+      document.getElementById('step-two-copy').textContent =
+        'Customer Service menghubungi untuk mengonfirmasi biaya admin, ongkir, dan detail pengiriman.';
+      document.getElementById('step-three-title').textContent = 'Order diproses';
+      document.getElementById('step-three-copy').textContent = 'Pesanan diproses setelah detail akhir disetujui.';
+      document.getElementById('note-title').textContent = 'Catatan konfirmasi COD';
+      document.getElementById('note-list').innerHTML = `
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>Nominal saat ini hanya estimasi harga produk: <span class="font-bold text-slate-950">${fmt(productTotal || productPrice || 0)}</span>.</p></div>
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>Biaya admin, ongkir, dan total akhir dikonfirmasi Customer Service melalui WhatsApp <span class="font-medium text-slate-950">${escapeHtml(phone)}</span>.</p></div>
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>Pastikan nomor aktif agar pesanan COD bisa segera diproses.</p></div>`;
+      document.getElementById('cta-title').textContent = 'Hubungi admin';
+      document.getElementById('cta-copy').textContent =
+        'Jika ingin mempercepat proses, hubungi Customer Service untuk konfirmasi biaya dan pengiriman.';
+    } else if (isOnlinePayment && isPaid) {
+      document.getElementById('thanks-title').textContent = 'Pembayaran berhasil';
+      document.getElementById('thanks-subtitle').textContent =
+        'Pembayaran sudah terkonfirmasi. Pesanan Anda segera diperiksa untuk proses pengiriman.';
+      document.getElementById('payment-title').textContent = 'Total pembayaran';
+      const paidBadge = document.getElementById('payment-badge');
+      paidBadge.textContent = paymentMethod === 'qris' ? 'QRIS · Lunas' : 'Pembayaran · Lunas';
+      paidBadge.className =
+        'mt-3 inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800';
+      document.getElementById('total-label').textContent = 'Total lunas';
+      document.getElementById('total-note').textContent = 'Pembayaran berhasil diverifikasi';
+      document.getElementById('status-title').textContent = 'Status pesanan';
+      document.getElementById('step-one-title').textContent = 'Pesanan dibuat';
+      document.getElementById('step-one-copy').textContent = 'Data order berhasil masuk.';
+      document.getElementById('step-two-title').textContent = 'Pembayaran berhasil';
+      document.getElementById('step-two-copy').textContent = 'Pembayaran telah diterima dan dikonfirmasi.';
+      document.getElementById('step-three-title').textContent = 'Menunggu proses pengiriman';
+      document.getElementById('step-three-copy').textContent = 'Admin akan memeriksa pesanan sebelum menyiapkan pengiriman.';
+      document.getElementById('note-title').textContent = 'Pembayaran terkonfirmasi';
+      document.getElementById('note-badge').textContent = 'Lunas';
+      document.getElementById('payment-details').hidden = false;
+      document.getElementById('payment-channel').textContent = paymentChannel || paymentMethod.toUpperCase();
+      document.getElementById('payment-amount').textContent = fmt(paymentAmount || totalPayment);
+      document.getElementById('payment-admin-fee').textContent = fmt(paymentAdminFee);
+      document.getElementById('payment-billed-total').textContent = fmt(totalPayment);
+      document.getElementById('note-list').innerHTML = `
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-emerald-500"></span><p>Pembayaran sebesar <span class="font-bold text-slate-950">${fmt(totalPayment || productTotal || productPrice || 0)}</span> sudah diterima.</p></div>
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-emerald-500"></span><p>Simpan nomor pesanan <span class="font-semibold text-slate-950">${escapeHtml(orderId)}</span> untuk mengecek proses berikutnya.</p></div>`;
+      document.getElementById('cta-title').textContent = 'Butuh bantuan?';
+      document.getElementById('cta-copy').textContent =
+        'Hubungi admin jika ada pertanyaan tentang pembayaran atau pengiriman.';
+      document.getElementById('wa-label').textContent = 'Hubungi Admin';
+    } else if (isOnlinePayment) {
+      document.getElementById('payment-title').textContent = 'Total pembayaran online';
+      document.getElementById('payment-badge').textContent =
+        paymentMethod === 'qris' ? 'QRIS · Pembayaran Online' : 'Pembayaran Online';
+      document.getElementById('total-label').textContent = 'Total pembayaran';
+      document.getElementById('total-note').textContent = 'Bayar sesuai nominal agar mudah diverifikasi';
+      document.getElementById('status-title').textContent = 'Status pembayaran';
+      document.getElementById('step-one-title').textContent = 'Pesanan dibuat';
+      document.getElementById('step-one-copy').textContent = 'Data order berhasil masuk.';
+      document.getElementById('step-two-title').textContent = paymentUrl
+        ? 'Menunggu pembayaran'
+        : 'Konfirmasi pembayaran';
+      document.getElementById('step-two-copy').textContent = paymentUrl
+        ? 'Lanjutkan pembayaran melalui tombol di bawah.'
+        : 'Jika sudah membayar, kirim bukti pembayaran ke admin.';
+      document.getElementById('step-three-title').textContent = 'Verifikasi pembayaran';
+      document.getElementById('step-three-copy').textContent = 'Admin memproses pesanan setelah pembayaran valid.';
+      document.getElementById('note-title').textContent = 'Catatan pembayaran online';
+      document.getElementById('note-badge').textContent = 'Penting';
+      document.getElementById('payment-details').hidden = false;
+      document.getElementById('payment-channel').textContent = paymentChannel || paymentMethod.toUpperCase();
+      document.getElementById('payment-amount').textContent = fmt(paymentAmount || totalPayment);
+      document.getElementById('payment-admin-fee').textContent = fmt(paymentAdminFee);
+      document.getElementById('payment-billed-total').textContent = fmt(totalPayment);
+      setPaymentDetail('payment-va-row', 'payment-va', paymentVirtualAccount);
+      setPaymentDetail('payment-code-row', 'payment-code', paymentCode);
+      setPaymentDetail('payment-qr-row', 'payment-qr', paymentQrPayload);
+      if (paymentExpiresAt) {
+        const expiry = new Date(paymentExpiresAt);
+        setPaymentDetail(
+          'payment-expiry-row',
+          'payment-expiry',
+          Number.isNaN(expiry.getTime())
+            ? paymentExpiresAt
+            : new Intl.DateTimeFormat('id-ID', {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+                timeZone: 'Asia/Jakarta',
+              }).format(expiry) + ' WIB',
+        );
+      }
+      if (paymentStatus === 'failed' || paymentError) {
+        const failure = document.getElementById('payment-failure');
+        failure.hidden = false;
+        failure.textContent =
+          paymentError || 'Instruksi pembayaran belum berhasil dibuat. Jangan melakukan transfer sebelum menerima instruksi resmi.';
+      }
+      document.getElementById('note-list').innerHTML = `
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>Bayar sesuai total tagihan: <span class="font-bold text-slate-950">${fmt(totalPayment || productTotal || productPrice || 0)}</span>.</p></div>
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>Simpan bukti pembayaran untuk dikirim ke admin.</p></div>
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>Pesanan diproses setelah pembayaran berhasil diverifikasi.</p></div>`;
+      document.getElementById('cta-title').textContent = paymentUrl ? 'Selesaikan pembayaran' : 'Konfirmasi pembayaran';
+      document.getElementById('cta-copy').textContent = paymentUrl
+        ? 'Lanjutkan pembayaran terlebih dahulu, lalu konfirmasi ke admin jika diperlukan.'
+        : 'Kirim bukti pembayaran ke admin agar pesanan segera diverifikasi dan diproses.';
+      document.getElementById('wa-label').textContent = 'Kirim Bukti Pembayaran';
+      if (paymentUrl) {
+        const paymentLink = document.getElementById('payment-link');
+        paymentLink.hidden = false;
+        paymentLink.href = paymentUrl;
+      }
+    }
+
+    const wa = document.getElementById('wa-confirm');
+    if (csPhone) {
+      const cleanPhone = String(csPhone).replace(/\D/g, '').replace(/^0/, '62');
+      const prodName = activeState?.product_name || activeState?.variant_label || 'Produk';
+      const custName = activeState?.name || 'Customer';
+      const msg = `Halo, saya sudah melakukan pemesanan ${prodName}, atas nama ${custName}. Mohon segera diproses ya 🙏🏻`;
+      wa.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+    } else {
+      wa.hidden = true;
+    }
+
+    document.getElementById('thanks-shell').hidden = false;
+
+    if (!leadOnly && orderPk && statusToken) {
+      fetch('/api/order-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_pk: orderPk, status_token: statusToken }),
+        cache: 'no-store',
+      })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || data?.success === false) return;
+          if (data?.payment_status && !isCod)
+            document.getElementById('step-two-copy').textContent =
+              `Status pembayaran: ${String(data.payment_status).replace(/_/g, ' ')}`;
+          if (data?.status)
+            document.getElementById('step-three-copy').textContent =
+              `Status order: ${String(data.status).replace(/_/g, ' ')}`;
+        })
+        .catch(() => {});
+    }
+  </script>
+</BaseLayout>

@@ -1,0 +1,65 @@
+---
+import FormHybridContent from './FormHybridContent.astro';
+import FormMiddleContent from './FormMiddleContent.astro';
+import { getRuntimeEnv } from '../../lib/env';
+import {
+  loadStoreCodDisabledProvinceCodes,
+  resolveFormModeContext,
+  type FormMode,
+} from '../../lib/form-mode';
+
+interface Props {
+  bannerImage?: string;
+  mode?: FormMode;
+  productSlug?: string;
+  selectedVariantId?: string;
+  province?: string;
+  embedded?: boolean;
+}
+
+const {
+  mode = 'hybrid',
+  province = '',
+  productSlug = 'asahan-portable',
+  embedded = false,
+  selectedVariantId,
+  bannerImage,
+} = Astro.props;
+const database = getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined;
+const codDisabledProvinceCodes = await loadStoreCodDisabledProvinceCodes(database);
+const formContext = await resolveFormModeContext(
+  Astro.request,
+  codDisabledProvinceCodes,
+);
+const resolvedMode =
+  formContext.resolvedMode === 'full'
+    ? 'full'
+    : mode === 'hybrid'
+      ? formContext.resolvedMode
+      : mode;
+const resolvedProvince = province || formContext.province;
+---
+
+<div class="mx-auto w-full max-w-[480px] bg-white" data-canonical-order-form data-resolved-mode={resolvedMode}>
+  {
+    resolvedMode === 'full' ? (
+      <FormHybridContent
+        productSlug={productSlug}
+        selectedVariantId={selectedVariantId}
+        embedded={embedded}
+        bannerImage={bannerImage}
+        codDisabledProvinceCodes={codDisabledProvinceCodes}
+      />
+    ) : (
+      <FormMiddleContent
+        productSlug={productSlug}
+        selectedVariantId={selectedVariantId}
+        province={resolvedProvince}
+        embedded={embedded}
+        bannerImage={bannerImage}
+        codDisabledProvinceCodes={codDisabledProvinceCodes}
+      />
+    )
+  }
+</div>
+

@@ -1,0 +1,45 @@
+name: CI
+
+# This repository is the AdsBookCMS product. It deploys nothing.
+#
+# It previously carried a workflow that ran `wrangler deploy` on every push to
+# main, against the resources of one specific install (permatamall.shop). That
+# was correct for a store repository and dangerous here: adding a Cloudflare
+# token to this repository's secrets would have made product development
+# overwrite a live store.
+#
+# Deployment belongs to an install, from its own repository, against its own
+# Worker, D1, KV, R2 and domain. See RELEASE.md.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck and static analysis
+        run: npm run check
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build

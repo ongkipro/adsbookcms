@@ -1,0 +1,567 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@custom-variant dark (&:is(.dark *));
+
+/* ./form-hybrid.css is deliberately NOT imported here. It is checkout-only
+   (~22KB) and this file is the entry for all three layouts, so importing it
+   shipped it to every admin page. Each route that renders the order form
+   imports it directly instead. See A-31. */
+
+@layer base {
+  :root {
+    --bg-canvas: #fafafa;
+    --bg-surface: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --focus-ring: #2563eb;
+    --focus-ring-offset: #fafafa;
+  }
+
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Shadcn Button UI/UX System */
+.btn-primary, .btn-blue, .btn-secondary {
+  @apply inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 disabled:pointer-events-none disabled:opacity-50;
+}
+
+.btn-primary {
+  @apply bg-slate-900 text-slate-50 hover:bg-slate-900/90 shadow-sm;
+}
+
+.btn-blue {
+  @apply bg-blue-600 text-white hover:bg-blue-600/90 shadow-sm;
+}
+
+.btn-secondary {
+  @apply border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 shadow-sm;
+}
+
+/* High-Trust Unified Blue & Slate Highlights */
+.text-highlight-blue {
+  background-color: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  display: inline-block;
+}
+
+.text-highlight-violet,
+.text-highlight-amber,
+.text-highlight-sky,
+.text-highlight-rose {
+  background-color: rgba(241, 245, 249, 0.9);
+  color: #0f172a;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  display: inline-block;
+}
+
+/* Flat Admin Section Utilities */
+.admin-flat-section {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+  margin-bottom: 1.5rem;
+}
+
+.admin-input-flat {
+  @apply flex min-h-11 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm;
+}
+
+.btn-primary:focus-visible,
+.btn-blue:focus-visible,
+.btn-secondary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.btn-primary:disabled,
+.btn-blue:disabled,
+.btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+
+
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 1rem !important;
+    line-height: 1.5rem;
+  }
+}
+
+
+/* Underline Line Hover Effect for Navigation */
+.nav-line-hover {
+  position: relative;
+  transition: color 0.15s ease;
+}
+
+.nav-line-hover:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+.nav-line-hover::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 100%;
+  height: 2.5px;
+  background-color: #2563eb;
+  border-radius: 9999px;
+  transform: scaleX(0);
+  transform-origin: bottom right;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-line-hover:hover::after,
+.nav-line-hover.active-line::after {
+  transform: scaleX(1);
+  transform-origin: bottom left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Custom Minimalist Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+@theme inline {
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.546 0.245 262.881);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.546 0.245 262.881);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Hide number input spin buttons universally */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Admin product surface — compact commerce workspace, responsive by default. */
+.admin-shell {
+  --background: oklch(0.982 0.004 255);
+  --foreground: oklch(0.18 0.025 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.025 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.025 255);
+  --primary: var(--admin-accent);
+  --primary-foreground: #fff;
+  --secondary: oklch(0.965 0.006 255);
+  --secondary-foreground: oklch(0.25 0.025 255);
+  --muted: oklch(0.965 0.006 255);
+  --muted-foreground: oklch(0.52 0.025 255);
+  --accent: oklch(0.96 0.009 255);
+  --accent-foreground: oklch(0.22 0.025 255);
+  --border: oklch(0.91 0.009 255);
+  --input: oklch(0.89 0.012 255);
+  --ring: oklch(0.58 0.12 255);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.985 0.003 255);
+  --sidebar-foreground: oklch(0.19 0.024 255);
+  --sidebar-accent: oklch(0.95 0.008 255);
+  --sidebar-accent-foreground: oklch(0.19 0.024 255);
+  --sidebar-border: oklch(0.91 0.009 255);
+  background:
+    radial-gradient(circle at 82% -10%, color-mix(in srgb, var(--admin-accent) 5%, transparent) 0, transparent 28rem),
+    #f6f7f9;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.admin-shell .btn-blue {
+  background-color: var(--admin-accent);
+  color: #fff;
+}
+
+.admin-shell .btn-blue:hover {
+  background-color: color-mix(in srgb, var(--admin-accent) 86%, #000);
+}
+
+.admin-shell .admin-main {
+  scrollbar-gutter: stable;
+}
+
+.admin-shell :where(button, a, input, textarea, select) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.admin-shell :where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--admin-accent) 64%, white);
+  outline-offset: 2px;
+}
+
+.admin-shell [data-slot="command-input"]:focus-visible {
+  outline: none;
+}
+
+.admin-shell [data-slot="sidebar-container"] {
+  border-color: rgba(226, 232, 240, 0.82);
+  box-shadow: 1px 0 0 rgba(15, 23, 42, 0.015);
+}
+
+.admin-shell [data-slot="sidebar-menu-button"] {
+  letter-spacing: -0.01em;
+}
+
+.admin-shell [data-slot="card"],
+.admin-shell section.bg-white,
+.admin-shell article.bg-white {
+  border-color: rgba(203, 213, 225, 0.72);
+  border-radius: 0.875rem;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.035),
+    0 8px 24px rgba(15, 23, 42, 0.025);
+}
+
+.admin-shell [data-slot="card-header"] {
+  border-color: rgba(226, 232, 240, 0.82);
+}
+
+.admin-shell section.relative > [aria-hidden="true"].absolute {
+  display: none;
+}
+
+.admin-shell .admin-main :where(h2, h3) {
+  letter-spacing: -0.025em;
+}
+
+.admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border-color: #dbe1e8;
+  background-color: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+}
+
+.admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: color-mix(in srgb, var(--admin-accent) 48%, #cbd5e1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-accent) 10%, transparent);
+}
+
+.admin-shell .admin-main :where(table) {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-shell .admin-main :where(thead) {
+  background: #f8fafc;
+}
+
+.admin-shell .admin-main :where(th) {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.admin-shell .admin-main :where(tbody tr) {
+  transition: background-color 120ms ease;
+}
+
+.admin-shell .admin-main :where(tbody tr:hover) {
+  background: #f8fafc;
+}
+
+.admin-shell .admin-main :where([role="alert"]) {
+  border-radius: 0.875rem;
+}
+
+.admin-shell .admin-main :where(.animate-pulse) {
+  background-image: linear-gradient(90deg, #f1f5f9, #f8fafc, #f1f5f9);
+}
+
+@media (max-width: 767px) {
+  .admin-shell {
+    background: #f5f6f8;
+  }
+
+  .admin-shell .admin-topbar {
+    padding-top: env(safe-area-inset-top);
+    height: calc(60px + env(safe-area-inset-top));
+  }
+
+  .admin-shell .admin-main {
+    scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+
+  /* Canonical mobile density: compact operator surfaces without shrinking targets. */
+  .admin-shell .admin-main .space-y-6 > :not(:last-child),
+  .admin-shell .admin-main .space-y-5 > :not(:last-child) {
+    margin-bottom: 1rem;
+  }
+
+  .admin-shell .admin-main :where(section, article, form, fieldset).p-5,
+  .admin-shell .admin-main :where(section, article, form, fieldset).p-6,
+  .admin-shell .admin-main [data-slot="card-content"].p-5,
+  .admin-shell .admin-main [data-slot="card-header"].p-5 {
+    padding: 1rem;
+  }
+
+  .admin-shell [data-slot="card"],
+  .admin-shell section.bg-white,
+  .admin-shell article.bg-white {
+    border-radius: 1rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+  }
+
+  .admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    min-height: 3rem;
+  }
+
+  .admin-shell .admin-main :where(button:not([data-slot="checkbox"]):not([data-slot="radio-group-item"]):not([data-slot="switch"]), a.btn-primary, a.btn-blue, a.btn-secondary) {
+    min-height: 2.75rem;
+  }
+
+  /* Pagination renders an <a data-slot="pagination-link">, not a <button>, so the
+     rule above never reaches it. Below sm its text label is `hidden sm:block`, which
+     collapses prev/next to a 32x32 icon — the only way to page through orders on a
+     phone. Constrain both axes. */
+  .admin-shell .admin-main a[data-slot="pagination-link"] {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .admin-shell .admin-main :where(section, article) {
+    scroll-margin-top: calc(4.5rem + env(safe-area-inset-top));
+  }
+
+  /* Dialogs mount through a portal into <body>, outside .admin-main, so every
+     mobile sizing rule above misses them entirely — which left an address field
+     inside EditCustomerDialog at 32px under a forced 16px font, a 40px footer,
+     and a 28px close button overlapping the header. body carries .admin-shell,
+     so the net can be cast here without widening any other selector. */
+  .admin-shell [data-slot="dialog-content"] :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+
+  .admin-shell [data-slot="dialog-content"] :where(button:not([data-slot="checkbox"]):not([data-slot="radio-group-item"]):not([data-slot="switch"])) {
+    min-height: 2.75rem;
+  }
+
+  .admin-shell [data-slot="dialog-content"] [data-slot="dialog-close"] {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .admin-shell .admin-bottom-nav {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+}
+
+@media (min-width: 1280px) {
+  .admin-shell .admin-main {
+    padding-top: 1.75rem;
+  }
+}
+
+/* Canonical admin login: a plain stage owned by the product, independent of
+   storefront theming and carrying no imagery at all. LOGIN-18 — this used to
+   paint /admin-login.webp, the reference store's own brand mark, across the
+   login screen of every install. That is exactly the class of asset that must
+   never ship for another merchant, so the stage is now colour only. */
+.admin-login-page {
+  --admin-login-gutter: clamp(1rem, 4vw, 4rem);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background-color: #0b1120;
+  background-image: radial-gradient(125% 90% at 50% 0%, #1e293b 0%, #0b1120 62%);
+}
+
+.admin-login-stage {
+  display: flex;
+  min-height: 100dvh;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  /* LOGIN-16. The gutter never falls below the device's own inset, in either
+     orientation — a landscape phone is wider than the 767px branch below, so
+     the notch has to be handled here rather than only on small screens. */
+  padding:
+    max(var(--admin-login-gutter), env(safe-area-inset-top))
+    max(var(--admin-login-gutter), env(safe-area-inset-right))
+    max(var(--admin-login-gutter), env(safe-area-inset-bottom))
+    max(var(--admin-login-gutter), env(safe-area-inset-left));
+}
+
+.admin-login-card {
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.34);
+}
+
+/* LOGIN-15. Floors rather than sizes, so a utility class that sets something
+   smaller (`h-10`, `md:text-sm`) cannot drop below them. 44px is the tap-target
+   minimum; 16px is the threshold under which mobile Safari zooms the page on
+   focus and never zooms back out. These rules sit outside @layer, so they win
+   over Tailwind's utilities regardless of specificity. */
+.admin-login-card :where(input, select, textarea, button) {
+  min-height: 44px;
+}
+
+.admin-login-card :where(button) {
+  min-width: 44px;
+}
+
+.admin-login-card :where(input, select, textarea) {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+@media (max-width: 767px) {
+  .admin-login-page {
+    --admin-login-gutter: 0.75rem;
+  }
+
+  .admin-login-stage {
+    align-items: flex-end;
+  }
+
+  .admin-login-card {
+    max-width: none;
+    border-radius: 1rem;
+  }
+
+  /* At 320 × 568 the card has to fit its own content, and the mark is the part
+     that can give height back. */
+  .admin-login-header img {
+    height: 4.5rem;
+  }
+}

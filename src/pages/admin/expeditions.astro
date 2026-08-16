@@ -1,0 +1,17 @@
+---
+import { ExpeditionSettings } from '../../components/admin/ExpeditionSettings';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
+export const prerender = false;
+---
+
+<AdminLayout title="Ekspedisi" activeMenu="expeditions">
+  <div class="mx-auto max-w-6xl space-y-5">
+    <AdminPageHeader
+      eyebrow="Shipping rules"
+      title="Layanan ekspedisi"
+      description="Atur kurir dan layanan COD yang tersedia di checkout. Perubahan langsung digunakan oleh Shipping Rates API."
+    />
+    <ExpeditionSettings client:load />
+  </div>
+</AdminLayout>

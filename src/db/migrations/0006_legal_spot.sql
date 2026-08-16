@@ -1,0 +1,1 @@
+ALTER TABLE `stores` ADD `google_tag_manager_id` text;

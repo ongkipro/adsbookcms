@@ -1,0 +1,18 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { AccessManager } from '../../../components/admin/AccessManager';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+
+export const prerender = false;
+---
+
+<AdminLayout title="Akses Pengguna" activeMenu="settings">
+  <section class="mx-auto max-w-7xl space-y-5">
+    <AdminPageHeader
+      eyebrow="Security"
+      title="Akses pengguna"
+      description="Kelola owner, admin, advertiser, dan customer service beserta batas akses tenant."
+    />
+    <AccessManager client:load />
+  </section>
+</AdminLayout>

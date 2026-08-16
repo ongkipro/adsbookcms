@@ -1,0 +1,12 @@
+---
+import { OrderDetail } from '../../../components/admin/OrderDetail';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+export const prerender = false;
+
+const invoice = (Astro.params.invoice || '').trim();
+if (!invoice) return Astro.redirect('/admin/orders', 302);
+---
+
+<AdminLayout title={`Order ${invoice}`} activeMenu="orders">
+  <OrderDetail invoice={invoice} client:load />
+</AdminLayout>

@@ -1,0 +1,238 @@
+---
+import Icon from '../shared/Icon.astro';
+
+interface Product {
+  name: string;
+  category: string;
+  description: string;
+  href: string;
+  image: string;
+  price: number;
+  comparePrice?: number;
+  ratingValue?: number;
+  reviewCount?: number;
+  soldCount?: number;
+  variants?: Array<{ label: string; price: number }>;
+}
+
+interface Heading {
+  eyebrow: string;
+  title: string;
+  description: string;
+}
+
+interface Props {
+  products: Product[];
+  heading: Heading;
+}
+
+const { products, heading } = Astro.props;
+
+
+
+const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
+---
+
+<section id="produk" class="border-b border-[#E5E5E5] bg-[#F8F7F4] px-4 py-10">
+  <div class="mb-7 border-l-2 border-[#C5A880] pl-4">
+    <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#8A704F]">
+      {heading.eyebrow}
+    </span>
+    <h2 class="mt-2 text-[26px] font-semibold leading-tight tracking-[-0.035em] text-[#111111]">{heading.title}</h2>
+    <p class="mt-2 max-w-[38rem] text-[13px] leading-6 text-[#555555]">{heading.description}</p>
+  </div>
+
+  <div class="mb-7 flex flex-col gap-3">
+    <div class="relative w-full">
+      <input
+        type="text"
+        id="catalog-search"
+        placeholder="Cari produk pilihan Anda..."
+        aria-label="Cari produk"
+        class="min-h-12 w-full rounded-none border border-[#D8D6D0] bg-white py-3 pl-11 pr-4 text-base text-[#111111] transition-colors placeholder:text-[#77736C] focus:border-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
+      />
+      <Icon
+        name="lucide:search"
+        class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#555555]"
+        aria-hidden="true"
+      />
+    </div>
+  </div>
+
+  <div id="product-grid" class="grid grid-cols-2 gap-2.5">
+    {
+      products.map((product, idx) => {
+        const comparePrice = product.comparePrice ?? 0;
+        const discount =
+          comparePrice > product.price
+            ? Math.round((1 - product.price / comparePrice) * 100)
+            : 0;
+
+        const sold = product.soldCount
+          ? product.soldCount >= 1000
+            ? `${(product.soldCount / 1000).toFixed(1).replace('.0', '')}rb+`
+            : `${product.soldCount}+`
+          : null;
+
+        return (
+          <article
+            class="product-card group flex flex-col rounded-none border border-[#D8D6D0] bg-white transition-colors hover:border-[#111111]"
+            data-category={product.category}
+            data-search={`${product.name} ${product.category} ${product.description}`.toLowerCase()}
+            data-index={idx}
+            style={idx >= 10 ? 'display: none;' : ''}
+          >
+            <a
+              href={product.href}
+              class="relative block aspect-[3/4] w-full overflow-hidden border-b border-[#E5E5E5] bg-[#EEEAE2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
+            >
+              <img
+                src={product.image}
+                alt={product.name}
+                width="360"
+                height="480"
+                class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]"
+                loading={idx < 4 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
+              {discount > 0 && (
+                <span class="absolute right-2 top-2 rounded-full bg-[#C5A880] px-2.5 py-1 text-[9px] font-bold tracking-[0.08em] text-[#111111]">
+                  -{discount}%
+                </span>
+              )}
+            </a>
+
+            <div class="flex flex-1 flex-col p-3">
+              <span class="text-[9px] font-semibold uppercase tracking-[0.15em] text-[#8A704F]">
+                {product.category}
+              </span>
+              <h3 class="mt-1.5 line-clamp-2 text-[12px] font-semibold leading-[1.45] text-[#111111]">
+                <a
+                  href={product.href}
+                  class="transition-colors hover:text-[#705A3D] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
+                >
+                  {product.name}
+                </a>
+              </h3>
+
+              {product.ratingValue && (
+                <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-[#555555]">
+                  <span class="flex items-center gap-1">
+                    <svg class="h-3 w-3 fill-[#C5A880] text-[#C5A880]" viewBox="0 0 20 20" aria-hidden="true">
+                      <path fill="currentColor" d="M10 1.45l2.58 5.23 5.77.84-4.18 4.07.99 5.75L10 14.62 4.84 17.34l.99-5.75L1.65 7.52l5.77-.84L10 1.45Z" />
+                    </svg>
+                    <span class="font-semibold text-[#111111]">{product.ratingValue.toFixed(1)}</span>
+                  </span>
+                  {sold && <span class="border-l border-[#D8D6D0] pl-1.5">{sold} terjual</span>}
+                </div>
+              )}
+
+              <div class="mt-auto pt-3">
+                <div class="flex flex-wrap items-baseline gap-1.5">
+                  <span class="text-[14px] font-bold tracking-tight text-[#111111]">
+                    {formatPrice(product.price)}
+                  </span>
+                  {comparePrice > product.price && (
+                    <span class="text-[10.5px] font-medium text-[#77736C] line-through">
+                      {formatPrice(comparePrice)}
+                    </span>
+                  )}
+                </div>
+                <a
+                  href={product.href}
+                  class="mt-3 flex min-h-11 w-full items-center justify-center gap-1.5 rounded-none border border-[#111111] bg-white px-2 text-center text-[10px] font-semibold uppercase tracking-[0.1em] text-[#111111] transition-colors hover:bg-[#111111] hover:text-[#F8F7F4] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
+                >
+                  <span>Beli Sekarang</span>
+                  <Icon name="lucide:arrow-right" class="h-3.5 w-3.5" aria-hidden="true" />
+                </a>
+              </div>
+            </div>
+          </article>
+        );
+      })
+    }
+  </div>
+
+  <div id="load-more-container" class="mt-8 flex flex-col items-center gap-3 border-t border-[#E5E5E5] pt-6">
+    <p id="catalog-status" class="text-[11px] font-medium text-[#555555]">
+      Menampilkan <span id="product-visible-count">{Math.min(10, products.length)}</span> dari <span id="product-total-count">{products.length}</span> produk
+    </p>
+    {
+      products.length > 10 && (
+        <button
+          type="button"
+          id="load-more-btn"
+          class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-none border border-[#111111] bg-[#111111] px-6 py-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#F8F7F4] transition-colors hover:bg-[#2A2A2A] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
+        >
+          <span>Lihat Produk Lainnya</span>
+          <Icon name="lucide:chevron-down" class="h-4 w-4" aria-hidden="true" />
+        </button>
+      )
+    }
+  </div>
+</section>
+
+<script>
+  function initProductCatalog() {
+    const searchInput = document.getElementById('catalog-search') as HTMLInputElement | null;
+    const cards = document.querySelectorAll('.product-card') as NodeListOf<HTMLElement>;
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const visibleCountEl = document.getElementById('product-visible-count');
+    const totalCountEl = document.getElementById('product-total-count');
+
+    let currentSearch = '';
+    let visibleLimit = 10;
+
+    function filterAndRender() {
+      let matchedCount = 0;
+      let currentlyShown = 0;
+
+      cards.forEach((card) => {
+        const searchData = card.getAttribute('data-search') || '';
+        const matchesSearch = !currentSearch || searchData.includes(currentSearch);
+
+        if (matchesSearch) {
+          matchedCount++;
+          if (currentlyShown < visibleLimit) {
+            card.style.display = 'flex';
+            currentlyShown++;
+          } else {
+            card.style.display = 'none';
+          }
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      if (visibleCountEl) visibleCountEl.textContent = String(currentlyShown);
+      if (totalCountEl) totalCountEl.textContent = String(matchedCount);
+
+      if (loadMoreBtn) {
+        if (currentlyShown >= matchedCount) {
+          loadMoreBtn.style.display = 'none';
+        } else {
+          loadMoreBtn.style.display = 'inline-flex';
+        }
+      }
+    }
+
+    searchInput?.addEventListener('input', (e) => {
+      currentSearch = (e.target as HTMLInputElement).value.trim().toLowerCase();
+      visibleLimit = 10;
+      filterAndRender();
+    });
+
+    loadMoreBtn?.addEventListener('click', () => {
+      visibleLimit += 10;
+      filterAndRender();
+    });
+
+    filterAndRender();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initProductCatalog);
+  } else {
+    initProductCatalog();
+  }
+</script>

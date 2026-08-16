@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `confirmed_at` text;

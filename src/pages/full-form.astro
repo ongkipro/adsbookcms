@@ -1,0 +1,35 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import GeoIpResolvedForm from '../components/forms/GeoIpResolvedForm.astro';
+import MetaLandingTracker from '../components/tracking/MetaLandingTracker.astro';
+import { getStorefrontProduct } from '../lib/catalog';
+import { resolveFormVariant } from '../lib/form-config';
+import '../styles/form-hybrid.css';
+export const prerender = false;
+
+const productKey = Astro.url.searchParams.get('product_id')?.trim();
+if (!productKey) return Astro.redirect('/produk');
+const variantKey = Astro.url.searchParams.get('variant_id')?.trim() || Astro.url.searchParams.get('variant')?.trim();
+const product = await getStorefrontProduct(Astro.locals, productKey);
+if (!product) return Astro.redirect('/produk');
+const selectedVariant = resolveFormVariant(product, variantKey);
+if (!selectedVariant) return Astro.redirect(`/produk/${product.slug}`);
+---
+
+<BaseLayout
+  title={`Form Full ${product.productName} - ${Astro.locals.tenant.name}`}
+  description={`Form checkout full 1-step khusus ${product.productName} dengan pengisian alamat lengkap, live ongkir kurir, dan pembayaran COD/AutoLaris.`}
+  image={product.heroImage}
+  hideHeader={true}
+  hideFooter={true}
+>
+  <MetaLandingTracker
+    slug="full-form"
+    productId={product.productId}
+    contentName={product.productName}
+    price={selectedVariant.price}
+  />
+  <div class="mx-auto max-w-[480px] bg-white py-4">
+    <GeoIpResolvedForm mode="full" productSlug={product.slug} selectedVariantId={selectedVariant.id} />
+  </div>
+</BaseLayout>

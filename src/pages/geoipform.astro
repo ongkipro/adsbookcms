@@ -1,0 +1,35 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import GeoIpResolvedForm from '../components/forms/GeoIpResolvedForm.astro';
+import MetaLandingTracker from '../components/tracking/MetaLandingTracker.astro';
+import { getStorefrontProduct } from '../lib/catalog';
+import { resolveFormModeContext } from '../lib/form-mode';
+import '../styles/form-hybrid.css';
+
+export const prerender = false;
+
+const productKey = Astro.url.searchParams.get('product_id')?.trim();
+if (!productKey) return Astro.redirect('/produk');
+const product = await getStorefrontProduct(Astro.locals, productKey);
+if (!product) return Astro.redirect('/produk');
+const formContext = await resolveFormModeContext(Astro.request);
+const title = `Form Pemesanan ${product.productName} - ${Astro.locals.tenant.name}`;
+const description = `Form pemesanan ${product.productName} di ${Astro.locals.tenant.name}.`;
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  image={product.heroImage}
+  canonical={`${Astro.locals.tenant.siteUrl}/geoipform`}
+  hideHeader={true}
+  hideFooter={true}
+>
+  <MetaLandingTracker
+    slug="geoipform"
+    productId={product.productId}
+    contentName={product.productName}
+    price={product.price}
+  />
+  <GeoIpResolvedForm mode={formContext.mode} province={formContext.province} productSlug={product.slug} />
+</BaseLayout>

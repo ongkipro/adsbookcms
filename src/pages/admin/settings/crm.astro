@@ -1,0 +1,164 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+export const prerender = false;
+const steps = [
+  { key: 'welcome', label: '1. Welcome', purpose: 'Detail pesanan & kelengkapan alamat' },
+  { key: '1', label: '2. Order Detail', purpose: 'Pertanyaan kendala pemesanan' },
+  { key: '2', label: '3. Follow-up 1', purpose: 'Ringkasan pesanan & link pembayaran' },
+  { key: '3', label: '4. Follow-up 2', purpose: 'Pengingat stok terbatas & link pembayaran' },
+  { key: '4', label: '5. Follow-up 3', purpose: 'Pengingat opsi transfer/link pembayaran' },
+  { key: '5', label: '6. Follow-up 4', purpose: 'Pengingat pembayaran terakhir' },
+  { key: '6', label: '7. Follow-up 5', purpose: 'Pemberitahuan belum terima pembayaran' },
+  { key: '7', label: '8. Processing', purpose: 'Konfirmasi pembayaran diterima & diproses' },
+  { key: '8', label: '9. Completed', purpose: 'Konfirmasi pengiriman & resi' },
+  { key: '9', label: '10. UpSelling', purpose: 'Penawaran promo khusus produk' },
+  { key: 'redirect', label: '11. Redirect (Thanks Page)', purpose: 'Pesan konfirmasi dari Customer ke Admin WA' },
+];
+const variables = [
+  { token: '{{name}}', label: 'Nama customer' },
+  { token: '{{phone}}', label: 'Nomor WhatsApp' },
+  { token: '{{product_name}}', label: 'Nama produk' },
+  { token: '{{product_price}}', label: 'Harga produk' },
+  { token: '{{shipping_cost}}', label: 'Ongkir' },
+  { token: '{{shipping_cost_cod_cost}}', label: 'Total tagihan' },
+  { token: '{{total_price}}', label: 'Total pembayaran' },
+  { token: '{{address}}', label: 'Alamat' },
+  { token: '{{district}}', label: 'Kecamatan' },
+  { token: '{{city}}', label: 'Kota' },
+  { token: '{{bank_accounts}}', label: 'Rekening bank' },
+  { token: '{{epayment_link}}', label: 'Link e-payment' },
+  { token: '{{seller_name}}', label: 'Nama toko' },
+  { token: '{{receipt_number}}', label: 'Nomor resi' },
+  { token: '{{order_details_link}}', label: 'Link detail pesanan' },
+];
+---
+
+<AdminLayout title="CRM Templates" activeMenu="settings">
+  <div class="space-y-6">
+    <AdminPageHeader
+      eyebrow="Customer lifecycle"
+      title="CRM templates"
+      description="Edit pesan WhatsApp untuk welcome, order detail, follow-up 1–5, processing, completed, upselling, dan thanks page redirect."
+      backHref="/admin/settings"
+      backLabel="Pengaturan"
+    />
+    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p class="text-xs font-bold text-slate-700">Variabel template</p>
+      <p class="mt-1 text-[11px] leading-5 text-slate-500">Pilih kolom pesan terlebih dahulu, lalu tekan variabel untuk menyisipkannya di posisi kursor.</p>
+      <div class="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Variabel template">
+        {variables.map(variable => <button type="button" class="variable-chip flex min-h-11 items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 text-left hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 sm:block" data-variable={variable.token} aria-label={`Sisipkan ${variable.label}`} disabled><span class="text-[11px] font-bold text-slate-700">{variable.label}</span><code class="break-all font-mono text-[10px] font-bold text-blue-700 sm:ml-2">{variable.token}</code></button>)}
+      </div>
+    </section>
+    <div id="crmLoading" class="h-96 animate-pulse rounded-xl bg-slate-100" role="status" aria-live="polite" aria-busy="true" aria-atomic="true"><span class="sr-only">Memuat template CRM.</span></div><div id="crmError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
+    <form id="crmForm" class="hidden space-y-3" novalidate aria-busy="false">
+      {steps.map((step,index) => <details class="group rounded-xl border border-slate-200 bg-white shadow-sm" open={index===0}><summary class="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 focus-visible:outline-2 focus-visible:outline-blue-600"><span><strong class="block text-sm text-slate-950">{step.label}</strong><span class="mt-0.5 block text-[11px] text-slate-500">{step.purpose}</span></span><span class="text-xs font-black text-slate-400 group-open:rotate-180" aria-hidden="true">⌄</span></summary><div class="border-t border-slate-200 p-4"><textarea rows="6" maxlength="2000" class="admin-input-flat min-h-36 resize-y text-base leading-6 md:text-sm" data-template-key={step.key} aria-label={`Template ${step.label}`}></textarea><div class="mt-2 flex items-center justify-between gap-3 text-[11px]"><span class="text-slate-500">Klik variable chip untuk menyisipkan ke editor aktif.</span><span class="font-mono font-bold text-slate-500" data-count-for={step.key}>0 / 2000</span></div></div></details>)}
+      <!-- The mobile bottom nav is fixed at bottom:0, 64px tall + safe area, z-40.
+           A `bottom-3` sticky bar sits at 12px-56px above the viewport bottom, so the
+           submit button was rendered underneath it and could not be tapped. Clear the
+           nav on mobile; on md+ the nav is hidden and bottom-3 is correct. -->
+      <div class="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 flex flex-col gap-3 md:bottom-3 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between"><p id="crmStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p><button id="saveCrm" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">Simpan semua template</button></div>
+    </form>
+  </div>
+  <script>
+    const form = document.getElementById('crmForm') as HTMLFormElement | null;
+    const editors = Array.from(document.querySelectorAll<HTMLTextAreaElement>('[data-template-key]'));
+    const variableButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-variable]'));
+    const save = document.getElementById('saveCrm') as HTMLButtonElement | null;
+    const status = document.getElementById('crmStatus');
+    const loading = document.getElementById('crmLoading');
+    let active: HTMLTextAreaElement | null = null;
+    let pending = false;
+
+    const show = (message: string, state: 'idle' | 'success' | 'error') => {
+      if (!status) return;
+      status.setAttribute('role', state === 'error' ? 'alert' : 'status');
+      status.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
+      status.textContent = message;
+      status.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+    };
+
+    const count = (editor: HTMLTextAreaElement) => {
+      const key = editor.dataset.templateKey;
+      const node = document.querySelector(`[data-count-for="${key}"]`);
+      if (node) node.textContent = `${editor.value.length} / 2000`;
+    };
+
+    const setPending = (next: boolean) => {
+      pending = next;
+      if (save) {
+        save.disabled = next;
+        save.textContent = next ? 'Menyimpan…' : 'Simpan semua template';
+      }
+      form?.setAttribute('aria-busy', String(next));
+    };
+
+    fetch('/api/admin/settings', { headers: { Accept: 'application/json' } }).then(async response => {
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal memuat template CRM.');
+      return payload.data.crm_templates;
+    }).then(data => {
+      editors.forEach(editor => {
+        editor.value = data[editor.dataset.templateKey || ''] || '';
+        count(editor);
+      });
+      active = editors[0] || null;
+      variableButtons.forEach(button => { button.disabled = false; });
+      loading?.setAttribute('aria-busy', 'false');
+      loading?.classList.add('hidden');
+      form?.classList.remove('hidden');
+    }).catch(error => {
+      loading?.setAttribute('aria-busy', 'false');
+      loading?.classList.add('hidden');
+      const box = document.getElementById('crmError');
+      if (box) {
+        box.textContent = error instanceof Error ? error.message : 'Gagal memuat template CRM.';
+        box.classList.remove('hidden');
+      }
+    });
+
+    editors.forEach(editor => {
+      editor.addEventListener('focus', () => { active = editor; });
+      editor.addEventListener('input', () => {
+        count(editor);
+        show('Perubahan belum disimpan.', 'idle');
+      });
+    });
+
+    variableButtons.forEach(button => button.addEventListener('click', () => {
+      if (button.disabled) return;
+      if (!active) {
+        editors[0]?.focus();
+        active = editors[0] || null;
+      }
+      if (!active) return;
+      const variable = button.dataset.variable || '';
+      active.setRangeText(variable, active.selectionStart, active.selectionEnd, 'end');
+      active.focus();
+      count(active);
+      show('Variabel ditambahkan. Perubahan belum disimpan.', 'idle');
+    }));
+
+    form?.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (pending || !form.reportValidity()) return;
+      setPending(true);
+      show('Menyimpan template CRM…', 'idle');
+      const crm_templates = Object.fromEntries(editors.map(editor => [editor.dataset.templateKey, editor.value]));
+      try {
+        const response = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'save-crm', crm_templates }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal menyimpan template CRM.');
+        show(payload.message || 'Template CRM tersimpan.', 'success');
+      } catch (error) {
+        show(error instanceof Error ? error.message : 'Gagal menyimpan template CRM.', 'error');
+      } finally {
+        setPending(false);
+      }
+    });
+  </script>
+</AdminLayout>

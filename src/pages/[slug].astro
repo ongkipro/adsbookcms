@@ -1,0 +1,176 @@
+---
+import GeoIpResolvedForm from '../components/forms/GeoIpResolvedForm.astro';
+import MetaLandingTracker from '../components/tracking/MetaLandingTracker.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getStorefrontProduct } from '../lib/catalog';
+import { getLandingPageBySlug, parseShortcodes } from '../lib/landing-pages';
+import { getStoreSupportWhatsapp } from '../lib/public-store';
+import { getSessionCookie, verifyJwt } from '../lib/auth';
+import { getEnvValue, getRuntimeEnv } from '../lib/env';
+import '../styles/form-hybrid.css';
+
+export const prerender = false;
+
+const slug = Astro.params.slug || '';
+const page = await getLandingPageBySlug(Astro.locals, slug);
+
+if (!page) {
+  const product = await getStorefrontProduct(Astro.locals, slug);
+  if (product) return Astro.redirect(`/produk/${product.slug}`, 308);
+
+  return new Response('Not found', { status: 404 });
+}
+
+const previewRequested = Astro.url.searchParams.get('preview') === '1';
+let isPreview = false;
+if (previewRequested) {
+  if (Astro.locals.admin) {
+    isPreview = true;
+  } else {
+    try {
+      const env = getRuntimeEnv(Astro.locals);
+      const sessions = env?.SESSION as KVNamespace | undefined;
+      const database = env?.OMS_DB as D1Database | undefined;
+      const token = getSessionCookie(Astro.request);
+      const session = token
+        ? await verifyJwt(token, getEnvValue('AUTH_SECRET', env))
+        : null;
+      if (session && sessions && database) {
+        const storedValue = await sessions.get(`admin-session:${session.jti}`);
+        const stored = storedValue
+          ? JSON.parse(storedValue) as {
+              username?: unknown;
+              role?: unknown;
+              must_change_password?: unknown;
+              credential_updated_at?: unknown;
+            }
+          : null;
+        if (
+          stored?.username === session.username &&
+          stored.role === session.role &&
+          stored.must_change_password !== true &&
+          typeof stored.credential_updated_at === 'string'
+        ) {
+          const credential = await database
+            .prepare('SELECT updated_at, role FROM admin_credentials WHERE username = ? LIMIT 1')
+            .bind(session.username)
+            .first<{ updated_at: string; role: string }>();
+          isPreview =
+            credential?.updated_at === stored.credential_updated_at &&
+            credential.role === session.role;
+        }
+      }
+    } catch {
+      isPreview = false;
+    }
+  }
+}
+if (isPreview) Astro.response.headers.set('Cache-Control', 'no-store');
+if (!page.is_active && !isPreview) {
+  return new Response('Not found', { status: 404 });
+}
+
+const product = await getStorefrontProduct(Astro.locals, page.product_id);
+if (!product) {
+  return new Response('Not found', { status: 404 });
+}
+
+const csPhone = await getStoreSupportWhatsapp(Astro.locals);
+const formSections = page.sections.filter((section) => section.type === 'form');
+const firstFormSectionId = formSections[0]?.id;
+
+// Clean title and description: focus strictly on product name without redundant "landing page" text
+const rawTitle = page.meta_title || page.title || product.seoTitle || product.productName;
+const metaTitle = rawTitle.replace(/\s*\(?\s*landing\s*page\s*\)?/gi, '').trim();
+const rawDesc = page.meta_description || product.seoDescription || `Lihat pilihan varian, harga, dan ketersediaan ${product.productName}.`;
+const metaDescription = rawDesc.replace(/\s*landing\s*page\s*/gi, ' ').trim();
+const canonical = `${Astro.locals.tenant.siteUrl}/${page.slug}`;
+
+const productSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: product.productName,
+  description: metaDescription,
+  image: [new URL(product.heroImage, Astro.locals.tenant.siteUrl).toString()],
+  sku: product.productId,
+  category: product.category,
+  brand: {
+    '@type': 'Brand',
+    name: Astro.locals.tenant.name,
+  },
+  offers: product.variants.map((variant) => ({
+    '@type': 'Offer',
+    url: canonical,
+    priceCurrency: 'IDR',
+    price: String(variant.price),
+    availability: 'https://schema.org/InStock',
+    itemCondition: 'https://schema.org/NewCondition',
+    name: variant.label,
+    seller: {
+      '@type': 'Organization',
+      name: Astro.locals.tenant.name,
+    },
+  })),
+};
+const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c');
+---
+
+<BaseLayout
+  title={metaTitle}
+  description={metaDescription}
+  image={product.heroImage}
+  preloadImages={product.heroImage}
+  canonical={canonical}
+  hideHeader={true}
+  hideFooter={true}
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" is:inline set:html={productSchemaJson} />
+  </Fragment>
+  <MetaLandingTracker
+    slug={page.slug}
+    productId={product.productId}
+    contentName={product.contentName}
+    price={product.price}
+  />
+
+  {
+    page.sections.map((section) => {
+      if (section.type === 'html') {
+        const parsedHtml = parseShortcodes(section.content_html ?? '', product, csPhone);
+        return <section class="lp-section" set:html={parsedHtml} />;
+      }
+
+      const formConfig = section.form_config ?? {};
+      return (
+        <div id={section.id === firstFormSectionId ? 'checkout-form' : `checkout-form-${section.id}`} class="scroll-mt-8">
+          <GeoIpResolvedForm
+            productSlug={product.slug}
+            mode={formConfig.mode}
+            embedded={true}
+            selectedVariantId={formConfig.selected_variant_id}
+          />
+        </div>
+      );
+    })
+  }
+  {
+    formSections.length === 0 && (
+      <div id="checkout-form" class="scroll-mt-8">
+        <GeoIpResolvedForm productSlug={product.slug} mode="hybrid" embedded={true} />
+      </div>
+    )
+  }
+
+  <script slot="head" is:inline>
+    document.addEventListener('click', (e) => {
+      const target = e.target instanceof Element
+        ? e.target.closest('a[href="#checkout-form"], a[href="#form"]')
+        : null;
+      if (!target) return;
+
+      e.preventDefault();
+      document.getElementById('checkout-form')?.scrollIntoView({ behavior: 'smooth' });
+    });
+  </script>
+</BaseLayout>

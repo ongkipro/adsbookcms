@@ -1,0 +1,1 @@
+ALTER TABLE `orders` ADD `ad_click_ids` text;

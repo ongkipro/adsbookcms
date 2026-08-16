@@ -1,0 +1,74 @@
+import type { APIRoute } from "astro";
+import { jsonError, jsonOk } from "../../../../lib/api";
+import {
+  buildLandingPageDuplicateInput,
+  createLandingPage,
+  getLandingPageById,
+  listLandingPages,
+  parseLandingPageDuplicatePayload,
+  type CreateLandingPageInput,
+} from "../../../../lib/landing-pages";
+
+export const prerender = false;
+
+export const GET: APIRoute = async ({ locals }) => {
+  if (!locals.admin) return jsonError("Unauthorized", 401);
+
+  try {
+    const result = await listLandingPages(locals);
+    return jsonOk({ data: result });
+  } catch (error) {
+    console.error("GET landing-pages", error);
+    return jsonError("Failed to fetch landing pages", 500);
+  }
+};
+
+export const POST: APIRoute = async ({ request, locals }) => {
+  if (!locals.admin) return jsonError("Unauthorized", 401);
+
+  const body = await request.json().catch(() => null);
+  const duplicatePayload = parseLandingPageDuplicatePayload(body);
+  if (duplicatePayload) {
+    if ("error" in duplicatePayload) {
+      return jsonError(duplicatePayload.error, 400);
+    }
+
+    try {
+      const source = await getLandingPageById(
+        locals,
+        duplicatePayload.value.id,
+      );
+      if (!source) return jsonError("Landing page not found", 404);
+
+      const result = await createLandingPage(
+        locals,
+        buildLandingPageDuplicateInput(source),
+      );
+      return jsonOk(
+        {
+          message: `Landing page duplicated as /${result.slug}`,
+          data: result,
+        },
+        201,
+      );
+    } catch (error: unknown) {
+      console.error("POST duplicate landing-page", error);
+      const message =
+        error instanceof Error ? error.message : "Unknown error";
+      const status = message.includes("slug is already in use") ? 409 : 500;
+      return jsonError("Failed to duplicate landing page: " + message, status);
+    }
+  }
+
+  try {
+    const result = await createLandingPage(
+      locals,
+      body as CreateLandingPageInput,
+    );
+    return jsonOk({ data: result });
+  } catch (error: unknown) {
+    console.error("POST landing-pages", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return jsonError("Failed to create landing page: " + message, 500);
+  }
+};

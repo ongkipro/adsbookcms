@@ -1,0 +1,85 @@
+---
+interface Props {
+  slug: string;
+  productId: string;
+  contentName: string;
+  price: number;
+  checkoutSelector?: string;
+}
+
+const { slug, productId, contentName, price, checkoutSelector = '#checkout' } = Astro.props;
+---
+
+<script is:inline define:vars={{ slug, productId, contentName, price, checkoutSelector }}>
+  (() => {
+    if (typeof window === 'undefined') return;
+
+    const createEventId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const pushGtmEcomEvent =
+      window.__PS_PUSH_GTM_ECOM__ ||
+      ((event, payload) => {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ ecommerce: null });
+        window.dataLayer.push({
+          event,
+          tracking_owner: 'app',
+          meta_managed_by_app: true,
+          meta_event_id: payload.event_id,
+          ecommerce: {
+            currency: payload.currency || 'IDR',
+            value: Number(payload.value || 0),
+            transaction_id: payload.transaction_id,
+            items: [
+              {
+                item_id: payload.item_id || '',
+                item_name: payload.item_name || '',
+                item_variant: payload.item_variant,
+                quantity: 1,
+              },
+            ],
+          },
+        });
+      });
+    const postMeta = (payload) => {
+      fetch('/api/meta-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+    };
+    const track = (eventName, eventId) => {
+      const data = {
+        content_name: contentName,
+        content_ids: [productId],
+        content_type: 'product',
+        value: Number(price || 1),
+        currency: 'IDR',
+      };
+      if (window.fbq) {
+        window.fbq('track', eventName, data, { eventID: eventId });
+      }
+      postMeta({
+        event_name: eventName,
+        event_id: eventId,
+        lp_name: slug,
+        product_id: productId,
+        content_name: contentName,
+        value: Number(price || 1),
+        currency: 'IDR',
+        content_type: 'product',
+        event_source_url: window.location.href,
+      });
+      if (eventName === 'ViewContent') {
+        pushGtmEcomEvent('view_item', {
+          currency: 'IDR',
+          value: Number(price || 1),
+          item_id: productId,
+          item_name: contentName,
+          event_id: eventId,
+        });
+      }
+    };
+
+    track('ViewContent', createEventId(`vc_${slug}`));
+  })();
+</script>

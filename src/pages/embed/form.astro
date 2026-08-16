@@ -1,0 +1,132 @@
+---
+import GeoIpResolvedForm from '../../components/forms/GeoIpResolvedForm.astro';
+import EmbedLayout from '../../layouts/EmbedLayout.astro';
+import { getStorefrontProduct } from '../../lib/catalog';
+import { detectStaleEmbedSnippet } from '../../lib/embed-markup';
+import { parseFormMode, resolveFormVariant } from '../../lib/form-config';
+import '../../styles/form-hybrid.css';
+
+export const prerender = false;
+
+// A pasted snippet never updates on deploy, so this frame is the only place the
+// store can see which generation a merchant page is still running. Logged, never
+// stored, and carries nothing about the visitor — just the parent origin.
+const staleSnippet = detectStaleEmbedSnippet({
+  versionParam: Astro.url.searchParams.get('v'),
+  referer: Astro.request.headers.get('referer'),
+  selfOrigin: Astro.url.origin,
+});
+if (staleSnippet) {
+  console.warn(
+    'embed-snippet-stale',
+    `parent ${staleSnippet.parent}, snippet v${staleSnippet.snippetVersion}, current v${staleSnippet.currentVersion}`,
+  );
+}
+
+const productKey = Astro.url.searchParams.get('product_id')?.trim() ?? '';
+const mode = parseFormMode(Astro.url.searchParams.get('mode')?.trim().toLowerCase()) ?? null;
+const variantKey = Astro.url.searchParams.get('variant_id')?.trim();
+const product = productKey
+  ? await getStorefrontProduct(Astro.locals, productKey)
+  : undefined;
+const selectedVariant = product
+  ? resolveFormVariant(product, variantKey)
+  : undefined;
+
+let errorMessage = '';
+if (!productKey) {
+  Astro.response.status = 400;
+  errorMessage = 'Product ID wajib diisi.';
+} else if (!mode) {
+  Astro.response.status = 400;
+  errorMessage = 'Mode form harus middle, full, atau hybrid.';
+} else if (!product) {
+  Astro.response.status = 404;
+  errorMessage = 'Produk tidak aktif atau belum siap untuk checkout.';
+} else if (!selectedVariant) {
+  Astro.response.status = 404;
+  errorMessage = 'Varian tidak aktif atau tidak tersedia.';
+}
+
+const title = product
+  ? `Form Pemesanan ${product.productName} - ${Astro.locals.tenant.name}`
+  : `Form Pemesanan - ${Astro.locals.tenant.name}`;
+---
+
+<EmbedLayout title={title}>
+  {
+    errorMessage || !product || !selectedVariant || !mode ? (
+      <main class="flex min-h-72 items-center justify-center p-6">
+        <section class="w-full rounded-xl border border-amber-200 bg-amber-50 p-5 text-center" role="alert">
+          <h1 class="text-base font-black text-slate-950">Form belum tersedia</h1>
+          <p class="mt-2 text-sm leading-6 text-amber-900">{errorMessage}</p>
+        </section>
+      </main>
+    ) : (
+      <GeoIpResolvedForm
+        mode={mode}
+        productSlug={product.slug}
+        selectedVariantId={selectedVariant.id}
+      />
+    )
+  }
+
+  <script is:inline>
+    (() => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const trackingKeys = [
+          'gclid', 'gbraid', 'wbraid', '_fbp', '_fbc', 'fbclid', 'ttclid',
+          'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'
+        ];
+        const tracking = {};
+        trackingKeys.forEach((key) => {
+          const val = urlParams.get(key);
+          if (val) tracking[key] = val;
+        });
+
+        if (urlParams.get('fbclid') && !tracking._fbc) {
+          tracking._fbc = `fb.1.${Date.now()}.${urlParams.get('fbclid')}`;
+        }
+
+        if (Object.keys(tracking).length > 0) {
+          sessionStorage.setItem('adsbook_click_ids', JSON.stringify(tracking));
+          const expires = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString();
+          const secure = location.protocol === 'https:' ? '; Secure; SameSite=None' : '; SameSite=Lax';
+          
+          document.cookie = `adsbook_click_ids=${encodeURIComponent(JSON.stringify(tracking))}; expires=${expires}; path=/${secure}`;
+          if (tracking._fbp) {
+            document.cookie = `_fbp=${encodeURIComponent(tracking._fbp)}; expires=${expires}; path=/${secure}`;
+          }
+          if (tracking._fbc) {
+            document.cookie = `_fbc=${encodeURIComponent(tracking._fbc)}; expires=${expires}; path=/${secure}`;
+          }
+        }
+      } catch (e) {}
+
+      if (window.parent === window) return;
+      let parentOrigin = '';
+      try {
+        parentOrigin = document.referrer ? new URL(document.referrer).origin : '';
+      } catch {
+        return;
+      }
+      if (!parentOrigin) return;
+
+      let lastHeight = 0;
+      const reportHeight = () => {
+        const height = Math.ceil(document.documentElement.scrollHeight);
+        if (height === lastHeight) return;
+        lastHeight = height;
+        window.parent.postMessage(
+          { type: 'adsbook:embed-resize', height },
+          parentOrigin,
+        );
+      };
+
+      new ResizeObserver(reportHeight).observe(document.body);
+      window.addEventListener('load', reportHeight, { once: true });
+      reportHeight();
+    })();
+  </script>
+</EmbedLayout>

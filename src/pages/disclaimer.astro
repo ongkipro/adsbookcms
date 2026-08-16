@@ -1,0 +1,26 @@
+---
+import LegalPage from '../components/shared/LegalPage.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getTenantLegalPage } from '../data/legal';
+
+const page = getTenantLegalPage('disclaimer', Astro.locals.tenant.name);
+---
+
+<BaseLayout
+  shell="storefront"
+  title={`Disclaimer - ${Astro.locals.tenant.name}`}
+  description={page.description}
+  noindex={true}
+  breadcrumbs={[
+    { name: 'Beranda', url: '/' },
+    { name: 'Disclaimer', url: '/disclaimer' },
+  ]}
+>
+  <LegalPage
+    badge={page.badge}
+    title={page.title}
+    description={page.description}
+    sections={page.sections}
+    breadcrumbs={[{ label: 'Beranda', href: '/' }, { label: 'Disclaimer' }]}
+  />
+</BaseLayout>

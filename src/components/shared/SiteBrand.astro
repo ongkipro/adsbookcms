@@ -1,0 +1,44 @@
+---
+interface Props {
+  href?: string;
+  class?: string;
+  tone?: 'light' | 'dark' | 'glossy';
+  showTagline?: boolean;
+}
+
+const { href = '/', class: className = '', tone = 'dark', showTagline = false } = Astro.props;
+const isLight = tone === 'light';
+const textClass = isLight ? 'text-white' : 'text-[#111111]';
+const goldClass = 'text-[#C5A880]';
+---
+
+<a
+  href={href}
+  class={`group inline-flex min-h-11 items-center gap-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#111111] ${className}`}
+  aria-label={Astro.locals.tenant.name}
+  title={`${Astro.locals.tenant.name} - ${Astro.locals.tenant.tagline}`}
+>
+  <!-- Elegant Monogram Luxury Emblem Icon without border -->
+  <span class={`flex h-7 w-7 items-center justify-center bg-transparent text-[14px] font-extrabold tracking-widest ${goldClass} transition-colors group-hover:text-[#111111]`} style="font-family: 'Cinzel', serif;">
+    P
+  </span>
+
+  <span class="flex flex-col justify-center">
+    <span
+      class={`whitespace-nowrap text-[15px] font-bold uppercase tracking-[0.2em] leading-none ${textClass}`}
+      style="font-family: 'Cinzel', 'Playfair Display', Georgia, serif;"
+    >
+      PERMATA<span class={`ml-1.5 font-normal ${goldClass}`}>MALL</span>
+    </span>
+    {
+      showTagline && (
+        <span
+          class="mt-1 text-[8px] font-semibold uppercase tracking-[0.25em] text-[#8A704F]"
+          style="font-family: Inter, sans-serif;"
+        >
+          LUXURY BOUTIQUE
+        </span>
+      )
+    }
+  </span>
+</a>

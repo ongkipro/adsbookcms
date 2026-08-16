@@ -1,0 +1,24 @@
+---
+import LandingPageEditor from '../../../../components/admin/LandingPageEditor';
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../../../components/admin/AdminPageHeader.astro';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+---
+
+<AdminLayout title="Edit Landing Page" activeMenu="products">
+  <div class="space-y-5">
+    <AdminPageHeader
+      eyebrow="Landing Pages"
+      title="Edit Landing Page"
+      description="Ubah konfigurasi dan layout halaman promosi."
+    >
+      <div slot="actions">
+        <a href="/admin/landing-pages" class="btn-secondary min-h-11 px-4 text-xs">Kembali</a>
+      </div>
+    </AdminPageHeader>
+    {id ? <LandingPageEditor landingPageId={id} client:only="react" /> : null}
+  </div>
+</AdminLayout>

@@ -1,0 +1,66 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import LegalPage from '../components/shared/LegalPage.astro';
+const page = {
+  badge: 'Cookie & Iklan',
+  title: 'Kebijakan Cookie dan Iklan',
+  description:
+    `Informasi penggunaan cookie, analitik, Google Ads, Meta Ads, dan preferensi iklan di website ${Astro.locals.tenant.name}.`,
+  sections: [
+    {
+      title: 'Apa Itu Cookie',
+      paragraphs: [
+        'Cookie adalah file kecil atau teknologi serupa yang dapat digunakan website untuk mengingat preferensi, membaca interaksi, dan membantu peningkatan pengalaman pengguna.',
+        `${Astro.locals.tenant.name} dapat menggunakan cookie untuk memahami halaman yang dibuka, tombol yang diklik, sumber kunjungan, serta performa konten dan iklan.`,
+      ],
+    },
+    {
+      title: 'Cookie untuk Analitik',
+      paragraphs: [
+        'Cookie analitik membantu kami memahami trafik website, halaman populer, durasi kunjungan, perangkat yang digunakan, dan bagian website yang perlu ditingkatkan.',
+        'Data analitik digunakan secara agregat untuk memperbaiki struktur konten, pengalaman mobile, dan kualitas informasi bagi pengguna.',
+      ],
+    },
+    {
+      title: 'Google Ads dan Google Analytics',
+      paragraphs: [
+        `${Astro.locals.tenant.name} dapat menggunakan Google Ads, Google Tag, Google Analytics, atau layanan Google lain untuk mengukur performa iklan, kunjungan halaman, klik, dan konversi.`,
+        'Saat tracking diaktifkan, interaksi seperti membuka halaman produk, klik tombol, mengisi formulir, atau menyelesaikan pesanan dapat digunakan sebagai sinyal pengukuran iklan.',
+        'Pengguna dapat mengatur preferensi iklan Google melalui pengaturan akun Google, Ads Settings, atau pilihan privasi pada browser/perangkat masing-masing.',
+      ],
+    },
+    {
+      title: 'Meta Ads',
+      paragraphs: [
+        'Website juga dapat menggunakan teknologi Meta seperti Meta Pixel atau Conversions API untuk mengukur efektivitas iklan di Facebook, Instagram, dan jaringan Meta lainnya.',
+        'Data yang digunakan dapat mencakup event kunjungan, klik, formulir, atau pembelian, dan dapat diproses sesuai kebijakan Meta serta pengaturan privasi pengguna.',
+      ],
+    },
+    {
+      title: 'Mengelola Cookie',
+      paragraphs: [
+        'Pengguna dapat menghapus, memblokir, atau membatasi cookie melalui pengaturan browser. Namun, beberapa fitur website mungkin tidak berjalan optimal jika cookie tertentu dinonaktifkan.',
+        'Dengan menggunakan website ini, pengguna memahami bahwa cookie dan teknologi serupa dapat digunakan untuk kebutuhan operasional, keamanan, analitik, dan pengukuran iklan ketika fitur tersebut diaktifkan.',
+      ],
+    },
+  ],
+};
+---
+<BaseLayout
+  shell="storefront"
+  title={`Kebijakan Cookie dan Iklan - ${Astro.locals.tenant.name}`}
+  description={page.description}
+  noindex={true}
+  breadcrumbs={[
+    { name: 'Beranda', url: '/' },
+    { name: 'Kebijakan Cookie', url: '/kebijakan-cookie' },
+  ]}
+>
+  <LegalPage
+    badge={page.badge}
+    title={page.title}
+    description={page.description}
+    sections={page.sections}
+    breadcrumbs={[{ label: 'Beranda', href: '/' }, { label: 'Kebijakan Cookie' }]}
+  />
+</BaseLayout>

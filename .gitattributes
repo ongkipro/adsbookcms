@@ -1,0 +1,25 @@
+# Files an install owns, which the product must never overwrite.
+#
+# An install is a separate repository that shares history with this one
+# (ADR-012), so it pulls product updates with an ordinary `git merge`. These
+# paths hold that install's identity: its Worker name, its D1 and R2 and KV
+# ids, its domains, and the workflow that deploys it. Merging the product's
+# copy over them points the install at placeholder infrastructure and silently
+# stops updating the real store.
+#
+# `merge=keepours` requires a one-time configuration IN EACH INSTALL CLONE,
+# because git does not ship the driver and .gitattributes alone cannot supply
+# it:
+#
+#     git config merge.keepours.name "keep the install's own copy"
+#     git config merge.keepours.driver true
+#
+# Without that config git falls back to a normal merge and these files WILL
+# conflict — which is noisy but still safe, because a conflict stops the merge
+# rather than silently replacing the install's configuration. Verify with
+# `git check-attr merge -- wrangler.jsonc` after cloning.
+
+wrangler.jsonc          merge=keepours
+.dev.vars               merge=keepours
+.env                    merge=keepours
+.github/workflows/**    merge=keepours

@@ -1,0 +1,815 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { getRuntimeEnv } from '../../lib/env';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
+
+export const prerender = false;
+
+const database = getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined;
+let warehouseOriginId = '';
+let warehouseOriginLabel = '';
+
+if (database) {
+  try {
+    const row = await database.prepare(`SELECT origin_area_id, origin_label FROM warehouses ORDER BY id ASC LIMIT 1`).first<{ origin_area_id: string | null, origin_label: string | null }>();
+    if (row) {
+      warehouseOriginId = row.origin_area_id || '';
+      warehouseOriginLabel = row.origin_label || '';
+    }
+  } catch (e) {
+    // Fallback ignore
+  }
+}
+---
+<AdminLayout title="Cek WA & Ongkir" activeMenu="scoring">
+  <div class="mx-auto max-w-6xl space-y-6">
+    <AdminPageHeader
+      eyebrow="Verification & Freight Tools"
+      title="Cek WA & Tarif Ongkir"
+      description="Validasi risiko penerima (RTS) dan hitung estimasi ongkos kirim kurir secara instan."
+    >
+      <div slot="actions" class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+          <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          Mengantar API Connected
+        </span>
+      </div>
+    </AdminPageHeader>
+
+    <!-- Tab Switcher Navigation -->
+    <div class="flex items-center justify-between border-b border-slate-200 bg-slate-50/50 p-1.5 rounded-xl border">
+      <nav class="flex space-x-1 sm:space-x-2" aria-label="Tool Switcher" id="toolTabs">
+        <button
+          type="button"
+          data-tab="all"
+          class="tab-btn rounded-lg px-4 py-2 text-xs font-bold transition-all text-blue-700 bg-white shadow-sm border border-slate-200/80"
+        >
+          Semua Tool
+        </button>
+        <button
+          type="button"
+          data-tab="wa"
+          class="tab-btn rounded-lg px-4 py-2 text-xs font-semibold transition-all text-slate-600 hover:text-slate-900 hover:bg-white/60"
+        >
+          💬 Cek WA & RTS
+        </button>
+        <button
+          type="button"
+          data-tab="ongkir"
+          class="tab-btn rounded-lg px-4 py-2 text-xs font-semibold transition-all text-slate-600 hover:text-slate-900 hover:bg-white/60"
+        >
+          📦 Cek Ongkir & Kurir
+        </button>
+      </nav>
+      <div id="toastNotification" class="hidden text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg animate-fade-in">
+        ✓ Disalin ke clipboard
+      </div>
+    </div>
+
+    <!-- SECTION 1: Cek WA & Riwayat RTS Receiver -->
+    <section id="section-wa" class="tool-section rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-7 space-y-6">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-blue-700">
+              Mengantar Signal Engine
+            </span>
+            <span class="text-xs text-slate-400">• Pre-shipment Check</span>
+          </div>
+          <h2 class="mt-1 text-xl font-extrabold tracking-tight text-slate-900">Periksa Riwayat & Skoring Penerima (WA)</h2>
+          <p class="mt-0.5 text-xs text-slate-500">Lihat persentase pengiriman sukses vs RTS customer berdasarkan database Mengantar.</p>
+        </div>
+      </div>
+
+      <form id="scoreForm" class="space-y-3" novalidate>
+        <label for="phoneInput" class="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
+          Nomor WhatsApp Customer
+        </label>
+        <div class="flex flex-col gap-2.5 sm:flex-row">
+          <div class="relative flex-1">
+            <input
+              type="tel"
+              id="phoneInput"
+              name="search"
+              required
+              inputmode="tel"
+              autocomplete="tel"
+              minlength="9"
+              maxlength="16"
+              pattern="[+]?[0-9]{9,15}"
+              aria-describedby="phoneHint scoreStatus"
+              placeholder="Contoh: 081234567890 / 6281234567890"
+              class="admin-input-flat min-h-11 w-full font-mono text-sm pr-8 focus:ring-2 focus:ring-blue-500/20"
+            />
+            <button
+              type="button"
+              id="clearPhoneBtn"
+              class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              title="Bersihkan input"
+            >
+              ✕
+            </button>
+          </div>
+          <button id="checkBtn" type="submit" class="btn-blue min-h-11 shrink-0 px-6 text-xs font-bold disabled:cursor-wait disabled:opacity-60 flex items-center justify-center gap-2">
+            <span>Periksa Riwayat</span>
+          </button>
+        </div>
+        <div class="flex items-center justify-between text-xs text-slate-500">
+          <p id="phoneHint">Masukkan 9–15 digit; awalan +62 / 08 otomatis dikenali.</p>
+          <p id="scoreStatus" class="min-h-5 font-bold text-slate-500" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+
+      <!-- Results Container -->
+      <section id="performanceResult" class="hidden space-y-5 pt-2" aria-labelledby="performanceHeading">
+        <!-- Main KPI Summary Card -->
+        <div class="flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-5 shadow-sm sm:flex-row sm:items-start sm:justify-between">
+          <div class="space-y-1">
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Tingkat Keberhasilan Pengiriman</p>
+            <div class="flex items-baseline gap-2">
+              <h3 id="performanceHeading" class="font-mono text-4xl font-black text-slate-950">
+                <span id="deliveryRate">—</span><span class="text-xl text-slate-400">%</span>
+              </h3>
+            </div>
+            <p id="performancePhone" class="font-mono text-xs text-slate-600 font-bold"></p>
+            <p id="checkedAt" class="text-[11px] text-slate-400"></p>
+          </div>
+
+          <div class="flex flex-col items-start sm:items-end gap-3">
+            <span id="riskBadge" class="inline-flex rounded-full bg-slate-100 px-3.5 py-1 text-xs font-black text-slate-700 shadow-xs">
+              Data belum tersedia
+            </span>
+            <p id="riskGuidance" class="max-w-sm text-xs font-semibold leading-5 text-slate-600 sm:text-right"></p>
+            
+            <!-- Quick Actions -->
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <a
+                id="waDirectBtn"
+                href="#"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hidden min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
+              >
+                <span>💬 Buka WA Chat</span>
+              </a>
+              <a
+                id="searchOrderBtn"
+                href="#"
+                target="_blank"
+                class="hidden min-h-11 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <span>🔍 Cari Order Nomor Ini</span>
+              </a>
+              <button
+                type="button"
+                id="copySummaryBtn"
+                class="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800 hover:bg-blue-100 transition-colors"
+              >
+                <span>📋 Salin Ringkasan</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+            <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">Total Riwayat Selesai</p>
+            <p id="totalCount" class="mt-2 font-mono text-2xl font-black text-slate-950">0</p>
+          </article>
+          <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs border-l-4 border-l-emerald-500">
+            <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">Terkirim (Delivered)</p>
+            <p id="deliveredCount" class="mt-2 font-mono text-2xl font-black text-emerald-700">0</p>
+          </article>
+          <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs border-l-4 border-l-rose-500">
+            <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">Retur (RTS)</p>
+            <p id="rtsCount" class="mt-2 font-mono text-2xl font-black text-rose-700">0</p>
+          </article>
+          <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs border-l-4 border-l-sky-500">
+            <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">Sedang Berjalan</p>
+            <p id="inProgressCount" class="mt-2 font-mono text-2xl font-black text-sky-700">0</p>
+          </article>
+        </div>
+
+        <!-- Courier Performance Breakdown -->
+        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="font-extrabold text-slate-950">Performa per Ekspedisi Kurir</h3>
+              <p class="text-xs text-slate-500">Breakdown rasio terkirim vs rts berdasarkan tiap ekspedisi.</p>
+            </div>
+            <p class="text-[11px] text-slate-400">Rumus: Terkirim ÷ Total Selesai × 100%</p>
+          </div>
+          <div id="courierGrid" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3"></div>
+        </section>
+
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600 flex items-start gap-2">
+          <span class="text-base">💡</span>
+          <div>
+            <strong class="text-slate-900">Kebijakan Risiko AdsBookCMS:</strong>
+            <span class="text-emerald-700 font-bold">Rendah (≥70%)</span>, 
+            <span class="text-amber-700 font-bold">Sedang (40–69.9%)</span>, 
+            <span class="text-rose-700 font-bold">Tinggi (&lt;40%)</span>.
+            Gunakan data ini sebagai bahan verfirmasi via WhatsApp/Telepon sebelum memproses pesanan COD.
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <!-- SECTION 2: Cek Ongkir & Estimasi Tarif Kurir -->
+    <section id="section-ongkir" class="tool-section rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-7 space-y-6">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-blue-700">
+              Mengantar Freight Rates
+            </span>
+            <span class="text-xs text-slate-400">• Multi-courier Rate Checker</span>
+          </div>
+          <h2 class="mt-1 text-xl font-extrabold tracking-tight text-slate-900">Cek Ongkos Kirim Multi-Kurir</h2>
+          <p class="mt-0.5 text-xs text-slate-500">Bandingkan tarif pengiriman, estimasi hari tiba, dan dukungan COD dari berbagai ekspedisi.</p>
+        </div>
+      </div>
+
+      <form id="ongkirForm" class="space-y-4" novalidate>
+        <div class="grid gap-4 md:grid-cols-12 items-end">
+          <!-- Kecamatan Asal -->
+          <div class="space-y-1.5 relative md:col-span-5">
+            <label for="originInput" class="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
+              Kecamatan Asal (Pengirim)
+            </label>
+            <input
+              type="text"
+              id="originInput"
+              value={warehouseOriginLabel}
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              placeholder="Ketik minimal 3 huruf nama kecamatan..."
+              autocomplete="off"
+            />
+            <input type="hidden" id="originId" value={warehouseOriginId} />
+            <ul id="originResults" class="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg hidden divide-y divide-slate-100"></ul>
+          </div>
+
+          <!-- Swap Button -->
+          <div class="md:col-span-1 flex justify-center pb-0.5">
+            <button
+              type="button"
+              id="swapLocationBtn"
+              class="min-h-11 w-11 rounded-lg border border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center justify-center transition-colors"
+              title="Tukar Asal & Tujuan"
+            >
+              🔄
+            </button>
+          </div>
+
+          <!-- Kecamatan Tujuan -->
+          <div class="space-y-1.5 relative md:col-span-6">
+            <label for="destinationInput" class="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
+              Kecamatan Tujuan (Penerima)
+            </label>
+            <input
+              type="text"
+              id="destinationInput"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              placeholder="Ketik minimal 3 huruf nama kecamatan..."
+              autocomplete="off"
+            />
+            <input type="hidden" id="destinationId" value="" />
+            <ul id="destinationResults" class="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg hidden divide-y divide-slate-100"></ul>
+          </div>
+        </div>
+
+        <!-- Weight Row & Presets -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+          <div class="space-y-1.5 sm:w-64">
+            <label for="weightInput" class="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
+              Berat Paket (KG)
+            </label>
+            <!-- flex-wrap + min-w-0: the number input's intrinsic min-content (~200px)
+                 plus the four non-shrinking preset buttons (~180px) exceeded the 312px
+                 available at 360px, pushing the 5kg preset off-screen. -->
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                type="number"
+                id="weightInput"
+                value="1"
+                min="0.1"
+                step="0.1"
+                class="w-full min-w-0 flex-1 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-mono font-bold text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              />
+              <div class="flex gap-1" id="weightPresets">
+                <button type="button" data-weight="1" class="preset-btn rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100">1kg</button>
+                <button type="button" data-weight="2" class="preset-btn rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100">2kg</button>
+                <button type="button" data-weight="3" class="preset-btn rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100">3kg</button>
+                <button type="button" data-weight="5" class="preset-btn rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100">5kg</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-2">
+            <button id="checkOngkirBtn" type="submit" class="btn-blue min-h-11 px-7 text-xs font-bold disabled:cursor-wait disabled:opacity-60 flex items-center justify-center gap-2">
+              <span>Cek Tarif Kurir</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-500">
+          <span>*Lokasi dikirim dari Gudang Utama AdsBookCMS</span>
+          <p id="ongkirStatus" class="min-h-5 font-bold text-slate-500" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+
+      <!-- Results Container -->
+      <div id="ongkirResult" class="hidden space-y-4 pt-2">
+        <!-- Controls & Filters Bar -->
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+          <div class="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-700">
+            <span class="text-slate-400">Filter:</span>
+            <button type="button" data-filter="all" class="ongkir-filter-btn rounded-lg bg-blue-700 px-3 py-1 text-white shadow-xs">Semua Kurir</button>
+            <button type="button" data-filter="cod" class="ongkir-filter-btn rounded-lg border border-slate-300 bg-white px-3 py-1 text-slate-700 hover:bg-slate-100">Hanya COD</button>
+            <button type="button" data-filter="regular" class="ongkir-filter-btn rounded-lg border border-slate-300 bg-white px-3 py-1 text-slate-700 hover:bg-slate-100">Reguler</button>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5 text-xs text-slate-600">
+              <span>Urutan:</span>
+              <select id="sortOngkirSelect" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-800">
+                <option value="price-asc">Harga Termurah</option>
+                <option value="price-desc">Harga Tertinggi</option>
+                <option value="eta-asc">Estimasi Tercepat</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              id="copyRatesBtn"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              📋 Salin ke WA Customer
+            </button>
+          </div>
+        </div>
+
+        <!-- Rates Table -->
+        <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+          <div class="overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600" role="region" aria-label="Tarif ongkir per kurir" tabindex="0">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="border-b border-slate-200 bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500">
+                <tr>
+                  <th class="px-4 py-3">Ekspedisi</th>
+                  <th class="px-4 py-3">Layanan</th>
+                  <th class="px-4 py-3 text-right">Tarif Ongkir</th>
+                  <th class="px-4 py-3 text-center">Estimasi Tiba</th>
+                  <th class="px-4 py-3 text-center">Status COD</th>
+                </tr>
+              </thead>
+              <tbody id="ongkirTableBody" class="divide-y divide-slate-100">
+                <!-- Rows injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    import { formatIdr } from '../../lib/format-idr';
+
+    type CourierPerformance = {
+      courier: string;
+      total: number;
+      delivered: number;
+      rts: number;
+      undelivered: number;
+      inProgress: number;
+      deliveryRate: number | null;
+    };
+    type ReceiverPerformance = {
+      phone: string;
+      checkedAt: string;
+      deliveryRate: number | null;
+      riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'UNKNOWN';
+      totals: { total: number; delivered: number; rts: number; undelivered: number; inProgress: number };
+      couriers: CourierPerformance[];
+    };
+
+    // --- Tab Switcher Logic ---
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const sections = document.querySelectorAll('.tool-section');
+
+    const switchTab = (activeTab: string) => {
+      tabButtons.forEach(btn => {
+        const isCurrent = btn.getAttribute('data-tab') === activeTab;
+        if (isCurrent) {
+          btn.className = 'tab-btn rounded-lg px-4 py-2 text-xs font-bold transition-all text-blue-700 bg-white shadow-sm border border-slate-200/80';
+        } else {
+          btn.className = 'tab-btn rounded-lg px-4 py-2 text-xs font-semibold transition-all text-slate-600 hover:text-slate-900 hover:bg-white/60';
+        }
+      });
+
+      sections.forEach(section => {
+        if (activeTab === 'all') {
+          section.classList.remove('hidden');
+        } else if (section.id === `section-${activeTab}`) {
+          section.classList.remove('hidden');
+        } else {
+          section.classList.add('hidden');
+        }
+      });
+    };
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-tab') || 'all';
+        switchTab(tab);
+      });
+    });
+
+    // Toast Notification helper
+    const showToast = (message = '✓ Disalin ke clipboard') => {
+      const toast = document.getElementById('toastNotification');
+      if (!toast) return;
+      toast.textContent = message;
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 2500);
+    };
+
+    // --- Cek WA Script ---
+    const form = document.getElementById('scoreForm') as HTMLFormElement | null;
+    const input = document.getElementById('phoneInput') as HTMLInputElement | null;
+    const clearPhoneBtn = document.getElementById('clearPhoneBtn') as HTMLButtonElement | null;
+    const button = document.getElementById('checkBtn') as HTMLButtonElement | null;
+    const status = document.getElementById('scoreStatus');
+    const result = document.getElementById('performanceResult');
+    const copySummaryBtn = document.getElementById('copySummaryBtn');
+
+    let currentPerformanceData: ReceiverPerformance | null = null;
+
+    // Toggle clear button
+    input?.addEventListener('input', () => {
+      if (input.value.length > 0) {
+        clearPhoneBtn?.classList.remove('hidden');
+      } else {
+        clearPhoneBtn?.classList.add('hidden');
+      }
+    });
+
+    clearPhoneBtn?.addEventListener('click', () => {
+      if (input) {
+        input.value = '';
+        input.focus();
+        clearPhoneBtn.classList.add('hidden');
+      }
+    });
+
+    const setText = (id: string, value: string | number) => {
+      const node = document.getElementById(id);
+      if (node) node.textContent = String(value);
+    };
+    const setStatus = (message: string, error = false) => {
+      if (!status) return;
+      status.textContent = message;
+      status.className = `min-h-5 text-xs font-bold ${error ? 'text-rose-700' : 'text-slate-500'}`;
+    };
+    const formatRate = (rate: number | null) => rate == null ? '—' : rate.toLocaleString('id-ID', { maximumFractionDigits: 1 });
+
+    const riskConfig = {
+      LOW: { label: 'Risiko RTS Rendah', style: 'inline-flex rounded-full bg-emerald-100 px-3.5 py-1 text-xs font-black text-emerald-800 border border-emerald-200', guidance: 'Riwayat pengiriman sangat baik. Aman diproses dengan metode COD.' },
+      MEDIUM: { label: 'Risiko RTS Sedang', style: 'inline-flex rounded-full bg-amber-100 px-3.5 py-1 text-xs font-black text-amber-800 border border-amber-200', guidance: 'Konfirmasi nama penerima dan kesiapan COD via WhatsApp sebelum paket diserahkan ke kurir.' },
+      HIGH: { label: 'Risiko RTS Tinggi', style: 'inline-flex rounded-full bg-rose-100 px-3.5 py-1 text-xs font-black text-rose-800 border border-rose-200', guidance: 'Tingkat retur tinggi! Disarankan meminta pembeli transfer DP/Lunas sebelum dikirim.' },
+      UNKNOWN: { label: 'Belum Ada Riwayat Selesai', style: 'inline-flex rounded-full bg-slate-100 px-3.5 py-1 text-xs font-black text-slate-700 border border-slate-200', guidance: 'Data transaksi belum mencukupi. Lakukan verifikasi manual standar.' },
+    } as const;
+
+    const courierCard = (courier: CourierPerformance) => {
+      const article = document.createElement('article');
+      article.className = 'rounded-xl border border-slate-200 p-4 bg-slate-50/50 hover:bg-white transition-colors';
+      const header = document.createElement('div');
+      header.className = 'flex items-start justify-between gap-3';
+      const name = document.createElement('h4');
+      name.className = 'font-black text-slate-950 uppercase text-xs tracking-wider';
+      name.textContent = courier.courier;
+      const rate = document.createElement('span');
+      rate.className = 'font-mono text-sm font-black text-slate-900';
+      rate.textContent = courier.deliveryRate == null ? '—' : `${formatRate(courier.deliveryRate)}%`;
+      header.append(name, rate);
+
+      const counts = document.createElement('dl');
+      counts.className = 'mt-3 grid grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-2.5';
+      const values: Array<[string, number, string]> = [
+        ['Selesai', courier.total, 'text-slate-900'],
+        ['Berjalan', courier.inProgress, 'text-sky-700'],
+        ['Terkirim', courier.delivered, 'text-emerald-700'],
+        ['RTS', courier.rts, 'text-rose-700'],
+      ];
+      for (const [label, value, color] of values) {
+        const row = document.createElement('div');
+        const term = document.createElement('dt');
+        term.className = 'text-slate-400 text-[11px]';
+        term.textContent = label;
+        const detail = document.createElement('dd');
+        detail.className = `mt-0.5 font-mono font-black ${color}`;
+        detail.textContent = String(value);
+        row.append(term, detail);
+        counts.append(row);
+      }
+      article.append(header, counts);
+      return article;
+    };
+
+    const normalizeWaPhone = (phoneStr: string) => {
+      let cleaned = phoneStr.replace(/\D/g, '');
+      if (cleaned.startsWith('0')) {
+        cleaned = '62' + cleaned.slice(1);
+      }
+      return cleaned;
+    };
+
+    const renderPerformance = (performance: ReceiverPerformance) => {
+      currentPerformanceData = performance;
+      const config = riskConfig[performance.riskLevel] || riskConfig.UNKNOWN;
+      setText('deliveryRate', formatRate(performance.deliveryRate));
+      setText('performancePhone', performance.phone);
+      setText('checkedAt', `Diperiksa ${new Date(performance.checkedAt).toLocaleString('id-ID')}`);
+      setText('totalCount', performance.totals.total);
+      setText('deliveredCount', performance.totals.delivered);
+      setText('rtsCount', performance.totals.rts);
+      setText('inProgressCount', performance.totals.inProgress);
+      setText('riskGuidance', config.guidance);
+      
+      const badge = document.getElementById('riskBadge');
+      if (badge) { badge.textContent = config.label; badge.className = config.style; }
+
+      // Setup WA Direct & Order Search Buttons
+      const waDirectBtn = document.getElementById('waDirectBtn') as HTMLAnchorElement | null;
+      const searchOrderBtn = document.getElementById('searchOrderBtn') as HTMLAnchorElement | null;
+      const cleanPhone = normalizeWaPhone(performance.phone);
+
+      if (waDirectBtn) {
+        waDirectBtn.href = `https://wa.me/${cleanPhone}`;
+        waDirectBtn.classList.remove('hidden');
+      }
+      if (searchOrderBtn) {
+        searchOrderBtn.href = `/admin/orders?search=${encodeURIComponent(performance.phone)}`;
+        searchOrderBtn.classList.remove('hidden');
+      }
+
+      const grid = document.getElementById('courierGrid');
+      if (grid) {
+        grid.replaceChildren(...performance.couriers.map(courierCard));
+      }
+      result?.classList.remove('hidden');
+    };
+
+    const checkPerformance = async () => {
+      if (!form || !input || !button || !form.reportValidity()) return;
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      button.textContent = 'Memeriksa…';
+      result?.classList.add('hidden');
+      setStatus('Mengambil riwayat penerima dari Mengantar…');
+      try {
+        const response = await fetch(`/api/admin/check?search=${encodeURIComponent(input.value.trim())}`, { headers: { Accept: 'application/json' } });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success || !payload.performance) throw new Error(payload.error || 'Riwayat penerima gagal dimuat.');
+        renderPerformance(payload.performance as ReceiverPerformance);
+        setStatus('Riwayat penerima berhasil diperbarui.');
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : 'Riwayat penerima gagal dimuat.', true);
+      } finally {
+        button.disabled = false;
+        button.setAttribute('aria-busy', 'false');
+        button.textContent = 'Periksa Riwayat';
+      }
+    };
+
+    form?.addEventListener('submit', (event) => { event.preventDefault(); void checkPerformance(); });
+
+    copySummaryBtn?.addEventListener('click', () => {
+      if (!currentPerformanceData) return;
+      const d = currentPerformanceData;
+      const rate = d.deliveryRate != null ? `${formatRate(d.deliveryRate)}%` : 'Belum Ada';
+      const text = `[Riwayat WA ${d.phone}]\nTingkat Keberhasilan: ${rate}\nStatus: ${d.riskLevel}\nDetail: Selesai ${d.totals.total} (Terkirim ${d.totals.delivered}, RTS ${d.totals.rts}, Berjalan ${d.totals.inProgress})`;
+      void navigator.clipboard.writeText(text).then(() => showToast('✓ Ringkasan WA disalin!'));
+    });
+
+    // --- Cek Ongkir Script ---
+    const ongkirForm = document.getElementById('ongkirForm') as HTMLFormElement;
+    const checkOngkirBtn = document.getElementById('checkOngkirBtn') as HTMLButtonElement;
+    const ongkirStatus = document.getElementById('ongkirStatus');
+    const ongkirResult = document.getElementById('ongkirResult');
+    const ongkirTableBody = document.getElementById('ongkirTableBody');
+    const swapLocationBtn = document.getElementById('swapLocationBtn');
+    const sortOngkirSelect = document.getElementById('sortOngkirSelect') as HTMLSelectElement | null;
+    const copyRatesBtn = document.getElementById('copyRatesBtn');
+
+    let currentRatesData: any[] = [];
+    let currentActiveFilter = 'all';
+
+    // Preset Weight handler
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wInput = document.getElementById('weightInput') as HTMLInputElement | null;
+        if (wInput) {
+          wInput.value = btn.getAttribute('data-weight') || '1';
+        }
+      });
+    });
+
+    // Swap Origin & Destination
+    swapLocationBtn?.addEventListener('click', () => {
+      const originInput = document.getElementById('originInput') as HTMLInputElement;
+      const originId = document.getElementById('originId') as HTMLInputElement;
+      const destinationInput = document.getElementById('destinationInput') as HTMLInputElement;
+      const destinationId = document.getElementById('destinationId') as HTMLInputElement;
+
+      const tempLabel = originInput.value;
+      const tempId = originId.value;
+
+      originInput.value = destinationInput.value;
+      originId.value = destinationId.value;
+
+      destinationInput.value = tempLabel;
+      destinationId.value = tempId;
+    });
+
+    const setupAutocomplete = (inputId: string, idInputId: string, resultsId: string) => {
+      const inputEl = document.getElementById(inputId) as HTMLInputElement;
+      const idInputEl = document.getElementById(idInputId) as HTMLInputElement;
+      const resultsEl = document.getElementById(resultsId);
+      let timeout: number;
+
+      inputEl?.addEventListener('input', (e) => {
+        const val = (e.target as HTMLInputElement).value;
+        clearTimeout(timeout);
+        if (val.length < 3) {
+          resultsEl?.classList.add('hidden');
+          return;
+        }
+        timeout = window.setTimeout(async () => {
+          try {
+            const res = await fetch(`/api/admin/ongkir?action=search-address&keyword=${encodeURIComponent(val)}`);
+            const { data } = await res.json();
+            if (data && data.length > 0 && resultsEl) {
+              resultsEl.innerHTML = data.map((item: any) => 
+                `<li class="flex min-h-11 cursor-pointer items-center px-4 py-2.5 hover:bg-blue-50/70 text-xs border-b border-slate-100 last:border-0 transition-colors" data-id="${item._id}">
+                  <span class="font-bold text-slate-900">${item.SUBDISTRICT_NAME}</span>, <span class="text-slate-600">${item.CITY_NAME}</span>, <span class="text-slate-400">${item.PROVINCE_NAME}</span>
+                </li>`
+              ).join('');
+              resultsEl.classList.remove('hidden');
+              
+              resultsEl.querySelectorAll('li').forEach(li => {
+                li.addEventListener('click', () => {
+                  idInputEl.value = li.getAttribute('data-id') || '';
+                  inputEl.value = li.textContent?.trim() || '';
+                  resultsEl.classList.add('hidden');
+                });
+              });
+            } else if (resultsEl) {
+              resultsEl.innerHTML = `<li class="px-4 py-2 text-xs text-slate-500">Tidak ditemukan lokasi kecamatan</li>`;
+              resultsEl.classList.remove('hidden');
+            }
+          } catch (err) {
+            // silent fail for autocomplete
+          }
+        }, 350);
+      });
+      
+      document.addEventListener('click', (e) => {
+        if (!inputEl?.contains(e.target as Node) && !resultsEl?.contains(e.target as Node)) {
+          resultsEl?.classList.add('hidden');
+        }
+      });
+    };
+
+    setupAutocomplete('originInput', 'originId', 'originResults');
+    setupAutocomplete('destinationInput', 'destinationId', 'destinationResults');
+
+    const renderOngkirTable = () => {
+      if (!ongkirTableBody) return;
+      let filtered = [...currentRatesData];
+
+      if (currentActiveFilter === 'cod') {
+        filtered = filtered.filter(r => !r.unsupported_cod);
+      } else if (currentActiveFilter === 'regular') {
+        filtered = filtered.filter(r => (r.courier_service || '').toLowerCase().includes('reg') || (r.courier_service || '').toLowerCase().includes('std'));
+      }
+
+      // Sorting
+      const sortVal = sortOngkirSelect?.value || 'price-asc';
+      if (sortVal === 'price-asc') {
+        filtered.sort((a, b) => a.price - b.price);
+      } else if (sortVal === 'price-desc') {
+        filtered.sort((a, b) => b.price - a.price);
+      } else if (sortVal === 'eta-asc') {
+        filtered.sort((a, b) => (parseInt(a.estimated_days) || 99) - (parseInt(b.estimated_days) || 99));
+      }
+
+      if (filtered.length === 0) {
+        ongkirTableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-sm text-slate-500">Tidak ada kurir yang sesuai dengan filter.</td></tr>`;
+        return;
+      }
+
+      const minPrice = Math.min(...filtered.map(r => r.price));
+
+      ongkirTableBody.innerHTML = filtered.map((rate: any) => {
+        const isCheapest = rate.price === minPrice;
+        return `
+          <tr class="hover:bg-blue-50/30 transition-colors">
+            <td class="whitespace-nowrap px-4 py-3.5 font-bold text-slate-900">
+              <span class="flex items-center gap-2">
+                <span>${rate.courier_code.toUpperCase()}</span>
+                ${isCheapest ? '<span class="inline-flex rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black text-emerald-800">Termurah</span>' : ''}
+              </span>
+            </td>
+            <td class="whitespace-nowrap px-4 py-3.5 text-xs text-slate-700">${rate.courier_service}</td>
+            <td class="whitespace-nowrap px-4 py-3.5 text-right font-mono font-bold text-slate-900">${formatIdr(rate.price)}</td>
+            <td class="whitespace-nowrap px-4 py-3.5 text-center text-xs text-slate-600">${rate.estimated_days ? `${rate.estimated_days} Hari` : '-'}</td>
+            <td class="whitespace-nowrap px-4 py-3.5 text-center">
+              ${rate.unsupported_cod 
+                ? '<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500">Non-COD</span>' 
+                : '<span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">Bisa COD</span>'}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    };
+
+    // Filter Buttons Listener
+    document.querySelectorAll('.ongkir-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.ongkir-filter-btn').forEach(b => {
+          b.className = 'ongkir-filter-btn rounded-lg border border-slate-300 bg-white px-3 py-1 text-slate-700 hover:bg-slate-100';
+        });
+        btn.className = 'ongkir-filter-btn rounded-lg bg-blue-700 px-3 py-1 text-white shadow-xs';
+        currentActiveFilter = btn.getAttribute('data-filter') || 'all';
+        renderOngkirTable();
+      });
+    });
+
+    sortOngkirSelect?.addEventListener('change', renderOngkirTable);
+
+    copyRatesBtn?.addEventListener('click', () => {
+      if (currentRatesData.length === 0) return;
+      const destName = (document.getElementById('destinationInput') as HTMLInputElement).value;
+      const weight = (document.getElementById('weightInput') as HTMLInputElement).value;
+
+      let msg = `*Pilihan Ongkos Kirim (${weight} KG)*\nTujuan: ${destName}\n\n`;
+      currentRatesData.forEach(r => {
+        const codBadge = r.unsupported_cod ? '' : ' [COD OK]';
+        msg += `• *${r.courier_code.toUpperCase()} ${r.courier_service}*: ${formatIdr(r.price)} (${r.estimated_days || '-'} hari)${codBadge}\n`;
+      });
+
+      void navigator.clipboard.writeText(msg).then(() => showToast('✓ Daftar tarif disalin ke WA!'));
+    });
+
+    ongkirForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const originId = (document.getElementById('originId') as HTMLInputElement).value;
+      const destinationId = (document.getElementById('destinationId') as HTMLInputElement).value;
+      const weight = (document.getElementById('weightInput') as HTMLInputElement).value;
+
+      if (!originId || !destinationId) {
+        if (ongkirStatus) {
+          ongkirStatus.textContent = 'Pilih kecamatan asal & tujuan dari opsi dropdown';
+          ongkirStatus.className = 'min-h-5 text-xs font-bold text-rose-700 text-right';
+        }
+        return;
+      }
+
+      checkOngkirBtn.disabled = true;
+      checkOngkirBtn.textContent = 'Memeriksa…';
+      ongkirResult?.classList.add('hidden');
+      if (ongkirStatus) {
+        ongkirStatus.textContent = 'Menghitung estimasi ongkir Mengantar…';
+        ongkirStatus.className = 'min-h-5 text-xs font-bold text-slate-500 text-right';
+      }
+
+      try {
+        const res = await fetch(`/api/admin/ongkir?action=estimate&origin=${originId}&destination=${destinationId}&weight=${weight}`);
+        const json = await res.json();
+        
+        if (json.success !== false && json.data) {
+          if (ongkirStatus) ongkirStatus.textContent = '';
+          currentRatesData = json.data;
+          renderOngkirTable();
+          ongkirResult?.classList.remove('hidden');
+        } else {
+          throw new Error(json.message || 'Gagal mengambil tarif kurir');
+        }
+      } catch (err: any) {
+        if (ongkirStatus) {
+          ongkirStatus.textContent = err.message || 'Terjadi kesalahan saat mengambil tarif';
+          ongkirStatus.className = 'min-h-5 text-xs font-bold text-rose-700 text-right';
+        }
+      } finally {
+        checkOngkirBtn.disabled = false;
+        checkOngkirBtn.textContent = 'Cek Tarif Kurir';
+      }
+    });
+
+    const query = new URLSearchParams(window.location.search).get('search');
+    if (query && input) { input.value = query; void checkPerformance(); }
+  </script>
+</AdminLayout>

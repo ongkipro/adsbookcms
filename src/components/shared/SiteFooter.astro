@@ -1,0 +1,40 @@
+---
+import SiteBrand from './SiteBrand.astro';
+
+const footerLegal = [
+  { label: 'Produk', href: '/produk' },
+  { label: 'Tentang Kami', href: '/tentang' },
+  { label: 'Kebijakan Privasi', href: '/kebijakan-privasi' },
+  { label: 'Syarat & Ketentuan', href: '/syarat-ketentuan' },
+  { label: 'Pengiriman & Retur', href: '/pengiriman' },
+  { label: 'Kontak', href: '/kontak' },
+  { label: 'Disclaimer', href: '/disclaimer' },
+];
+---
+
+<footer class="border-t border-[#E5E5E5] bg-[#F8F7F4] px-5 py-12 text-[#111111]">
+  <div class="mx-auto max-w-[480px] space-y-10 text-center">
+    <!-- Brand Logo -->
+    <div class="flex justify-center">
+      <SiteBrand href="/" tone="dark" />
+    </div>
+
+
+
+    <!-- Policy Links -->
+    <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-4 border-t border-[#E5E5E5] pt-8 text-[10px] font-semibold tracking-widest uppercase text-[#111111]">
+      {
+        footerLegal.map((item) => (
+          <a href={item.href} class="transition-colors hover:text-[#C5A880] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111111]">
+            {item.label}
+          </a>
+        ))
+      }
+    </div>
+
+    <!-- Copyright -->
+    <p class="text-[10px] uppercase tracking-wider text-[#999999]">
+      © {new Date().getFullYear()} {Astro.locals.tenant.name}. All Rights Reserved.
+    </p>
+  </div>
+</footer>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="240" viewBox="0 0 960 240">
+  <rect x="24" y="52" width="136" height="136" fill="#111111"/>
+  <rect x="40" y="68" width="104" height="104" fill="none" stroke="#C5A880" stroke-width="4"/>
+  <rect x="66" y="94" width="52" height="14" fill="#C5A880"/>
+  <rect x="66" y="119" width="52" height="14" fill="#F8F7F4"/>
+  <rect x="66" y="144" width="30" height="14" fill="#C5A880"/>
+  <text x="196" y="120" font-family="Georgia, 'Times New Roman', serif" font-size="62"
+        letter-spacing="10" fill="#111111">PERMATA</text>
+  <text x="196" y="186" font-family="Georgia, 'Times New Roman', serif" font-size="62"
+        letter-spacing="10" fill="#C5A880">MALL</text>
+</svg>

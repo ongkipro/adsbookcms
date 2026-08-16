@@ -1,0 +1,199 @@
+---
+export const prerender = false;
+
+// No layout import on purpose: every layout resolves store identity, and on
+// this page there is no store yet. The installer must stand entirely on its own.
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Pasang AdsBookCMS</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #111111;
+        --muted: #555555;
+        --line: #e5e5e5;
+        --canvas: #f8f7f4;
+        --accent: #c5a880;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        padding: max(1rem, env(safe-area-inset-top)) 1rem
+          max(1rem, env(safe-area-inset-bottom));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      main { width: 100%; max-width: 480px; }
+      .card {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        padding: 1.5rem 1.25rem;
+      }
+      h1 { margin: 0; font-size: 1.375rem; letter-spacing: -0.02em; }
+      .lede { margin: 0.5rem 0 1.5rem; color: var(--muted); font-size: 0.875rem; line-height: 1.6; }
+      label { display: block; margin-top: 1rem; font-size: 0.8125rem; font-weight: 600; }
+      .hint { display: block; margin-top: 0.25rem; font-weight: 400; color: var(--muted); font-size: 0.75rem; }
+      input, select {
+        width: 100%;
+        margin-top: 0.375rem;
+        min-height: 2.75rem;
+        padding: 0.5rem 0.75rem;
+        /* 16px keeps mobile Safari from zooming the page on focus. */
+        font-size: 1rem;
+        color: var(--ink);
+        background: #ffffff;
+        border: 1px solid #d8ddd6;
+      }
+      input:focus-visible, select:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      button {
+        width: 100%;
+        margin-top: 1.5rem;
+        min-height: 2.75rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #ffffff;
+        background: var(--ink);
+        border: 0;
+        cursor: pointer;
+      }
+      button[disabled] { opacity: 0.6; cursor: progress; }
+      .alert {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border: 1px solid #e0b4b4;
+        background: #fdf3f3;
+        color: #8a2b2b;
+        font-size: 0.8125rem;
+      }
+      .alert[hidden] { display: none; }
+      .brand {
+        font-size: 0.6875rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="card">
+        <p class="brand">AdsBookCMS</p>
+        <h1>Pasang toko Anda</h1>
+        <p class="lede">
+          Database sudah siap tetapi tokonya belum dibuat. Isi data di bawah sekali
+          saja — setelah selesai, halaman ini tidak dapat dibuka lagi.
+        </p>
+
+        <div class="alert" id="install-error" role="alert" hidden></div>
+
+        <form id="install-form" novalidate>
+          <label>
+            Nama toko
+            <input name="store_name" required autocomplete="organization" maxlength="120" />
+          </label>
+
+          <label>
+            Alamat toko
+            <span class="hint">Harus https, contoh: https://tokosaya.com</span>
+            <input name="site_url" required inputmode="url" placeholder="https://tokosaya.com" />
+          </label>
+
+          <label>
+            WhatsApp customer service
+            <span class="hint">Opsional. 9–15 digit.</span>
+            <input name="support_whatsapp" inputmode="numeric" autocomplete="tel" />
+          </label>
+
+          <label>
+            Username admin
+            <span class="hint">Huruf kecil, angka, titik, garis bawah, atau strip.</span>
+            <input name="admin_username" required autocomplete="username" value="admin" />
+          </label>
+
+          <label>
+            Password admin
+            <span class="hint">Minimal 8 karakter, tidak boleh sama dengan username.</span>
+            <input name="admin_password" type="password" required autocomplete="new-password" />
+          </label>
+
+          <label>
+            Ulangi password
+            <input name="admin_password_confirm" type="password" required autocomplete="new-password" />
+          </label>
+
+          <label>
+            Tampilan storefront
+            <select name="storefront_template">
+              <option value="compact-market">Compact Market</option>
+              <option value="wide-catalog">Wide Catalog</option>
+            </select>
+          </label>
+
+          <button type="submit" id="install-submit">Pasang sekarang</button>
+        </form>
+      </div>
+    </main>
+
+    <script is:inline>
+      (function () {
+        var form = document.getElementById('install-form');
+        var button = document.getElementById('install-submit');
+        var alertBox = document.getElementById('install-error');
+        var busy = false;
+
+        function fail(message) {
+          alertBox.textContent = message;
+          alertBox.hidden = false;
+        }
+
+        form.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          // A slow network must not be able to produce two installs.
+          if (busy) return;
+          busy = true;
+          button.disabled = true;
+          button.textContent = 'Memasang…';
+          alertBox.hidden = true;
+
+          var data = Object.fromEntries(new FormData(form).entries());
+          try {
+            var response = await fetch('/api/install', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(data),
+            });
+            var payload = await response.json();
+            if (payload && payload.success) {
+              window.location.assign(payload.redirect || '/hello');
+              return;
+            }
+            fail((payload && payload.error) || 'Instalasi gagal.');
+          } catch (error) {
+            fail('Tidak dapat menghubungi server. Coba lagi.');
+          }
+          busy = false;
+          button.disabled = false;
+          button.textContent = 'Pasang sekarang';
+        });
+      })();
+    </script>
+  </body>
+</html>

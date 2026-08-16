@@ -1,0 +1,708 @@
+import type { APIRoute } from 'astro';
+import { jsonError, jsonOk } from '../../../../lib/api';
+import { getRuntimeEnv } from '../../../../lib/env';
+import { selectQuotedRate } from '../../../../lib/courier-rules';
+import { normalizePhoneNumber } from '../../../../lib/order-schema';
+import { getMengantarDispatchEligibility } from '../../../../lib/payment-dispatch-policy';
+import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from '../../../../lib/payment-fee-policy';
+import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch';
+import { getReceiverPerformance, scheduleReceiverPerformanceRefresh } from '../../../../lib/rts-scoring';
+import type { ReceiverPerformance } from '../../../../lib/receiver-performance';
+import { releasesReservedStock, restoreReservedStock } from '../../../../lib/stock-restore';
+import {
+  resolveEligibleShippingRates,
+  ShippingQuoteError,
+} from '../../../../lib/shipping-quote';
+
+export const prerender = false;
+
+const PAYMENT_STATUSES = ['unpaid', 'pending', 'paid', 'settled', 'success', 'failed', 'refunded', 'cancelled'] as const;
+const SHIPPING_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'returned', 'cancelled'] as const;
+const PAID_STATUSES = new Set(['paid', 'settled', 'success']);
+const SHIPPED_LIKE_STATUSES = new Set(['shipped', 'delivered', 'returned']);
+
+type OrderUpdatePayload = {
+  action?: 'dispatch-order' | 'refresh-scoring';
+  payment_status?: string;
+  shipping_status?: string;
+  cnote_no?: string;
+  courier_code?: string;
+  courier_service?: string;
+  courier_service_id?: number;
+  customer_name?: string;
+  customer_phone?: string;
+  address?: string;
+  district?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+  destination_area_id?: string;
+};
+
+type OrderRow = {
+  id: number;
+  order_number: string;
+  warehouse_id: number | null;
+  pickup_schedule_id: number | null;
+  customer_name: string;
+  customer_phone: string;
+  address: string;
+  province: string;
+  city: string;
+  district: string;
+  postal_code: string | null;
+  destination_area_id: string | null;
+  total_amount: number;
+  shipping_cost: number;
+  discount_amount: number | null;
+  cod_service_fee: number;
+  cod_service_fee_vat: number;
+  cod_fee_bearer: string;
+  payment_method: string;
+  payment_status: string;
+  shipping_status: string;
+  confirmed_at: string | null;
+  courier_code: string | null;
+  courier_service: string | null;
+  cnote_no: string | null;
+  provider_order_id: string | null;
+  provider_dispatch_error: string | null;
+  provider_dispatch_claimed_at: string | null;
+  receiver_delivery_rate: number | null;
+  receiver_risk_label: string | null;
+  receiver_performance_json: string | null;
+  receiver_performance_checked_at: string | null;
+  ad_click_ids: string | null;
+  created_at: string;
+  warehouse_name: string | null;
+  pickup_address_id: string | null;
+  pickup_scheduled_at: string | null;
+  pickup_status: string | null;
+};
+
+type OrderItemRow = {
+  id: number;
+  variant_id: number;
+  quantity: number;
+  unit_price: number;
+  variant_title: string;
+  variant_sku: string;
+  product_id: number;
+  product_title: string;
+};
+
+type PaymentTransactionRow = {
+  provider_transaction_id: string | null;
+  reference_id: string;
+  channel_code: string;
+  status: string;
+  amount: number;
+  admin_fee: number;
+  total_amount: number;
+  expires_at: string | null;
+  paid_at: string | null;
+  failed_reason: string | null;
+};
+
+async function loadOrder(database: D1Database, rawOrderKey: string) {
+  let orderKey = rawOrderKey.trim();
+  try {
+    orderKey = decodeURIComponent(orderKey).trim();
+  } catch {}
+  const isNumericOnly = /^\d+$/.test(orderKey);
+  const numericId = isNumericOnly ? parseInt(orderKey, 10) : null;
+  const uppercaseKey = orderKey.toUpperCase();
+  const computedIdFromInvoice = uppercaseKey.startsWith("INV-") || uppercaseKey.startsWith("ABN-")
+    ? parseInt(orderKey.slice(4), 10) - 10000
+    : null;
+  const targetId =
+    numericId ??
+    (computedIdFromInvoice && computedIdFromInvoice > 0
+      ? computedIdFromInvoice
+      : null);
+  return (await database
+    .prepare(
+      `
+    SELECT
+      o.id,
+      o.order_number,
+      o.warehouse_id,
+      o.pickup_schedule_id,
+      o.customer_name,
+      o.customer_phone,
+      o.address,
+      o.province,
+      o.city,
+      o.district,
+      o.postal_code,
+      o.destination_area_id,
+      o.total_amount,
+      o.shipping_cost,
+      o.discount_amount,
+      o.cod_service_fee,
+      o.cod_service_fee_vat,
+      o.cod_fee_bearer,
+      o.payment_method,
+      o.payment_status,
+      o.shipping_status,
+      o.confirmed_at,
+      o.courier_code,
+      o.courier_service,
+      o.cnote_no,
+      o.provider_order_id,
+      o.provider_dispatch_error,
+      o.provider_dispatch_claimed_at,
+      o.receiver_rts_score AS receiver_delivery_rate,
+      o.rts_risk_label AS receiver_risk_label,
+      o.receiver_performance_json,
+      o.receiver_performance_checked_at,
+      o.ad_click_ids,
+      o.created_at,
+      w.name AS warehouse_name,
+      w.pickup_address_id,
+      ps.scheduled_at AS pickup_scheduled_at,
+      ps.status AS pickup_status
+    FROM orders o
+    LEFT JOIN warehouses w ON w.id = o.warehouse_id
+    LEFT JOIN pickup_schedules ps ON ps.id = o.pickup_schedule_id
+    WHERE o.order_number = ?
+       OR LOWER(o.order_number) = LOWER(?)
+       OR o.public_status_token = ?
+       OR CAST(o.id AS TEXT) = ?
+       OR (? IS NOT NULL AND o.id = ?)
+    ORDER BY o.id DESC
+    LIMIT 1
+  `,
+    )
+    .bind(orderKey, orderKey, orderKey, orderKey, targetId, targetId ?? -1)
+    .first()) as OrderRow | null;
+}
+
+export const GET: APIRoute = async ({ params, locals }) => {
+  const orderKey = String(params.id || '').trim();
+  if (!orderKey) return jsonError('ID order wajib diisi.', 400);
+
+  const database = getRuntimeEnv(locals)?.OMS_DB;
+  if (!database || typeof database !== 'object') {
+    return jsonError('Database order belum tersedia.', 503);
+  }
+
+  try {
+    const db = database as D1Database;
+    const order = await loadOrder(db, orderKey);
+    if (!order) return jsonError('Order tidak ditemukan.', 404);
+
+    const itemsResult = await db.prepare(`
+      SELECT
+        oi.id,
+        oi.variant_id,
+        oi.quantity,
+        oi.unit_price,
+        pv.title AS variant_title,
+        pv.sku AS variant_sku,
+        p.id AS product_id,
+        p.title AS product_title
+      FROM order_items oi
+      LEFT JOIN product_variants pv ON pv.id = oi.variant_id
+      LEFT JOIN products p ON p.id = pv.product_id
+      WHERE oi.order_id = ?
+      ORDER BY oi.id ASC
+    `).bind(order.id).all();
+
+    const payment = await db.prepare(`
+      SELECT provider_transaction_id, reference_id, channel_code, status,
+        amount, admin_fee, total_amount, expires_at, paid_at, failed_reason
+      FROM payment_transactions
+      WHERE order_id = ?
+      LIMIT 1
+    `).bind(order.id).first<PaymentTransactionRow>();
+
+    const dispatch = getMengantarDispatchEligibility({
+      paymentMethod: order.payment_method,
+      paymentStatus: order.payment_status,
+      shippingStatus: order.shipping_status,
+      providerOrderId: order.provider_order_id,
+      providerDispatchError: order.provider_dispatch_error,
+      providerDispatchClaimedAt: order.provider_dispatch_claimed_at,
+      destinationAreaId: order.destination_area_id,
+      courierCode: order.courier_code,
+      pickupAddressId:
+        order.pickup_address_id ||
+        String(getRuntimeEnv(locals)?.MENGANTAR_PICKUP_ADDRESS_ID || '').trim(),
+    });
+
+    if (!order.receiver_performance_checked_at && order.customer_phone) {
+      scheduleReceiverPerformanceRefresh(db, order.order_number, order.customer_phone, locals);
+    }
+
+    return jsonOk({
+      data: {
+        id: order.id,
+        order_number: order.order_number,
+        warehouse_id: order.warehouse_id,
+        warehouse_name: order.warehouse_name,
+        pickup_schedule_id: order.pickup_schedule_id,
+        pickup_scheduled_at: order.pickup_scheduled_at,
+        pickup_status: order.pickup_status,
+        customer_name: order.customer_name,
+        customer_phone: order.customer_phone,
+        address: order.address,
+        province: order.province,
+        city: order.city,
+        district: order.district,
+        postal_code: order.postal_code,
+        destination_area_id: order.destination_area_id,
+        total_amount: order.total_amount,
+        shipping_cost: order.shipping_cost,
+        discount_amount: order.discount_amount ?? 0,
+        cod_service_fee: order.cod_service_fee,
+        cod_service_fee_vat: order.cod_service_fee_vat,
+        cod_fee_bearer: order.cod_fee_bearer === 'seller' ? 'seller' : 'buyer',
+        payment_method: order.payment_method,
+        payment_status: order.payment_status,
+        shipping_status: order.shipping_status,
+        confirmed_at: order.confirmed_at,
+        courier_code: order.courier_code,
+        courier_service: order.courier_service,
+        cnote_no: order.cnote_no,
+        provider_order_id: order.provider_order_id,
+        provider_dispatch_error: order.provider_dispatch_error,
+        dispatchEligible: dispatch.eligible,
+        dispatchReason: dispatch.reason,
+        receiver_delivery_rate: order.receiver_delivery_rate,
+        receiver_risk_label: order.receiver_risk_label,
+        receiver_performance: (() => {
+          if (!order.receiver_performance_json) return null;
+          try { return JSON.parse(order.receiver_performance_json) as unknown; } catch { return null; }
+        })(),
+        receiver_performance_checked_at: order.receiver_performance_checked_at,
+        ad_click_ids: order.ad_click_ids,
+        created_at: order.created_at,
+        payment: payment ? {
+          reference_id: payment.reference_id,
+          channel_code: payment.channel_code,
+          status: payment.status,
+          amount: payment.amount,
+          admin_fee: payment.admin_fee,
+          total_amount: payment.total_amount,
+          expires_at: payment.expires_at,
+          paid_at: payment.paid_at,
+          failed_reason: payment.failed_reason,
+        } : null,
+        items: ((itemsResult.results ?? []) as OrderItemRow[]).map((item) => ({
+          id: item.id,
+          variant_id: item.variant_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          variant_title: item.variant_title,
+          variant_sku: item.variant_sku,
+          product_id: item.product_id,
+          product_title: item.product_title,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('admin-order-detail-get', error);
+    return jsonError('Gagal mengambil data order.', 500);
+  }
+};
+
+export const PATCH: APIRoute = async ({ params, request, locals }) => {
+  const orderKey = String(params.id || '').trim();
+  if (!orderKey) return jsonError('ID order wajib diisi.', 400);
+
+  const database = getRuntimeEnv(locals)?.OMS_DB;
+  if (!database || typeof database !== 'object') {
+    return jsonError('Database order belum tersedia.', 503);
+  }
+
+  const body = (await request.json().catch(() => null)) as OrderUpdatePayload | null;
+  if (!body) return jsonError('Payload tidak valid.', 400);
+
+  try {
+    const db = database as D1Database;
+    const current = await loadOrder(db, orderKey);
+    if (!current) return jsonError('Order tidak ditemukan.', 404);
+
+    const action = body.action;
+    if (action === 'refresh-scoring') {
+      const phone = (typeof body.customer_phone === 'string' ? normalizePhoneNumber(body.customer_phone).slice(0, 40) : undefined) ?? current.customer_phone;
+      const performance: ReceiverPerformance = await getReceiverPerformance(db, phone, locals);
+      await db
+        .prepare(
+          `UPDATE orders
+           SET receiver_rts_score = ?,
+               rts_risk_label = ?,
+               receiver_performance_json = ?,
+               receiver_performance_checked_at = ?
+           WHERE id = ?`,
+        )
+        .bind(
+          performance.deliveryRate == null ? null : Math.round(performance.deliveryRate),
+          performance.riskLevel,
+          JSON.stringify(performance),
+          performance.checkedAt,
+          current.id,
+        )
+        .run();
+      const updated = await loadOrder(db, String(current.id));
+      if (!updated) return jsonError('Order tidak ditemukan.', 404);
+      const updatedDispatch = getMengantarDispatchEligibility({
+        paymentMethod: updated.payment_method,
+        paymentStatus: updated.payment_status,
+        shippingStatus: updated.shipping_status,
+        providerOrderId: updated.provider_order_id,
+        providerDispatchError: updated.provider_dispatch_error,
+        providerDispatchClaimedAt: updated.provider_dispatch_claimed_at,
+        destinationAreaId: updated.destination_area_id,
+        courierCode: updated.courier_code,
+        pickupAddressId:
+          updated.pickup_address_id ||
+          String(getRuntimeEnv(locals)?.MENGANTAR_PICKUP_ADDRESS_ID || '').trim(),
+      });
+      return jsonOk({
+        message: `Risiko RTS penerima ${phone} berhasil diperbarui dari Mengantar (${performance.riskLevel}).`,
+        data: {
+          id: updated.id,
+          order_number: updated.order_number,
+          customer_name: updated.customer_name,
+          customer_phone: updated.customer_phone,
+          receiver_delivery_rate: updated.receiver_delivery_rate,
+          receiver_risk_label: updated.receiver_risk_label,
+          receiver_performance: (() => {
+            if (!updated.receiver_performance_json) return null;
+            try { return JSON.parse(updated.receiver_performance_json) as unknown; } catch { return null; }
+          })(),
+          receiver_performance_checked_at: updated.receiver_performance_checked_at,
+          dispatchEligible: updatedDispatch.eligible,
+          dispatchReason: updatedDispatch.reason,
+        },
+      });
+    }
+
+    const nextPaymentStatus = typeof body.payment_status === 'string' ? body.payment_status.trim().toLowerCase() : undefined;
+    const nextShippingStatus = typeof body.shipping_status === 'string' ? body.shipping_status.trim().toLowerCase() : undefined;
+    const nextCourierCode = typeof body.courier_code === 'string' ? body.courier_code.trim().slice(0, 50) : undefined;
+    const nextCourierService = typeof body.courier_service === 'string' ? body.courier_service.trim().slice(0, 120) : undefined;
+    const nextCnoteNo = typeof body.cnote_no === 'string' ? body.cnote_no.trim().slice(0, 120) : undefined;
+    const nextCustomerName = typeof body.customer_name === 'string' ? body.customer_name.trim().slice(0, 100) : undefined;
+    const nextCustomerPhone = typeof body.customer_phone === 'string' ? normalizePhoneNumber(body.customer_phone).slice(0, 40) : undefined;
+    const nextAddress = typeof body.address === 'string' ? body.address.trim().slice(0, 500) : undefined;
+    const nextDistrict = typeof body.district === 'string' ? body.district.trim().slice(0, 120) : undefined;
+    const nextCity = typeof body.city === 'string' ? body.city.trim().slice(0, 120) : undefined;
+    const nextProvince = typeof body.province === 'string' ? body.province.trim().slice(0, 120) : undefined;
+    const nextPostalCode = typeof body.postal_code === 'string' ? body.postal_code.trim().slice(0, 10) : undefined;
+    const nextDestinationAreaId = typeof body.destination_area_id === 'string' ? body.destination_area_id.trim().slice(0, 120) : undefined;
+    const nextCourierServiceId = Number(body.courier_service_id);
+    const hasCustomerChanges = [
+      nextCustomerName,
+      nextCustomerPhone,
+      nextAddress,
+      nextDistrict,
+      nextCity,
+      nextProvince,
+      nextPostalCode,
+      nextDestinationAreaId,
+    ].some((value) => value !== undefined);
+    const hasShippingSelection =
+      nextCourierCode !== undefined ||
+      (body.courier_service_id !== undefined &&
+        !isNaN(Number(body.courier_service_id)) &&
+        Number(body.courier_service_id) > 0);
+
+    if (
+      !action &&
+      nextPaymentStatus === undefined &&
+      nextShippingStatus === undefined &&
+      nextCourierCode === undefined &&
+      nextCourierService === undefined &&
+      nextCnoteNo === undefined &&
+      !hasCustomerChanges
+    ) {
+      return jsonError('Tidak ada perubahan yang dikirim.', 400);
+    }
+    if (nextPaymentStatus !== undefined && !PAYMENT_STATUSES.includes(nextPaymentStatus as (typeof PAYMENT_STATUSES)[number])) {
+      return jsonError('Status pembayaran tidak valid.', 400);
+    }
+    if (nextShippingStatus !== undefined && !SHIPPING_STATUSES.includes(nextShippingStatus as (typeof SHIPPING_STATUSES)[number])) {
+      return jsonError('Status pengiriman tidak valid.', 400);
+    }
+    if (nextPaymentStatus === 'paid' && current.payment_method !== 'cod') {
+      return jsonError('Pembayaran online hanya boleh ditandai paid oleh rekonsiliasi AutoLaris.', 409);
+    }
+    if (nextShippingStatus === 'processing' && current.shipping_status === 'pending') {
+      return jsonError('Gunakan aksi Push/Arrange Shipping ke Mengantar.', 409);
+    }
+    if (nextShippingStatus === 'pending' && current.shipping_status !== 'pending') {
+      return jsonError('Order yang sudah masuk pengiriman tidak dapat dikembalikan ke status menunggu.', 409);
+    }
+    if (current.provider_order_id && (hasCustomerChanges || hasShippingSelection)) {
+      return jsonError('Data tujuan tidak dapat diubah setelah shipment Mengantar dibuat.', 409);
+    }
+    if (nextCnoteNo !== undefined && (nextCnoteNo || null) !== current.cnote_no) {
+      return jsonError('Nomor resi hanya dapat diisi dari respons Mengantar.', 409);
+    }
+    if (nextCustomerName !== undefined && nextCustomerName.length < 2) {
+      return jsonError('Nama minimal 2 karakter.', 422);
+    }
+    if (nextCustomerPhone !== undefined && !/^(08|628)\d{8,11}$/.test(nextCustomerPhone)) {
+      return jsonError('Nomor HP harus berisi 10-13 digit (contoh: 081234567890).', 422);
+    }
+    if (nextAddress !== undefined && nextAddress.length < 10) {
+      return jsonError('Alamat lengkap minimal 10 karakter.', 422);
+    }
+    for (const [label, value] of [
+      ['Kecamatan', nextDistrict],
+      ['Kota/kabupaten', nextCity],
+      ['Provinsi', nextProvince],
+    ] as const) {
+      if (value !== undefined && value.length < 2) {
+        return jsonError(`${label} harus diisi.`, 422);
+      }
+    }
+    if (nextPostalCode !== undefined && nextPostalCode && !/^\d{5}$/.test(nextPostalCode)) {
+      return jsonError('Kode pos harus 5 digit.', 422);
+    }
+
+    const assignments: string[] = [];
+    const values: Array<string | number | null> = [];
+    const addAssignment = (column: string, value: string | number | null) => {
+      assignments.push(`${column} = ?`);
+      values.push(value);
+    };
+    if (nextCustomerName !== undefined) addAssignment('customer_name', nextCustomerName);
+    if (nextCustomerPhone !== undefined) addAssignment('customer_phone', nextCustomerPhone);
+    if (nextAddress !== undefined) addAssignment('address', nextAddress);
+    if (nextDistrict !== undefined) addAssignment('district', nextDistrict);
+    if (nextCity !== undefined) addAssignment('city', nextCity);
+    if (nextProvince !== undefined) addAssignment('province', nextProvince);
+    if (nextPostalCode !== undefined) addAssignment('postal_code', nextPostalCode || null);
+    if (nextDestinationAreaId !== undefined) addAssignment('destination_area_id', nextDestinationAreaId || null);
+    let resolvedCourierCode = nextCourierCode !== undefined ? nextCourierCode || null : current.courier_code;
+    let resolvedCourierService = nextCourierService !== undefined ? nextCourierService || null : current.courier_service;
+    let resolvedDestinationAreaId = nextDestinationAreaId !== undefined ? nextDestinationAreaId || null : current.destination_area_id;
+    let resolvedWarehouseId = current.warehouse_id;
+    let resolvedShippingCost = current.shipping_cost;
+    let resolvedTotalAmount = current.total_amount;
+
+    if (hasShippingSelection) {
+      if (current.payment_method !== 'cod') {
+        return jsonError('Kurir order pembayaran online tidak dapat diubah setelah invoice dibuat.', 409);
+      }
+      if (current.shipping_status !== 'pending') {
+        return jsonError('Kurir hanya dapat diubah sebelum shipment Mengantar dibuat.', 409);
+      }
+      if (
+        !resolvedDestinationAreaId ||
+        !resolvedCourierCode ||
+        !Number.isInteger(nextCourierServiceId) ||
+        nextCourierServiceId < 1
+      ) {
+        return jsonError('Kecamatan, kurir, dan layanan pengiriman wajib dipilih.', 422);
+      }
+      const item = await db.prepare(`
+        SELECT variant_id, quantity
+        FROM order_items
+        WHERE order_id = ?
+        ORDER BY id
+        LIMIT 1
+      `).bind(current.id).first<{ variant_id: number; quantity: number }>();
+      if (!item) return jsonError('Item order tidak ditemukan.', 409);
+      const quote = await resolveEligibleShippingRates(db, locals, {
+        destinationId: resolvedDestinationAreaId,
+        paymentMethod: current.payment_method,
+        variantKey: String(item.variant_id),
+        quantity: Number(item.quantity),
+      });
+      const selectedRate = selectQuotedRate(
+        quote.rates,
+        resolvedCourierCode,
+        nextCourierServiceId,
+      );
+      if (!selectedRate) {
+        return jsonError('Pilihan kurir sudah tidak tersedia. Muat ulang ongkir.', 409);
+      }
+      const totals = await db.prepare(`
+        SELECT COALESCE(SUM(quantity * unit_price), 0) AS item_total
+        FROM order_items
+        WHERE order_id = ?
+      `).bind(current.id).first<{ item_total: number }>();
+      resolvedCourierCode = selectedRate.courier_code;
+      resolvedCourierService = selectedRate.courier_service;
+      resolvedWarehouseId = quote.warehouse?.id || null;
+      resolvedShippingCost = Number(selectedRate.price) + Number(selectedRate.cod_fee || 0);
+      const orderAmount = Math.max(
+        0,
+        Number(totals?.item_total || 0) -
+          Number(current.discount_amount || 0) +
+          resolvedShippingCost,
+      );
+      const codFee = calculateCodFeeBreakdown(orderAmount);
+      resolvedTotalAmount = calculateCodCustomerTotal(
+        orderAmount,
+        current.cod_fee_bearer === 'seller' ? 'seller' : 'buyer',
+      );
+      addAssignment('destination_area_id', resolvedDestinationAreaId);
+      addAssignment('courier_code', resolvedCourierCode);
+      addAssignment('courier_service', resolvedCourierService);
+      addAssignment('warehouse_id', resolvedWarehouseId);
+      addAssignment('shipping_cost', resolvedShippingCost);
+      addAssignment('cod_service_fee', codFee.serviceFee);
+      addAssignment('cod_service_fee_vat', codFee.vat);
+      addAssignment('total_amount', resolvedTotalAmount);
+    } else {
+      if (nextCourierCode !== undefined) addAssignment('courier_code', resolvedCourierCode);
+      if (nextCourierService !== undefined) addAssignment('courier_service', resolvedCourierService);
+      if (nextDestinationAreaId !== undefined) addAssignment('destination_area_id', resolvedDestinationAreaId);
+    }
+
+    const resolvedPaymentStatus = nextPaymentStatus ?? current.payment_status;
+    const resolvedShippingStatus = nextShippingStatus ?? current.shipping_status;
+    const resolvedCnoteNo = nextCnoteNo !== undefined ? nextCnoteNo || null : current.cnote_no;
+
+    if (action === 'dispatch-order') {
+      const resolvedCustomerName = nextCustomerName ?? current.customer_name;
+      const resolvedCustomerPhone = nextCustomerPhone ?? current.customer_phone;
+      const resolvedAddress = nextAddress ?? current.address;
+      const resolvedDistrict = nextDistrict ?? current.district;
+      const resolvedCity = nextCity ?? current.city;
+      const resolvedProvince = nextProvince ?? current.province;
+      if (current.provider_order_id) {
+        return jsonError('Shipment Mengantar untuk order ini sudah dibuat.', 409);
+      }
+    if (nextCustomerPhone && nextCustomerPhone !== current.customer_phone) {
+      scheduleReceiverPerformanceRefresh(db, current.order_number, nextCustomerPhone, locals);
+    }
+      if (current.shipping_status !== 'pending') {
+        return jsonError('Hanya order menunggu yang dapat disiapkan untuk dispatch.', 409);
+      }
+      if (current.payment_method !== 'cod' && !PAID_STATUSES.has(resolvedPaymentStatus)) {
+        return jsonError('Pembayaran online belum lunas.', 409);
+      }
+      if (
+        resolvedCustomerName.length < 2 ||
+        !/^(08|628)\d{8,11}$/.test(resolvedCustomerPhone) ||
+        resolvedAddress.length < 10 ||
+        resolvedDistrict.length < 2 ||
+        resolvedCity.length < 2 ||
+        resolvedProvince.length < 2 ||
+        !resolvedDestinationAreaId ||
+        !resolvedCourierCode ||
+        !resolvedCourierService ||
+        !resolvedWarehouseId
+      ) {
+        return jsonError('Lengkapi data pembeli, alamat, kecamatan, dan ekspedisi sebelum push.', 422);
+      }
+      // The order stays pending until Mengantar accepts the shipment.
+    } else {
+      if (nextPaymentStatus !== undefined) addAssignment('payment_status', resolvedPaymentStatus);
+      if (nextShippingStatus !== undefined) addAssignment('shipping_status', resolvedShippingStatus);
+    }
+
+
+    const finalShippingStatus = resolvedShippingStatus;
+    if (SHIPPED_LIKE_STATUSES.has(finalShippingStatus) && (!resolvedCourierCode || !resolvedCnoteNo)) {
+      return jsonError('Order yang sudah dikirim harus memiliki kurir dan nomor resi.', 400);
+    }
+    if (finalShippingStatus === 'delivered' && current.payment_method !== 'cod' && !PAID_STATUSES.has(resolvedPaymentStatus)) {
+      return jsonError('Order non-COD tidak boleh diselesaikan sebelum berstatus paid.', 409);
+    }
+    if (assignments.length === 0 && action !== 'dispatch-order') {
+      return jsonError('Tidak ada perubahan yang dikirim.', 400);
+    }
+
+    if (assignments.length > 0) {
+      const result = await db.prepare(`
+        UPDATE orders
+        SET ${assignments.join(', ')}
+        WHERE id = ?
+      `).bind(...values, current.id).run();
+      if (!result.meta?.changes) {
+        return jsonError('Order tidak ditemukan.', 404);
+      }
+    }
+
+    if (releasesReservedStock(resolvedPaymentStatus, finalShippingStatus)) {
+      await restoreReservedStock(db, current.id);
+    }
+
+    let dispatchOutcome: Awaited<ReturnType<typeof dispatchOrderToMengantar>> | undefined;
+    if (action === 'dispatch-order') {
+      dispatchOutcome = await dispatchOrderToMengantar(db, locals, current.id);
+      if (!['dispatched', 'unpaid', 'already_dispatched'].includes(dispatchOutcome.status)) {
+        return jsonError(
+          dispatchOutcome.error || 'Mengantar belum menerima shipment.',
+          dispatchOutcome.status === 'failed' ? 502 : 409,
+          { data: dispatchOutcome },
+        );
+      }
+    }
+
+    const updated = await loadOrder(db, String(current.id));
+    if (!updated) throw new Error('Updated order could not be reloaded');
+    return jsonOk({
+      message: action === 'dispatch-order'
+        ? dispatchOutcome?.status === 'unpaid'
+          ? `Draft shipment ${updated.order_number} diterima Mengantar dan menunggu top up wallet`
+          : `Shipment ${updated.order_number} berhasil dibuat di Mengantar`
+        : `Order ${updated.order_number} berhasil diperbarui`,
+      data: {
+        id: updated.id,
+        order_number: updated.order_number,
+        customer_name: updated.customer_name,
+        customer_phone: updated.customer_phone,
+        address: updated.address,
+        district: updated.district,
+        city: updated.city,
+        province: updated.province,
+        postal_code: updated.postal_code,
+        destination_area_id: updated.destination_area_id,
+        warehouse_id: updated.warehouse_id,
+        warehouse_name: updated.warehouse_name,
+        total_amount: updated.total_amount,
+        shipping_cost: updated.shipping_cost,
+        payment_status: updated.payment_status,
+        shipping_status: updated.shipping_status,
+        confirmed_at: updated.confirmed_at,
+        courier_code: updated.courier_code,
+        courier_service: updated.courier_service,
+        cnote_no: updated.cnote_no,
+        provider_order_id: updated.provider_order_id,
+        provider_dispatch_error: updated.provider_dispatch_error,
+      },
+    });
+  } catch (error) {
+    if (error instanceof ShippingQuoteError) {
+      return jsonError(error.message, error.status);
+    }
+    console.error('admin-order-detail-patch', error);
+    return jsonError('Gagal memperbarui order.', 500);
+  }
+};
+export const DELETE: APIRoute = async ({ params, locals }) => {
+  if (!locals.admin) return jsonError('Unauthorized', 401);
+  const orderKey = params.id?.trim();
+  if (!orderKey) return jsonError('Order ID missing', 400);
+
+  const database = getRuntimeEnv(locals)?.OMS_DB;
+  if (!database || typeof database !== 'object') {
+    return jsonError('Database order belum tersedia.', 503);
+  }
+
+  try {
+    const db = database as D1Database;
+    const order = await loadOrder(db, orderKey);
+    if (!order) return jsonError('Order tidak ditemukan', 404);
+
+    await db.batch([
+      db.prepare('DELETE FROM order_items WHERE order_id = ?').bind(order.id),
+      db.prepare('DELETE FROM payment_transactions WHERE order_id = ? OR reference_id = ?').bind(order.id, order.order_number),
+      db.prepare('DELETE FROM orders WHERE id = ?').bind(order.id),
+    ]);
+
+    return jsonOk({ success: true, message: `Pesanan ${order.order_number} berhasil dihapus`, deleted_id: order.id });
+  } catch (error) {
+    console.error('DELETE admin/orders/[id] error:', error);
+    return jsonError('Gagal menghapus pesanan.', 500);
+  }
+};

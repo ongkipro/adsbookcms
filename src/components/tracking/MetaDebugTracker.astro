@@ -1,0 +1,49 @@
+<script is:inline>
+  (() => {
+    if (typeof window === 'undefined') return;
+    if (String(localStorage.getItem('meta_debug') || '') !== '1') return;
+
+    const wrap = () => {
+      const w = window;
+      if (w.__metaDebugWrapped) return;
+      w.__metaDebugWrapped = true;
+
+      const originalFbq = w.fbq;
+      if (typeof originalFbq === 'function') {
+        w.fbq = function (...args) {
+          try {
+            console.log('[META_DEBUG][fbq]', ...args);
+          } catch {}
+          return originalFbq.apply(this, args);
+        };
+      }
+
+      const originalFetch = w.fetch.bind(w);
+      w.fetch = async (...args) => {
+        try {
+          const [input, init] = args;
+          const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
+          if (url.includes('/api/meta-event') && init?.body) {
+            console.log('[META_DEBUG][capi]', JSON.parse(String(init.body)));
+          }
+        } catch {}
+        return originalFetch(...args);
+      };
+
+      w.dataLayer = w.dataLayer || [];
+      const originalPush = w.dataLayer.push.bind(w.dataLayer);
+      w.dataLayer.push = function (...items) {
+        try {
+          items.forEach((item) => console.log('[META_DEBUG][gtm]', item));
+        } catch {}
+        return originalPush(...items);
+      };
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', wrap, { once: true });
+    } else {
+      wrap();
+    }
+  })();
+</script>

@@ -1,0 +1,47 @@
+---
+import { cn } from '../../lib/cn';
+
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  items: BreadcrumbItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<nav aria-label="Breadcrumb" class="border-b border-[#E5E5E5] bg-[#F8F7F4] px-4 py-2">
+  <div
+    class={cn(
+      'mx-auto flex min-w-0 items-center gap-1.5 overflow-hidden text-[11px] text-[#555555]',
+      Astro.locals.tenant.storefrontTemplate === 'wide-catalog' ? 'max-w-6xl lg:px-6' : 'max-w-[480px]',
+    )}
+  >
+    {
+      items.map((item, index) => {
+        const isLast = index === items.length - 1;
+
+        return (
+          <>
+            {index > 0 && <span class="shrink-0 text-[#A3A09A]">/</span>}
+            {item.href ? (
+              <a href={item.href} class="shrink-0 transition-colors hover:text-[#C5A880]">
+                {item.label}
+              </a>
+            ) : (
+              <span
+                class="min-w-0 max-w-[58%] truncate font-medium text-[#111111] sm:max-w-[65%]"
+                aria-current={isLast ? 'page' : undefined}
+              >
+                {item.label}
+              </span>
+            )}
+          </>
+        );
+      })
+    }
+  </div>
+</nav>

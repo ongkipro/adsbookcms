@@ -1,0 +1,229 @@
+import { z } from "zod";
+import type { Product } from "../data/products";
+import type { CatalogProductRow } from "./catalog-data";
+
+const shortText = z.string().trim().min(1).max(160);
+const bodyText = z.string().trim().min(1).max(1_200);
+const asset = z.string().trim().min(1).max(500);
+const textList = z.array(shortText).min(1).max(12);
+
+const sectionHeadingSchema = z
+  .object({
+    eyebrow: shortText,
+    title: shortText,
+    description: bodyText,
+  })
+  .strict();
+
+export const homeContentSchema = z
+  .object({
+    hero: z
+      .object({
+        title: shortText,
+        description: bodyText,
+        ratingLabel: shortText,
+      })
+      .strict(),
+    catalog: sectionHeadingSchema,
+    solutionsHeading: sectionHeadingSchema,
+    proofsHeading: sectionHeadingSchema,
+    heroHighlights: z
+      .array(z.object({ label: shortText, icon: shortText }).strict())
+      .min(1)
+      .max(8),
+    heroSlides: z
+      .array(
+        z
+          .object({
+            image: asset,
+            alt: shortText,
+            badge: shortText,
+            text: bodyText,
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(10),
+    solutions: z
+      .array(
+        z
+          .object({
+            title: shortText,
+            excerpt: bodyText,
+            image: asset,
+            href: asset.optional(),
+            crop: shortText.optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(12),
+    proofs: z
+      .array(
+        z
+          .object({
+            name: shortText,
+            location: shortText,
+            story: bodyText,
+            image: asset,
+          })
+          .strict(),
+      )
+      .max(12),
+  })
+  .strict();
+
+const reviewSchema = z
+  .object({
+    name: shortText,
+    location: shortText,
+    avatar: asset,
+    verified: z.boolean(),
+    date: shortText,
+    comment: bodyText,
+    rating: z.number().int().min(1).max(5),
+  })
+  .strict();
+
+export const productContentSchema = z
+  .object({
+    contentName: shortText,
+    headline: shortText,
+    subheadline: bodyText,
+    seoTitle: shortText,
+    seoDescription: z.string().trim().min(1).max(320),
+    image: asset,
+    heroImage: asset,
+    tag: shortText,
+    relatedCategories: textList,
+    relatedTags: z.array(shortText).max(20).optional(),
+    description: bodyText,
+    benefits: textList,
+    keyPoints: textList,
+    idealFor: textList,
+    offerText: shortText,
+    ctaText: shortText,
+    ratingValue: z.number().min(0).max(5).optional(),
+    reviewCount: z.number().int().min(0).optional(),
+    soldCount: z.number().int().min(0).optional(),
+    reviews: z.array(reviewSchema).max(30),
+  })
+  .strict();
+
+export type HomeContent = z.infer<typeof homeContentSchema>;
+export type ProductContent = z.infer<typeof productContentSchema>;
+export type ContentKey =
+  | { key: "home"; type: "home" }
+  | { key: `product:${string}`; type: "product"; productId: string };
+
+export function parseContentKey(value: unknown): ContentKey {
+  if (value === "home") return { key: "home", type: "home" };
+  if (typeof value !== "string" || !/^product:[1-9]\d{0,9}$/.test(value)) {
+    throw new Error("Content key must be home or product:<D1ProductId>.");
+  }
+  return {
+    key: value as `product:${string}`,
+    type: "product",
+    productId: value.slice("product:".length),
+  };
+}
+
+function containsMarkup(value: unknown): boolean {
+  if (typeof value === "string") return /<\/?[a-z][^>]*>/i.test(value);
+  if (Array.isArray(value)) return value.some(containsMarkup);
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).some(containsMarkup);
+  }
+  return false;
+}
+
+export function validateContent(
+  keyValue: unknown,
+  value: unknown,
+): HomeContent | ProductContent {
+  const key = parseContentKey(keyValue);
+  const serialized = JSON.stringify(value);
+  if (!serialized || serialized.length > 65_536)
+    throw new Error("Content JSON exceeds 64 KiB.");
+  if (containsMarkup(value))
+    throw new Error("Raw HTML is not allowed in storefront content.");
+  return key.type === "home"
+    ? homeContentSchema.parse(value)
+    : productContentSchema.parse(value);
+}
+
+export function parsePublishedContent(
+  keyValue: string,
+  json: string | null | undefined,
+) {
+  if (!json) return null;
+  try {
+    return validateContent(keyValue, JSON.parse(json));
+  } catch (error) {
+    console.error("storefront-content-invalid", keyValue, error);
+    return null;
+  }
+}
+
+export async function loadPublishedHomeContent(database: D1Database) {
+  try {
+    const row = await database
+      .prepare(
+        "SELECT published_json FROM storefront_content WHERE content_key = 'home' LIMIT 1",
+      )
+      .first<{ published_json: string | null }>();
+    return parsePublishedContent(
+      "home",
+      row?.published_json,
+    ) as HomeContent | null;
+  } catch (error) {
+    console.error("storefront-home-content-load", error);
+    return null;
+  }
+}
+
+export async function loadPublishedProductContent(database: D1Database) {
+  const records = new Map<string, ProductContent>();
+  try {
+    const rows = await database
+      .prepare(
+        "SELECT content_key, published_json FROM storefront_content WHERE content_type = 'product' AND published_json IS NOT NULL",
+      )
+      .all<{ content_key: string; published_json: string }>();
+    for (const row of rows.results ?? []) {
+      const key = parseContentKey(row.content_key);
+      if (key.type !== "product") continue;
+      const content = parsePublishedContent(
+        row.content_key,
+        row.published_json,
+      );
+      if (content) records.set(key.productId, content as ProductContent);
+    }
+  } catch (error) {
+    console.error("storefront-product-content-load", error);
+  }
+  return records;
+}
+
+export function mergeRuntimeProductContent(
+  productRows: CatalogProductRow[],
+  runtime: Map<string, ProductContent>,
+): Product[] {
+  return productRows.flatMap((row) => {
+    const productId = String(row.id);
+    const content = runtime.get(productId);
+    if (!content) return [];
+    return [
+      {
+        ...content,
+        price: 0,
+        comparePrice: 0,
+        variants: [],
+        slug: row.slug,
+        productId,
+        productName: row.title,
+        category: row.category || "Umum",
+      },
+    ];
+  });
+}

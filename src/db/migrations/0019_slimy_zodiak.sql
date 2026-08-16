@@ -1,0 +1,1 @@
+ALTER TABLE `stores` ADD `embed_allowed_origins` text;

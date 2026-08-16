@@ -1,0 +1,7 @@
+---
+export const prerender = false;
+// Was a 301 to /landing-page, which has no route and 404s unless a landing
+// page happens to own that exact slug. Point it at the catalog instead so the
+// redirect resolves.
+return Astro.redirect('/produk', 301);
+---

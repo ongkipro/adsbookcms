@@ -1,0 +1,22 @@
+---
+import LandingPageEditor from '../../../components/admin/LandingPageEditor';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+
+export const prerender = false;
+---
+
+<AdminLayout title="Buat Landing Page" activeMenu="products">
+  <div class="space-y-5">
+    <AdminPageHeader
+      eyebrow="Landing Pages"
+      title="Buat Landing Page Baru"
+      description="Rancang dan bangun halaman promosi Anda."
+    >
+      <div slot="actions">
+        <a href="/admin/landing-pages" class="btn-secondary min-h-11 px-4 text-xs">Kembali</a>
+      </div>
+    </AdminPageHeader>
+    <LandingPageEditor client:only="react" />
+  </div>
+</AdminLayout>

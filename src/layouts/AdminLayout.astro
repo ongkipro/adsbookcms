@@ -1,0 +1,100 @@
+---
+import '../styles/global.css';
+import { AdminShell } from '../components/admin/AdminShell.tsx';
+import { ADMIN_ACCENT } from '../components/admin/admin-navigation';
+
+interface Props {
+  title: string;
+  activeMenu: 'dashboard' | 'content' | 'products' | 'orders' | 'shipping' | 'expeditions' | 'scoring' | 'ads' | 'settings' | 'payments' | 'profile';
+}
+
+const { title, activeMenu } = Astro.props;
+const currentPath = (Astro.url.pathname + Astro.url.search).replace(/\/$/, '') || '/';
+const adminRole = Astro.locals.admin?.role ?? 'customer_service';
+
+---
+
+<!DOCTYPE html>
+<html lang={Astro.locals.tenant.locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content={ADMIN_ACCENT} />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={`${title} - ${Astro.locals.tenant.adminName}`} />
+    <meta property="twitter:card" content="summary_large_image" />
+    <title>{title} - {Astro.locals.tenant.adminName}</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/images/logo.svg" />
+  </head>
+  <body
+    class="admin-shell flex h-dvh overflow-hidden bg-[#f6f7f9] text-slate-900 antialiased"
+    style={`--admin-accent:${ADMIN_ACCENT}`}
+  >
+    <a href="#admin-main" class="btn-secondary sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50">Lewati ke konten utama</a>
+
+    <AdminShell
+      client:load
+      title={title}
+      adminName={Astro.locals.tenant.adminName}
+      activeMenu={activeMenu}
+      currentPath={currentPath}
+      siteUrl={Astro.locals.tenant.siteUrl}
+      adminRole={adminRole}
+    >
+      <slot />
+    </AdminShell>
+    <style is:global>
+      /* Admin loading placeholders stay static; only action feedback may spin. */
+      .admin-shell .animate-pulse {
+        animation: none;
+      }
+
+      .admin-shell [data-slot='select-content'] {
+        animation: none !important;
+        transition: none !important;
+      }
+
+      @media (max-width: 1023px) {
+        .admin-shell input,
+        .admin-shell select,
+        .admin-shell textarea {
+          font-size: 1rem !important;
+          line-height: 1.5rem;
+        }
+      }
+
+    </style>
+
+    <!-- Vanilla JS for the admin drawer, global search, and logout enhancement. -->
+    <script>
+      // Delegate submit for dynamically rendered logout forms
+      document.addEventListener('submit', async (event) => {
+        const target = event.target as HTMLFormElement;
+        if (target.hasAttribute('data-logout-form')) {
+          event.preventDefault();
+          const button = target.querySelector<HTMLButtonElement>('button[type="submit"]');
+          if (button) {
+            button.disabled = true;
+            button.textContent = 'Keluar…';
+          }
+          try {
+            const response = await fetch('/api/admin/logout', { method: 'POST', headers: { Accept: 'application/json' } });
+            if (!response.ok) throw new Error('Logout gagal');
+            window.location.assign('/hello');
+          } catch {
+            if (button) {
+              button.disabled = false;
+              button.textContent = 'Coba keluar lagi';
+            }
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

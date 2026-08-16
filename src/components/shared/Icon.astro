@@ -1,0 +1,54 @@
+---
+import lucide from '@iconify-json/lucide/icons.json';
+import { getIconData, iconToSVG, iconToHTML, replaceIDs } from '@iconify/utils';
+
+interface Props {
+  name: string;
+  class?: string;
+  style?: string;
+  title?: string;
+  'aria-hidden'?: string | boolean;
+}
+
+const { name, class: className = '', style, title, 'aria-hidden': ariaHidden = 'true' } = Astro.props;
+
+// Name Alias Mapping to Lucide Icons
+const ICON_MAP: Record<string, string> = {
+  dashboard: 'layout-dashboard',
+  products: 'package',
+  orders: 'shopping-cart',
+  shipping: 'truck',
+  scoring: 'shield-check',
+  couriers: 'navigation',
+  payments: 'credit-card',
+  check: 'check',
+  warning: 'alert-triangle',
+  truck: 'truck',
+  'credit-card': 'credit-card',
+  package: 'package',
+  'shield-check': 'shield-check',
+  sun: 'sun',
+  moon: 'moon',
+};
+
+const rawName = name.includes(':') ? name.split(':')[1] : name;
+const iconName = ICON_MAP[rawName] || rawName || 'package';
+const iconData = getIconData(lucide, iconName) || getIconData(lucide, 'package');
+
+let html = '';
+if (iconData) {
+  const renderData = iconToSVG(iconData, { height: '1em', width: '1em' });
+  html = iconToHTML(replaceIDs(renderData.body), {
+    ...renderData.attributes,
+    class: className,
+    style: style || undefined,
+    role: title ? 'img' : undefined,
+    'aria-hidden': title ? undefined : String(ariaHidden),
+    'aria-label': title || undefined,
+    fill: 'none',
+    stroke: 'currentColor',
+  } as unknown as Record<string, string>);
+}
+---
+
+<Fragment set:html={html} />

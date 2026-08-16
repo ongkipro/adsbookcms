@@ -1,0 +1,61 @@
+---
+import { getStoreAdsConfig } from '../../lib/store-ads';
+
+interface Props {
+  pixelId?: string;
+}
+
+const { pixelId: pixelIdProp } = Astro.props;
+
+let pixelId = pixelIdProp;
+if (pixelId === undefined) {
+  const adsConfig = await getStoreAdsConfig(Astro.locals);
+  pixelId = adsConfig.metaPixelId;
+}
+const shouldRenderPixel = /^\d{5,25}$/.test(String(pixelId || '').trim());
+---
+
+{shouldRenderPixel && (
+  <>
+    <script is:inline define:vars={{ pixelId }}>
+      (() => {
+        if (typeof window === 'undefined') return;
+
+        const createEventId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+        !(function (f, b, e, v, n, t, s) {
+          if (f.fbq) return;
+          n = f.fbq = function () {
+            n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+          };
+          if (!f._fbq) f._fbq = n;
+          n.push = n;
+          n.loaded = true;
+          n.version = '2.0';
+          n.queue = [];
+          t = b.createElement(e);
+          t.async = true;
+          t.src = v;
+          s = b.getElementsByTagName(e)[0];
+          s.parentNode.insertBefore(t, s);
+        })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+
+        window.__META_PIXEL_ID__ = pixelId;
+        window.fbq('init', pixelId);
+
+        const eventId = createEventId('pv');
+        window.__META_PAGEVIEW_EVENT_ID__ = eventId;
+        window.fbq('track', 'PageView', {}, { eventID: eventId });
+      })();
+    </script>
+    <noscript>
+      <img
+        height="1"
+        width="1"
+        style="display:none"
+        src={`https://www.facebook.com/tr?id=${encodeURIComponent(pixelId)}&ev=PageView&noscript=1`}
+        alt=""
+      />
+    </noscript>
+  </>
+)}

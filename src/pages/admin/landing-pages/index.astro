@@ -1,0 +1,18 @@
+---
+import LandingPageCatalog from '../../../components/admin/LandingPageCatalog';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+
+export const prerender = false;
+---
+
+<AdminLayout title="Landing Pages" activeMenu="products">
+  <div class="space-y-5">
+    <AdminPageHeader
+      eyebrow="Growth"
+      title="Landing Pages"
+      description="Builder native landing page untuk marketing dan promosi."
+    />
+    <LandingPageCatalog client:load />
+  </div>
+</AdminLayout>

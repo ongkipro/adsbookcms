@@ -1,0 +1,1 @@
+ALTER TABLE `stores` ADD `payment_fee_bearer` text DEFAULT 'buyer' NOT NULL;

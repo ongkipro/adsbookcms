@@ -1,0 +1,29 @@
+---
+// No @fontsource import here on purpose. global.css declares Inter for `body`; no
+// rule anywhere in the tree ever named Plus Jakarta Sans, so its five weights only
+// ever cost this frame a 25KB render-blocking stylesheet of @font-face rules that
+// matched nothing (unicode-range meant the woff2 were never fetched). See A-32.
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="light" />
+    <title>{title}</title>
+  </head>
+  <body class="bg-white">
+    <div class="mx-auto min-h-screen w-full max-w-[480px] bg-white">
+      <slot />
+    </div>
+  </body>
+</html>

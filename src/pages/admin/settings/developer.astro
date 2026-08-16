@@ -1,0 +1,210 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+import { HeadlessApiManagement } from '../../../components/admin/HeadlessApiManagement';
+export const prerender = false;
+---
+
+<AdminLayout title="Headless API & Developer Settings" activeMenu="settings">
+  <div class="space-y-6">
+    <AdminPageHeader
+      eyebrow="Developer & Headless Integrations"
+      title="Headless API & Domain Allowlist"
+      description="Kelola domain yang diizinkan mengakses REST API v1 dan dokumentasi integrasi frontend kustom."
+      backHref="/admin/settings"
+      backLabel="Pengaturan"
+    />
+
+    <!-- Allowlist Form -->
+    <div id="devLoading" class="h-60 animate-pulse rounded-xl bg-slate-100" role="status" aria-live="polite" aria-busy="true" aria-atomic="true">
+      <span class="sr-only">Memuat pengaturan Headless API.</span>
+    </div>
+    
+    <div id="devError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
+
+    <form id="headlessOriginsForm" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm" novalidate aria-busy="false">
+      <div class="p-5 md:p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-black text-slate-950">Domain Allowlist Headless API</h2>
+            <p class="mt-1 text-xs leading-5 text-slate-500">
+              Daftar domain & subdomain eksternal yang diizinkan mengakses REST API v1. Setiap request tetap wajib membawa API key aktif.
+            </p>
+          </div>
+          <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-600/20">
+            API Key Required
+          </span>
+        </div>
+
+        <label class="mt-5 block" for="headlessAllowedOrigins">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Origin HTTPS & Subdomain Wildcard yang diizinkan</span>
+          <textarea
+            id="headlessAllowedOrigins"
+            rows="5"
+            maxlength="7524"
+            spellcheck="false"
+            aria-describedby="headlessOriginsHelp"
+            placeholder="https://toko.example&#10;https://*.toko.example&#10;http://localhost:3000"
+            class="admin-input-flat min-h-36 resize-y py-3 font-mono text-base md:text-sm"
+          ></textarea>
+        </label>
+        
+        <p id="headlessOriginsHelp" class="mt-2 text-[11px] leading-5 text-slate-500">
+          Satu origin per baris. Format yang didukung:
+          <br />• Exact Domain: <code>https://toko.com</code>
+          <br />• Wildcard Subdomain: <code>https://*.toko.com</code> (mengizinkan seluruh subdomain seperti app.toko.com, checkout.toko.com)
+          <br />• Local Dev: <code>http://localhost:3000</code>, <code>http://127.0.0.1:5173</code>
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p id="headlessOriginsStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">
+          Perubahan belum ada.
+        </p>
+        <button id="saveHeadlessOrigins" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">
+          Simpan domain allowlist
+        </button>
+      </div>
+    </form>
+
+    <HeadlessApiManagement client:load />
+
+    <!-- Headless API Reference Cards -->
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+      <h2 class="text-base font-black text-slate-950">Dokumentasi REST API v1</h2>
+      <p class="mt-1 text-xs leading-5 text-slate-500">
+        Endpoint Headless API terautentikasi yang dapat dipanggil dari frontend kustom menggunakan API key aktif.
+      </p>
+
+      <div class="mt-5 grid gap-3 md:grid-cols-2">
+        <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">GET</span>
+            <code class="font-bold text-slate-900">/api/v1/storefront</code>
+          </div>
+          <p class="mt-1 text-slate-600">Ambil konfigurasi toko, nama merchant, dan info branding.</p>
+        </div>
+
+        <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">GET</span>
+            <code class="font-bold text-slate-900">/api/v1/products</code>
+          </div>
+          <p class="mt-1 text-slate-600">Daftar katalog produk aktif, varian, dan harga.</p>
+        </div>
+
+        <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">GET</span>
+            <code class="font-bold text-slate-900">/api/v1/products/:slug</code>
+          </div>
+          <p class="mt-1 text-slate-600">Detail produk spesifik berdasarkan slug.</p>
+        </div>
+
+        <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="rounded bg-emerald-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">POST</span>
+            <code class="font-bold text-slate-900">/api/v1/checkout</code>
+          </div>
+          <p class="mt-1 text-slate-600">Submit pesanan checkout (COD & Non-COD) dari form kustom.</p>
+        </div>
+
+        <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">GET</span>
+            <code class="font-bold text-slate-900">/api/v1/geo/districts?q=...</code>
+          </div>
+          <p class="mt-1 text-slate-600">Pencarian cepat nama kecamatan/kota pelanggan.</p>
+        </div>
+
+        <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="rounded bg-indigo-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">POST</span>
+            <code class="font-bold text-slate-900">/api/v1/geo/shipping-rates</code>
+          </div>
+          <p class="mt-1 text-slate-600">Kalkulasi otomatis opsi kurir & tarif ongkir ke lokasi tujuan.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loading = document.getElementById('devLoading');
+    const form = document.getElementById('headlessOriginsForm') as HTMLFormElement | null;
+    const origins = document.getElementById('headlessAllowedOrigins') as HTMLTextAreaElement | null;
+    const saveButton = document.getElementById('saveHeadlessOrigins') as HTMLButtonElement | null;
+    const status = document.getElementById('headlessOriginsStatus');
+    let isPending = false;
+
+    const showStatus = (message: string, state: 'idle' | 'success' | 'error') => {
+      if (!status) return;
+      status.setAttribute('role', state === 'error' ? 'alert' : 'status');
+      status.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
+      status.textContent = message;
+      status.className = `min-h-5 text-xs font-bold ${
+        state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'
+      }`;
+    };
+
+    const setPending = (next: boolean) => {
+      isPending = next;
+      if (saveButton) {
+        saveButton.disabled = next;
+        saveButton.textContent = next ? 'Menyimpan…' : 'Simpan domain allowlist';
+      }
+      form?.setAttribute('aria-busy', String(next));
+    };
+
+    fetch('/api/admin/settings', { headers: { Accept: 'application/json' } })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal memuat profil store.');
+        return payload.data.store;
+      })
+      .then((data) => {
+        if (origins) {
+          origins.value = Array.isArray(data.headless_allowed_origins) ? data.headless_allowed_origins.join('\n') : '';
+        }
+        loading?.setAttribute('aria-busy', 'false');
+        loading?.classList.add('hidden');
+        form?.classList.remove('hidden');
+      })
+      .catch((error) => {
+        loading?.setAttribute('aria-busy', 'false');
+        loading?.classList.add('hidden');
+        const box = document.getElementById('devError');
+        if (box) {
+          box.textContent = error instanceof Error ? error.message : 'Gagal memuat profil store.';
+          box.classList.remove('hidden');
+        }
+      });
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (isPending || !form.reportValidity()) return;
+      const list = (origins?.value || '')
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+      setPending(true);
+      showStatus('Menyimpan daftar origin allowlist…', 'idle');
+      try {
+        const response = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'save-headless-origins', headless_allowed_origins: list }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal menyimpan daftar allowlist.');
+        if (origins && Array.isArray(payload.data?.headless_allowed_origins)) {
+          origins.value = payload.data.headless_allowed_origins.join('\n');
+        }
+        showStatus(payload.message || 'Daftar origin allowlist tersimpan.', 'success');
+      } catch (error) {
+        showStatus(error instanceof Error ? error.message : 'Gagal menyimpan daftar allowlist.', 'error');
+      } finally {
+        setPending(false);
+      }
+    });
+  </script>
+</AdminLayout>

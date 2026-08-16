@@ -1,0 +1,43 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { AnalyticsDashboard } from '../../components/admin/AnalyticsDashboard';
+import OperationalHealth from '../../components/admin/OperationalHealth';
+import { getSchemaVersionStatus } from '../../lib/schema-version';
+
+export const prerender = false;
+
+// One SELECT COUNT(*) per isolate, on this page only. A mismatch is shown, not
+// thrown: a schema drift must never take a working store offline.
+const schema = await getSchemaVersionStatus(Astro.locals);
+const schemaNotice = schema.state === 'database-behind'
+  ? `Database toko masih di migrasi ke-${schema.applied}, sedangkan aplikasi ini dibangun untuk ke-${schema.expected}. Jalankan \`wrangler d1 migrations apply OMS_DB --remote\` sebelum memakai fitur baru — query yang belum punya kolomnya akan gagal.`
+  : schema.state === 'database-ahead'
+    ? `Database toko sudah di migrasi ke-${schema.applied}, lebih baru dari aplikasi ini (ke-${schema.expected}). Deploy build terbaru; versi ini kemungkinan tidak mengenal kolom yang sudah ada.`
+    : schema.state === 'unknown'
+      ? 'Versi skema database tidak bisa dibaca (tabel `d1_migrations` tidak ada atau tidak terbaca), jadi kecocokan aplikasi dengan database tidak bisa dipastikan.'
+      : '';
+---
+
+<AdminLayout title="Dashboard" activeMenu="dashboard">
+  <div class="space-y-4 md:space-y-5">
+    <header class="flex flex-col gap-3 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end sm:justify-between sm:pb-5">
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Commerce overview</p>
+        <h2 class="mt-1 text-2xl font-extrabold tracking-[-0.035em] text-slate-950 md:mt-1.5 md:text-3xl">Pusat kendali bisnis</h2>
+        <p class="mt-1 max-w-2xl text-sm leading-5 text-slate-500 md:leading-6">Pantau omset, order, pembayaran, dan risiko pengiriman dalam satu workspace.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-2 sm:flex">
+        <a href="/admin/orders" class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50">Kelola order</a>
+        <a href="/admin/shipping" class="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-slate-800">Buka pengiriman</a>
+      </div>
+    </header>
+    {schemaNotice && (
+      <div role="status" class="flex flex-col gap-1 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
+        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">Peringatan skema database</p>
+        <p class="text-sm leading-5">{schemaNotice}</p>
+      </div>
+    )}
+    <OperationalHealth client:only="react" />
+    <AnalyticsDashboard client:only="react" />
+  </div>
+</AdminLayout>

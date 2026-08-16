@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PageIntro from '../components/shared/PageIntro.astro';
+---
+
+<BaseLayout
+  shell="storefront"
+  title={`Ulasan Pembeli - ${Astro.locals.tenant.name}`}
+  description={`Halaman ulasan pembeli saat ini belum tersedia.`}
+  noindex={true}
+  breadcrumbs={[
+    { name: 'Beranda', url: '/' },
+    { name: 'Ulasan Pembeli', url: '/testimoni' },
+  ]}
+>
+  <main id="konten-utama" class="min-h-screen bg-white text-[#111111]">
+    <PageIntro
+      badge="Informasi"
+      title="Ulasan Belum Tersedia"
+      description="Sistem ulasan pembeli saat ini sedang dalam pengembangan dan belum dapat ditampilkan."
+      breadcrumbs={[{ label: 'Beranda', href: '/' }, { label: 'Ulasan' }]}
+    />
+
+    <div class="mx-auto max-w-[480px] px-5 py-12 text-center">
+      <div class="rounded-xl border border-[#E5E5E5] bg-[#F8F7F4] p-8">
+        <h2 class="text-[15px] font-semibold text-[#111111]">Belum ada ulasan</h2>
+        <p class="mt-2 text-[13px] text-[#555555]">
+          Kami sedang mempersiapkan sistem baru untuk menampilkan ulasan pembeli yang terverifikasi.
+        </p>
+        <div class="mt-6">
+          <a href="/" class="inline-flex w-full items-center justify-center rounded-md bg-[#111111] px-6 py-2.5 text-[12px] font-semibold uppercase tracking-widest text-white transition-colors hover:bg-[#333333] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111111] focus-visible:ring-offset-2">
+            Kembali ke Beranda
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+</BaseLayout>

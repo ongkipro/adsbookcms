@@ -1,0 +1,105 @@
+{
+  // AdsBookCMS — product template.
+  //
+  // This file is a TEMPLATE, not a deployment. One install = one Worker = one
+  // store, so every install fills this in with its own Cloudflare resources and
+  // its own identity. Nothing here should ever point at somebody else's store.
+  //
+  // Setup, in order, is documented in INSTALLATION.md:
+  //   npx wrangler d1 create <store>-d1
+  //   npx wrangler kv namespace create SESSION
+  //   npx wrangler r2 bucket create <store>-assets
+  // then paste the printed ids below.
+  //
+  // Binding NAMES are fixed across every install — OMS_DB, SESSION,
+  // ASSET_BUCKET, AI, ASSETS — because the application resolves them by name.
+  // Only the resource names and ids differ.
+  "$schema": "./node_modules/wrangler/config-schema.json",
+
+  // Globally unique within the Cloudflare account. Placeholder values below are
+  // syntactically valid so tooling runs on a fresh clone — they are NOT a target.
+  "name": "adsbookcms-your-store",
+
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+
+  // Keep false so an install never gets an unreviewed *.workers.dev endpoint.
+  "workers_dev": false,
+
+  "assets": {
+    "binding": "ASSETS"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "SESSION",
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "OMS_DB",
+      "database_name": "adsbookcms-your-store-d1",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "src/db/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ASSET_BUCKET",
+      "bucket_name": "adsbookcms-your-store-assets"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+
+  // Without this, Workers Logs are off and the ~76 labelled console.error
+  // calls in src/ are unqueryable — a failing install cannot be diagnosed
+  // after the fact. See OBSERVABILITY.md.
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  "routes": [
+    {
+      "pattern": "example.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.example.com",
+      "custom_domain": true
+    }
+  ],
+
+  // These are read at BUILD time through import.meta.env, not at runtime, so a
+  // change here only takes effect after `npm run build`. Redeploying an already
+  // built bundle with new vars changes nothing. See ARCHITECTURE.md §5.
+  "vars": {
+    "PUBLIC_SITE_NAME": "Your Store",
+    "PUBLIC_SITE_URL": "https://example.com",
+    "PUBLIC_SITE_DESCRIPTION": "Belum dikonfigurasi.",
+    "PUBLIC_SITE_TAGLINE": "Belum Dikonfigurasi",
+    "PUBLIC_ADMIN_NAME": "AdsBookCMS Admin",
+    "PUBLIC_EMBED_ALLOWED_ORIGINS": "https://example.com",
+
+    // Root-relative or absolute. Replace the placeholder wordmark in
+    // public/images/ with the store's own brand assets.
+    "PUBLIC_SITE_LOGO": "/images/logo.webp",
+
+    // Must match #rrggbb or the code falls back to its own default.
+    "PUBLIC_SITE_THEME_COLOR": "#111111",
+
+    // Drives <html lang> and the Open Graph locale.
+    "PUBLIC_SITE_LOCALE": "id-ID",
+
+    // compact-market | wide-catalog. An unknown value makes every route 500.
+    "PUBLIC_STOREFRONT_TEMPLATE": "compact-market",
+
+    // Provinces excluded from cash on delivery, comma separated, lowercase.
+    // This is the shipped Indonesian default; adjust per store.
+    "PUBLIC_COD_DISABLED_PROVINCES": "papua,papua barat,papua barat daya,papua tengah,papua pegunungan,papua selatan,maluku,maluku utara,nusa tenggara timur,kalimantan utara,sulawesi barat,gorontalo,kepulauan riau,aceh,bengkulu"
+  }
+}

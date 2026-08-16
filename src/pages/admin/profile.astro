@@ -1,0 +1,317 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
+export const prerender = false;
+const mayManageIntegrations = Astro.locals.admin?.role === 'owner'
+  || Astro.locals.admin?.role === 'admin';
+const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Profil Akun';
+---
+
+<AdminLayout title={pageTitle} activeMenu="profile">
+  <div class="mx-auto max-w-5xl space-y-5">
+    <AdminPageHeader
+      eyebrow="Account & security"
+      title={pageTitle}
+      description={mayManageIntegrations
+        ? "Kelola kredensial admin, domain provider, serta API Mengantar dan AutoLaris."
+        : "Kelola username dan password akun Anda."}
+    />
+
+    <div id="profileLoading" class="h-72 animate-pulse rounded-xl bg-slate-100" role="status" aria-live="polite" aria-busy="true">
+      <span class="sr-only">Memuat profil admin.</span>
+    </div>
+    <div id="profileError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
+
+    <form id="profileForm" class="hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-7" novalidate aria-busy="false">
+      <div id="defaultCredentialNotice" class="hidden mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-900" role="alert">
+        Akun masih memakai password default. Ganti password sebelum membuka menu admin lainnya.
+      </div>
+      <fieldset>
+        <legend class="font-black text-slate-950">Kredensial login</legend>
+        <p class="mt-1 text-xs leading-5 text-slate-500">Perubahan akan mengakhiri seluruh sesi admin. Login kembali memakai kredensial baru.</p>
+        <div class="mt-5 grid gap-4 md:grid-cols-2">
+          <label class="block text-xs font-black text-slate-700" for="profileUsername">
+            Username baru
+            <input id="profileUsername" name="username" type="text" required minlength="3" maxlength="64" pattern="[a-z0-9._-]{3,64}" autocomplete="username" class="admin-input-flat mt-2 min-h-11 text-base sm:text-sm" />
+            <span class="mt-1 block text-[11px] font-medium text-slate-500">Huruf kecil, angka, titik, garis bawah, atau tanda hubung.</span>
+          </label>
+          <label class="block text-xs font-black text-slate-700" for="currentPassword">
+            Password saat ini
+            <input id="currentPassword" name="current_password" type="password" required maxlength="1024" autocomplete="current-password" class="admin-input-flat mt-2 min-h-11 text-base sm:text-sm" />
+          </label>
+          <label class="block text-xs font-black text-slate-700" for="newPassword">
+            Password baru
+            <input id="newPassword" name="new_password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" class="admin-input-flat mt-2 min-h-11 text-base sm:text-sm" />
+          </label>
+          <label class="block text-xs font-black text-slate-700" for="confirmPassword">
+            Konfirmasi password baru
+            <input id="confirmPassword" name="confirm_password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" class="admin-input-flat mt-2 min-h-11 text-base sm:text-sm" />
+          </label>
+        </div>
+      </fieldset>
+      <div class="mt-5 flex flex-col-reverse items-stretch gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <p id="profileStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Password baru minimal 8 karakter dan tidak boleh sama dengan username.</p>
+        <button id="saveProfile" type="submit" class="btn-primary min-h-11 px-5 text-xs">Simpan Profil</button>
+      </div>
+    </form>
+
+    {mayManageIntegrations && <>
+    <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+      <p class="text-[10px] font-black uppercase tracking-wider text-blue-700">Kredensial provider</p>
+      <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">Mengantar & AutoLaris</h2>
+      <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+        Ganti API key dan base URL aktif untuk Worker <strong>{Astro.locals.tenant.slug}</strong>. Nilai tersimpan hanya di D1 tenant ini dan menjadi prioritas; environment server tetap menjadi fallback jika API key belum disimpan.
+      </p>
+    </section>
+
+    <div id="integrationsLoading" class="grid gap-4 lg:grid-cols-2" role="status" aria-live="polite" aria-busy="true" aria-atomic="true">
+      <span class="sr-only">Memuat konfigurasi integrasi API.</span>
+      <div class="h-80 animate-pulse rounded-xl bg-slate-100"></div>
+      <div class="h-80 animate-pulse rounded-xl bg-slate-100"></div>
+    </div>
+    <div id="integrationsError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
+
+    <form id="integrationsForm" class="hidden space-y-5" novalidate aria-busy="false">
+      <div class="grid gap-4 lg:grid-cols-2">
+        <fieldset class="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div><legend class="font-black text-slate-950">Mengantar API</legend><p class="mt-1 text-xs text-slate-500">Ongkir, shipment, pickup, tracking, dan receiver history.</p></div>
+            <span id="mengantarSource" class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">Belum aktif</span>
+          </div>
+          <label class="mt-6 block text-xs font-black text-slate-700" for="mengantarKey">API key baru</label>
+          <div class="relative mt-2"><input id="mengantarKey" name="mengantar_api_key" type="password" autocomplete="new-password" class="admin-input-flat min-h-11 pr-24 font-mono text-base sm:text-sm" /><button id="toggleMengantarKey" type="button" class="absolute inset-y-1 right-1 min-w-20 rounded-lg bg-white px-2 text-[11px] font-black text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300" aria-controls="mengantarKey" aria-label="Tampilkan API key Mengantar" aria-pressed="false">Lihat</button></div>
+          <p id="mengantarKeyHint" class="mt-1 text-[11px] text-slate-500">Kosongkan untuk mempertahankan key saat ini.</p>
+          <label class="mt-4 block text-xs font-black text-slate-700" for="mengantarUrl">Base URL</label>
+          <input id="mengantarUrl" name="mengantar_base_url" type="url" required class="admin-input-flat mt-2 min-h-11 font-mono text-base sm:text-sm" />
+        </fieldset>
+
+        <fieldset class="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div><legend class="font-black text-slate-950">AutoLaris API</legend><p class="mt-1 text-xs text-slate-500">Invoice, virtual account, QRIS, DANA, dan status pembayaran.</p></div>
+            <span id="autolarisSource" class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">Belum aktif</span>
+          </div>
+          <label class="mt-6 block text-xs font-black text-slate-700" for="autolarisKey">API key baru</label>
+          <div class="relative mt-2"><input id="autolarisKey" name="autolaris_api_key" type="password" autocomplete="new-password" class="admin-input-flat min-h-11 pr-24 font-mono text-base sm:text-sm" /><button id="toggleAutolarisKey" type="button" class="absolute inset-y-1 right-1 min-w-20 rounded-lg bg-white px-2 text-[11px] font-black text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300" aria-controls="autolarisKey" aria-label="Tampilkan API key AutoLaris" aria-pressed="false">Lihat</button></div>
+          <p id="autolarisKeyHint" class="mt-1 text-[11px] text-slate-500">Kosongkan untuk mempertahankan key saat ini.</p>
+          <label class="mt-4 block text-xs font-black text-slate-700" for="autolarisUrl">Base URL</label>
+          <input id="autolarisUrl" name="autolaris_base_url" type="url" required class="admin-input-flat mt-2 min-h-11 font-mono text-base sm:text-sm" />
+          <p class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-800">Webhook secret tetap dikelola sebagai server secret dan tidak pernah ditampilkan atau disimpan lewat dashboard.</p>
+        </fieldset>
+      </div>
+
+      <div class="flex flex-col-reverse items-stretch gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p id="saveStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">API key kosong tidak akan menghapus credential yang sudah aktif.</p>
+        <button id="saveIntegrations" type="submit" class="btn-primary min-h-11 px-5 text-xs">Simpan Integrasi</button>
+      </div>
+    </form>
+    </>}
+  </div>
+
+  <script>
+    type Credential = { configured: boolean; api_key_masked: string; base_url: string; source: 'dashboard' | 'server' | 'none' };
+    type Credentials = { mengantar: Credential; autolaris: Credential };
+    const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
+    const integrationsLoading = byId('integrationsLoading');
+    let integrationsPending = false;
+    let profilePending = false;
+
+    const profileStatus = (message: string, state: 'idle' | 'success' | 'error') => {
+      const status = byId('profileStatus');
+      if (!status) return;
+      status.setAttribute('role', state === 'error' ? 'alert' : 'status');
+      status.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
+      status.textContent = message;
+      status.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+    };
+
+    const setProfilePending = (next: boolean) => {
+      profilePending = next;
+      const button = byId<HTMLButtonElement>('saveProfile');
+      if (button) {
+        button.disabled = next;
+        button.textContent = next ? 'Menyimpan…' : 'Simpan Profil';
+      }
+      byId<HTMLFormElement>('profileForm')?.setAttribute('aria-busy', String(next));
+    };
+
+    const sourceLabel = (source: Credential['source']) => source === 'dashboard' ? 'Dashboard' : source === 'server' ? 'Fallback server' : 'Belum aktif';
+    const paintSource = (id: string, source: Credential['source']) => {
+      const node = byId<HTMLSpanElement>(id);
+      if (!node) return;
+      node.textContent = sourceLabel(source);
+      node.className = source === 'dashboard'
+        ? 'rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-black text-blue-800'
+        : source === 'server'
+          ? 'rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-black text-sky-800'
+          : 'rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600';
+    };
+
+    const showStatus = (message: string, state: 'idle' | 'success' | 'error') => {
+      const status = byId('saveStatus');
+      if (!status) return;
+      status.setAttribute('role', state === 'error' ? 'alert' : 'status');
+      status.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
+      status.textContent = message;
+      status.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+    };
+
+    const setPending = (next: boolean) => {
+      integrationsPending = next;
+      const button = byId<HTMLButtonElement>('saveIntegrations');
+      if (button) {
+        button.disabled = next;
+        button.textContent = next ? 'Menyimpan…' : 'Simpan Integrasi';
+      }
+      byId<HTMLFormElement>('integrationsForm')?.setAttribute('aria-busy', String(next));
+    };
+
+    const setSecretVisibility = (input: HTMLInputElement | null, button: HTMLButtonElement | null, label: string, visible: boolean) => {
+      if (!input || !button) return;
+      input.type = visible ? 'text' : 'password';
+      button.textContent = visible ? 'Sembunyikan' : 'Lihat';
+      button.setAttribute('aria-label', `${visible ? 'Sembunyikan' : 'Tampilkan'} ${label}`);
+      button.setAttribute('aria-pressed', String(visible));
+    };
+
+    const wireSecretToggle = (inputId: string, buttonId: string, label: string) => {
+      const input = byId<HTMLInputElement>(inputId);
+      const button = byId<HTMLButtonElement>(buttonId);
+      button?.addEventListener('click', () => setSecretVisibility(input, button, label, input?.type === 'password'));
+    };
+
+    const render = (credentials: Credentials) => {
+      const mengantarUrl = byId<HTMLInputElement>('mengantarUrl');
+      const autolarisUrl = byId<HTMLInputElement>('autolarisUrl');
+      const mengantarKey = byId<HTMLInputElement>('mengantarKey');
+      const autolarisKey = byId<HTMLInputElement>('autolarisKey');
+      const mengantarToggle = byId<HTMLButtonElement>('toggleMengantarKey');
+      const autolarisToggle = byId<HTMLButtonElement>('toggleAutolarisKey');
+      if (mengantarUrl) mengantarUrl.value = credentials.mengantar.base_url;
+      if (autolarisUrl) autolarisUrl.value = credentials.autolaris.base_url;
+      if (mengantarKey) { mengantarKey.value = ''; mengantarKey.placeholder = credentials.mengantar.api_key_masked || 'Masukkan API key Mengantar'; }
+      if (autolarisKey) { autolarisKey.value = ''; autolarisKey.placeholder = credentials.autolaris.api_key_masked || 'Masukkan API key AutoLaris'; }
+      setSecretVisibility(mengantarKey, mengantarToggle, 'API key Mengantar', false);
+      setSecretVisibility(autolarisKey, autolarisToggle, 'API key AutoLaris', false);
+      paintSource('mengantarSource', credentials.mengantar.source);
+      paintSource('autolarisSource', credentials.autolaris.source);
+    };
+
+    wireSecretToggle('mengantarKey', 'toggleMengantarKey', 'API key Mengantar');
+    wireSecretToggle('autolarisKey', 'toggleAutolarisKey', 'API key AutoLaris');
+
+    const loadIntegrations = async () => {
+      const response = await fetch('/api/admin/settings', { headers: { Accept: 'application/json' } });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal memuat konfigurasi API.');
+      render(payload.data.credentials);
+      integrationsLoading?.setAttribute('aria-busy', 'false');
+      integrationsLoading?.classList.add('hidden');
+      byId('integrationsForm')?.classList.remove('hidden');
+    };
+
+    const showIntegrationsError = (error: unknown) => {
+      integrationsLoading?.setAttribute('aria-busy', 'false');
+      integrationsLoading?.classList.add('hidden');
+      const node = byId('integrationsError');
+      if (node) {
+        node.textContent = error instanceof Error ? error.message : 'Gagal memuat konfigurasi API.';
+        node.classList.remove('hidden');
+      }
+    };
+
+    const loadProfile = async () => {
+      const response = await fetch('/api/admin/profile', { headers: { Accept: 'application/json' } });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal memuat profil admin.');
+      const username = byId<HTMLInputElement>('profileUsername');
+      if (username) username.value = payload.data.username;
+      byId('defaultCredentialNotice')?.classList.toggle('hidden', !payload.data.must_change_password);
+      byId('profileLoading')?.setAttribute('aria-busy', 'false');
+      byId('profileLoading')?.classList.add('hidden');
+      byId('profileForm')?.classList.remove('hidden');
+      return Boolean(payload.data.must_change_password);
+    };
+
+    loadProfile().then((mustChangePassword) => {
+      if (mustChangePassword) {
+        showIntegrationsError(new Error('Ganti password default terlebih dahulu untuk membuka pengaturan integrasi API.'));
+        return;
+      }
+      if (byId('integrationsForm')) loadIntegrations().catch(showIntegrationsError);
+    }).catch((error) => {
+      byId('profileLoading')?.setAttribute('aria-busy', 'false');
+      byId('profileLoading')?.classList.add('hidden');
+      const node = byId('profileError');
+      if (node) {
+        node.textContent = error instanceof Error ? error.message : 'Gagal memuat profil admin.';
+        node.classList.remove('hidden');
+      }
+      showIntegrationsError(error);
+    });
+
+    byId<HTMLFormElement>('profileForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      if (profilePending || !form.reportValidity()) return;
+      const values = new FormData(form);
+      if (values.get('new_password') !== values.get('confirm_password')) {
+        profileStatus('Konfirmasi password baru tidak sama.', 'error');
+        byId<HTMLInputElement>('confirmPassword')?.focus();
+        return;
+      }
+      setProfilePending(true);
+      profileStatus('Menyimpan profil dan mengakhiri seluruh sesi…', 'idle');
+      try {
+        const response = await fetch('/api/admin/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: values.get('username'),
+            current_password: values.get('current_password'),
+            new_password: values.get('new_password'),
+            confirm_password: values.get('confirm_password'),
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Profil admin gagal disimpan.');
+        profileStatus(payload.message || 'Profil admin tersimpan. Silakan login kembali.', 'success');
+        window.setTimeout(() => window.location.assign('/hello'), 900);
+      } catch (error) {
+        profileStatus(error instanceof Error ? error.message : 'Profil admin gagal disimpan.', 'error');
+        setProfilePending(false);
+      }
+    });
+
+    byId<HTMLFormElement>('integrationsForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
+      if (integrationsPending || !form.reportValidity()) return;
+      setPending(true);
+      showStatus('Menyimpan konfigurasi…', 'idle');
+      const values = new FormData(form);
+      try {
+        const response = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'save-integrations',
+            integrations: {
+              mengantar_api_key: values.get('mengantar_api_key'),
+              mengantar_base_url: values.get('mengantar_base_url'),
+              autolaris_api_key: values.get('autolaris_api_key'),
+              autolaris_base_url: values.get('autolaris_base_url'),
+            },
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Konfigurasi gagal disimpan.');
+        render(payload.data.credentials);
+        showStatus(payload.message || 'Konfigurasi integrasi tersimpan.', 'success');
+      } catch (error) {
+        showStatus(error instanceof Error ? error.message : 'Konfigurasi gagal disimpan.', 'error');
+      } finally {
+        setPending(false);
+      }
+    });
+  </script>
+</AdminLayout>

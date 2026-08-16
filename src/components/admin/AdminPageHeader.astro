@@ -1,0 +1,26 @@
+---
+interface Props {
+  eyebrow: string;
+  title: string;
+  description: string;
+  backHref?: string;
+  backLabel?: string;
+}
+
+const { eyebrow, title, description, backHref, backLabel = 'Kembali' } = Astro.props;
+const hasActions = Astro.slots.has('actions');
+---
+
+<header class="flex flex-col gap-3 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end sm:justify-between sm:pb-5">
+  <div class="min-w-0">
+    {backHref && (
+      <a href={backHref} class="mb-1 -ml-1 inline-flex min-h-11 items-center px-1 text-xs font-bold text-slate-500 transition hover:text-slate-950">
+        <span aria-hidden="true">←</span><span class="ml-1.5">{backLabel}</span>
+      </a>
+    )}
+    <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{eyebrow}</p>
+    <h2 class="mt-1 text-2xl font-extrabold tracking-[-0.035em] text-slate-950 md:mt-1.5 md:text-3xl">{title}</h2>
+    <p class="mt-1 max-w-2xl text-sm leading-5 text-slate-500 md:leading-6">{description}</p>
+  </div>
+  {hasActions && <div class="shrink-0"><slot name="actions" /></div>}
+</header>

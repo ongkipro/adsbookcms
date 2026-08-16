@@ -1,0 +1,100 @@
+---
+import {
+  ProductCatalog,
+  type Product,
+  type ProductVariant,
+} from '../../components/admin/ProductCatalog';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
+import { getRuntimeEnv } from '../../lib/env';
+
+export const prerender = false;
+
+type AdminLocalsWithDatabase = App.Locals & {
+  OMS_DB?: D1Database;
+};
+
+type ProductDatabaseRow = Omit<Product, 'is_active' | 'variants'> & {
+  is_active: number | boolean | null;
+};
+
+type VariantDatabaseRow = ProductVariant & {
+  product_id: number | string;
+};
+
+const localDatabase = (Astro.locals as AdminLocalsWithDatabase).OMS_DB;
+const database =
+  localDatabase ??
+  (getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined);
+let initialProducts: Product[] | undefined;
+
+if (database?.prepare) {
+  try {
+    const [productResult, variantResult] = await database.batch([
+      database.prepare(`
+        SELECT id, title, slug, category, image_url, is_active
+        FROM products
+        ORDER BY created_at DESC, id DESC
+        LIMIT 50
+      `),
+      database.prepare(`
+        SELECT
+          id,
+          product_id,
+          sku,
+          title,
+          price,
+          COALESCE(stock, 0) AS stock
+        FROM product_variants
+        WHERE product_id IN (
+          SELECT id
+          FROM products
+          ORDER BY created_at DESC, id DESC
+          LIMIT 50
+        )
+        ORDER BY product_id ASC, id ASC
+      `),
+    ]);
+    const products = (productResult.results ?? []) as ProductDatabaseRow[];
+    const variants = (variantResult.results ?? []) as VariantDatabaseRow[];
+    const variantsByProduct = new Map<string, ProductVariant[]>();
+
+    for (const { product_id: productId, ...variant } of variants) {
+      const key = String(productId);
+      const productVariants = variantsByProduct.get(key);
+      if (productVariants) {
+        productVariants.push(variant);
+      } else {
+        variantsByProduct.set(key, [variant]);
+      }
+    }
+
+    initialProducts = products.map(
+      (product): Product => ({
+        ...product,
+        category: product.category ?? 'Umum',
+        is_active: Boolean(product.is_active),
+        variants: variantsByProduct.get(String(product.id)) ?? [],
+      }),
+    );
+  } catch (error) {
+    console.error('admin-products-initial-load', error);
+  }
+}
+---
+
+<AdminLayout title="Katalog Produk" activeMenu="products">
+  <div class="space-y-5">
+    <AdminPageHeader
+      eyebrow="Catalog"
+      title="Produk & varian"
+      description="Kelola katalog, harga, stok, dan storefront form dari satu tempat."
+    >
+      <div slot="actions" class="grid grid-cols-2 gap-2 sm:flex">
+        <a href="/admin/ads" class="btn-secondary min-h-11 px-4 text-xs">Audit tracking</a>
+        <a href="/admin/products/new" class="btn-primary min-h-11 px-4 text-xs">Tambah produk</a>
+      </div>
+    </AdminPageHeader>
+    <ProductCatalog initialProducts={initialProducts} client:load />
+  </div>
+</AdminLayout>

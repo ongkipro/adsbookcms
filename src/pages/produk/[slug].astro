@@ -1,0 +1,485 @@
+---
+import Breadcrumb from '../../components/shared/Breadcrumb.astro';
+import MetaViewContentTracker from '../../components/tracking/MetaViewContentTracker.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getStorefrontProduct } from '../../lib/catalog';
+import Icon from '../../components/shared/Icon.astro';
+import RatingStars from '../../components/shared/RatingStars.astro';
+import GeoIpResolvedForm from '../../components/forms/GeoIpResolvedForm.astro';
+import ProductImageSlider from '../../components/storefront/ProductImageSlider';
+import { resolveFormModeContext } from '../../lib/form-mode';
+import '../../styles/form-hybrid.css';
+
+export const prerender = false;
+
+const product = await getStorefrontProduct(Astro.locals, Astro.params.slug || '');
+const formContext = await resolveFormModeContext(Astro.request);
+if (!product) {
+  return Astro.rewrite('/404');
+}
+
+const cheapestVariant = [...product.variants].sort((a, b) => a.price - b.price)[0] ?? null;
+const displayPrice = cheapestVariant?.price ?? product.price;
+const displayComparePrice = cheapestVariant?.comparePrice ?? product.comparePrice ?? 0;
+const displayDiscount =
+  displayComparePrice > displayPrice ? Math.round((1 - displayPrice / displayComparePrice) * 100) : 0;
+
+const ratingValue = product.ratingValue;
+const reviewCount = product.reviewCount;
+const soldCount = product.soldCount;
+const hasAggregateRating =
+  typeof ratingValue === 'number' && typeof reviewCount === 'number' && reviewCount > 0;
+const hasSoldCount = typeof soldCount === 'number' && soldCount > 0;
+const formattedRating = hasAggregateRating ? ratingValue.toFixed(1) : null;
+const soldLabel = hasSoldCount
+  ? soldCount >= 1000
+    ? `${(soldCount / 1000).toFixed(1).replace('.0', '')}rb+ terjual`
+    : `${soldCount} terjual`
+  : null;
+
+const productImages = product.images && product.images.length > 0 ? product.images : [product.heroImage];
+
+const productAccent = '#C5A880';
+const canonical = `${Astro.locals.tenant.siteUrl}/produk/${product.slug}`;
+const productTitle = product.seoTitle;
+const productDescription = product.seoDescription;
+const productSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: product.productName,
+  image: [new URL(product.heroImage, Astro.locals.tenant.siteUrl).toString()],
+  description: product.description,
+  sku: product.productId,
+  brand: {
+    '@type': 'Brand',
+    name: Astro.locals.tenant.name,
+  },
+  offers: {
+    '@type': 'AggregateOffer',
+    priceCurrency: 'IDR',
+    lowPrice: String(displayPrice),
+    highPrice: String(Math.max(...product.variants.map((v) => v.price), displayPrice)),
+    offerCount: String(product.variants.length),
+    offers: product.variants.map((v) => ({
+      '@type': 'Offer',
+      price: String(v.price),
+      priceCurrency: 'IDR',
+      availability: 'https://schema.org/InStock',
+      url: canonical,
+    })),
+  },
+  ...(hasAggregateRating
+    ? {
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: formattedRating,
+          reviewCount: String(reviewCount),
+        },
+      }
+    : {}),
+  ...(product.reviews.length > 0
+    ? {
+        review: product.reviews.map((review) => ({
+          '@type': 'Review',
+          author: {
+            '@type': 'Person',
+            name: review.name,
+          },
+          reviewRating: {
+            '@type': 'Rating',
+            ratingValue: String(review.rating),
+            bestRating: '5',
+          },
+          reviewBody: review.comment,
+        })),
+      }
+    : {}),
+};
+
+const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c');
+---
+
+<BaseLayout
+  title={productTitle}
+  description={productDescription}
+  image={product.heroImage}
+  preloadImages={product.heroImage}
+  canonical={canonical}
+  hideHeader={false}
+  hideFooter={false}
+  contentWidth="compact"
+  product={{
+    name: product.productName,
+    description: product.description,
+    image: product.heroImage,
+    url: canonical,
+    category: product.category,
+    ratingValue: ratingValue,
+    reviewCount: reviewCount,
+    offers: product.variants.map((v) => ({
+      price: v.price,
+      priceCurrency: 'IDR',
+      availability: 'InStock',
+      url: canonical,
+      name: v.label,
+      sku: v.sku || `SKU-${product.productId}-${v.id}`,
+    })),
+  }}
+  breadcrumbs={[
+    { name: 'Beranda', url: '/' },
+    { name: 'Produk', url: '/produk' },
+    { name: product.productName, url: canonical },
+  ]}
+>
+  <MetaViewContentTracker
+    slug={product.slug}
+    productId={product.productId}
+    contentName={product.productName}
+    price={displayPrice}
+  />
+  <script is:inline type="application/ld+json" set:html={productSchemaJson} />
+
+  <main class="mx-auto max-w-[480px] bg-white pb-20">
+    <Breadcrumb
+      items={[
+        { label: 'Katalog', href: '/produk' },
+        { label: product.category, href: '/produk' },
+        { label: product.productName },
+      ]}
+    />
+    <!-- Product Hero Gallery Component -->
+    <div class="border-b border-[#E5E5E5] bg-[#F8F7F4] p-3 sm:p-4">
+      <ProductImageSlider
+        client:load
+        images={productImages}
+        productName={product.productName}
+        badgeText={product.tag || 'Bestseller'}
+        discountPercentage={displayDiscount}
+      />
+    </div>
+
+    <!-- Main Header & Pricing Surface -->
+    <section class="border-b border-[#E5E5E5] bg-white px-5 py-5">
+      <div class="flex items-center justify-between gap-3">
+        <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#8A704F]">
+          {product.category}
+        </span>
+        {
+          displayDiscount > 0 && (
+            <span class="rounded-none bg-[#C5A880] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#111111]">
+              Hemat {displayDiscount}%
+            </span>
+          )
+        }
+      </div>
+
+      <h1 class="mt-2 text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-[#111111]">
+        {product.productName}
+      </h1>
+      <p class="mt-1 text-[13px] leading-relaxed text-[#555555]">
+        {product.subheadline || product.description}
+      </p>
+
+      <!-- Rating & Sold Claims -->
+      <div class="mt-3 flex items-center gap-3 text-[12px] text-[#555555]">
+        {
+          hasAggregateRating && (
+            <>
+              <div class="flex items-center gap-1.5">
+                <RatingStars
+                  rating={ratingValue}
+                  starClass="h-[13px] w-[13px]"
+                  label={`Rating produk ${formattedRating} dari 5 bintang`}
+                />
+                <span class="font-semibold text-[#111111]">{formattedRating}</span>
+              </div>
+              <span>{reviewCount} penilaian</span>
+            </>
+          )
+        }
+        {hasAggregateRating && hasSoldCount && <span class="h-3 w-px bg-[#D8D6D0]" />}
+        {hasSoldCount && <span class="font-medium text-[#8A704F]">{soldLabel}</span>}
+      </div>
+
+      <!-- Pricing Display -->
+      <div class="mt-4 flex items-baseline gap-3 border-t border-[#E5E5E5] pt-4">
+        <span class="text-[24px] font-bold leading-none tracking-tight text-[#111111]">
+          Rp{Math.round(displayPrice).toLocaleString('id-ID')}
+        </span>
+        {
+          displayComparePrice > displayPrice && (
+            <span class="text-[13px] font-medium text-[#77736C] line-through">
+              Rp{Math.round(displayComparePrice).toLocaleString('id-ID')}
+            </span>
+          )
+        }
+      </div>
+    </section>
+
+    <!-- Variant Offer Matrix -->
+    <section class="border-b border-[#E5E5E5] bg-[#F8F7F4] px-5 py-6">
+      <h2 class="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#111111]">
+        Pilihan Varian ({product.variants.length})
+      </h2>
+      <div class="divide-y divide-[#E5E5E5]">
+        {
+          product.variants.map((v) => (
+            <div class="flex items-start justify-between gap-4 py-4">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-start gap-2">
+                  <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C5A880]" aria-hidden="true" />
+                  <div class="min-w-0">
+                    <p class="text-[14px] font-semibold text-[#111111]">{v.label}</p>
+                    <p class="mt-0.5 text-[11px] text-[#555555]">Stok Siap Kirim • COD Available</p>
+                  </div>
+                </div>
+              </div>
+              <div class="shrink-0 text-right">
+                <p class="text-[16px] font-bold leading-none text-[#111111]">
+                  Rp{Math.round(v.price).toLocaleString('id-ID')}
+                </p>
+                {v.comparePrice && (
+                  <p class="mt-1 text-[11px] leading-none text-[#77736C] line-through">
+                    Rp{Math.round(v.comparePrice).toLocaleString('id-ID')}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <!-- Detailed Specifications -->
+    <section class="border-b border-[#E5E5E5] bg-white px-5 py-6">
+      <h2 class="border-b border-[#E5E5E5] pb-3 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#111111]">Informasi Produk</h2>
+      <div class="mt-4 grid gap-5 text-[14px] leading-6 text-[#555555]">
+        <p>{product.description}</p>
+
+        <div class="grid gap-3 border-b border-[#E5E5E5] pb-4">
+          <div class="flex items-start gap-3">
+            <Icon
+              name="lucide:pencil"
+              class="mt-0.5 h-[18px] w-[18px] shrink-0"
+              style={`color: ${productAccent}`}
+              aria-hidden="true"
+            />
+            <div>
+              <p class="font-semibold text-[#111111]">Kategori</p>
+              <p>{product.category}</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <Icon
+              name="lucide:package"
+              class="mt-0.5 h-[18px] w-[18px] shrink-0"
+              style={`color: ${productAccent}`}
+              aria-hidden="true"
+            />
+            <div>
+              <p class="font-semibold text-[#111111]">Fokus Produk</p>
+              <p>{product.tag}</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <Icon
+              name="lucide:sliders-horizontal"
+              class="mt-0.5 h-[18px] w-[18px] shrink-0"
+              style={`color: ${productAccent}`}
+              aria-hidden="true"
+            />
+            <div>
+              <p class="font-semibold text-[#111111]">Ketersediaan</p>
+              <p>Stok tersedia untuk seluruh varian yang ditampilkan.</p>
+            </div>
+          </div>
+        </div>
+
+        {product.benefits && product.benefits.length > 0 && (
+          <div class="grid gap-4 border-b border-[#E5E5E5] pb-4">
+            <div class="flex items-center gap-2">
+              <Icon name="lucide:check" class="h-[17px] w-[17px]" style={`color: ${productAccent}`} aria-hidden="true" />
+              <h3 class="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#111111]">Manfaat Utama</h3>
+            </div>
+            <div class="space-y-3">
+              {
+                product.benefits.map((b) => (
+                  <div class="grid grid-cols-[8px_1fr] gap-3">
+                    <span
+                      class="mt-3 h-px w-2 bg-[#C5A880]"
+                      aria-hidden="true"
+                    />
+                    <span class="min-w-0 leading-6">{b}</span>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
+
+        {product.keyPoints && product.keyPoints.length > 0 && (
+          <div class="grid gap-4 border-b border-[#E5E5E5] pb-4">
+            <div class="flex items-center gap-2">
+              <Icon name="lucide:plus" class="h-[17px] w-[17px]" style={`color: ${productAccent}`} aria-hidden="true" />
+              <h3 class="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#111111]">Poin Penting Produk</h3>
+            </div>
+            <div class="space-y-3">
+              {
+                product.keyPoints.map((point) => (
+                  <div class="grid grid-cols-[8px_1fr] gap-3">
+                    <span
+                      class="mt-3 h-px w-2 bg-[#C5A880]"
+                      aria-hidden="true"
+                    />
+                    <span class="min-w-0 leading-6">{point}</span>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
+
+        {product.idealFor && product.idealFor.length > 0 && (
+          <div>
+            <div class="mb-3 flex items-center gap-2">
+              <Icon
+                name="lucide:download"
+                class="h-[17px] w-[17px]"
+                style={`color: ${productAccent}`}
+                aria-hidden="true"
+              />
+              <h3 class="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#111111]">Ideal Untuk</h3>
+            </div>
+            <div class="flex flex-wrap gap-x-3 gap-y-2">
+              {
+                product.idealFor.map((item) => (
+                  <span class="inline-flex items-center gap-2 text-[12px] font-medium text-[#555555]">
+                    <span
+                      class="h-px w-2 bg-[#C5A880]"
+                      aria-hidden="true"
+                    />
+                    <span>{item}</span>
+                  </span>
+                ))
+              }
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+
+    <!-- Product Reviews -->
+    {
+      (hasAggregateRating || product.reviews.length > 0) && (
+        <section class="border-b border-[#E5E5E5] bg-[#F8F7F4] px-5 py-6">
+          <div class="border-b border-[#E5E5E5] pb-3.5">
+            <div class="flex items-center gap-2">
+              <RatingStars max={1} starClass="h-[17px] w-[17px]" label="Penilaian produk" />
+              <h2 class="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#111111]">Ulasan Produk</h2>
+            </div>
+
+            {hasAggregateRating && (
+              <div class="mt-2.5 flex items-center gap-1.5 border-t border-[#E5E5E5] pt-2.5 text-[12px] font-bold text-[#111111]">
+                <span class="text-[#C5A880]">★ {formattedRating} / 5.0</span>
+                <span class="text-[#555555]">• {reviewCount} ulasan</span>
+              </div>
+            )}
+          </div>
+
+          {product.reviews.length > 0 && (
+            <div class="mt-4 space-y-4">
+              {product.reviews.map((review) => (
+                <div class="border-b border-[#E5E5E5] pb-4 last:border-0 last:pb-0">
+                  <div class="flex items-center gap-3">
+                    <div 
+                      class="flex h-10 w-10 shrink-0 items-center justify-center border border-[#C5A880]/60 bg-[#111111] text-[13px] font-bold uppercase text-[#C5A880]"
+                      style="font-family: 'Cinzel', serif;"
+                    >
+                      {review.name.charAt(0)}
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-1.5">
+                        <p class="text-[12px] font-bold text-[#111111]">{review.name}</p>
+                        {review.verified && (
+                          <span class="inline-flex items-center gap-0.5 border border-[#C5A880]/40 bg-white px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-[#8A704F]">
+                            Terverifikasi
+                          </span>
+                        )}
+                      </div>
+                      <p class="mt-0.5 flex items-center gap-2 text-[11px] text-[#77736C]"><span>{review.location}</span><span class="h-3 w-px bg-[#E5E5E5]" aria-hidden="true" /><span>{review.date}</span></p>
+                    </div>
+                  </div>
+                  <RatingStars rating={review.rating} class="mt-2" starClass="h-2.5 w-2.5" />
+                  <p class="mt-1.5 text-[13px] leading-6 text-[#555555]">"{review.comment}"</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )
+    }
+
+    <!-- Shipping Information Notice Card -->
+    <section class="border-b border-[#E5E5E5] bg-[#F8F7F4] px-5 py-5">
+      <div class="flex items-start gap-3.5 text-[12px] leading-relaxed text-[#555555]">
+        <Icon name="lucide:truck" class="mt-0.5 h-5 w-5 shrink-0" style={`color: ${productAccent}`} aria-hidden="true" />
+        <div>
+          <p class="font-bold uppercase tracking-wider text-[#111111]">Informasi Pengiriman</p>
+          <p class="mt-1 leading-5 text-[#555555]">Biaya pengiriman dihitung otomatis di halaman checkout setelah alamat pengiriman dilengkapi.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Direct Order Form Container -->
+    <section id="form-pemesanan" class="mt-4 scroll-mt-6 overflow-hidden rounded-none border border-[#D8D6D0] bg-white p-2">
+      <GeoIpResolvedForm mode={formContext.mode} province={formContext.province} productSlug={product.slug} embedded={true} />
+    </section>
+
+    <!-- Sticky Mobile Purchase Bar (Auto-hides when order form is visible) -->
+    <div id="sticky-purchase-bar" class="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-[480px] items-center justify-between border-t border-[#D8D6D0] bg-[#F8F7F4]/95 px-5 py-3 shadow-[0_-8px_24px_rgba(17,17,17,0.08)] backdrop-blur-md transition-all duration-300 lg:hidden">
+      <div>
+        <p class="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#555555]">Harga Promo</p>
+        <p class="text-base font-bold text-[#111111]">Rp{Math.round(displayPrice).toLocaleString('id-ID')}</p>
+      </div>
+      <a
+        href="#form-pemesanan"
+        class="inline-flex min-h-11 items-center justify-center rounded-none border border-[#111111] bg-[#111111] px-6 text-[10px] font-semibold uppercase tracking-[0.1em] text-[#F8F7F4] transition-colors hover:bg-[#2A2A2A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] active:scale-[0.98]"
+      >
+        Pesan Sekarang (COD)
+      </a>
+    </div>
+  </main>
+
+  <script>
+    function initStickyBarObserver() {
+      const stickyBar = document.getElementById('sticky-purchase-bar');
+      const orderForm = document.getElementById('form-pemesanan');
+      if (!stickyBar || !orderForm) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              stickyBar.style.transform = 'translateY(100%)';
+              stickyBar.style.opacity = '0';
+              stickyBar.style.pointerEvents = 'none';
+            } else {
+              stickyBar.style.transform = 'translateY(0)';
+              stickyBar.style.opacity = '1';
+              stickyBar.style.pointerEvents = 'auto';
+            }
+          });
+        },
+        { threshold: 0, rootMargin: '0px 0px -40px 0px' }
+      );
+
+      observer.observe(orderForm);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initStickyBarObserver);
+    } else {
+      initStickyBarObserver();
+    }
+  </script>
+</BaseLayout>

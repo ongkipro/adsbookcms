@@ -1,0 +1,192 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/shared/Icon.astro';
+import { getStorefrontProducts } from '../lib/catalog';
+
+const relatedProducts = (await getStorefrontProducts(Astro.locals)).slice(0, 4).map((product) => ({
+  name: product.productName,
+  category: product.category,
+  image: product.image,
+  href: `/produk/${product.slug}`,
+}));
+---
+
+<BaseLayout
+  title={`Halaman Tidak Ditemukan - ${Astro.locals.tenant.name}`}
+  description={`Maaf, halaman ${Astro.locals.tenant.name} yang Anda cari tidak ditemukan. Kembali ke beranda atau katalog produk.`}
+  noindex={true}
+>
+  <main id="konten-utama" class="not-found-page min-h-screen bg-[#FAFAFA] px-5 py-12 text-[#263238]">
+    <section class="mx-auto max-w-[480px] py-6">
+      <div class="text-center">
+        <div
+          class="not-found-mark relative mx-auto flex h-[92px] w-[92px] items-center justify-center rounded-full bg-white"
+        >
+          <span class="text-[34px] font-semibold tracking-[-0.06em] text-[#1B5E20]">404</span>
+        </div>
+
+        <span
+          class="mt-5 inline-flex rounded-md bg-[#EDF6EA] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[#1B5E20]"
+        >
+          Halaman hilang
+        </span>
+
+        <h1 class="mt-4 text-[30px] font-semibold leading-[1.15] tracking-[-0.03em] text-[#263238]">
+          Sepertinya jalurnya belum tepat
+        </h1>
+
+        <p class="mx-auto mt-3 max-w-[350px] text-[14px] leading-6 text-[#616161]">
+          Link yang Anda buka mungkin sudah dipindahkan. Anda bisa kembali ke beranda atau melihat katalog produk yang
+          tersedia.
+        </p>
+      </div>
+
+      <div class="mt-7 grid gap-3">
+        <a
+          href="/"
+          title={`Kembali ke beranda ${Astro.locals.tenant.name}`}
+          class="inline-flex items-center justify-center gap-2 rounded-[14px] bg-[#1B5E20] px-5 py-3 text-[14px] font-medium text-white transition-colors hover:bg-green-800"
+        >
+          <Icon name="lucide:home" class="h-4 w-4" aria-hidden="true" />
+          <span>Kembali ke beranda</span>
+        </a>
+      </div>
+
+      <section class="mt-10 border-t border-[#E5E7EB] pt-6" aria-labelledby="produk-terkait-title">
+        <div class="flex items-end justify-between gap-4">
+          <div>
+            <p class="text-[11px] font-medium uppercase tracking-[0.12em] text-[#2E7D32]">Produk terkait</p>
+            <h2 id="produk-terkait-title" class="mt-1 text-[20px] font-semibold tracking-[-0.02em] text-[#263238]">
+              Mungkin ini yang Anda cari
+            </h2>
+          </div>
+          <a
+            href="/produk"
+            title={`Lihat semua produk ${Astro.locals.tenant.name}`}
+            class="shrink-0 text-[12px] font-medium text-[#1B5E20]"
+          >
+            Semua →
+          </a>
+        </div>
+
+        <div class="mt-4 divide-y divide-[#E5E7EB]">
+          {
+            relatedProducts.map((product, index) => (
+              <a
+                href={product.href}
+                title={`Lihat detail produk ${product.name}`}
+                class="related-product group grid grid-cols-[58px_1fr_auto] items-center gap-3 py-3 first:pt-0 last:pb-0"
+                style={`animation-delay: ${index * 70}ms`}
+              >
+                <img
+                  src={product.image}
+                  alt={`Foto produk ${product.name} untuk solusi pertanian ${product.category}`}
+                  title={`Produk ${product.name}`}
+                  class="h-[58px] w-[58px] object-contain"
+                  width="58"
+                  height="58"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div class="min-w-0">
+                  <p class="truncate text-[14px] font-semibold text-[#263238]">{product.name}</p>
+                  <p class="mt-1 line-clamp-1 text-[12px] leading-5 text-[#616161]">{product.category}</p>
+                </div>
+                <Icon
+                  name="lucide:arrow-right"
+                  class="h-4 w-4 text-[#1B5E20] transition-transform duration-200 group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
+              </a>
+            ))
+          }
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <style>
+    .not-found-page {
+      background:
+        radial-gradient(circle at 50% 0%, rgba(67, 160, 71, 0.1), transparent 32%),
+        linear-gradient(180deg, #ffffff 0%, #fafafa 48%, #f7faf7 100%);
+    }
+
+    .not-found-mark {
+      animation: float-soft 4.8s ease-in-out infinite;
+      box-shadow: inset 0 0 0 1px rgba(229, 231, 235, 0.9);
+    }
+
+    .not-found-mark::before,
+    .not-found-mark::after {
+      content: '';
+      position: absolute;
+      border-radius: 999px;
+      background: rgba(27, 94, 32, 0.12);
+      transform: translateZ(0);
+    }
+
+    .not-found-mark::before {
+      width: 10px;
+      height: 10px;
+      margin-left: -82px;
+      margin-top: -28px;
+      animation: dot-drift 5.2s ease-in-out infinite;
+    }
+
+    .not-found-mark::after {
+      width: 7px;
+      height: 7px;
+      margin-left: 76px;
+      margin-top: 34px;
+      background: rgba(249, 168, 37, 0.3);
+      animation: dot-drift 4.4s ease-in-out infinite reverse;
+    }
+
+    .related-product {
+      opacity: 0;
+      transform: translateY(8px);
+      animation: list-in 520ms ease forwards;
+    }
+
+    @keyframes float-soft {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-6px);
+      }
+    }
+
+    @keyframes dot-drift {
+      0%,
+      100% {
+        transform: translate3d(0, 0, 0);
+      }
+      50% {
+        transform: translate3d(0, -8px, 0);
+      }
+    }
+
+    @keyframes list-in {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .not-found-mark,
+      .not-found-mark::before,
+      .not-found-mark::after,
+      .related-product {
+        animation: none;
+      }
+      .related-product {
+        opacity: 1;
+        transform: none;
+      }
+    }
+  </style>
+</BaseLayout>

@@ -1,0 +1,259 @@
+---
+import { formatIdr } from '../../lib/format-idr';
+import { getStorefrontProduct } from '../../lib/catalog';
+import { resolveFormVariant } from '../../lib/form-config';
+import { getRuntimeEnv } from '../../lib/env';
+import { loadStoreCodDisabledProvinceCodes } from '../../lib/form-mode';
+import Icon from '../shared/Icon.astro';
+
+interface Props {
+  productSlug?: string;
+  selectedVariantId?: string;
+  embedded?: boolean;
+  bannerImage?: string;
+  province?: string;
+  product?: any;
+  codDisabledProvinceCodes?: string[];
+}
+
+const {
+  productSlug = 'asahan-portable',
+  embedded = false,
+  selectedVariantId,
+  bannerImage,
+  province = '',
+  codDisabledProvinceCodes: codDisabledProvinceCodesProp,
+} = Astro.props;
+
+const product = await getStorefrontProduct(Astro.locals, productSlug);
+if (!product) throw new Error(`Product ${productSlug} not found`);
+const defaultVariant = resolveFormVariant(product, selectedVariantId) || product.variants[0];
+const defaultComparePrice = defaultVariant.comparePrice ?? defaultVariant.price;
+const defaultHasDiscount = defaultComparePrice > defaultVariant.price;
+const database = getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined;
+const codDisabledProvinceCodes =
+  codDisabledProvinceCodesProp ??
+  await loadStoreCodDisabledProvinceCodes(database);
+const RootTag = embedded ? 'section' : 'main';
+const instanceId = `hybrid-${product.slug}-${embedded ? 'embedded' : 'standalone'}`;
+const formId = embedded ? `${instanceId}-form` : 'checkout-form';
+---
+
+<RootTag class="bg-white" data-hybrid-form-root data-instance-id={instanceId}>
+  <section class="pb-8 pt-0">
+    <form id={formId} class="grid gap-5 pt-4" novalidate>
+      <div class="px-4">
+        <section class="form-block form-block-first">
+          <div class="form-block-head gap-1.5">
+            <h2 class="section-title">Pilih Varian</h2>
+            <p class="section-lead">Pilih varian produk yang ingin dipesan.</p>
+          </div>
+          <div class="variant-group simple-variant-group">
+            {
+              product.variants.map((variant: any) => {
+                const comparePrice = variant.comparePrice ?? variant.price;
+                const hasDiscount = comparePrice > variant.price;
+                return (
+                  <label class="variant-option simple-variant-option">
+                    <input
+                      type="radio"
+                      name="variant"
+                      value={variant.id}
+                      checked={variant.id === defaultVariant.id}
+                      data-label={variant.label}
+                      data-price={variant.price}
+                      data-compare={comparePrice}
+                    />
+                    <div class="variant-copy simple-variant-copy">
+                      <div class="variant-radio" />
+                      <div class="variant-main simple-variant-main">
+                        <div class="simple-variant-head">
+                          <p class="variant-label">{variant.label}</p>
+                        </div>
+                        <div class="variant-price-row simple-variant-price-row">
+                          <span class="variant-price">{formatIdr(variant.price)}</span>
+                          {hasDiscount && <span class="simple-variant-dot" aria-hidden="true" />}
+                          {hasDiscount && <span class="variant-compare">{formatIdr(comparePrice)}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+                );
+              })
+            }
+          </div>
+        </section>
+
+        <section class="form-block">
+          <div class="form-block-head gap-1.5">
+            <h2 class="section-title">Data penerima</h2>
+            <p class="section-lead">Isi data dengan benar agar admin dan kurir lebih mudah memproses pesanan.</p>
+          </div>
+          <div class="field-grid address-field-grid">
+            <div class="form-field form-field-full">
+              <input
+                id="customer-name"
+                name="customer_name"
+                required
+                inputmode="text"
+                autocomplete="name"
+                placeholder=" "
+              />
+              <label for="customer-name">Nama lengkap</label>
+            </div>
+            <div class="form-field form-field-full">
+              <input
+                id="hybrid-phone"
+                name="customer_phone"
+                required
+                type="tel"
+                inputmode="numeric"
+                autocomplete="tel"
+                placeholder=" "
+              />
+              <label for="hybrid-phone">Nomor WhatsApp</label>
+            </div>
+            <div class="form-field form-field-full">
+              <textarea id="hybrid-address" name="address" rows="2" required placeholder=" "></textarea>
+              <label for="hybrid-address">Alamat lengkap &amp; patokan</label>
+            </div>
+            <div class="form-field form-field-full">
+              <div id="district-search-container" class="form-field">
+                <input
+                  id="district-search"
+                  name="district"
+                  required
+                  placeholder="Ketik kecamatan atau kota"
+                  autocomplete="off"
+                />
+                <label for="district-search">Kecamatan</label>
+              </div>
+              <div id="district-list" class="district-list" hidden></div>
+              <div id="district-picked" class="shipping-address-summary" aria-live="polite" hidden>
+                <div class="shipping-address-summary-head">
+                  <strong>Kirim ke</strong>
+                  <button type="button" id="district-edit-button" class="district-edit-button">Ubah</button>
+                </div>
+                <p id="shipping-address-line">Alamat lengkap belum diisi.</p>
+                <p id="district-picked-subtitle">-</p>
+              </div>
+              <small id="district-help" class="district-help">Ketik minimal 3 huruf (kecamatan atau kota).</small>
+              <input type="hidden" name="location_id" id="location-id" />
+              <input type="hidden" name="postal_code" id="postal-code" />
+              <input type="hidden" name="province" id="province-name" />
+              <input type="hidden" name="city" id="city-name" />
+            </div>
+          </div>
+        </section>
+        <section class="form-block" id="payment-method-block" hidden>
+          <div class="inner-card">
+            <div class="space-y-3 payment-block">
+              <div class="payment-block-anchor" aria-hidden="true">
+                <span></span>
+                <small>Pilih cara bayar</small>
+                <span></span>
+              </div>
+              <div id="payment-options" class="payment-options"></div>
+            </div>
+            <input type="hidden" name="courier_service_id" id="courier-service-id" />
+            <input type="hidden" name="shipment_provider_code" id="shipment-provider-code" />
+            <input type="hidden" name="warehouse_unique_id" id="warehouse-unique-id" />
+          </div>
+        </section>
+
+        <section class="form-block summary-block">
+          <div class="form-block-head">
+            <h2 class="section-title">Ringkasan Pemesanan</h2>
+            <p class="section-lead">Periksa kembali detail pesanan sebelum melanjutkan ke proses order.</p>
+          </div>
+          <div class="summary-card">
+            <div class="summary-row">
+              <span>Produk</span>
+              <div class="summary-product-meta">
+                <span class="summary-product-name">{product.productName}</span>
+                <strong id="summary-label">{defaultVariant.label}</strong>
+              </div>
+            </div>
+            <div id="summary-compare-row" class="summary-row" hidden={!defaultHasDiscount}>
+              <span>Harga Normal</span><strong id="summary-compare">{formatIdr(defaultComparePrice)}</strong>
+            </div>
+            <div id="summary-discount-row" class="summary-row summary-row-discount" hidden={!defaultHasDiscount}>
+              <span>Potongan Harga</span><strong id="summary-discount"
+                >- {formatIdr(Math.max(0, defaultComparePrice - defaultVariant.price))}</strong
+              >
+            </div>
+            <div class="summary-row"><span>Biaya Pengiriman</span><strong id="summary-shipping">-</strong></div>
+            <div id="summary-admin-fee-row" class="summary-row" hidden><span id="summary-admin-fee-label">Biaya Pembayaran</span><strong id="summary-admin-fee">Rp0</strong></div>
+            <div class="total-box">
+              <div>
+                <p>Total Pembayaran</p>
+                <small id="summary-total-note">Sudah termasuk produk + ongkir</small>
+              </div>
+              <div class="total-box-side">
+                <strong id="summary-total">{formatIdr(defaultVariant.price)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-box">
+            <span
+              >Harga dan stok divalidasi ulang saat order diproses. Pastikan nomor WhatsApp aktif untuk konfirmasi.</span
+            >
+          </div>
+
+          <div class="submit-panel">
+            <div class="cta-row">
+              <button type="submit" class="submit-main" id="submit-button"
+                ><span class="submit-main-label">Buat Order Sekarang</span><Icon
+                  name="lucide:arrow-right"
+                  class="submit-main-icon"
+                  aria-hidden="true"
+                /></button
+              >
+            </div>
+            <div class="trust-strip" aria-label="Informasi pemesanan">
+              <span><Icon name="lucide:lock-keyhole" class="trust-icon" aria-hidden="true" /><i>Data pesanan</i></span>
+              <span><Icon name="lucide:shield-check" class="trust-icon" aria-hidden="true" /><i>Harga tervalidasi</i></span>
+              <span><Icon name="lucide:truck" class="trust-icon" aria-hidden="true" /><i>Konfirmasi admin</i></span>
+            </div>
+            {
+              bannerImage && (
+                <div class="mt-4 overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
+                  <img
+                    src={bannerImage}
+                    alt={`Informasi promo ${product.productName}`}
+                    class="mx-auto block h-auto w-full object-contain"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+              )
+            }
+            <p id="hybrid-error" class="form-error" hidden></p>
+          </div>
+        </section>
+      </div>
+    </form>
+  </section>
+</RootTag>
+
+<script
+  is:inline
+  type="application/json"
+  id={`${instanceId}-config`}
+  data-hybrid-form-config
+  set:html={JSON.stringify({
+    instanceId,
+    productSlug: product.slug,
+    productId: product.productId,
+    productName: product.productName,
+    province,
+    codDisabledProvinceCodes,
+  })}
+/>
+
+<script>
+  import { initHybridOrderForm, initPromoSessionStock } from '../../scripts/form-hybrid';
+  initPromoSessionStock();
+  initHybridOrderForm();
+</script>

@@ -1,0 +1,10 @@
+---
+import { ShippingOperations } from '../../components/admin/ShippingOperations';
+import AdminLayout from '../../layouts/AdminLayout.astro';
+
+export const prerender = false;
+---
+
+<AdminLayout title="Operasional Pengiriman" activeMenu="shipping">
+  <ShippingOperations client:load />
+</AdminLayout>

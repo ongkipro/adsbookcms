@@ -42,7 +42,7 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
     <p class="mt-2 max-w-[38rem] text-[13px] leading-6 text-[#555555]">{heading.description}</p>
   </div>
 
-  <div class="mb-7 flex flex-col gap-3">
+  <div class="mb-7 flex flex-col gap-3" hidden={products.length === 0}>
     <div class="relative w-full">
       <input
         type="text"
@@ -59,7 +59,19 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
     </div>
   </div>
 
-  <div id="product-grid" class="grid grid-cols-2 gap-2.5">
+  {
+    products.length === 0 && (
+      <div class="border border-[#E5E5E5] bg-white px-5 py-10 text-center">
+        <p class="text-[13px] font-semibold text-[#111111]">Katalog sedang disiapkan</p>
+        <p class="mx-auto mt-2 max-w-[26rem] text-[12px] leading-6 text-[#555555]">
+          Belum ada produk yang diterbitkan. Produk akan muncul di sini setelah
+          ditambahkan dan varian harganya diisi dari dashboard.
+        </p>
+      </div>
+    )
+  }
+
+  <div id="product-grid" class="grid grid-cols-2 gap-2.5" hidden={products.length === 0}>
     {
       products.map((product, idx) => {
         const comparePrice = product.comparePrice ?? 0;
@@ -153,7 +165,11 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
     }
   </div>
 
-  <div id="load-more-container" class="mt-8 flex flex-col items-center gap-3 border-t border-[#E5E5E5] pt-6">
+  <div
+    id="load-more-container"
+    class="mt-8 flex flex-col items-center gap-3 border-t border-[#E5E5E5] pt-6"
+    hidden={products.length === 0}
+  >
     <p id="catalog-status" class="text-[11px] font-medium text-[#555555]">
       Menampilkan <span id="product-visible-count">{Math.min(10, products.length)}</span> dari <span id="product-total-count">{products.length}</span> produk
     </p>

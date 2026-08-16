@@ -140,7 +140,7 @@ npm run db:migrate:remote    # then the real database
 
 Migration `0007` seeds a bootstrap `admin` credential with `must_change_password = 1`. The hash is identical in every copy of this repository, so **rotating it at first login is mandatory, not advisory** — until it is rotated, anyone with the source can attempt the default.
 
-Migration `0034` removes the foreign sample row introduced by `0017` when it is still untouched and unreferenced. A fresh schema therefore contains no merchant product data. The optional `npm run db:reset:demo:local` path loads a neutral, fully editable demo catalog instead.
+Migration `0034` removes the foreign sample row introduced by `0017` when it is still untouched and unreferenced. A fresh schema therefore contains no product data at all, and none is seeded: no dataset ships (ADR-016). The storefront renders an explicit "Katalog sedang disiapkan" state until the operator adds products from `/admin`.
 
 ---
 

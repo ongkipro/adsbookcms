@@ -34,9 +34,17 @@ test("automatically classifies kitchen sharpening tools to Google Category ID 16
   assert.equal(result.productType, "Perkakas & Rumah Tangga > Alat Dapur");
 });
 
-test("provides clean fallback taxonomy when product input is empty or custom", () => {
+test("an unclassifiable product is submitted with no category at all", () => {
+  // The fallback used to be Handbags (6551), justified by a bundled handbag
+  // catalogue that no longer exists — an install starts empty and sells whatever
+  // its merchant sells. Asserting a category the product cannot know is grounds
+  // for a Merchant Center misrepresentation suspension; both platforms treat the
+  // field as optional and Google auto-classifies what is omitted.
   const result = getAdTaxonomy("Custom Category", "Unclassified Item", "");
-  assert.equal(result.googleCategoryId, 6551);
+  assert.equal(result.googleCategoryId, undefined);
+  assert.equal(result.googleCategoryName, undefined);
+  assert.equal(result.metaCategoryName, undefined);
+  // productType is free text on the merchant's own axis, so it stays useful.
   assert.equal(result.productType, "Umum > Custom Category");
 });
 
@@ -76,10 +84,10 @@ test("keywords match whole words, not substrings inside other words", () => {
   assert.equal(result.productType, "Elektronik & Gadget");
 });
 
-test("an ambiguous product falls back to the default instead of guessing", () => {
+test("an ambiguous product emits no category rather than guessing", () => {
   // "sabun" (soap) and "serum" (skin care) score identically and nothing else
-  // separates them; a coin flip in a Merchant Center feed is worse than the default.
+  // separates them. A coin flip in a Merchant Center feed is the worst option.
   const result = getAdTaxonomy("Perawatan", "Sabun Serum", "");
-  assert.equal(result.googleCategoryId, 6551);
+  assert.equal(result.googleCategoryId, undefined);
   assert.equal(result.productType, "Umum > Perawatan");
 });

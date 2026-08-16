@@ -104,3 +104,36 @@ test("generateMetaCatalogXml emits valid fb_product_category and matching conten
   assert.ok(xml.includes("<g:fb_product_category>"));
   assert.ok(xml.includes("<g:image_link>https://r2.example.com/pompa.jpg</g:image_link>"));
 });
+
+test("a feed omits the ad category it cannot determine", () => {
+  // Both platforms treat the category as optional and Google auto-classifies
+  // what is missing. Asserting a wrong one is grounds for a Merchant Center
+  // misrepresentation suspension — which is what shipping every unclassified
+  // product as a handbag would have been, once the bundled handbag catalogue
+  // that justified that default was removed.
+  const unclassifiable: CatalogProduct[] = [
+    {
+      productId: 3,
+      slug: "barang-baru",
+      productName: "Barang Baru",
+      category: "Kategori Sendiri",
+      heroImage: "/images/adsbook-mark.webp",
+      variants: [{ id: 9, label: "Standar", price: 50000 }],
+    },
+  ];
+
+  const google = generateGoogleCatalogXml(unclassifiable, "https://toko-uji.example");
+  const meta = generateMetaCatalogXml(unclassifiable, "https://toko-uji.example");
+
+  assert.ok(!google.includes("<g:google_product_category>"));
+  assert.ok(!meta.includes("<g:google_product_category>"));
+  assert.ok(!meta.includes("<g:fb_product_category>"));
+  // The merchant's own free-text axis is still worth sending.
+  assert.ok(google.includes("<g:product_type>Umum &gt; Kategori Sendiri</g:product_type>"));
+  // And a product the rules *can* place still carries its category.
+  const known = generateGoogleCatalogXml(
+    [{ ...unclassifiable[0], category: "Tas Wanita", productName: "Tas Selempang Kulit" }],
+    "https://toko-uji.example",
+  );
+  assert.ok(known.includes("<g:google_product_category>"));
+});

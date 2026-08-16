@@ -32,13 +32,12 @@ Full procedure, including creating the Cloudflare resources: `INSTALLATION.md`.
 ```bash
 npm ci
 npm run db:migrate:local      # 37 migrations, applied to a local D1
-npm run db:reset:demo:local   # optional demo catalog — DESTRUCTIVE to catalog rows
 npm run cf:dev                # wrangler dev --local, closest to production
 ```
 
 `npm run dev` is faster for pure UI work but runs without the Worker bindings, so anything touching D1, KV or R2 needs `cf:dev`.
 
-Ships with a demo dataset — 22 products and 110 variants, with photography — so a fresh install has something real to look at. It is demo data, not a merchant's, and is replaced through the CMS at onboarding (ADR-011).
+**No dataset ships.** An install starts genuinely empty and says so: the storefront renders "Katalog sedang disiapkan", `/kontak` reports that no support number is configured, and the catalog feeds emit valid empty XML. Add products from `/admin` and they appear. Whether to offer optional sample data later is deferred (ADR-016).
 
 ---
 
@@ -73,7 +72,6 @@ npm run check          # astro check && tsc --noEmit
 npm run build          # astro build
 
 npm run db:migrate:local     # apply migrations to local D1
-npm run db:reset:demo:local  # reload the demo catalog — DESTRUCTIVE to catalog rows
 
 # The two below act on live infrastructure and belong to an install, not to this
 # repository. Run from an install's checkout, against its own wrangler.jsonc.
@@ -107,7 +105,7 @@ src/
   styles/           global.css (Tailwind v4 entry), form-hybrid.css (checkout)
   data/             reference data (Indonesian districts) + legal page templates
   middleware.ts     identity resolution, install gate, session, role policy, embed CSP
-scripts/            maintenance scripts and the demo catalog seed
+scripts/            maintenance scripts
 public/             static assets served by the Cloudflare adapter
 ```
 

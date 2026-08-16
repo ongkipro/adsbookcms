@@ -138,6 +138,12 @@ export function generateGoogleCatalogXml(
       const itemGroupId =
         product.variants.length > 1 ? catalogItemGroupId(product.productId) : undefined;
       const variantXml = variantAttributeXml(variant.label, product.variants.length);
+      // Omitted when no taxonomy rule was confident. Both platforms treat the
+      // category as optional and Google auto-classifies what is missing; a wrong
+      // one is grounds for a misrepresentation suspension.
+      const googleCategoryXml = taxonomy.googleCategoryId
+        ? `\n      <g:google_product_category>${taxonomy.googleCategoryId}</g:google_product_category>`
+        : "";
       const titleText = product.variants.length > 1 ? `${product.productName} - ${variant.label}` : product.productName;
       const hasSale = typeof variant.comparePrice === "number" && variant.comparePrice > variant.price;
       const basePriceFormatted = `${hasSale ? variant.comparePrice : variant.price} IDR`;
@@ -160,7 +166,7 @@ export function generateGoogleCatalogXml(
       <g:image_link>${escapeXml(imageLink)}</g:image_link>
       <g:availability>in_stock</g:availability>
       <g:price>${escapeXml(basePriceFormatted)}</g:price>${salePriceXml}${variantXml}
-      <g:google_product_category>${taxonomy.googleCategoryId}</g:google_product_category>
+${googleCategoryXml}
       <g:product_type>${escapeXml(taxonomy.productType)}</g:product_type>
       <g:brand>${escapeXml(siteTitle)}</g:brand>
       <g:condition>new</g:condition>
@@ -206,6 +212,15 @@ export function generateMetaCatalogXml(
       const itemGroupId =
         product.variants.length > 1 ? catalogItemGroupId(product.productId) : undefined;
       const variantXml = variantAttributeXml(variant.label, product.variants.length);
+      // Omitted when no taxonomy rule was confident. Both platforms treat the
+      // category as optional and Google auto-classifies what is missing; a wrong
+      // one is grounds for a misrepresentation suspension.
+      const googleCategoryXml = taxonomy.googleCategoryId
+        ? `\n      <g:google_product_category>${taxonomy.googleCategoryId}</g:google_product_category>`
+        : "";
+      const metaCategoryXml = taxonomy.metaCategoryName
+        ? `\n      <g:fb_product_category>${escapeXml(taxonomy.metaCategoryName)}</g:fb_product_category>`
+        : "";
       const titleText = product.variants.length > 1 ? `${product.productName} - ${variant.label}` : product.productName;
       const hasSale = typeof variant.comparePrice === "number" && variant.comparePrice > variant.price;
       const basePriceFormatted = `${hasSale ? variant.comparePrice : variant.price} IDR`;
@@ -228,8 +243,7 @@ export function generateMetaCatalogXml(
       <g:image_link>${escapeXml(imageLink)}</g:image_link>
       <g:availability>in_stock</g:availability>
       <g:price>${escapeXml(basePriceFormatted)}</g:price>${salePriceXml}${variantXml}
-      <g:fb_product_category>${escapeXml(taxonomy.metaCategoryName)}</g:fb_product_category>
-      <g:google_product_category>${taxonomy.googleCategoryId}</g:google_product_category>
+${metaCategoryXml}${googleCategoryXml}
       <g:product_type>${escapeXml(taxonomy.productType)}</g:product_type>
       <g:brand>${escapeXml(siteTitle)}</g:brand>
       <g:condition>new</g:condition>

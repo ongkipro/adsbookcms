@@ -2287,3 +2287,54 @@ installed store.
 
 Gates: `npm test` 305/305 · `npm run check` 318 files, 0/0/0 · `npm run build`
 complete. `.git` is 26 MB after `gc --prune=now`, down from 135 MB.
+
+---
+
+## 2026-08-17 (evening) — Shipping nothing, on purpose
+
+The product stopped bundling a catalogue.
+
+ADR-011 had kept 22 products, 110 variants and 8.9MB of photography so a fresh
+install had "something real to look at". That was a fair answer while this
+repository was one store becoming a product; it reads differently now that an
+install is a wizard away, because the first thing an operator meets is somebody
+else's inventory, in a category they may not sell, which they have to find and
+delete before their own catalogue makes sense.
+
+The review came before the deletion. On a migrated, installed, product-free
+database the empty states turned out to be already built and already honest:
+`/produk` renders "Katalog sedang disiapkan — produk akan muncul setelah konten
+dan varian diterbitkan", `/kontak` renders "Kontak Belum Tersedia", both catalog
+feeds emit valid empty XML, the sitemap resolves, and every public route returns
+200. Nothing was broken by having nothing, so the deletion was safe to make.
+
+The one weak surface was the home page, which showed an empty grid, a search box
+that filtered nothing, and "Menampilkan 0 dari 0 produk" — a count where a state
+belonged. It now carries the same explanation its siblings had, and the grid,
+the search box and the counter are `hidden` when there is nothing to count.
+Verified in the rendered HTML rather than inferred: all three carry the
+attribute.
+
+**The deletion could not be a pure deletion.** `ad-taxonomy.ts` defaulted to
+Google category `6551`, Handbags, and its own comment justified that as "at
+least a category this catalog sells" — a premise that only held while the
+catalogue existed. Left alone, every unclassified product in every store would
+have gone to Merchant Center as a handbag, which is precisely the
+misrepresentation the same comment warns is grounds for suspension.
+`getAdTaxonomy` now returns no category when no rule reaches the confidence bar,
+and both feeds omit `google_product_category` and `fb_product_category` rather
+than assert one; both fields are optional and Google auto-classifies what is
+missing. The scoring rules are untouched — only the fallback changed.
+
+Gap **G5** narrows accordingly. The harm it described — a fresh install
+inheriting another merchant's marketing copy — is gone. What remains is the home
+*shell*, still composed by `buildDefaultHomeContent` from the store's identity
+rather than rendering an operator setup state. That stays open as A-12b.
+
+Whether sample data returns, and in what form — a seed, an optional one-click
+demo from the admin, a downloadable pack — is deferred. ADR-016 records that
+bundling it by default was the wrong answer, not that the question is closed.
+
+`public/images` is 232KB, from 21MB at the start of the day.
+
+Gates: `npm test` 306/306 · `npm run check` 0/0/0 · `npm run build` complete.

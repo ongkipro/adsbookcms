@@ -126,14 +126,14 @@ The audit that settled it also found the declared index layer was **fiction**: o
 
 ## ADR-011 — "Permata Mall" is the bundled demo dataset, not a merchant
 
-**Date:** 2026-08-16 · **Status:** Accepted
+**Date:** 2026-08-16 · **Status:** Superseded by ADR-016 on the bundling question; its ours-versus-theirs distinction still holds
 
 **Context.** The repository ships a complete storefront — 22 women's handbag products, 110 variants, product photography, and the `permatamall.shop` deployment. Earlier cleanup work treated this as live merchant data to be protected, which made every content decision unnecessarily cautious.
 
 **Decision.** Permata Mall is the **demo dataset** that AdsBookCMS installs with. It exists so a fresh install has something real to look at, and it is replaced through the CMS when a merchant onboards. It is neither production data to be preserved at all costs nor foreign content to be purged.
 
 **Consequences.**
-- `scripts/seed-catalog.sql` and `public/images/products/` are product assets and stay.
+- ~~`scripts/seed-catalog.sql` and `public/images/products/` are product assets and stay.~~ Removed 2026-08-17; see ADR-016.
 - Breaking changes to this install — invalidating its sessions, rotating its cookie names, resetting its attribution — are acceptable when they improve the product.
 - Content belonging to *other* merchants is still removed. The distinction is ours-versus-theirs, not demo-versus-real.
 - Product identity in code defaults to AdsBookCMS, never to the demo store. An unconfigured install must describe itself, not inherit the bundle it was built from.
@@ -285,3 +285,55 @@ Deferred: `product_variants` records one free-text label and nothing that says
 which axis it varies, so every label ships as `g:size` whether it is a size, a
 colour or a pack count. Google treats size as free text, so this is imprecise
 rather than invalid. A `variant_axis` column is the upgrade.
+
+---
+
+## ADR-016 — A fresh install ships empty
+
+**Date:** 2026-08-17 · **Status:** Accepted
+
+**Context.** ADR-011 kept a bundled demo catalogue — 22 products, 110 variants
+and 8.9MB of photography — so a fresh install had "something real to look at".
+That was a reasonable answer while this repository was still one store becoming a
+product. It reads differently now that an install is a wizard away: the first
+thing an operator meets is somebody else's inventory, in a category they may not
+sell, which they must find and delete before their own catalogue makes sense.
+
+The empty states turned out to be already built and already honest. Measured on a
+migrated, installed, product-free database: `/produk` renders "Katalog sedang
+disiapkan — produk akan muncul setelah konten dan varian diterbitkan",
+`/kontak` renders "Kontak Belum Tersedia", the catalog feeds emit valid empty
+XML, the sitemap resolves, and every route returns 200. Nothing was broken by
+having nothing.
+
+**Decision.** No dataset ships. `scripts/seed-catalog.sql`,
+`public/images/products/` and the `db:reset:demo:local` script are removed. An
+install starts genuinely empty, and the storefront says so.
+
+Whether to reintroduce sample data — and if so, whether as a seed, an optional
+one-click demo from the admin, or a downloadable pack — is **deferred**, not
+decided against. This ADR records that the bundled-by-default answer was wrong,
+not that the question is closed.
+
+**Consequences.**
+- `public/images` went from 21MB to 232KB across this and the orphan-asset
+  cleanup. What remains is the product's own mark, the favicon, and the payment
+  method logos.
+- The home page gained the empty state its siblings already had. The product
+  grid, the search box and the "0 of 0" counter are hidden when there is nothing
+  to count, so a visitor sees an explanation rather than a broken-looking page.
+- **The ad taxonomy lost its justification and had to change.** Its default was
+  Google category `6551`, Handbags, reasoned in the code as "at least a category
+  this catalog sells". With no catalogue that premise is false, and keeping the
+  default would have submitted every unclassified product in every store to
+  Merchant Center as a handbag — the exact misrepresentation the same comment
+  warns about. `getAdTaxonomy` now returns no category when no rule is
+  confident, and the feeds omit `google_product_category` and
+  `fb_product_category` rather than assert one. Both fields are optional and
+  Google auto-classifies what is missing.
+- Gap **G5** narrows to the home *shell*: `buildDefaultHomeContent` still
+  composes headings from the store's identity rather than rendering an operator
+  setup state. That is A-12b and stays open. The harm G5 originally described —
+  a fresh install inheriting another merchant's marketing copy — is gone.
+- Anything relying on the demo catalogue for grounding is now unfounded, and
+  `docs/GOOGLE_ADS_SETUP.md`'s taxonomy reasoning was rewritten accordingly.

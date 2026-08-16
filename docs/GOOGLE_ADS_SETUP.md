@@ -124,9 +124,17 @@ Default when nothing matches: GPC `6551`, the handbags path. When a category nam
 
 #### Known gap — the taxonomy carries rules for merchants this install does not serve
 
-The live catalog for the reference instance is women's handbags (`Tote Bag`, `Tas Selempang` — see `scripts/seed-catalog.sql`), and rule `6551` covers exactly that, both as the first rule and as the fallback default. The handbag path is correct.
+**The fallback default is gone, and that was the point.** Rule `6551` (handbags)
+used to be both the first rule and the catch-all, justified by a bundled handbag
+catalogue. No dataset ships now (ADR-016), so an install sells whatever its
+merchant sells and that default would have submitted every unclassified product
+in every store to Merchant Center as a handbag — grounds for a misrepresentation
+suspension. `getAdTaxonomy` returns no category when no rule is confident, and
+the feeds omit `google_product_category` and `fb_product_category` rather than
+assert one. Both fields are optional and Google auto-classifies what is missing.
+The handbag rule itself remains, and still wins on merit for a handbag.
 
-What is stale is the **rest** of the table. Rules `2863`, `2849`, `2547`, `567`, `642`, and `1630` were calibrated for earlier merchants selling agricultural inputs, skincare, herbal supplements, and knives/sharpeners. They are dead weight for a handbag catalog, and worse, they are live misclassification risk: because matching is a raw keyword count over title **and description**, a handbag listing whose description happens to mention `kulit`, `organik`, `buah`, or `potong` can outscore the handbag rule and be submitted to Merchant Center under a fertilizer or skincare category. There is no minimum score, no category whitelist, and no per-store configuration.
+What is stale is the **rest** of the table. Rules `2863`, `2849`, `2547`, `567`, `642`, and `1630` were calibrated for earlier merchants selling agricultural inputs, skincare, herbal supplements, and knives/sharpeners. They are inherited from earlier merchants and match no particular install. The misclassification risk they once carried is reduced but not removed: matching is a weighted keyword count over category, title and description, a rule must reach a minimum score and be the sole top scorer, and anything short of that now emits no category at all. What is still missing is per-store configuration — a merchant cannot tell the engine what they actually sell.
 
 Treat this as a known gap, not as a finished taxonomy engine:
 

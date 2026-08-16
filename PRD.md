@@ -48,7 +48,7 @@ AdsBookCMS gives one merchant a complete direct-response storefront: catalog, la
 | REQ-6 | When the database has not been initialised, the system shall present a first-run install wizard that collects store identity, administrator credentials, and locale, writes them to D1, and refuses to run again once complete. | Implemented 2026-08-16 |
 | REQ-7 | Store identity — name, canonical URL, description, logo, tagline, theme colour, locale, storefront template — shall resolve at runtime from D1 so that changing it requires no rebuild. | Implemented 2026-08-16 for resolution. Six fields have an admin editor at `/admin/settings/store` — name, canonical URL, description, tagline, logo, storefront template. `theme_color`, `locale` and `admin_name` resolve at runtime but have no editor; `theme_color` is not collected by the wizard either |
 | REQ-8 | On boot, the system shall compare its applied schema version with the version the code expects and shall surface a mismatch rather than failing silently. | Planned — G3 |
-| REQ-9 | A fresh install shall contain no data belonging to any other merchant, and any sample record it ships shall be neutral, clearly labelled, and deletable. | Implemented — migration `0034` removes the inherited row; the optional demo reset uses a neutral, editable catalog |
+| REQ-9 | A fresh install shall contain no data belonging to any other merchant, and any sample record it ships shall be neutral, clearly labelled, and deletable. | Implemented — and stronger than required: **no sample record ships at all** (ADR-016). Migration `0034` removes the inherited row; the bundled catalogue and its photography were deleted 2026-08-17 |
 
 ---
 

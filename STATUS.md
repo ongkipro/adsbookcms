@@ -31,7 +31,7 @@ The previous version of this file described a different repository — it opened
 
 | Install | Repository | Notes |
 | --- | --- | --- |
-| `permatamall.shop` | `ongkipro/permatamall` | First install. Carries the bundled demo dataset (ADR-011). Its Cloudflare resources keep legacy `cmsads-*` names |
+| `permatamall.shop` | `ongkipro/permatamall` | First install. Holds its own catalogue in its own database; nothing is bundled here any more (ADR-016). Its Cloudflare resources keep legacy `cmsads-*` names |
 
 As of the split on 2026-08-16, the fixes recorded below live in this repository. Whether and when an install adopts them is that install's own deploy decision.
 
@@ -72,12 +72,12 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 17 tables. `stores` is a single row carrying provider keys, tracking ids, fee policy, payment toggles, CRM templates, independent embed and Headless origin policies, AI instructions, and COD province exclusions.
 
-Live catalog: 22 women's handbag products with 110 variants, seeded by `scripts/seed-catalog.sql`.
+Catalog: **empty by default**. No dataset ships (ADR-016); an install starts with no products and the storefront renders an explicit "Katalog sedang disiapkan" state rather than a broken-looking grid.
 
 Known data issues, all tracked:
 
 - The local development D1 still holds the previously provisioned warehouse row — a real address, phone number, and Mengantar ObjectIds. The repository is clean, but that data lives in local state and presumably in the remote database; scrubbing it needs a remote write and is a separate decision.
-- The demo seed is `scripts/seed-catalog.sql`, run with `npm run db:reset:demo:local`. It is **destructive to the catalog** by design — a demo seed's job is a known state — but its deletes are guarded so they never touch order history. The former `src/db/seed.sql`, which held two previous merchants' catalogs plus genuine-looking provider ids, a real address and a real phone number, was deleted on 2026-08-16.
+- No seed ships. `scripts/seed-catalog.sql`, `public/images/products/` and `db:reset:demo:local` were removed on 2026-08-17 (ADR-016); whether to reintroduce sample data, and in what form, is deferred rather than decided against. The earlier `src/db/seed.sql`, which held two previous merchants' catalogs plus genuine-looking provider ids, a real address and a real phone number, was deleted on 2026-08-16.
 - Migration `0017` aborted the chain on an empty database, so **no new install could be created**; fixed 2026-08-16 by removing the sample-data insert it carried. All 37 migrations now apply from zero.
 
 ---

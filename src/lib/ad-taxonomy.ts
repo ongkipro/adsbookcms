@@ -11,9 +11,13 @@
  */
 
 export interface AdTaxonomy {
-  googleCategoryId: number;
-  googleCategoryName: string;
-  metaCategoryName: string;
+  /**
+   * Absent when no rule was confident enough. A feed omits the category rather
+   * than asserting one — see DEFAULT_TAXONOMY.
+   */
+  googleCategoryId?: number;
+  googleCategoryName?: string;
+  metaCategoryName?: string;
   productType: string;
 }
 
@@ -103,19 +107,30 @@ const TAXONOMY_RULES: TaxonomyRule[] = [
   },
 ];
 
+/**
+ * No category at all, deliberately.
+ *
+ * This used to default to Handbags (`6551`), justified in the note below as "at
+ * least a category this catalog sells" — true while the product shipped a
+ * bundled handbag catalogue. That catalogue is gone: an install starts empty and
+ * sells whatever its merchant sells. Keeping the default would have submitted
+ * every unclassified product in every store to Merchant Center as a handbag,
+ * which is precisely the misrepresentation the note warns about.
+ *
+ * `google_product_category` and `fb_product_category` are optional on both
+ * platforms, and Google auto-classifies what a feed omits. Saying nothing is
+ * strictly safer than saying something wrong.
+ */
 const DEFAULT_TAXONOMY: AdTaxonomy = {
-  googleCategoryId: 6551,
-  googleCategoryName: "Apparel & Accessories > Handbags, Wallets & Cases > Handbags",
-  metaCategoryName: "Apparel & Accessories > Handbags, Wallets & Cases > Handbags",
-  productType: "Fashion Wanita > Tas & Aksesori",
+  productType: "Umum",
 };
 
 /**
  * Scoring — deliberately conservative.
  *
- * A wrong category in a Merchant Center feed is worse than a generic one: it is
- * grounds for a misrepresentation suspension, while the default at least names a
- * category this catalog sells. So a rule has to earn the win:
+ * A wrong category in a Merchant Center feed is grounds for a misrepresentation
+ * suspension, and there is no catalogue to make a default safe. So a rule has to
+ * earn the win, and an unconfident match emits no category at all:
  *
  * 1. Keywords match whole words, never substrings. "sebuah" used to count as a
  *    fertilizer hit ("buah"), "kertas" and "bagus" as handbag hits ("tas", "bag").

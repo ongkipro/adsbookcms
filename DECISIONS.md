@@ -228,3 +228,60 @@ Separately and still open: `checkRateLimit` is a non-atomic KV get-then-put, so 
 simultaneous guesses read the same count and spend one slot between them. It
 damps sequential guessing, not parallel. Making it exact needs a Durable Object —
 task **A-71**.
+
+---
+
+## ADR-015 — Catalog identity is `p{product}-v{variant}`, derived from keys that never change
+
+**Date:** 2026-08-17 · **Status:** Accepted
+
+**Context.** One rule governs catalog advertising: the `id` a feed publishes must
+be exactly the string the Pixel and CAPI send as `content_ids`. Meta states it
+directly — "for dynamic ads, this ID must exactly match the content ID for the
+same item in your Meta Pixel."
+
+It did not match. The feed published `10001` (row id plus 10000), the admin
+screen showed the operator that same `10001`, and the Pixel sent the raw row id,
+`1`. Three values for one product, and nothing anywhere reported a problem:
+Advantage+ and Dynamic Product Ads simply retargeted nobody while the merchant
+paid for the traffic. Two further defects rode along — the first variant of a
+multi-variant product was published without its `item_group_id`, so the group had
+one member and the orphan's id collided with the group id; and the group was
+submitted with no variant attribute at all, which Google requires and which is a
+common reason for outright feed disapproval.
+
+**Decision.** The catalog is variant-level. The item id is
+`p{product_id}-v{variant_id}`; the group every variant shares is
+`p{product_id}`; the group is never published as an item.
+
+Both derive from the D1 AUTOINCREMENT keys, **not** from SKU — despite both
+platforms recommending SKU. Google's rule is that an id, once assigned, is never
+changed and never reused, and `product_variants.sku` here is nullable and
+merchant-editable, so it is precisely the value that moves. The primary keys
+never change and are never handed out twice.
+
+The prefix is not decoration. Neither specification imposes a minimum length or
+digits-only — Google allows 1–50 characters of alphanumerics, dashes and
+underscores, Meta allows 100 — but a bare `1` is fragile exactly where feeds
+travel: spreadsheet and CSV coercion, leading zeros dropped, collisions when two
+sources merge. Three characters remove all of that and make the id self-
+describing, so `p1-v12` says what it is where `12` does not. Padding to a fixed
+width, which is what the previous scheme attempted, buys none of it.
+
+**Consequences.** `content_id` in `/api/v1/products*` and `/api/form-config`
+changes value — the field names are unchanged, so this is a value break rather
+than a shape break, and it is documented in `STOREFRONT_INTEGRATION.md`. A client
+following the old contract was already failing to match the catalog.
+
+Ids must never change again. Any install that has already submitted a feed would
+need its catalog re-created, which is why this landed before the product had live
+installs and must not be revisited casually.
+
+`src/lib/catalog-identity.test.ts` checks the two halves against each other —
+what the feed publishes against what each surface sends — rather than each
+against a fixture, because a fixture is how three different values passed CI.
+
+Deferred: `product_variants` records one free-text label and nothing that says
+which axis it varies, so every label ships as `g:size` whether it is a size, a
+colour or a pack count. Google treats size as free text, so this is imprecise
+rather than invalid. A `variant_axis` column is the upgrade.

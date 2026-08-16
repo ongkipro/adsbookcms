@@ -128,7 +128,7 @@ Cache: `Cache-Control: no-store`; storefront configuration changes take effect o
 
 Query: `limit` (1–100, default 20), `offset` (≥0, default 0), `q` or `search`, `category`. Filtering by search and category happens **in memory after loading the full catalog**, so `total` reflects the filtered set.
 
-Returns `total`, `limit`, `offset`, `has_more`, and `products[]`. Each product carries `id` (the canonical numeric D1 catalog ID), `content_id` (the presentation key), `slug`, `name`, `category`, `headline`, `subheadline`, `price`, `compare_price`, `image`, `hero_image`, `rating_value`, `review_count`, `sold_count`, `variants[]` (`id`, `content_id`, `label`, `price`, `compare_price`), and a `urls` block.
+Returns `total`, `limit`, `offset`, `has_more`, and `products[]`. Each product carries `id` (the canonical numeric D1 catalog ID), `content_id` (the catalog **item group id**, `p{product_id}`), `slug`, `name`, `category`, `headline`, `subheadline`, `price`, `compare_price`, `image`, `hero_image`, `rating_value`, `review_count`, `sold_count`, `variants[]` (`id`, `content_id` — the catalog **item id**, `p{product_id}-v{variant_id}`, and the value to send in `content_ids` — `label`, `price`, `compare_price`), and a `urls` block.
 
 Cache: `Cache-Control: private, max-age=60, stale-while-revalidate=600`; browser clients may reuse a response, shared caches may not. Failure: 500 `PRODUCTS_LOAD_ERROR`.
 
@@ -138,7 +138,7 @@ Source is `getStorefrontProducts`, which merges operational `products`/`product_
 
 `src/pages/api/v1/products/[slug].ts`. Methods: `GET`, `OPTIONS`.
 
-The path segment resolves against slug, `content_id`, or numeric catalog ID (`getStorefrontProduct` matches all three). Returns the full product record — everything in the list payload plus `tag`, `seo_title`, `seo_description`, `description`, `benefits`, `key_points`, `ideal_for`, `offer_text`, `cta_text`, `reviews[]` — plus a `forms` block and up to four `related_products` from the same category.
+The path segment resolves against slug, `content_id` (`p{product_id}`), or numeric catalog ID (`getStorefrontProduct` matches all three), so a `content_id` returned by the list endpoint can be handed straight back. Returns the full product record — everything in the list payload plus `tag`, `seo_title`, `seo_description`, `description`, `benefits`, `key_points`, `ideal_for`, `offer_text`, `cta_text`, `reviews[]` — plus a `forms` block and up to four `related_products` from the same category.
 
 Cache: envelope default, `Cache-Control: private, max-age=60`. Failures: 400 `SLUG_REQUIRED`, 404 `PRODUCT_NOT_FOUND`, 500 `PRODUCT_DETAIL_ERROR`.
 
@@ -231,7 +231,7 @@ The `stores` row, edited under `/admin/ads/*`, owns the Meta Pixel ID, the maske
 | Event | Browser trigger | Server rule | Required identity |
 | --- | --- | --- | --- |
 | `PageView` | Eligible page load once the consent rule allows it | Optional CAPI mirror through the validated endpoint | Unique event ID when mirrored |
-| `ViewContent` | Canonical product becomes the viewed product | Validate supported event and product payload | D1 product ID in `content_ids` |
+| `ViewContent` | Canonical product becomes the viewed product | Validate supported event and product payload | Catalog item id (`p{product}-v{variant}`) in `content_ids` |
 | `AddToCart` | Qualified customer intent, never arbitrary scroll or click | Validate supported event | Product ID, value, currency, event ID |
 | `InitiateCheckout` | Valid form submission begins | Validate supported event | Product ID, value, currency, event ID |
 | `Purchase` | Only after the install confirms the qualifying order state | CAPI reuses the same Purchase event ID; unsupported or unqualified requests fail closed | Persisted order identity and canonical product ID |
@@ -249,7 +249,15 @@ Do not map page scroll, CTA impression, menu click, or form focus to `Lead` or `
 
 ### Product identity
 
-`content_ids` is the canonical numeric D1 product ID rendered as a string — the `id` field from `/api/v1/products`, not `content_id`, not the slug, not a SKU, not an array index, not a provider ID. Storefront events, CAPI, and any connected Meta Commerce Catalog must agree.
+`content_ids` is the **`content_id` of the variant** — `p{product_id}-v{variant_id}`,
+from the `variants[]` entry in `/api/v1/products` — not the numeric `id`, not the
+slug, not a SKU, not an array index, not a provider ID. It is the same string the
+catalog feeds publish as `<g:id>`. Storefront events, CAPI and any connected Meta
+Commerce Catalog must agree exactly.
+
+**Changed 2026-08-17.** This previously specified the numeric `id`, and the code
+sent it, while the feeds published `10000 + id`. A client that followed the old
+text was already failing to match; one that follows this text will.
 
 ### Attribution and matching
 
@@ -390,7 +398,7 @@ DATA AND COMMERCE INTEGRATION
 1. Bootstrap identity and tracking config from GET /api/v1/storefront. Treat every field as
    build-time-frozen on the install side; it will not change without a redeploy there.
 2. Render the catalog from GET /api/v1/products and GET /api/v1/products/[slug]. Use the
-   numeric `id` as the canonical product identity everywhere, including content_ids.
+   variant `content_id` (`p{product}-v{variant}`) in content_ids, and the numeric `id` for everything else.
 3. (No longer required — the API never returns a legacy /form-* URL. Kept so a
    client written against the older advice can see it was withdrawn.)
    Rewrite the returned form URLs from /form-* to the canonical /hybrid-form, /middle-form,

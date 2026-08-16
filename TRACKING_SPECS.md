@@ -95,7 +95,20 @@ Security rules:
 
 ## 5. Product Catalog Identity
 
-Every product event uses the canonical numeric D1 `products.id`, encoded as a string in `content_ids`.
+Every product event carries the **catalog item id** in `content_ids`:
+`p{product_id}-v{variant_id}`, for example `p1-v11`. That is the same string the
+Google and Meta feeds publish as `<g:id>`, and it has to be byte-identical or
+Advantage+ and Dynamic Product Ads match nothing — silently, with no error and no
+diagnostic anywhere.
+
+The catalog is variant-level, so the id names a variant, not a product. Where no
+variant has been chosen (a product page, a landing page), the event carries the
+**first** variant's id. Where one has (AddToCart, InitiateCheckout, Purchase), it
+carries the chosen one. `p{product_id}` alone is the `item_group_id` and is never
+sent as a `content_ids` value.
+
+Until 2026-08-17 this said the bare D1 `products.id` — which is what the Pixel
+actually sent, while the feed published `10000 + id`. Nothing matched.
 
 - D1 product ID: tracking and external catalog identity.
 - D1 variant ID: order selection identity when variant detail is needed.
@@ -360,7 +373,7 @@ Conceptual Purchase data:
     "fbc": "<raw-_fbc-if-present>"
   },
   "custom_data": {
-    "content_ids": ["<canonical-d1-product-id>"],
+    "content_ids": ["p1-v11"],
     "content_type": "product",
     "value": 135000,
     "currency": "IDR"

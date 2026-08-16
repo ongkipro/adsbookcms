@@ -2173,3 +2173,61 @@ against `wrangler dev --local` on a real migrated D1. No deploy, no remote
 database write.
 
 Not verified: nothing in the UI work has been seen in a browser (A-58, A-80).
+
+---
+
+## 2026-08-17 (later) — The catalog id nobody could match
+
+A question about content-ID conventions turned out to be a live defect.
+
+The specifications first, because the premise being checked — a five-character
+minimum — does not exist in either. Google's `id` is 1–50 characters of
+alphanumerics, dashes and underscores, must be stable forever and must never be
+reused, even for a deleted product. Meta allows 100 characters and requires that
+the feed `id` "exactly match the content ID for the same item in your Meta
+Pixel". Neither demands digits, neither imposes a floor, and both recommend SKU.
+
+The tree did not satisfy the one rule that matters. Run against a fresh install's
+first product:
+
+```
+Pixel sent (content_ids) : ["1"]
+Admin displayed          : 10001
+Feed published (g:id)    : ["10001", "10001_v2"]
+           item_group_id : ["10001"]
+```
+
+Three values for one product. Advantage+ and Dynamic Product Ads had nothing to
+match, and nothing reports that: no error, no diagnostic, just spend with no
+catalog attribution. Two more defects rode along. The first variant of a
+multi-variant product was published with no `item_group_id`, so the group had one
+member and the orphan's id was equal to the group id. And the group carried no
+variant-identifying attribute — no `size`, `color`, `material` or `pattern` —
+which Google requires of grouped items and which commonly gets a feed
+disapproved outright.
+
+The scheme is now `p{product}-v{variant}` for the item and `p{product}` for the
+group, derived from the D1 AUTOINCREMENT keys rather than SKU. SKU is what both
+platforms recommend and is exactly wrong here: `product_variants.sku` is nullable
+and merchant-editable, and Google's rule is that an id once assigned never
+changes. The prefix is not cosmetic either — a bare `1` is fragile in spreadsheet
+and CSV coercion, loses leading zeros, and collides when feeds merge. ADR-015.
+
+Verified against the running Worker on a seeded two-variant product, not against
+a fixture: the Google and Meta feeds, the product page's ViewContent, the
+checkout page with an explicit `?variant=12`, and `/api/form-config` all emit the
+same strings — `p1-v11` and `p1-v12`, group `p1`, with `g:size` and `g:mpn`
+present.
+
+`catalog-identity.test.ts` now checks the two halves against **each other**
+rather than each against a fixture, and is mutation-verified: reverting the
+default-content-id derivation alone turns it red. Checking each side against its
+own fixture is how three different values passed CI in the first place.
+
+`content_id` in `/api/v1/products*` and `/api/form-config` changes value; the
+field names do not. A client following the old contract was already failing to
+match. `getStorefrontProduct` now also accepts the `content_id` the list
+endpoint returns, so that round trip works.
+
+Gates: `npm test` 303/303 · `npm run check` 318 files, 0/0/0 · `npm run build`
+complete.

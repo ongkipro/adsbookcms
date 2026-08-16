@@ -1,37 +1,41 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  formatContentId,
-  formatCatalogItemId,
+  catalogItemGroupId,
+  catalogItemId,
+  defaultCatalogContentId,
   generateGoogleCatalogXml,
   generateMetaCatalogXml,
   type CatalogProduct,
 } from "./catalog-feed.ts";
 
-test("formatContentId enforces minimum 5-digit pattern lock", () => {
-  assert.equal(formatContentId(1), "10001");
-  assert.equal(formatContentId("10001"), "10001");
-  assert.equal(formatContentId(4001), "14001");
-  assert.equal(formatContentId(434683), "434683");
-  assert.equal(formatContentId("abc"), "00abc");
+test("a catalog id is derived from keys that never change", () => {
+  // Not the SKU, which both platforms recommend and this schema lets a merchant
+  // edit or leave null — Google's rule is that an id, once assigned, is never
+  // changed and never reused. The AUTOINCREMENT keys satisfy that; SKU does not.
+  assert.equal(catalogItemId(1, 11), "p1-v11");
+  assert.equal(catalogItemGroupId(1), "p1");
+
+  // An item id is never equal to a group id, so a variant cannot be mistaken
+  // for the product it belongs to. The previous scheme produced exactly that
+  // collision: the first variant's id *was* the group id.
+  assert.notEqual(catalogItemId(1, 11), catalogItemGroupId(1));
+
+  // Google caps both at 50 characters of alphanumerics, dashes and underscores.
+  const wide = catalogItemId(999999999, 999999999);
+  assert.ok(wide.length <= 50);
+  assert.match(wide, /^[A-Za-z0-9_-]+$/);
 });
 
-test("formatCatalogItemId returns product ID as itemId for single-variant products", () => {
-  const result = formatCatalogItemId("434683", 0, 1);
-  assert.equal(result.itemId, "434683");
-  assert.equal(result.itemGroupId, undefined);
-});
-
-test("formatCatalogItemId returns product ID for first variant of multi-variant products", () => {
-  const result = formatCatalogItemId("14001", 0, 2);
-  assert.equal(result.itemId, "14001");
-  assert.equal(result.itemGroupId, undefined);
-});
-
-test("formatCatalogItemId returns indexed suffix and itemGroupId for secondary variants", () => {
-  const result = formatCatalogItemId("14001", 1, 2);
-  assert.equal(result.itemId, "14001_v2");
-  assert.equal(result.itemGroupId, "14001");
+test("a page with no chosen variant points at the first one, or at nothing", () => {
+  assert.equal(
+    defaultCatalogContentId({ productId: 7, variants: [{ id: 21 }, { id: 22 }] }),
+    "p7-v21",
+  );
+  // No variants means no catalog item. Sending an id that matches nothing is
+  // worse than sending none: Meta reports it as a match the merchant cannot act on.
+  assert.equal(defaultCatalogContentId({ productId: 7, variants: [] }), undefined);
+  assert.equal(defaultCatalogContentId({ productId: 7 }), undefined);
 });
 
 test("generateGoogleCatalogXml emits valid g:id matching content_id and g:item_group_id", () => {
@@ -50,9 +54,14 @@ test("generateGoogleCatalogXml emits valid g:id matching content_id and g:item_g
   ];
 
   const xml = generateGoogleCatalogXml(mockProducts, "https://toko-uji.example");
-  assert.ok(xml.includes("<g:id>14001</g:id>"));
-  assert.ok(xml.includes("<g:id>14001_v2</g:id>"));
-  assert.ok(xml.includes("<g:item_group_id>14001</g:item_group_id>"));
+  assert.ok(xml.includes("<g:id>p14001-v10</g:id>"));
+  assert.ok(xml.includes("<g:id>p14001-v11</g:id>"));
+  // Both variants carry the group. Previously only the second did, so the first
+  // was published as an orphan whose id collided with the group id.
+  assert.equal(xml.match(/<g:item_group_id>p14001<\/g:item_group_id>/g)?.length, 2);
+  // Google refuses a group whose members carry no variant-identifying attribute.
+  assert.ok(xml.includes("<g:size>Paket 1 Batang</g:size>"));
+  assert.ok(xml.includes("<g:size>Paket 2 Batang</g:size>"));
   assert.ok(xml.includes("<g:link>https://toko-uji.example/produk/bibit-sirsak</g:link>"));
   assert.ok(xml.includes("<g:price>85000 IDR</g:price>"));
 });
@@ -90,7 +99,7 @@ test("generateMetaCatalogXml emits valid fb_product_category and matching conten
   ];
 
   const xml = generateMetaCatalogXml(mockProducts, "https://toko-uji.example");
-  assert.ok(xml.includes("<g:id>15005</g:id>"));
+  assert.ok(xml.includes("<g:id>p15005-v1</g:id>"));
   assert.ok(!xml.includes("<g:item_group_id>"));
   assert.ok(xml.includes("<g:fb_product_category>"));
   assert.ok(xml.includes("<g:image_link>https://r2.example.com/pompa.jpg</g:image_link>"));

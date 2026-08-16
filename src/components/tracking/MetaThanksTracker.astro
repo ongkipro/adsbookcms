@@ -86,10 +86,15 @@ const { tenantName, tenantSlug } = Astro.props;
     // di dalam fire() supaya dua leg mengutip baris order yang sama.
     const orderId = pick('order_id', '');
     const productName = pick('product_name', tenantName);
-    // content_ids Meta harus product ID (match katalog + funnel ViewContent/AddToCart), bukan variant/lp.
-    // Without a catalog product id, omit content_ids rather than faking it with a
-    // name or variant key that can never match the Meta catalog.
+    // content_ids must be the catalog item id — `p{product}-v{variant}` — the
+    // same string the feed publishes as <g:id> and the same one ViewContent and
+    // AddToCart sent. Anything else, including the bare product id, matches
+    // nothing in the catalog and is worse than sending nothing at all, because
+    // Meta reports it as a match rate the merchant cannot act on.
     const productId = pick('product_id', '');
+    const purchasedVariantId = pick('variant_unique_id', '');
+    const contentId =
+      productId && purchasedVariantId ? `p${productId}-v${purchasedVariantId}` : '';
     const phone = pick('phone', '');
     const name = pick('name', '');
     const province = pick('province', '');
@@ -107,7 +112,7 @@ const { tenantName, tenantSlug } = Astro.props;
 
     const data = {
       content_name: productName,
-      content_ids: productId ? [productId] : undefined,
+      content_ids: contentId ? [contentId] : undefined,
       content_type: 'product',
       value: Number(conversionValue || 1),
       currency: 'IDR',

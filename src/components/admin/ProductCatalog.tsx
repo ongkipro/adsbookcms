@@ -17,7 +17,7 @@ import {
   Eye,
   Filter,
 } from "lucide-react";
-import { formatContentId } from "../../lib/catalog-feed";
+import { catalogItemGroupId } from "../../lib/catalog-feed";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import {
@@ -296,7 +296,7 @@ export function ProductCatalog({
     return products.filter((product) => {
       const matchesQuery =
         !normalized ||
-        [product.id, formatContentId(product.id), product.title, product.slug, product.category]
+        [product.id, catalogItemGroupId(product.id), product.title, product.slug, product.category]
           .join(" ")
           .toLowerCase()
           .includes(normalized);
@@ -832,7 +832,7 @@ export function ProductCatalog({
                     <div>
                       <dt className="text-[10px] text-slate-500 uppercase font-semibold">Content ID</dt>
                       <dd className="mt-0.5 font-mono font-bold text-slate-900 text-[11px] truncate">
-                        {formatContentId(product.id)}
+                        {catalogItemGroupId(product.id)}
                       </dd>
                     </div>
                     <div>
@@ -935,12 +935,12 @@ export function ProductCatalog({
                       <TableCell className="py-3.5 px-4">
                         <button
                           type="button"
-                          onClick={() => void copyText(formatContentId(product.id), "Content ID")}
+                          onClick={() => void copyText(catalogItemGroupId(product.id), "Item group ID")}
                           className="group inline-flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-slate-100 transition-colors text-left"
                           title="Klik untuk menyalin Content ID"
                         >
                           <span className="font-mono text-xs font-bold text-slate-700 group-hover:text-slate-950">
-                            {formatContentId(product.id)}
+                            {catalogItemGroupId(product.id)}
                           </span>
                           <Copy className="size-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </button>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { Input } from "../ui/input";
-import { formatContentId } from "../../lib/catalog-feed";
+import { catalogItemGroupId } from "../../lib/catalog-feed";
 type Variant = {
   key: string;
   id?: number | string;
@@ -593,9 +593,9 @@ export function ProductForm({ productId }: { productId?: string }) {
             </div>
             <dl className="mt-5 grid grid-cols-2 gap-3 text-xs">
               <div className="rounded-lg bg-slate-50 p-3">
-                <dt className="text-slate-500">Content ID</dt>
+                <dt className="text-slate-500">Item group ID</dt>
                 <dd className="mt-1 font-mono font-black text-slate-900">
-                  {productId ? formatContentId(productId) : "Otomatis"}
+                  {productId ? catalogItemGroupId(productId) : "Otomatis"}
                 </dd>
               </div>
               <div className="rounded-lg bg-slate-50 p-3">

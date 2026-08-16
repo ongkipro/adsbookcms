@@ -9,6 +9,7 @@ import GeoIpResolvedForm from '../../components/forms/GeoIpResolvedForm.astro';
 import ProductImageSlider from '../../components/storefront/ProductImageSlider';
 import { resolveFormModeContext } from '../../lib/form-mode';
 import '../../styles/form-hybrid.css';
+import { defaultCatalogContentId } from '../../lib/catalog-feed';
 
 export const prerender = false;
 
@@ -133,7 +134,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
 >
   <MetaViewContentTracker
     slug={product.slug}
-    productId={product.productId}
+    contentId={defaultCatalogContentId(product)}
     contentName={product.productName}
     price={displayPrice}
   />

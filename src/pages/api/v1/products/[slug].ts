@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { handleOptions, headlessError, headlessOk, validateHeadlessRequest } from '../../../../lib/headless-api';
 import { getStorefrontProduct, getStorefrontProducts } from '../../../../lib/catalog';
+import { catalogItemGroupId, catalogItemId } from "../../../../lib/catalog-feed";
 
 export const prerender = false;
 
@@ -44,7 +45,7 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
       {
         product: {
           id: product.catalogId,
-          content_id: product.productId,
+          content_id: catalogItemGroupId(product.productId),
           slug: product.slug,
           name: product.productName,
           category: product.category,
@@ -68,7 +69,7 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
           sold_count: product.soldCount,
           variants: product.variants.map((v) => ({
             id: v.catalogId,
-            content_id: v.id,
+            content_id: catalogItemId(product.productId, v.id),
             label: v.label,
             price: v.price,
             compare_price: v.comparePrice ?? v.price,

@@ -1,16 +1,16 @@
 ---
 interface Props {
   slug: string;
-  productId: string;
+  contentId: string | undefined;
   contentName: string;
   price: number;
   checkoutSelector?: string;
 }
 
-const { slug, productId, contentName, price, checkoutSelector = '#checkout' } = Astro.props;
+const { slug, contentId, contentName, price, checkoutSelector = '#checkout' } = Astro.props;
 ---
 
-<script is:inline define:vars={{ slug, productId, contentName, price, checkoutSelector }}>
+<script is:inline define:vars={{ slug, contentId, contentName, price, checkoutSelector }}>
   (() => {
     if (typeof window === 'undefined') return;
 
@@ -50,7 +50,7 @@ const { slug, productId, contentName, price, checkoutSelector = '#checkout' } = 
     const track = (eventName, eventId) => {
       const data = {
         content_name: contentName,
-        content_ids: [productId],
+        content_ids: contentId ? [contentId] : undefined,
         content_type: 'product',
         value: Number(price || 1),
         currency: 'IDR',
@@ -62,7 +62,7 @@ const { slug, productId, contentName, price, checkoutSelector = '#checkout' } = 
         event_name: eventName,
         event_id: eventId,
         lp_name: slug,
-        product_id: productId,
+        product_id: contentId,
         content_name: contentName,
         value: Number(price || 1),
         currency: 'IDR',
@@ -73,7 +73,7 @@ const { slug, productId, contentName, price, checkoutSelector = '#checkout' } = 
         pushGtmEcomEvent('view_item', {
           currency: 'IDR',
           value: Number(price || 1),
-          item_id: productId,
+          item_id: contentId,
           item_name: contentName,
           event_id: eventId,
         });

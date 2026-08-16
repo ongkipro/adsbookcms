@@ -361,10 +361,17 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
     const checked = form.querySelector<HTMLInputElement>(
       'input[name="variant"]:checked',
     );
+    const variantUniqueId = String(checked?.value || "");
+    // The catalog is variant-level, so `content_ids` is the variant's item id —
+    // `p{product}-v{variant}` — and it must be byte-identical to `<g:id>` in the
+    // feed or Advantage+ has nothing to match. It used to send the bare product
+    // row id while the feed published `10000 + id`, so nothing ever matched.
+    const productId = String(config.productId || "");
     return {
-      // content_ids Meta harus product ID (match katalog + funnel ViewContent), bukan variant unique id.
-      productId: String(config.productId || ''),
-      variantUniqueId: String(checked?.value || ""),
+      productId,
+      variantUniqueId,
+      contentId:
+        productId && variantUniqueId ? `p${productId}-v${variantUniqueId}` : "",
       contentName: String(checked?.dataset.label || config.productName),
       value: Number(checked?.dataset.price || 1),
     };
@@ -426,7 +433,7 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
         eventName,
         {
           content_name: meta.contentName,
-          content_ids: meta.productId ? [meta.productId] : undefined,
+          content_ids: meta.contentId ? [meta.contentId] : undefined,
           content_type: "product",
           value: meta.value,
           currency: "IDR",
@@ -468,7 +475,7 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
           {
             type: eventName === "AddToCart" ? "adsbook:add-to-cart" : "adsbook:initiate-checkout",
             content_name: meta.contentName,
-            content_ids: meta.productId ? [meta.productId] : undefined,
+            content_ids: meta.contentId ? [meta.contentId] : undefined,
             content_type: "product",
             value: meta.value,
             currency: "IDR",

@@ -9,6 +9,7 @@ import {
   loadPublishedProductContent,
   mergeRuntimeProductContent,
 } from "./storefront-content";
+import { catalogItemGroupId } from "./catalog-feed";
 
 async function loadCatalogRows(database: D1Database) {
   const [products, variants] = await database.batch([
@@ -86,6 +87,10 @@ export async function getStorefrontProduct(locals: App.Locals, key: string) {
     (product) =>
       product.slug === key ||
       product.productId === key ||
-      String(product.catalogId) === key,
+      String(product.catalogId) === key ||
+      // `/api/v1/products` hands a caller `content_id: "p1"`. Accepting it back
+      // is the difference between a documented round trip and a 404 on the value
+      // the API just returned.
+      catalogItemGroupId(product.productId) === key,
   );
 }

@@ -8,6 +8,7 @@ import { getStoreSupportWhatsapp } from '../lib/public-store';
 import { getSessionCookie, verifyJwt } from '../lib/auth';
 import { getEnvValue, getRuntimeEnv } from '../lib/env';
 import '../styles/form-hybrid.css';
+import { defaultCatalogContentId } from '../lib/catalog-feed';
 
 export const prerender = false;
 
@@ -129,7 +130,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
   </Fragment>
   <MetaLandingTracker
     slug={page.slug}
-    productId={product.productId}
+    contentId={defaultCatalogContentId(product)}
     contentName={product.contentName}
     price={product.price}
   />

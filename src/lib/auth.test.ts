@@ -8,6 +8,7 @@ import {
   getDefaultAdminRoute,
   getSessionCookie,
   isAdminRole,
+  shouldSecureSessionCookie,
   signJwt,
   verifyJwt,
 } from './auth.ts';
@@ -15,6 +16,11 @@ import type { AdminRole, AdminSession } from './auth.ts';
 
 const AUTH_SECRET = 'unit-test-auth-secret-0123456789abcdef';
 const OTHER_SECRET = 'unit-test-auth-secret-fedcba9876543210';
+
+test('session cookie security follows the request transport, not build mode', () => {
+  assert.equal(shouldSecureSessionCookie(new URL('https://store.example/hello')), true);
+  assert.equal(shouldSecureSessionCookie(new URL('http://100.127.67.86:8790/hello')), false);
+});
 
 // The admin gate that consumes these tokens lives in `src/middleware.ts`, which
 // imports the virtual `astro:middleware` module and extensionless specifiers.
@@ -401,6 +407,7 @@ test('every admin role is confined to the routes it owns', () => {
     assert.equal(canAccessAdminRoute(role, '/admin/profile'), true);
     assert.equal(canAccessAdminRoute(role, '/api/admin/profile'), true);
     assert.equal(canAccessAdminRoute(role, '/api/admin/logout'), true);
+    assert.equal(canAccessAdminRoute(role, '/api/admin/health'), false);
   }
 });
 

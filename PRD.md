@@ -1,6 +1,6 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 ## 0. About this document
 
@@ -121,11 +121,18 @@ AdsBookCMS gives one merchant a complete direct-response storefront: catalog, la
 | REQ-53 | The system shall capture and preserve `gclid`, `gbraid`, `wbraid`, `fbclid`, and `ttclid` from landing through order persistence. | Implemented |
 | REQ-54 | Google Consent Mode shall default to denied in regulated regions before the granted default is applied. | Implemented |
 | REQ-55 | A page interaction or an unqualified order shall never be reported as a Purchase. | Implemented |
-| REQ-56 | Product category taxonomy in the catalog feeds shall resolve to the correct Google product category for each item. | Partial — the handbag rule is both the first rule and the default, but matching is an unweighted keyword count over title *and* description with no minimum score, so a description mentioning unrelated keywords can outscore it |
+| REQ-56 | Product category taxonomy in the catalog feeds shall resolve to the correct Google product category for each item. | Partial — matching is deterministic and confidence-gated (whole words, 3× name weighting, capped description contribution, unique winner); what remains is a compiled nine-rule set with no merchant-managed mapping or confirmation workflow |
 
 ---
 
 ## 8. Administration
+
+The primary users are store owners and the scoped `admin`, `advertiser`, and
+`customer_service` operators defined in `src/lib/auth.ts`. The shared shell is
+an operational workspace: it must help each role reach an allowed job, preserve
+context across viewport sizes, and expose recoverable system state. This phase
+does not change order, payment, shipping, or provider lifecycle rules; those
+remain separate correctness work.
 
 | ID | Requirement | Status |
 | --- | --- | --- |
@@ -135,6 +142,10 @@ AdsBookCMS gives one merchant a complete direct-response storefront: catalog, la
 | REQ-63 | The content workbench shall support manual drafting and AI-assisted generation from live catalog facts, with publication always explicit. | Implemented |
 | REQ-64 | Generated content shall never overwrite operational truth — price, stock, identifiers, activation, logistics, payment, credentials, or orders. | Implemented |
 | REQ-65 | The admin shell shall be identical across installs; only merchant identity, data, and provider configuration vary. | Implemented |
+| REQ-66 | The shared admin shell shall adapt without horizontal page overflow at 320 px, 390 px, tablet, and desktop widths: bottom navigation and sheets on phones, a compact collapsible rail on tablet, and the full sidebar on desktop, while preserving the current-location indicator and safe-area insets. | Implemented — A-89/A-92; browser overflow delta 0 px at 320/390/768/1280 |
+| REQ-67 | For every authenticated role, the dashboard shall render and request only actions and operational panels that role is authorised to use; a legitimate role shall not receive a broken widget because its backing API is forbidden. Business KPIs shall precede secondary diagnostics, and every displayed metric shall describe the value actually calculated. | Implemented — A-90/A-94; analytics leads the overview, health and action surfaces derive from the deny-by-default route policy, and paid-order ratio is labelled as payment success rather than ad conversion |
+| REQ-68 | Login, dashboard, search, navigation, and shared admin mutations shall expose explicit loading or pending, empty, recoverable error, permission, and success states without discarding usable content or form input. | Implemented for the shared login/dashboard shell — A-91; feature-specific mutation states remain owned by their feature requirements |
+| REQ-69 | The admin shall remain keyboard-operable and readable under text zoom, with logical focus order, visible focus, labelled icon controls, 44 px touch targets, safe-area padding, and no clipped primary action at the supported phone, tablet, and desktop widths. | Implemented — A-92; real Chromium flow covered login, rotation, dashboard, search, mobile menu, and logout |
 
 ---
 

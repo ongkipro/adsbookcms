@@ -1,6 +1,6 @@
 # Observability — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 This document describes what can and cannot currently be observed about a running install. It is deliberately blunt about the gaps, because for an installable product the inability to diagnose someone else's install is a product defect, not a nice-to-have.
 
@@ -43,13 +43,13 @@ Error logging follows a consistent convention worth preserving: a stable kebab-c
 console.error("storefront-support-whatsapp-load", error);
 ```
 
-Roughly 85 distinct labels are in use, named after the surface that produced them — `admin-products-patch`, `autolaris-webhook`, `mengantar-dispatch-lease-release`, `shipping-pickup`, `settings-put`, `google-catalog-xml-error`, and so on. These are already greppable and would become queryable the moment Workers Logs is enabled. **Keep this convention.** A new log line without a stable label is a log line nobody will ever find.
+Roughly 85 distinct labels are in use, named after the surface that produced them — `admin-products-patch`, `autolaris-webhook`, `mengantar-dispatch-lease-release`, `shipping-pickup`, `settings-put`, `google-catalog-xml-error`, and so on. Workers Logs is enabled, so these labels are queryable during the configured retention window. **Keep this convention.** A new log line without a stable label is a log line nobody will ever find.
 
 Three `console.log` calls exist and should be reviewed — informational logging in a Worker costs money at scale and usually indicates leftover debugging.
 
 ---
 
-## 3. Failure modes that are currently silent
+## 3. Current degradation gaps and resolved signals
 
 These are the paths where the system degrades without telling anyone. Each is a real behaviour in the current tree, not a hypothetical.
 
@@ -73,7 +73,7 @@ The pattern across all of them: the system is **correctly defensive** and **comp
 
 Ordered by value per unit of effort.
 
-1. **Log the outbox depth.** A single periodic count of `capi_event_outbox` rows in `status != 'delivered'` distinguishes a healthy pipeline from a stalled one. This is the metric most likely to silently cost money, because a stalled outbox means unattributed ad spend.
+1. **Alert on outbox health.** The current health query distinguishes `pending`, `failed`, and `sent` rows; what is missing is a push signal when pending work stops draining or permanent failures accumulate.
 
 2. **Distinguish degradation from success.** Where the code falls back — home
    content, support WhatsApp, embed origins — log a labelled warning on the
@@ -110,7 +110,7 @@ Once there is more than one install, observability stops being a single-site con
 Until the above lands, the available tools are:
 
 ```bash
-npx wrangler tail                                    # live log stream, nothing retained
+npx wrangler tail                                    # live stream; Workers Logs also retains the configured sample
 npx wrangler d1 execute OMS_DB --remote --command "…" # read-only inspection (approval required)
 curl -s -o /dev/null -w '%{http_code} %{time_total}' https://<domain>/
 ```

@@ -1,6 +1,6 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 This document describes the presentation layer **as it ships**, extracted from the code rather than from intent. Every concrete value below carries a `file:line` reference. Anything that could not be verified against the tree was left out — see `DECISIONS.md` ADR-010.
 
@@ -58,7 +58,7 @@ Admin colour **is** tokenised. `.admin-shell` redefines the shadcn variables in 
 - Accent is a single JS constant: `export const ADMIN_ACCENT = "#2563eb"` — `src/components/admin/admin-navigation.ts:24`, injected as `--admin-accent` inline on `<body>` (`src/layouts/AdminLayout.astro:40`) and used for `--primary` (`src/styles/global.css:283`), focus ring (`:325`), and input focus (`:371-372`).
 - Shell background is a radial gradient over `#f6f7f9` — `src/styles/global.css:300-302`, matched by `bg-[#f6f7f9]` on the body class (`src/layouts/AdminLayout.astro:39`).
 - Table chrome: header `#f8fafc`, header text `#64748b` at `0.68rem / 700 / 0.055em` uppercase — `src/styles/global.css:379-389`.
-- Admin login is a plain stage owned by the product, carrying no imagery at all (LOGIN-18). Colour only; it used to paint the reference store's own brand mark across the login screen of every install.
+- Admin login is a plain colour stage owned by the product. Its only image is the runtime store/product identity mark inside the form card; it carries no decorative or merchant-specific background imagery (LOGIN-18).
 
 ### 1.4 Base shadcn tokens
 
@@ -74,11 +74,10 @@ There is also a small legacy variable set at `src/styles/global.css:8-15` (`--bg
 
 | Family | Weights imported | Import site | Applied where |
 | --- | --- | --- | --- |
-| Inter | 400, 600, 700 | `src/layouts/BaseLayout.astro:4-6` | `html` (`BaseLayout.astro:156`), `body` (`global.css:20`), `.admin-shell` (`global.css:303`) |
-| Cinzel | 600 | `src/layouts/BaseLayout.astro:7` | brand type only, via inline `style` |
-| Plus Jakarta Sans | 400, 500, 600, 700, 800 | `src/layouts/EmbedLayout.astro:2-6` | **nowhere** |
+| Inter | 400, 600, 700 | `src/styles/global.css` | shared `body` and admin shell |
+| Cinzel | 700 | `src/styles/global.css` | brand type only, via inline `style` |
 
-**Plus Jakarta Sans is imported only by `EmbedLayout.astro` and never referenced by any `font-family` declaration.** `EmbedLayout` also imports `global.css` (`:7`), which sets `body { font-family: 'Inter', … }` (`global.css:20`), so the embed form renders in Inter and the five Jakarta weight files are downloaded for nothing. See §8.
+Font faces are owned by `global.css`, the stylesheet every layout loads. Plus Jakarta Sans is no longer imported; `EmbedLayout` intentionally inherits Inter.
 
 Cinzel is applied through three inline `style` attributes, not a class or token:
 
@@ -141,7 +140,7 @@ Borders carry the structure that radius and shadow would normally carry. Shadow 
 
 ## 4. Form controls (checkout)
 
-Checkout is the highest-traffic surface. It is styled in **two layers**, and this is the single most important thing to understand before editing it.
+Checkout is the highest-traffic surface. It is styled in **one route-owned layer**.
 
 **One layer: `src/styles/form-hybrid.css`.** It is imported by the seven routes that render a checkout — `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`, `/produk/[slug]` and `/[slug]` — and by nothing else, so no admin page carries it.
 
@@ -257,7 +256,7 @@ The submit button is `background: #111111 !important; color: #ffffff !important`
 
 ## 5. Layout widths
 
-The storefront ships two templates, enumerated in `src/lib/tenant-contract.ts:1`, selected by `PUBLIC_STOREFRONT_TEMPLATE` at build time (`src/lib/tenant.ts:92-94`, default `compact-market` at `:35`). An unknown value throws at module load (`src/lib/tenant.ts:43-46`).
+The storefront ships two compiled templates, enumerated in `src/lib/tenant-contract.ts`. The active template resolves at request time from the store row with environment/default fallback. An unknown value logs and degrades to `compact-market`; it does not throw.
 
 **The width branch happens in three places, and all three must agree:**
 
@@ -278,6 +277,39 @@ Inner content repeats `max-w-[480px]` independently rather than inheriting the s
 
 `AdminLayout` is not width-constrained: `flex h-dvh overflow-hidden` on the body (`src/layouts/AdminLayout.astro:39`), with layout owned by `AdminShell` and the shadcn sidebar.
 
+### 5.1 Admin navigation motion contract
+
+Admin navigation is intentionally static. Desktop renders direct workspace links
+and a compact, always-visible child list below the active workspace. The parent
+remains a link to its overview; there is no accordion, disclosure state,
+auto-scroll, width toggle, or clickable resize rail. Tablet hides the contextual
+child list in its icon rail, while child destinations remain available from
+their parent overview and global search. The phone all-menu sheet renders every
+role-allowed child. Viewport width alone chooses the navigation mode: phone
+bottom navigation, tablet icon rail, or full desktop sidebar
+(`src/components/admin/AdminShell.tsx`, `src/components/admin/AppSidebar.tsx`).
+
+The admin-scoped rule in `src/styles/global.css` disables animation and
+transition on the sidebar, tooltip, bottom navigation, and Sheet navigation
+surfaces. This does not disable action feedback: loaders may still spin while a
+real request is pending, and loading/error/empty states remain visible. GSAP is
+not installed; `tw-animate-css` remains shared UI infrastructure rather than an
+admin navigation dependency.
+
+### 5.2 Admin dashboard hierarchy
+
+The dashboard follows overview-first order: schema mismatch notice, universal
+business analytics, then owner/admin operational health. Analytics owns the
+period control, four KPIs, revenue trend, and payment mix. Diagnostics never
+push the primary business overview below the fold before it.
+
+Sidebar and mobile-menu labels use regular weight; only the current location is
+medium. Dashboard headings and numeric values are semibold, while labels are
+medium or regular. KPI values use tabular numerals and do not truncate. At phone
+and tablet widths KPIs remain a 2×2 grid; from `lg` they form one row, and the
+trend/payment split begins at `xl`. Dashboard links are rendered only when the
+same route policy grants access to their destination.
+
 ---
 
 ## 6. Tailwind v4 setup
@@ -293,9 +325,13 @@ Wiring:
   @import "tailwindcss";        /* :1 */
   @import "tw-animate-css";     /* :2 */
   @import "shadcn/tailwind.css";/* :3 */
-  @import "./form-hybrid.css";  /* :4 */
-  @custom-variant dark (&:is(.dark *)); /* :5 */
+  @import "@fontsource/inter/400.css";
+  @import "@fontsource/inter/600.css";
+  @import "@fontsource/inter/700.css";
+  @import "@fontsource/cinzel/700.css";
+  @custom-variant dark (&:is(.dark *));
   ```
+- `form-hybrid.css` is deliberately absent from this shared chain. Checkout routes import it directly so admin/storefront pages do not receive the checkout bundle.
 - Token bridge — `@theme inline { … }` maps every shadcn variable to a Tailwind colour utility and derives the radius scale from `--radius` (`global.css:154-193`).
 - Values live in `:root` (`:195-228`) and `.dark` (`:230-262`), in **oklch**, per Tailwind v4 / shadcn convention.
 
@@ -311,34 +347,13 @@ Class-variance-authority variants for storefront primitives live in `src/lib/ui-
 
 ## 7. Component inventory
 
-### 7.1 `src/components/ui/` — shadcn primitives (21 files)
+### 7.1 `src/components/ui/` — shadcn primitives
 
-Importer counts measured across `src/**/*.{ts,tsx,astro}`, excluding the file itself:
+The directory contains 21 primitives used by admin React islands. The former zero-import primitives `input-group.tsx` and `popover.tsx` were removed by A-34. Treat this directory as shared admin infrastructure; extend an existing primitive before introducing another component system.
 
-| Component | Importers |
-| --- | ---: |
-| `button.tsx` | 17 |
-| `input.tsx` | 13 |
-| `card.tsx` | 8 |
-| `select.tsx` | 5 |
-| `dialog.tsx`, `table.tsx` | 4 |
-| `badge.tsx`, `dropdown-menu.tsx`, `switch.tsx` | 3 |
-| `checkbox.tsx`, `sheet.tsx`, `sidebar.tsx`, `skeleton.tsx`, `textarea.tsx`, `tooltip.tsx` | 2 |
-| `chart.tsx`, `collapsible.tsx`, `command.tsx`, `pagination.tsx`, `separator.tsx`, `sonner.tsx` | 1 |
-| **`input-group.tsx`** | **0** |
-| **`popover.tsx`** | **0** |
+### 7.2 `src/components/shared/`
 
-`input-group.tsx` and `popover.tsx` are dead. (The 11 textual hits for "popover" elsewhere are the `bg-popover` / `text-popover-foreground` colour tokens and `--radix-*` CSS variables inside `dialog.tsx`, `dropdown-menu.tsx`, and `command.tsx` — not imports of the module.) Every shadcn primitive is consumed by admin code only; no `src/components/ui/*` file is imported by a storefront page.
-
-### 7.2 `src/components/shared/` — 14 Astro components
-
-Live: `Breadcrumb.astro`, `Icon.astro`, `LegalPage.astro`, `PageIntro.astro`, `ProductListItem.astro`, `RatingStars.astro`, `SiteBrand.astro`, `SiteFooter.astro`, `SiteHeader.astro`.
-
-**Zero importers (orphans):** `ButtonLink.astro`, `LpMiniFooter.astro`, `PaymentLogo.astro`, `ProductHeroBlock.astro`, `TestimonialListItem.astro`. Verified — no import statement or JSX/Astro reference anywhere under `src/`.
-
-`src/components/admin/AdminSectionNav.astro` is likewise an orphan (0 references).
-
-That is **6 orphan Astro components and 2 orphan React primitives**. They are also a correctness hazard, not just dead weight: `LpMiniFooter.astro` and `ProductHeroBlock.astro` carry palettes (`#EAEDED`/`#545B64`, `#263238`) that belong to no shipped surface, so anyone reviving one imports a third colour system with it.
+The nine current shared Astro components are `Breadcrumb.astro`, `Icon.astro`, `LegalPage.astro`, `PageIntro.astro`, `ProductListItem.astro`, `RatingStars.astro`, `SiteBrand.astro`, `SiteFooter.astro`, and `SiteHeader.astro`. The six orphan components previously listed here were removed by A-34.
 
 ### 7.3 Other storefront directories
 
@@ -368,14 +383,9 @@ That is **6 orphan Astro components and 2 orphan React primitives**. They are al
 
 ## 8. Known inconsistencies
 
-Reported, not harmonised. Each is a candidate follow-up task.
+Current observations, not a second backlog. Any item selected for implementation must first receive its own requirement/task in the canonical ledgers.
 
-**8.1 Two headless UI libraries ship side by side.** `radix-ui` (`package.json:43`) and `@base-ui/react` (`package.json:27`) are both runtime dependencies and the primitives are split between them:
-
-- radix-ui — `badge.tsx`, `checkbox.tsx`, `dialog.tsx`, `dropdown-menu.tsx`, `separator.tsx`, `sheet.tsx`, `sidebar.tsx`, `switch.tsx`, `tooltip.tsx` (9 files)
-- @base-ui/react — `button.tsx`, `collapsible.tsx`, `popover.tsx`, `select.tsx` (4 files)
-
-Two of the four Base UI consumers (`popover.tsx`) and its siblings are partly dead, so the Base UI surface is 3 live files. Both libraries ship focus-trap, portal, and dismiss logic to every admin page.
+**8.1 Two headless UI libraries ship side by side.** `radix-ui` and `@base-ui/react` are both runtime dependencies and current admin primitives import both. The former zero-import `popover.tsx` was removed; choosing whether to converge libraries requires a measured bundle/behaviour migration, not a speculative rewrite.
 
 **8.2 Three parallel colour systems in the storefront.** Boutique hex literals (§1.1), Tailwind `slate` (`src/lib/ui-variants.ts:9-11`, `:46`, `:60`, `:72`, `:81-83`; `src/pages/thanks.astro:43,131`; `src/pages/payment.astro:17` onward), and Tailwind `emerald` (16 × `emerald-700`, 10 × `emerald-100`, 10 × `emerald-800` across `payment.astro`, `thanks.astro`, `WideCatalogHome.astro`). `/payment` and `/thanks` are customer-facing pages that adopted the square shape rule but never the boutique palette — they are slate + emerald with `#F8F7F4` used only as a fill (`payment.astro:27,58,68,106`).
 
@@ -387,9 +397,9 @@ Two of the four Base UI consumers (`popover.tsx`) and its siblings are partly de
 
 **8.6 — RESOLVED 2026-08-16.** `form-hybrid.css` is imported six times. Globally at `global.css:4` — which already puts it on every page including admin — plus redundantly at `full-form.astro:8`, `geoipform.astro:8`, `middle-form.astro:8`, `hybrid-form.astro:14`, `embed/form.astro:7`. The five page-level imports are no-ops; the global import means 22KB of checkout CSS ships with the admin dashboard.
 
-**8.7 Plus Jakarta Sans is loaded and never used.** Five weight files imported at `EmbedLayout.astro:2-6`; no `font-family` declaration references the family anywhere under `src/`. The embed form renders in Inter via `global.css:20`.
+**8.7 — RESOLVED.** Plus Jakarta Sans was loaded and never used. The imports were removed; `EmbedLayout` now intentionally inherits Inter from `global.css`.
 
-**8.8 Font weights are used that were never imported.** Inter ships 400/600/700 (`BaseLayout.astro:4-6`), but the tree asks for 500 (`form-hybrid.css:281`), 800 (`:97`, `:229`, `:241`, `:914`; `PageIntro.astro:26`), and 900 (`form-hybrid.css:691`). Cinzel ships 600 only (`BaseLayout.astro:7`) but `SiteBrand.astro:23` applies `font-extrabold` and `:29` `font-bold` to Cinzel spans. Those render as synthetic (browser-faux) bold.
+**8.8 Font weights are used that were never imported.** Inter faces are 400/600/700 in `global.css`, while some utilities request 500, 800, or 900 and resolve to the nearest available face. Cinzel now ships the 700 face used by the brand; earlier synthetic-Cinzel claims are resolved.
 
 **8.9 Breadcrumb re-derives the width branch.** `Breadcrumb.astro:20` reads `Astro.locals.tenant.storefrontTemplate` directly instead of accepting the `contentWidth` its host layout already resolved (`BaseLayout.astro:51`). A page overriding `contentWidth` gets a breadcrumb of the other width.
 
@@ -406,11 +416,9 @@ Two of the four Base UI consumers (`popover.tsx`) and its siblings are partly de
 The commands CI runs, in order (`ARCHITECTURE.md` §9):
 
 ```bash
-npm test          # 303 tests, node --test over src/lib/*.test.ts
+npm test          # node --test over src/lib/*.test.ts
 npm run check     # astro check && tsc --noEmit
 npm run build     # astro build
 ```
 
-Observed on this tree: `tests 303 · pass 303 · fail 0`.
-
-There is no design-specific test suite and no visual regression check. Browser-visible changes have no automated proof — open the affected route at the shipped width (480px for `compact-market`) and inspect interaction, focus, console, and horizontal overflow. Do not record a test count in a design document; record it in `STATUS.md` / `BUILD-LOG.md` where it is expected to move.
+There is no screenshot-diff suite. `mobile-layout-guard.test.ts` prevents a known class of clipped implicit-grid regressions, but browser-visible work still requires a real browser check of interaction, focus, console, and horizontal overflow. Moving gate counts belong in `STATUS.md` / `BUILD-LOG.md`, not this design reference.

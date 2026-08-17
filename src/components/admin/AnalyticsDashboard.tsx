@@ -26,7 +26,7 @@ import {
 import {
   BadgeDollarSign,
   CalendarDays,
-  MousePointerClick,
+  CircleCheckBig,
   PackageCheck,
   RefreshCw,
   RotateCcw,
@@ -51,7 +51,11 @@ type AnalyticsData = {
   trends: Array<{ date: string; revenue: number; orders: number }>;
 };
 
-const currency = (value: number) => `IDR ${value.toLocaleString("id-ID")}`;
+const currency = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  maximumFractionDigits: 0,
+}).format;
 const percentage = (value: number) =>
   `${value.toLocaleString("id-ID", { maximumFractionDigits: 1 })}%`;
 
@@ -75,7 +79,7 @@ function LoadingState() {
   );
 }
 
-export function AnalyticsDashboard() {
+export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsLink?: boolean }) {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -85,7 +89,7 @@ export function AnalyticsDashboard() {
   const [customEnd, setCustomEnd] = useState("");
   const today = formatJakartaDate(new Date());
   const customEndMax = customStart
-    ? [shiftAdminDate(customStart, 180), today].sort()[0]
+    ? [shiftAdminDate(customStart, 30), today].sort()[0]
     : today;
 
   const loadAnalytics = useCallback(
@@ -185,7 +189,7 @@ export function AnalyticsDashboard() {
       note: "Pendapatan pada periode aktif",
       icon: BadgeDollarSign,
       tone: "text-emerald-700",
-      iconTone: "bg-emerald-50 text-emerald-700",
+      iconTone: "bg-blue-50 text-blue-700",
     },
     {
       label: "Pesanan",
@@ -196,12 +200,12 @@ export function AnalyticsDashboard() {
       iconTone: "bg-blue-50 text-blue-700",
     },
     {
-      label: "Konversi Ads",
+      label: "Pembayaran berhasil",
       value: percentage(data.conversion_rate),
-      note: "Pixel & CAPI ter-dedup",
-      icon: MousePointerClick,
+      note: "Order dengan status pembayaran berhasil",
+      icon: CircleCheckBig,
       tone: "text-slate-950",
-      iconTone: "bg-violet-50 text-violet-700",
+      iconTone: "bg-blue-50 text-blue-700",
     },
     {
       label: "Return to Sender",
@@ -212,7 +216,7 @@ export function AnalyticsDashboard() {
       iconTone:
         data.rts_rate > 10
           ? "bg-rose-50 text-rose-700"
-          : "bg-amber-50 text-amber-700",
+          : "bg-slate-100 text-slate-600",
     },
   ];
 
@@ -220,7 +224,7 @@ export function AnalyticsDashboard() {
     {
       name: "COD",
       value: data.cod_percentage,
-      bar: "bg-emerald-600",
+      bar: "bg-blue-600",
       countLabel: "Bayar saat barang diterima",
     },
     {
@@ -232,7 +236,7 @@ export function AnalyticsDashboard() {
     {
       name: "QRIS",
       value: data.qris_percentage,
-      bar: "bg-violet-600",
+      bar: "bg-slate-500",
       countLabel: "QR dan e-wallet",
     },
   ];
@@ -240,15 +244,15 @@ export function AnalyticsDashboard() {
 
   return (
     <div className="space-y-4 md:space-y-5">
-      <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+      <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
         <div className="flex items-center gap-2.5">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
             <CalendarDays className="size-[18px]" aria-hidden="true" />
           </span>
           <div>
-            <p className="text-xs font-bold text-slate-900">Periode laporan</p>
+            <p className="text-xs font-medium text-slate-900">Periode laporan</p>
             <p className="text-[11px] text-slate-500">
-              Semua metrik mengikuti periode ini; default seluruh riwayat.
+              Semua metrik mengikuti periode ini; default 7 hari terakhir (WIB).
             </p>
           </div>
         </div>
@@ -266,7 +270,7 @@ export function AnalyticsDashboard() {
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {ADMIN_DATE_FILTER_OPTIONS.map((option) => (
+              {ADMIN_DATE_FILTER_OPTIONS.filter((option) => option.value !== "90d" && option.value !== "180d").map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -300,7 +304,7 @@ export function AnalyticsDashboard() {
       </section>
 
       {dateFilter === "custom" && (
-        <section className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <section className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="grid-cols-1 grid gap-1.5">
             <span className="text-xs font-bold text-slate-700">
               Tanggal mulai
@@ -362,21 +366,21 @@ export function AnalyticsDashboard() {
       )}
 
       <section
-        className="grid grid-cols-2 gap-3 xl:grid-cols-4"
+        className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4"
         aria-label="Ringkasan performa toko"
       >
         {metrics.map((metric) => (
-          <Card key={metric.label} className="overflow-hidden border-slate-200 shadow-sm">
+          <Card key={metric.label} className="overflow-hidden border-slate-200 shadow-none">
             <CardContent className="p-3.5 sm:p-5">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 sm:text-[11px]">
+                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-slate-500 sm:text-[11px]">
                   {metric.label}
                 </p>
                 <span className={`hidden size-8 shrink-0 place-items-center rounded-xl sm:grid ${metric.iconTone}`}>
                   <metric.icon className="size-4" aria-hidden="true" />
                 </span>
               </div>
-              <p className={`mt-3 truncate text-xl font-extrabold tracking-[-0.035em] sm:text-2xl ${metric.tone}`}>
+              <p className={`mt-3 text-lg font-semibold tabular-nums tracking-[-0.035em] sm:text-2xl ${metric.tone}`}>
                 {metric.value}
               </p>
               <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-slate-500 sm:text-[11px]">
@@ -388,9 +392,9 @@ export function AnalyticsDashboard() {
       </section>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.75fr)]">
-        <Card aria-labelledby="trend-heading" className="min-w-0 border-slate-200 shadow-sm">
+        <Card aria-labelledby="trend-heading" className="min-w-0 border-slate-200 shadow-none">
           <CardHeader className="border-b border-slate-100 pb-4">
-            <CardTitle as="h3" id="trend-heading" className="text-sm font-bold text-slate-950 md:text-base">
+            <CardTitle as="h3" id="trend-heading" className="text-sm font-semibold text-slate-950 md:text-base">
               Tren omset
             </CardTitle>
             <CardDescription className="text-xs">
@@ -402,7 +406,7 @@ export function AnalyticsDashboard() {
               <div className="grid h-[280px] place-items-center rounded-xl bg-slate-50 text-center">
                 <div>
                   <PackageCheck className="mx-auto size-6 text-slate-300" aria-hidden="true" />
-                  <p className="mt-2 text-sm font-bold text-slate-700">
+                  <p className="mt-2 text-sm font-medium text-slate-700">
                     Belum ada data periode ini
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
@@ -411,7 +415,7 @@ export function AnalyticsDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="h-[280px] w-full">
+              <div className="h-[240px] w-full sm:h-[280px]">
                 <ChartContainer
                   config={{
                     revenue: {
@@ -469,9 +473,9 @@ export function AnalyticsDashboard() {
           </CardContent>
         </Card>
 
-        <Card aria-labelledby="payment-mix-heading" className="border-slate-200 shadow-sm">
+        <Card aria-labelledby="payment-mix-heading" className="border-slate-200 shadow-none">
           <CardHeader className="border-b border-slate-100 pb-4">
-            <CardTitle as="h3" id="payment-mix-heading" className="text-sm font-bold text-slate-950 md:text-base">
+            <CardTitle as="h3" id="payment-mix-heading" className="text-sm font-semibold text-slate-950 md:text-base">
               Metode pembayaran
             </CardTitle>
             <CardDescription className="text-xs">
@@ -483,14 +487,14 @@ export function AnalyticsDashboard() {
               <div key={item.name}>
                 <div className="flex items-end justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-bold text-slate-800">
+                    <p className="truncate text-xs font-medium text-slate-800">
                       {item.name}
                     </p>
                     <p className="mt-0.5 truncate text-[10px] text-slate-500">
                       {item.countLabel}
                     </p>
                   </div>
-                  <span className="shrink-0 text-sm font-extrabold text-slate-950">
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-950">
                     {percentage(item.value)}
                   </span>
                 </div>
@@ -505,9 +509,11 @@ export function AnalyticsDashboard() {
                 </div>
               </div>
             ))}
-            <a href="/admin/payments" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50">
-              Kelola payment
-            </a>
+            {showPaymentsLink && (
+              <a href="/admin/payments" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                Kelola payment
+              </a>
+            )}
           </CardContent>
         </Card>
       </div>

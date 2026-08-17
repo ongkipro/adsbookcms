@@ -1,6 +1,6 @@
 # AdsBookCMS — Storefront, Form, and Ads Integration Contract
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 This document is the implementation handoff for anyone — human or agent — building a public storefront experience against an **AdsBookCMS** install. Two integration shapes are supported and both are shipping today:
 
@@ -52,9 +52,9 @@ A second store is a second install — separate Worker, D1, KV, R2, and domain. 
 
 The canonical checkout routes are `/hybrid-form`, `/middle-form`, and `/full-form`. The legacy paths `/form-hybrid`, `/form-middle`, and `/form-full` exist as **308 permanent redirects that preserve the complete query string** (`src/pages/form-hybrid.astro` and siblings issue `Astro.redirect('/hybrid-form' + Astro.url.search, 308)`). New integrations must emit the canonical form, not the legacy alias.
 
-### Session-authenticated public API (`/api/*`)
+### Same-origin public API (`/api/*`)
 
-These serve the built-in forms. They are same-origin and take no API key.
+These serve the built-in forms. They take no admin session or API key; each write/read boundary applies its own validation, origin, honeypot, token, or rate-limit policy as documented by the route.
 
 | Route | Methods | Role |
 | --- | --- | --- |
@@ -132,7 +132,7 @@ Returns `total`, `limit`, `offset`, `has_more`, and `products[]`. Each product c
 
 Cache: `Cache-Control: private, max-age=60, stale-while-revalidate=600`; browser clients may reuse a response, shared caches may not. Failure: 500 `PRODUCTS_LOAD_ERROR`.
 
-Source is `getStorefrontProducts`, which merges operational `products`/`product_variants` rows with **published** `storefront_content` presentation. Product presentation fails closed: a product with no published row is omitted. On a load error the function returns `[]`, so an empty catalog is ambiguous between "no products" and "D1 failed" — surface an honest empty state either way, never a fixture.
+Source is `getStorefrontProducts`, which merges operational `products`/`product_variants` rows with **published** `storefront_content` presentation. An active product without published presentation is synthesized from its own operational row; inactive or checkout-incomplete products are omitted. On a load error the function returns `[]`, so an empty catalog is ambiguous between "no products" and "D1 failed" — surface an honest empty state either way, never a fixture.
 
 ### 4.4 `GET /api/v1/products/[slug]`
 
@@ -168,7 +168,7 @@ The full guard stack, in order: API key + origin, then a KV rate limit of **15 a
 
 On success returns **201** with `order` (`id`, `order_number`, `public_status_token`, `total_amount`, `unit_price`, `cod_service_fee`, `cod_service_fee_vat`, `cod_fee_bearer`, `seller_bank_name`, `seller_account_holder`, `seller_account_number`). Because the status is 201 and not 200, the envelope marks it `Cache-Control: no-store`. The API does not return a hosted confirmation URL: a Headless client owns its confirmation UI and must not navigate to the system's same-origin `/thanks` page.
 
-Ad click IDs are read server-side from the click-ID cookie and persisted with the order; the storefront does not pass them in the body.
+On a hosted storefront, ad click IDs are read server-side from the first-party click-ID cookie and persisted with the order. A generic external headless storefront cannot rely on that cookie: the install did not receive the external landing query, and `/api/v1/checkout` has no trusted click-ID forwarding field. Cross-domain click-ID forwarding remains an explicit adapter/API gap.
 
 Other failures: 409 `DUPLICATE_ORDER` (idempotent `submit_token` replay), the shipping-quote status/code passthrough, 422 `ORDER_INPUT_ERROR`, 500 `CHECKOUT_PROCESSING_ERROR`.
 
@@ -398,8 +398,8 @@ NON-NEGOTIABLE BOUNDARIES
    horizontal overflow.
 
 DATA AND COMMERCE INTEGRATION
-1. Bootstrap identity and tracking config from GET /api/v1/storefront. Treat every field as
-   build-time-frozen on the install side; it will not change without a redeploy there.
+1. Bootstrap identity and tracking config from GET /api/v1/storefront. Treat the response as
+   runtime data and honour its cache policy; store identity can change in D1 without a redeploy.
 2. Render the catalog from GET /api/v1/products and GET /api/v1/products/[slug]. Use the
    variant `content_id` (`p{product}-v{variant}`) in content_ids, and the numeric `id` for everything else.
 3. (No longer required — the API never returns a legacy /form-* URL. Kept so a

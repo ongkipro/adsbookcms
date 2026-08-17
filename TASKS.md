@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 ## Provenance — read before citing any task
 
@@ -1049,7 +1049,7 @@ A-50 install topology (blocked until A-10 removes the build-time constraint)
 - [x] **A-56** — Fresh installs could not be created at all. **Fixed 2026-08-16.** *(found while retiring Drizzle)*
  -> REQ: REQ-2 · Migration `0017` seeded a sample product with `INSERT INTO products … SELECT … FROM stores`, a no-op on the empty `stores` table of a new database, then inserted two variants with a hardcoded `product_id = 10001` — violating the foreign key and aborting the chain at migration 17 of 36. **No new install could get past it**, which is fatal for a product whose premise is installability. Reproduced independently in an isolated SQLite before fixing.
  · A forward migration cannot repair this, because `0017` fails before any later migration runs. `0017` was edited in place — the one documented exception — with the reasoning in its header: `0034` already deletes that row, so a migrated database and a fresh one converge on the same end state and the edit creates no divergence.
- · Verified: all 37 migrations apply from zero, producing 15 tables and no foreign sample product.
+ · **Correction 2026-08-17:** all 37 migrations apply from zero and produce 17 tables, not the 15 originally recorded here; no foreign sample product is created.
 
 - [x] **A-57** — Two maintenance scripts point at a repository that no longer exists. **Deleted 2026-08-16.** Their inputs, their dependencies and the repository they pointed at were all gone, and their outputs matched nothing in the tree.
  -> `scripts/generate-logo-assets.cjs` and `scripts/generate-webp-logo.cjs` hardcode `projectRoot = '/home/ongki/Projects/cmsads'` and `require` sharp from that checkout's `node_modules`. That repository is gone. Both are unrunnable from this tree and would write into the wrong project if it returned. Done when: they resolve paths relative to this repository and take their dependency from it, or they are deleted. They also still emit `adscms-logo.*` filenames.
@@ -1207,3 +1207,29 @@ Worker, and by reading the emitted stylesheets rather than the source.
 
 - [ ] **A-87** — Let a merchant tell the taxonomy engine what they sell.
  -> deps: [A-86] · The keyword rules are inherited from earlier merchants and match no particular install. A product now falls through to no category rather than a wrong one, which is safe but leaves Merchant Center auto-classifying. Done when a store can set its own category mapping from `/admin`, or confirm the engine's guess, instead of the engine inferring from Indonesian keyword lists that predate it.
+
+## A9 — Admin access and adaptive operator workspace
+
+- [x] **A-88** — Make the session cookie follow the request transport. **Done 2026-08-17.**
+ -> Primary requirement: LOGIN-20 · Constraints: LOGIN-13, LOGIN-19, REQ-60 · Dependencies: none · Done when: a focused automated check proves HTTPS login cookies retain `HttpOnly`, `SameSite=Lax`, and `Secure`; a plain-HTTP local login omits only `Secure`; and a real browser on the Tailscale development origin reaches the forced password-rotation page instead of looping to `/hello`.
+
+- [x] **A-89** — Make the shared admin shell deliberately adaptive. **Done 2026-08-17.**
+ -> Primary requirement: REQ-66 · Constraints: REQ-65, REQ-69 · Dependencies: A-88 · Done when: the existing `AdminLayout`, `AdminShell`, `AppSidebar`, mobile sheets, and bottom navigation form one shell with no page-level horizontal overflow at 320, 390, 768, and 1280 CSS px; the active location remains visible in every mode; and no second shell or navigation dependency is introduced.
+
+- [x] **A-90** — Make dashboard content and actions role-correct. **Done 2026-08-17.**
+ -> Primary requirement: REQ-67 · Constraints: REQ-61, REQ-68 · Dependencies: A-89 · Done when: owner/admin retain the operational health and commerce actions they may use; advertiser and customer-service dashboard loads make no forbidden health request, expose no denied action link, and render a useful role-specific overview instead of an error panel.
+
+- [x] **A-91** — Complete shared login and dashboard state feedback. **Done 2026-08-17.**
+ -> Primary requirement: REQ-68 · Constraints: LOGIN-10..19, REQ-69 · Dependencies: A-88, A-90 · Done when: login preserves the submitted username and announces validation/server failures; pending submission cannot double-run and recovers after navigation restore; dashboard health/analytics preserve useful content during recoverable failure; search has explicit empty state; and changed controls retain visible focus and accessible names.
+
+- [x] **A-92** — Prove the adaptive admin in a real browser. **Done 2026-08-17.**
+ -> Primary requirement: REQ-69 · Constraints: REQ-66, REQ-67, REQ-68 · Dependencies: A-89, A-90, A-91 · Done when: the local Worker flow is exercised at 320, 390, 768, and 1280 CSS px through login, forced password rotation, dashboard, mobile navigation, search, and logout; overflow delta is at most 1 px; relevant console/network failures are zero; keyboard focus is visible and ordered; and screenshots plus exact runtime evidence are recorded before documentation status is changed.
+ -> Evidence: built-Worker Chromium runs measured 0 px overflow at all four widths, 48 px tablet rail, 256 px desktop sidebar, working mobile Menu/search/logout, no runtime exceptions or failed requests, and correct first-run restriction. Screenshots: `/tmp/adsbook-login-final-390.png`, `/tmp/adsbook-profile-{320,390,768,1280}.png`, and `/tmp/adsbook-dashboard-{320,390,768,1280}.png`.
+
+- [x] **A-93** — Make admin navigation structurally motionless. **Done 2026-08-17.**
+ -> Primary requirement: REQ-66 · Constraints: REQ-65, REQ-69 · Dependencies: A-89 · Done when: desktop menu clicks cannot expand rows, auto-scroll the sidebar, or resize the shell; phone navigation sheets do not slide or fade; child routes remain reachable; and no animation dependency is added.
+ -> The desktop accordion, `scrollIntoView`, sidebar trigger, and resize rail were removed. A compact static child list now renders below the active desktop workspace without disclosure state or structural movement; its parent remains a direct overview link. Tablet retains the fixed icon rail, while role-allowed child routes remain in overview pages and global search; phone All Menu renders every child. Admin navigation and Sheet transitions are disabled by the scoped visual contract. Source guards, 309 tests, the 318-file check, production build, and isolated Chromium renders at 1280/768 px pass. The full authenticated flow was not bypassed because the current local credential is no longer the documented default.
+
+- [x] **A-94** — Make sidebar typography quiet and dashboard hierarchy truthful. **Done 2026-08-17.**
+ -> Primary requirements: REQ-67, REQ-69 · Constraints: REQ-61, REQ-68 · Dependencies: A-90, A-93 · Done when: desktop and mobile navigation use regular text with medium weight only for current state; analytics and KPIs precede secondary health diagnostics; period controls cannot request an API-invalid range; labels describe the values actually calculated; and payment actions remain hidden from roles without access.
+ -> Sidebar labels are regular, current labels medium, and navigation remains motionless. The dashboard now leads with a 7-day WIB analytics overview, four unclipped KPIs, revenue trend, and payment mix; health follows as owner/admin diagnostics. The paid-order ratio is labelled `Pembayaran berhasil`, 90/180-day presets are omitted from this 31-day endpoint, custom range is capped at 31 inclusive days, and `Kelola payment` follows route authorization. Escape from mobile All Menu returns focus to its trigger. Focused tests, the full 310-test suite, 318-file check, production build, and isolated Chromium at 390/768/1280 px pass.

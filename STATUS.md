@@ -1,12 +1,12 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 >
 > `main` was re-founded as AdsBookCMS and its history rewritten (ADR-012), so the
 > commit range this document once cited no longer exists on this branch; the
 > previous 61 commits are preserved on `backup/pre-history-rewrite`. Gates re-run
-> on the current tree, not inherited: `npm run check` 317 files / 0 errors /
-> 0 warnings / 0 hints · `npm test` 303 / 303 · `npm run build` Cloudflare server
+> on the current tree, not inherited: `npm run check` 318 files / 0 errors /
+> 0 warnings / 0 hints · `npm test` 310 / 310 · `npm run build` Cloudflare server
 > bundle complete.
 
 Current state of the system. Implemented behaviour lives here; history lives in `BUILD-LOG.md`; remaining work lives in `UNIMPLEMENTED_SPECS.md`; structure lives in `ARCHITECTURE.md`.
@@ -41,10 +41,10 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **303 / 303 passing** |
-| `npm run check` | 317 files · 0 errors · 0 warnings · 0 hints |
+| `npm test` | **310 / 310 passing** |
+| `npm run check` | 318 files · 0 errors · 0 warnings · 0 hints |
 | `npm run build` | Cloudflare server bundle complete |
-| Browser smoke | Public 8/8 menu routes and current-role admin menu/profile 5/5 returned 200 at the expected path; public and admin skip links target the main content; no horizontal overflow at 390 px |
+| Browser smoke | Built Worker on HTTP Tailscale establishes the login session; Chromium completed login, forced rotation, normal dashboard, search, mobile Menu, and logout at 320/390/768/1280 px with 0 px overflow and no runtime/network failures |
 
 ---
 
@@ -60,7 +60,7 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 **Orders and shipping** — operator-controlled dispatch to Mengantar under a single-flight lease, sequential shipment creation with independent per-order results, pickup address and schedule synchronisation with the provider, receiver RTS scoring, and a shipping lifecycle view separate from pending intake.
 
-**Admin** — 27 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker, payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. Navigation and route authorization share one deny-by-default role policy; scoped operators see only the complete workspace their role owns.
+**Admin** — 27 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker, payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. Navigation and route authorization share one deny-by-default role policy. Phones use role-aware bottom navigation and sheets, tablet starts with a 48 px rail, desktop uses a 256 px sidebar, and first-run sessions expose only password rotation and logout. The dashboard leads with role-safe business analytics and follows with owner/admin health diagnostics; action links are rendered only when the role policy grants their destination.
 
 **Headless API** — seven `/api/v1/*` routes (storefront descriptor, products list and detail, district lookup, shipping rates, checkout, tracking events) authenticated by API key against `developer_api_keys`. The independently validated Headless origin allowlist is persisted on `stores.headless_allowed_origins` and editable in Developer settings.
 
@@ -76,7 +76,7 @@ Catalog: **empty by default**. No dataset ships (ADR-016); an install starts wit
 
 Known data issues, all tracked:
 
-- The local development D1 still holds the previously provisioned warehouse row — a real address, phone number, and Mengantar ObjectIds. The repository is clean, but that data lives in local state and presumably in the remote database; scrubbing it needs a remote write and is a separate decision.
+- The local development D1 may hold a previously provisioned warehouse row with address, phone, and Mengantar identifiers. Remote state was not read and is explicitly unverified; any local or remote scrub is a separate destructive-data decision.
 - No seed ships. `scripts/seed-catalog.sql`, `public/images/products/` and `db:reset:demo:local` were removed on 2026-08-17 (ADR-016); whether to reintroduce sample data, and in what form, is deferred rather than decided against. The earlier `src/db/seed.sql`, which held two previous merchants' catalogs plus genuine-looking provider ids, a real address and a real phone number, was deleted on 2026-08-16.
 - Migration `0017` aborted the chain on an empty database, so **no new install could be created**; fixed 2026-08-16 by removing the sample-data insert it carried. All 37 migrations now apply from zero.
 
@@ -108,7 +108,7 @@ System-wide security, correctness, documentation, navigation, and UX audit:
 - Closed inactive-product exposure, landing-preview cache, custom-HTML preview injection, legacy embed redirect, catalog identity, and public cache-control defects. Removed dead completion-query builders after the safe navigation boundary made them redundant.
 - Centralised admin navigation contracts, aligned menu visibility with authorization, repaired nested `<main>` landmarks, and made public/admin skip links target the actual main content.
 - Reconciled repository specifications, architecture, installation notes, storefront integration guidance, remaining-gap register, and migration `0034` behaviour with the executable tree.
-- Independent final security review found no exploitable finding in the audited trust boundaries. Remaining work below is product/operations debt rather than a known open vulnerability.
+- The 2026-08-17 repository audit found open correctness and abuse-control defects. They are recorded in §6 and `UNIMPLEMENTED_SPECS.md`; the earlier statement that no exploitable finding remained is superseded.
 
 ---
 
@@ -116,7 +116,14 @@ System-wide security, correctness, documentation, navigation, and UX audit:
 
 | Severity | Issue |
 | --- | --- |
-| High | The admin gate read the raw request path while Astro routed on a normalized one, so `//api/admin/...` bypassed every check — fixed 2026-08-17, pinned by `middleware-path-source.test.ts` and `auth.test.ts` |
+| High | Bulk order status writes bypass the guarded single-order lifecycle and can move a stock-restored cancelled/returned order back in flight without reserving inventory again |
+| High | Single and bulk order deletion remove reserved line items without restoring stock |
+| High | An uninstalled public Worker can be claimed by the first direct caller to unauthenticated `/api/install`; the second-install guard does not authenticate the first operator |
+| Medium | Public location/shipping proxies and abandoned-order capture lack complete abuse controls; abandoned-row purge is claimed historically but not implemented |
+| Medium | Order-number allocation uses `MAX(id) + 1`, so concurrent independent submissions can collide |
+| Medium | Payment and ad-signal edge paths have policy/identity gaps: disabled methods are not enforced at every submit boundary, manual transfer cannot reach the current paid dispatch state, and Meta server/headless Purchase contracts diverge |
+| Medium | Settings handlers still attempt runtime DDL although migrations own schema truth |
+| Fixed | HTTP Tailscale login loop and scoped-role dashboard health 403 were fixed locally by A-88/A-90; the normalized-path admin bypass remains fixed and test-pinned |
 | Medium | There is no automatic schema-upgrade path (**G3**) |
 | Medium | Fresh-install home content and compile-time theme selection remain coupled to repository defaults (**G5**, **G6**) |
 | Medium | Headless key scope/quota, authenticated order-status read, a published OpenAPI contract, and an executable adapter remain open (**H4**, **H6**, **H7**, **H8**) |

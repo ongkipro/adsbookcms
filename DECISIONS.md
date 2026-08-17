@@ -1,6 +1,6 @@
 # Architecture Decision Record — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 Append-only. One decision per entry. A decision is recorded here only when it constrains future work; implementation detail belongs in `ARCHITECTURE.md`, remaining work in `UNIMPLEMENTED_SPECS.md`.
 
@@ -53,6 +53,8 @@ Status values: **Accepted** · **Superseded by ADR-nnn** · **Proposed** (decide
 **Decision.** A first-run `/install` route detects an uninitialised database, collects store identity, admin credentials, and locale/currency, writes them to D1, and marks the install complete. Once complete the route refuses to run again.
 
 **Consequences.** Depends on ADR-003. Requires a neutral, deletable sample dataset (ADR-006) and a fail-closed empty state (ADR-007), because a fresh install has no content by definition.
+
+**Correction, 2026-08-17.** The implemented wizard collects store name, HTTPS site URL, optional tagline/support WhatsApp, admin username/password, and storefront template. It does not render locale or currency controls: locale currently enters the install plan as `id-ID`, while currency is not an installer field. The Decision sentence above records the original intent and must not be read as current UI evidence.
 
 ---
 

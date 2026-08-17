@@ -1,6 +1,6 @@
 # AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 A self-contained direct-response commerce CMS that installs onto Cloudflare Workers. One install runs one store: storefront, landing-page builder, checkout with COD and online payment, order management, courier dispatch, ad-signal tracking, and an admin dashboard — in a single Worker with its own database.
 
@@ -67,7 +67,7 @@ Every command below exists in `package.json`.
 npm run dev            # astro dev on :4321 — no Worker bindings
 npm run cf:dev         # wrangler dev --local
 
-npm test               # node --test over src/lib/*.test.ts  (303 tests)
+npm test               # node --test over src/lib/*.test.ts  (310 tests)
 npm run check          # astro check && tsc --noEmit
 npm run build          # astro build
 
@@ -99,7 +99,7 @@ Deploying is an install's job, from an install's repository. Migrations are a se
 src/
   pages/           102 files — storefront, admin, /api/*, /api/v1/*, feeds, media
   components/       69 files — admin/ forms/ home/ seo/ shared/ storefront/ tracking/ ui/
-  lib/              70 modules + 58 colocated test files — all business logic
+  lib/              70 modules + 59 colocated test files — all business logic
   db/               37 hand-authored migrations — the only description of the schema
   layouts/          BaseLayout, AdminLayout, EmbedLayout
   styles/           global.css (Tailwind v4 entry), form-hybrid.css (checkout)

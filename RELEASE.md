@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -49,7 +49,7 @@ npm run check     # astro check && tsc --noEmit
 npm run build     # astro build
 ```
 
-Current baseline on `main`: **303 tests passing**, `tsc` clean, `astro check` 317 files, 0 errors / 0 warnings / 0 hints.
+Current verified working-tree baseline: **310 tests passing**, `tsc` clean, `astro check` 318 files, 0 errors / 0 warnings / 0 hints.
 
 A green build is not proof the storefront works. For any browser-visible change, open the affected page before merging. Neither `tsc` nor `astro check` catches a route that fails to compose — an unterminated `.astro` frontmatter block silently produced a 404 on `/disclaimer` while every static check stayed green.
 

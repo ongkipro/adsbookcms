@@ -1,6 +1,6 @@
 # Google Ads Conversion Signal & Merchant Center Setup Guide
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 > **Product:** AdsBookCMS (single) — one installer, one Worker, one store.
 > **Repository role:** product. Examples below name `permatamall.shop`, the first install, which lives in its own repository (`ongkipro/permatamall`); substitute your own install's domain.
@@ -104,7 +104,7 @@ The storefront pushes `page_view`, `view_item`, `add_to_cart`, `begin_checkout`,
 
 `src/lib/ad-taxonomy.ts` derives the Google Product Category (GPC) ID, the GPC path, the Meta commerce category path, and an internal product-type path from the product's category, title, and description — no manual mapping by the merchant.
 
-Matching is a **keyword-count** scan: for each rule, count how many of its keywords appear in the combined lowercased `category + title + description`, and take the rule with the highest count. Ties resolve to the earliest rule in the list. Empty text, or no keyword match at all, falls back to the default.
+Matching is confidence-gated and deterministic. Keywords match whole words. A hit in category/title is weighted three times above a description hit; description contribution is capped; a rule must reach `MIN_SCORE`; and a tie or under-confidence result emits no category rather than guessing.
 
 The nine rules as they ship, in source order:
 
@@ -120,7 +120,7 @@ The nine rules as they ship, in source order:
 | `1630` | `Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils` | `Perkakas & Rumah Tangga > Alat Dapur` | pisau, asahan, alat dapur, pengasah, perkakas |
 | `222` | `Electronics` | `Elektronik & Gadget` | elektronik, gadget, charger, kabel, headset, lampu |
 
-Default when nothing matches: GPC `6551`, the handbags path. When a category name is present but no rule matched, the product type becomes `Umum > <category>`.
+When nothing matches confidently, the feed omits the optional platform category fields. When a category name is present but no rule matched, the product type becomes `Umum > <category>`.
 
 #### Known gap — the taxonomy carries rules for merchants this install does not serve
 

@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -2338,3 +2338,112 @@ bundling it by default was the wrong answer, not that the question is closed.
 `public/images` is 232KB, from 21MB at the start of the day.
 
 Gates: `npm test` 306/306 · `npm run check` 0/0/0 · `npm run build` complete.
+
+---
+
+## 2026-08-17 — HTTP login recovery and adaptive admin workspace
+
+The Tailscale login loop was a transport bug, not a credential failure. A valid
+`admin` / `admin` POST returned 302 to `/admin/profile`, but the built Worker
+set a `Secure` cookie while Wrangler served it over plain HTTP. Chromium dropped
+the cookie and the next private request returned to `/hello`.
+
+`shouldSecureSessionCookie` now derives the flag from the request URL protocol.
+HTTPS keeps `Secure`; local HTTP omits only that attribute and retains
+`HttpOnly; SameSite=Lax`. The focused auth test pins both transports, and the
+built Tailscale Worker stored the redacted session cookie and reached the
+forced-rotation route.
+
+The admin shell now carries `mustChangePassword` from validated middleware
+locals. While rotation is due, a persistent security banner is visible and the
+only exposed work is Profile/password rotation plus Logout; provider integration
+settings are not rendered. Normal navigation remains role-filtered from the
+existing navigation source. Tablet starts with a 48 px icon rail, desktop with
+the 256 px sidebar, phones retain bottom navigation and sheets, and the phone
+topbar uses the real page title. Dashboard health and action links are
+conditional on `canAccessAdminRoute`, so advertiser and customer-service roles
+do not request the forbidden health API.
+
+The login card kept the existing dark stage/light form language, but gained a
+real heading, store context, readable runtime identity, and a compact first-run
+notice. No new component library, theme, navigation model, or dependency was
+introduced.
+
+Browser evidence used the built Worker. Chromium exercised login, forced
+rotation, normal dashboard, search, mobile Menu, and logout at 320, 390, 768,
+and 1280 CSS px. At every width `documentElement.scrollWidth === innerWidth`;
+runtime exception and failed-network lists were empty. The restricted shell
+measured 0/0/48/256 px sidebar widths at those viewports. An isolated advertiser
+fixture rendered Product/Ads actions, no Orders/Shipping action, and no health
+panel.
+
+Local setup evidence also exposed stale developer state: the shared local D1
+was 20 migrations behind and had no `stores` row. All remaining local migrations
+were applied and one neutral local store identity was added without touching
+remote D1 or provider state. A separate temporary D1 carried normal-dashboard
+browser testing, so the shared seeded credential stayed in forced-rotation
+state.
+
+Final gates: `npm test` 308/308 · `npm run check` 318 files, 0 errors / 0
+warnings / 0 hints · `npm run build` complete. A9 tasks A-88 through A-92 and
+LOGIN-7/LOGIN-20 are complete locally. Repository-wide audit findings outside
+this UI scope are recorded in `STATUS.md` and `UNIMPLEMENTED_SPECS.md`; they are
+not represented as fixed.
+
+---
+
+## 2026-08-17 — Motionless admin navigation
+
+The sidebar still moved even after its CSS transitions were disabled. The cause
+was structural: opening a controlled accordion changed the menu height,
+`scrollIntoView` then shifted the sidebar, and the trigger or resize rail could
+change the shell from 256px to 48px. There was no GSAP dependency or import to
+remove.
+
+Desktop navigation is now a stable workspace list with a compact static child
+list below the active workspace. The parent remains a direct overview link;
+there is no accordion state, disclosure trigger, auto-scroll, width trigger, or
+clickable rail. Width follows the existing responsive contract only: mobile
+bottom navigation, tablet icon rail, full desktop sidebar. Tablet child routes
+stay reachable through overview pages and global search; the mobile all-menu
+sheet renders every role-allowed child. The overview pages also expose Landing
+Pages, Headless API, and owner-only Access. Mobile navigation Sheet animation
+is disabled.
+
+Dashboard presentation was tightened without changing its data contract:
+hairline cards no longer use blanket shadows, the redundant eyebrow was
+removed, and decorative KPI/payment colours were reduced to the established
+blue accent plus neutral/status colours. Request feedback and error/loading
+states remain intact.
+
+Evidence: 309/309 tests pass; `npm run check` reports 318 files with zero
+errors, warnings, or hints; `npm run build` completes; the Tailscale Worker
+reloaded that build. Isolated Chromium renders of the production component and
+CSS at 1280 and 768 px confirm the full contextual Settings submenu and fixed
+tablet rail; source guards retain every mobile child link and disable Sheet
+motion. The full authenticated flow was not bypassed because the current local
+credential is no longer the documented default.
+
+---
+
+## 2026-08-17 — Quiet sidebar and overview-first dashboard
+
+Reduced desktop sidebar, mobile All Menu, and bottom-navigation labels to
+regular weight, reserving medium weight for the current location. The static
+contextual submenu and no-motion behavior remain unchanged. Mobile All Menu now
+returns keyboard focus to its trigger after Escape because it is controlled by
+an external button rather than a colocated Sheet trigger.
+
+Reordered the dashboard so universal analytics and KPIs precede owner/admin
+health diagnostics. Tightened responsive KPI typography and chart height,
+replaced the false `Konversi Ads` label with `Pembayaran berhasil`, aligned the
+dashboard's date choices with its API's 31-day ceiling, and gated the payment
+management link with the existing route policy.
+
+Evidence: 310/310 tests pass; `npm run check` reports 318 files with zero
+errors, warnings, or hints; `npm run build` completes. Isolated Chromium at
+390/768/1280 px reports zero horizontal overflow, four unclipped KPI cards,
+0-second sidebar/Sheet transitions, regular nav weight, 48/256 px tablet and
+desktop navigation widths, successful refresh hydration, correct payment-link
+visibility in both allowed and denied fixtures, and no runtime or network
+failures. Screenshots: `/tmp/adsbook-dashboard-overview-{390,768,1280}.png`.

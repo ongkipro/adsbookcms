@@ -2,9 +2,13 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
 export const prerender = false;
-const mayManageIntegrations = Astro.locals.admin?.role === 'owner'
-  || Astro.locals.admin?.role === 'admin';
-const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Profil Akun';
+const mustChangePassword = Astro.locals.admin?.mustChangePassword ?? false;
+const mayManageIntegrations = !mustChangePassword && (
+  Astro.locals.admin?.role === 'owner' || Astro.locals.admin?.role === 'admin'
+);
+const pageTitle = mustChangePassword
+  ? 'Amankan akun admin'
+  : mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Profil Akun';
 ---
 
 <AdminLayout title={pageTitle} activeMenu="profile">
@@ -12,7 +16,9 @@ const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Prof
     <AdminPageHeader
       eyebrow="Account & security"
       title={pageTitle}
-      description={mayManageIntegrations
+      description={mustChangePassword
+        ? "Ganti password bawaan untuk membuka workspace operasional. Semua sesi akan diakhiri setelah perubahan tersimpan."
+        : mayManageIntegrations
         ? "Kelola kredensial admin, domain provider, serta API Mengantar dan AutoLaris."
         : "Kelola username dan password akun Anda."}
     />
@@ -233,10 +239,7 @@ const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Prof
     };
 
     loadProfile().then((mustChangePassword) => {
-      if (mustChangePassword) {
-        showIntegrationsError(new Error('Ganti password default terlebih dahulu untuk membuka pengaturan integrasi API.'));
-        return;
-      }
+      if (mustChangePassword) return;
       if (byId('integrationsForm')) loadIntegrations().catch(showIntegrationsError);
     }).catch((error) => {
       byId('profileLoading')?.setAttribute('aria-busy', 'false');
@@ -246,7 +249,7 @@ const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Prof
         node.textContent = error instanceof Error ? error.message : 'Gagal memuat profil admin.';
         node.classList.remove('hidden');
       }
-      showIntegrationsError(error);
+      if (byId('integrationsForm')) showIntegrationsError(error);
     });
 
     byId<HTMLFormElement>('profileForm')?.addEventListener('submit', async (event) => {

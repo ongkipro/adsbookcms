@@ -25,6 +25,13 @@
     "nodejs_compat"
   ],
 
+  // Runtime authentication cannot safely degrade to a placeholder. Declaring
+  // the required name lets Wrangler load only this secret from process.env in
+  // local development and validate that every deployed Worker defines it.
+  "secrets": {
+    "required": ["AUTH_SECRET"]
+  },
+
   // Keep false so an install never gets an unreviewed *.workers.dev endpoint.
   "workers_dev": false,
 

@@ -9,7 +9,13 @@ import {
   normalizeAdminUsername,
   verifyAdminLoginPassword,
 } from '../lib/admin-credentials';
-import { SESSION_COOKIE_NAME, secureEqual, signJwt, verifyPasswordHash } from '../lib/auth';
+import {
+  SESSION_COOKIE_NAME,
+  secureEqual,
+  shouldSecureSessionCookie,
+  signJwt,
+  verifyPasswordHash,
+} from '../lib/auth';
 import { getEnvValue, getRuntimeEnv } from '../lib/env';
 import {
   checkAdminLoginRateLimit,
@@ -105,7 +111,7 @@ if (Astro.request.method === 'POST' && crossSiteLogin) {
           Astro.cookies.set(SESSION_COOKIE_NAME, token, {
             path: '/',
             httpOnly: true,
-            secure: import.meta.env.PROD,
+            secure: shouldSecureSessionCookie(Astro.url),
             sameSite: 'lax',
             maxAge: 60 * 60 * 24,
           });
@@ -160,11 +166,14 @@ if (database && !bootstrapAdminPassword) {
          of every operator opening the admin and bought nothing back. -->
   </head>
   <body class="admin-login-page text-slate-900 antialiased">
-    <main class="admin-login-stage">
+    <main class="admin-login-stage" aria-labelledby="loginTitle">
     <div class="admin-login-card w-full max-w-sm rounded-2xl border border-slate-200 bg-white text-slate-950 shadow-2xl">
       <!-- Header. The mark is the store's own, resolved per request (LOGIN-10). -->
-      <div class="admin-login-header flex flex-col items-center px-6 pt-7 pb-3 text-center">
-        <img src={Astro.locals.tenant.logo} alt={Astro.locals.tenant.adminName} width="180" height="188" class="mx-auto mb-3 h-24 w-auto max-w-[200px] object-contain" />
+      <div class="admin-login-header px-6 pb-4 pt-7 text-center">
+        <img src={Astro.locals.tenant.logo} alt="" width="180" height="188" class="mx-auto h-12 w-auto max-w-[200px] object-contain" />
+        <p class="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{Astro.locals.tenant.adminName}</p>
+        <h1 id="loginTitle" class="mt-1 text-2xl font-black tracking-[-0.035em] text-slate-950">Masuk ke dashboard</h1>
+        <p class="mt-2 text-sm leading-5 text-slate-600">Kelola operasional {Astro.locals.tenant.name} dari satu workspace.</p>
       </div>
 
       <div class="p-6 pt-0">
@@ -175,24 +184,20 @@ if (database && !bootstrapAdminPassword) {
         )}
 
         {showsDefaultCredential && (
-          <div id="defaultCredentialNotice" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">
-            <p>
-              Instalasi ini masih pakai akses bawaan: username <b>{DEFAULT_ADMIN_USERNAME}</b>, password <b>{BOOTSTRAP_FALLBACK_PASSWORD}</b>.
-            </p>
-            <p class="mt-1">
-              Ganti passwordnya begitu masuk. Selama belum diganti, akun ini cuma bisa membuka halaman ganti password — bukan pesanan, pelanggan, atau pengaturan.
-            </p>
+          <div id="defaultCredentialNotice" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-950">
+            <p class="font-black">Akses awal perlu diamankan</p>
+            <p class="mt-1">Username <b>{DEFAULT_ADMIN_USERNAME}</b> · password <b>{BOOTSTRAP_FALLBACK_PASSWORD}</b>. Setelah masuk, ganti password untuk membuka menu operasional.</p>
           </div>
         )}
 
         <form id="loginForm" method="POST" class="space-y-4" aria-busy="false" aria-describedby={[errorMessage && 'loginError', showsDefaultCredential && 'defaultCredentialNotice'].filter(Boolean).join(' ') || undefined}>
           <div class="space-y-2">
-            <label for="username" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Username Admin</label>
+            <label for="username" class="text-sm font-bold leading-none text-slate-700">Username admin</label>
             <input id="username" type="text" name="username" required autocomplete="username" autofocus={!focusPassword} value={submittedUsername} class="admin-input-flat" />
           </div>
 
           <div class="space-y-2">
-            <label for="password" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Password</label>
+            <label for="password" class="text-sm font-bold leading-none text-slate-700">Password</label>
             <div class="relative">
               <input id="password" type="password" name="password" required autocomplete="current-password" autofocus={focusPassword} class="admin-input-flat pr-28" />
               <button id="togglePassword" type="button" class="absolute right-0 top-0 h-full px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300" aria-controls="password" aria-label="Tampilkan password" aria-pressed="false">Lihat</button>

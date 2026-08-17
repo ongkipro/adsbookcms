@@ -1,6 +1,6 @@
 # AdsBookCMS — Remaining Work and Blockers
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 This is the single ledger of work that is **not** done. Implemented behaviour belongs in `STATUS.md`, history in `BUILD-LOG.md`, accepted product behaviour in `PRD.md`, real architecture in `ARCHITECTURE.md`, and constraining decisions in `DECISIONS.md`.
 
@@ -34,7 +34,32 @@ Everything below is work the gap register does **not** cover: external provider 
 
 ---
 
-## 2. External Provider Blockers
+## 2. Audited Correctness and Abuse-Control Gaps
+
+These findings were re-traced against the current tree on 2026-08-17. They are
+not provider unknowns and should be addressed before new order-lifecycle work.
+
+| ID | Severity | Gap | Executable boundary |
+| --- | --- | --- | --- |
+| O1 | High | Bulk order status update writes any enum state directly and bypasses the transition, payment, waybill, and provider guards used by the detail route. A cancelled/returned order can therefore return to flight after stock was restored. | Replace the direct write with the canonical transition policy; prove cancelled/returned cannot reopen without an explicit reserve operation. |
+| O2 | High | Single and bulk order deletion remove items/payment/order without restoring stock reserved during checkout. | Restore exactly once before destructive row removal, in the same failure-safe boundary; cover both paths. |
+| I1 | High | `/api/install` is intentionally unauthenticated and only prevents a second install. The first direct caller can claim an exposed uninstalled Worker. | Add an operator-verifiable setup capability or an infrastructure gate without making a fresh install unreachable. |
+| A1 | Medium | Public location/shipping endpoints can fan out into paid provider calls without KV rate limiting; caller-controlled `origin_id` is accepted by the public rates route. | Rate-limit by a defensible public key and remove or authenticate origin override. |
+| A2 | Medium | `/api/record-abandoned-order` has no rate limit or honeypot, and the claimed >7-day automatic purge does not exist. | Bound creation and implement a scheduled/explicit retention path before claiming purge. |
+| O3 | Medium | Invoice and abandoned numbers use `SELECT MAX(id) + 1`; concurrent submissions can choose the same unique number. | Allocate atomically and add a concurrency regression check. |
+| P1 | High | Manual transfer begins pending but the admin path rejects marking non-COD orders paid, leaving the method unable to become dispatch-eligible. | Define and implement a reviewed verification transition for seller-bank transfers. |
+| P2 | Medium | Payment master/channel toggles affect method listing but are not enforced consistently at submit endpoints. | Enforce the same persisted policy at every order trust boundary. |
+| T1 | Medium | Meta server Purchase does not consistently require paid online state; browser/server content identifiers diverge; headless Purchase delivery omits the required order number. | One paid-state predicate and one canonical order/product identity builder must feed every Purchase leg. |
+| D1 | Medium | Settings request handlers attempt `ALTER TABLE` and swallow errors even though migrations `0032`/`0033` own those columns. | Remove runtime DDL after migration-chain verification. |
+| DOC1 | Low | `DESIGN-SYSTEM.md` still describes deleted components, old font/CSS ownership, build-time tenant fallback, and historical test counts. | Re-extract the document from the current component/style tree instead of incrementally restamping stale sections. |
+
+The scoped-role dashboard health defect found by the same audit is closed by
+A-90: the component and action links now derive visibility from
+`canAccessAdminRoute`. The HTTP Tailscale login loop is closed by A-88.
+
+---
+
+## 3. External Provider Blockers
 
 These cannot be closed from inside this repository. Each needs a canonical provider document or an explicitly approved live capture.
 
@@ -56,7 +81,7 @@ Unknown or unauthenticated provider events **must fail closed** (ADR-007). Do no
 
 ---
 
-## 3. Provider Work With a Verified Transport but an Incomplete Surface
+## 4. Provider Work With a Verified Transport but an Incomplete Surface
 
 ### A. Non-COD unpaid recovery — transport done, operator surface missing
 
@@ -85,7 +110,7 @@ What remains is not code:
 
 ---
 
-## 4. Headless API Surface — shipping, with real gaps
+## 5. Headless API Surface — shipping, with real gaps
 
 The `/api/v1/*` family is **implemented** — seven routes, key-authenticated, documented in `STOREFRONT_INTEGRATION.md` §4. It is no longer a planned contract and must not be listed as one. Note that `TASKS.md` T174 and T175 are stale: the bootstrap and catalog contracts they describe both ship.
 
@@ -104,7 +129,7 @@ Genuine remaining work on that surface:
 
 ---
 
-## 5. Inherited-Identity Cleanup
+## 6. Inherited-Identity Cleanup
 
 Per ADR-002, remnants of the upstream multi-tenant engine and of previous merchants are to be **removed**, not preserved as compatibility boundaries.
 
@@ -119,7 +144,7 @@ Per ADR-002, remnants of the upstream multi-tenant engine and of previous mercha
 
 ---
 
-## 6. Operator-Gated Actions
+## 7. Operator-Gated Actions
 
 These are not engineering gaps. They require an explicit human decision and, where relevant, a rollback plan.
 
@@ -134,7 +159,7 @@ These are not engineering gaps. They require an explicit human decision and, whe
 
 ---
 
-## 7. Merchant Input and Runtime Publication
+## 8. Merchant Input and Runtime Publication
 
 Repository implementation for the content workbench is complete; publication is runtime work performed by the merchant or operator, not by a commit.
 
@@ -151,7 +176,7 @@ Neither surface fails closed today. `mergeStorefrontCatalog` omits an **inactive
 
 ---
 
-## 8. Execution Order
+## 9. Execution Order
 
 1. **G5** make home content fail closed; a fresh install must not render a
    generic storefront in place of a setup state (ADR-007, task A-12b).
@@ -162,14 +187,16 @@ Neither surface fails closed today. `mergeStorefrontCatalog` omits an **inactive
    already exist; what is missing is anything that *pushes*.
 4. **G3** compare `schemaVersion` to the applied chain at boot.
 5. **G6** allow a template to be added without a rebuild.
-6. **§3A** the unpaid-recovery operator surface, after an approved live capture.
-7. **§3B** re-verify the pickup contracts, then prove them live under approval.
-8. **§2** resolve tracking, wallet, and AutoLaris signature blockers only from canonical provider documentation.
-11. **H4, H6, H7, H8** and the consent adapter, once the installer product shape is settled.
+6. **O1, O2, P1** close inventory and payment-lifecycle corruption before adding order features.
+7. **I1, A1, A2, O3, P2, T1, D1** close the remaining audited security, abuse, concurrency, policy, signal, and schema gaps.
+8. **§4A** the unpaid-recovery operator surface, after an approved live capture.
+9. **§4B** re-verify the pickup contracts, then prove them live under approval.
+10. **§3** resolve tracking, wallet, and AutoLaris signature blockers only from canonical provider documentation.
+11. Complete the consent adapter once the installer product shape is settled.
 
 ---
 
-## 9. Completion Rules
+## 10. Completion Rules
 
 An entry is complete only when its contract, implementation, executable proof, failure behaviour, and owning canonical document are all updated together.
 

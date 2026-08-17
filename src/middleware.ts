@@ -266,6 +266,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.admin = {
       username: session.username,
       role: session.role,
+      mustChangePassword,
     };
     if (!canAccessAdminRoute(session.role, url.pathname)) {
       if (isAdminApi) {

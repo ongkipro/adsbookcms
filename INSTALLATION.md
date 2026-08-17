@@ -1,6 +1,6 @@
 # Installing AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 This document describes how an install is actually stood up today, and where that process is still rougher than the product intends to be. It contains no commands that do not exist. Where a step is manual because the tooling has not been built yet, it says so and points at the gap.
 
@@ -30,7 +30,7 @@ Binding **names** are fixed across every install — `OMS_DB`, `SESSION`, `ASSET
 - Wrangler authenticated to **that** account — confirm with `npx wrangler whoami` before creating anything
 - A domain on that Cloudflare account
 
-A repository copy grants no access to another account's resources. The ids committed in `wrangler.jsonc` belong to the reference install and must be replaced, not reused.
+A repository copy grants no access to another account's resources. The ids committed in `wrangler.jsonc` are all-zero placeholders and must be replaced with resources owned by the target install.
 
 ---
 

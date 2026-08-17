@@ -2,6 +2,15 @@
 export const SESSION_COOKIE_NAME = 'adsbook_session';
 const JWT_ALGORITHM = { name: 'HMAC', hash: 'SHA-256' } as const;
 
+/**
+ * Cookie security follows the transport the browser is actually using.
+ * `wrangler dev` serves a production build over plain HTTP, so build mode is
+ * not a transport signal and would make the browser discard the session.
+ */
+export function shouldSecureSessionCookie(url: URL) {
+  return url.protocol === 'https:';
+}
+
 export const ADMIN_ROLES = [
   'owner',
   'admin',

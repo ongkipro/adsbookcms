@@ -123,3 +123,51 @@ test("a mobile-visible grid always declares its columns", () => {
       offenders.join("\n  "),
   );
 });
+
+test("the admin shell keeps phone, tablet, and desktop navigation distinct", () => {
+  const shell = readFileSync("src/components/admin/AdminShell.tsx", "utf8");
+
+  assert.match(shell, /matchMedia\("\(min-width: 768px\)"\)/);
+  assert.match(shell, /matchMedia\("\(min-width: 1024px\)"\)/);
+  assert.match(shell, /<SidebarProvider open=\{sidebarOpen\}/);
+  assert.doesNotMatch(shell, /<SidebarTrigger/);
+  assert.match(shell, /md:hidden/);
+  assert.match(shell, /mustChangePassword \? \["profile"\]/);
+  assert.match(shell, /item\.children\.map/);
+  assert.match(shell, /aria-current=\{childActive \? "page" : undefined\}/);
+  assert.match(shell, /admin-mobile-menu-trigger/);
+  assert.match(shell, /onCloseAutoFocus/);
+});
+
+test("admin navigation changes state without decorative motion", () => {
+  const styles = readFileSync("src/styles/global.css", "utf8");
+  const sidebar = readFileSync("src/components/admin/AppSidebar.tsx", "utf8");
+
+  assert.match(styles, /\[data-slot="sidebar"\][\s\S]*animation: none !important;[\s\S]*transition: none !important;/);
+  assert.match(styles, /\[data-slot="sheet-overlay"\][\s\S]*\[data-slot="sheet-content"\]/);
+  assert.doesNotMatch(sidebar, /animate-ping/);
+  assert.doesNotMatch(sidebar, /scrollIntoView|requestAnimationFrame|<Collapsible|<SidebarRail/);
+  assert.doesNotMatch(sidebar, /transition-(transform|all)/);
+  assert.match(sidebar, /active && children\.length > 0/);
+  assert.match(sidebar, /<SidebarMenuSub/);
+  assert.match(sidebar, /aria-current=\{childActive \? "page" : undefined\}/);
+  assert.doesNotMatch(sidebar, /font-(?:extra)?bold/);
+});
+
+test("dashboard overview leads with truthful role-safe analytics", () => {
+  const dashboard = readFileSync("src/pages/admin/dashboard.astro", "utf8");
+  const analytics = readFileSync(
+    "src/components/admin/AnalyticsDashboard.tsx",
+    "utf8",
+  );
+
+  assert.ok(
+    dashboard.indexOf("<AnalyticsDashboard") < dashboard.indexOf("<OperationalHealth"),
+    "business analytics must precede secondary operational diagnostics",
+  );
+  assert.match(dashboard, /showPaymentsLink=\{mayManagePayments\}/);
+  assert.match(analytics, /Pembayaran berhasil/);
+  assert.doesNotMatch(analytics, /Konversi Ads/);
+  assert.match(analytics, /shiftAdminDate\(customStart, 30\)/);
+  assert.match(analytics, /showPaymentsLink &&/);
+});

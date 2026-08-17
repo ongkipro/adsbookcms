@@ -67,6 +67,7 @@ declare namespace App {
     admin?: {
       username: string;
       role: import("./lib/auth").AdminRole;
+      mustChangePassword: boolean;
     };
   }
 }

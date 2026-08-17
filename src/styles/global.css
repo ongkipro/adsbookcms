@@ -363,14 +363,33 @@ input[type="number"] {
   letter-spacing: -0.01em;
 }
 
+/* Admin navigation is deliberately immediate. Width changes, submenu panels,
+   chevrons, tooltips, and bottom-nav state should communicate location without
+   adding motion to a tool operators use all day. Keep this scoped away from
+   content loading and mutation feedback. */
+.admin-shell :where(
+  [data-slot="sidebar"],
+  [data-slot="sidebar"] *,
+  [data-slot="collapsible-content"],
+  [data-slot="collapsible-content"] *,
+  [data-slot="tooltip-content"],
+  [data-slot="tooltip-content"] *,
+  [data-slot="sheet-overlay"],
+  [data-slot="sheet-content"],
+  [data-slot="sheet-content"] *,
+  .admin-bottom-nav,
+  .admin-bottom-nav *
+) {
+  animation: none !important;
+  transition: none !important;
+}
+
 .admin-shell [data-slot="card"],
 .admin-shell section.bg-white,
 .admin-shell article.bg-white {
   border-color: rgba(203, 213, 225, 0.72);
   border-radius: 0.875rem;
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.035),
-    0 8px 24px rgba(15, 23, 42, 0.025);
+  box-shadow: none;
 }
 
 .admin-shell [data-slot="card-header"] {
@@ -605,7 +624,7 @@ input[type="number"] {
   }
 
   .admin-login-stage {
-    align-items: flex-end;
+    align-items: center;
   }
 
   .admin-login-card {
@@ -613,9 +632,14 @@ input[type="number"] {
     border-radius: 1rem;
   }
 
-  /* At 320 × 568 the card has to fit its own content, and the mark is the part
-     that can give height back. */
-  .admin-login-header img {
-    height: 4.5rem;
+  @media (max-height: 640px) {
+    .admin-login-stage {
+      align-items: flex-start;
+    }
+
+    .admin-login-header {
+      padding-top: 1.25rem;
+      padding-bottom: 0.75rem;
+    }
   }
 }

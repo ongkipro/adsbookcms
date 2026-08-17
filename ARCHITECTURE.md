@@ -3,8 +3,8 @@
 > **Product:** AdsBookCMS (single) — a self-contained direct-response commerce CMS that installs onto Cloudflare Workers.
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
-> **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying the bundled demo dataset (ADR-011). Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -78,7 +78,7 @@ The headless `/api/v1/*` family is **implemented and shipping**, authenticated b
 
 D1 is the only persistent store for operational state. **All runtime data access is raw `D1Database.prepare()` / `.batch()`** across 45 modules. There is no ORM and no schema-generation step: Drizzle was removed on 2026-08-16 (ADR-005), so `src/db/migrations/*.sql` is the only description of the schema in the tree.
 
-### Tables (15)
+### Tables (17)
 
 `stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `payment_transactions` · `storefront_content` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `developer_api_keys` · `landing_pages` · `landing_sections`
 
@@ -150,7 +150,7 @@ group, so the named groups for Googlebot, Bingbot and the AI crawlers each need
 their own copy; when they held nothing but `Allow: /`, those six crawlers saw no
 disallows at all.
 
-`src/lib/auth.ts` is covered by `src/lib/auth.test.ts` — 14 tests over signing,
+`src/lib/auth.ts` is covered by `src/lib/auth.test.ts` — 15 tests over signing,
 verification, claim validation, role routing and the middleware gate itself,
 including the normalized-path shapes that once walked past it.
 
@@ -221,7 +221,7 @@ as stale rather than believed.
 | --- | --- | --- | --- |
 | ~~G1~~ | ~~Identity is build-time~~ | **Closed 2026-08-16.** Migration 0036 moved identity into `stores`; middleware resolves it once per request onto `Astro.locals.tenant`; `/admin/settings/store` edits six of the nine fields (`theme_color`, `locale` and `admin_name` have no editor yet) without a rebuild | `src/lib/tenant.ts`, `src/middleware.ts` |
 | ~~G2~~ | ~~No `/install` wizard~~ | **Closed 2026-08-16.** A migrated database with no store row routes to `/install`; the wizard writes identity and the operator's credential in one batch and then refuses to run again | `src/pages/install.astro`, `src/lib/install.ts` |
-| G3 | No schema auto-upgrade | Each install is upgraded manually; nothing compares `schemaVersion` to the applied chain at boot | `src/lib/version.ts`, migration runner |
+| G3 | No schema auto-upgrade | Each install is upgraded manually. Runtime health compares `schemaVersion` with `d1_migrations`, but it reports drift rather than applying migrations | `src/lib/schema-version.ts`, migration runner |
 | ~~G4~~ | ~~Sample product is another merchant's~~ | **Closed 2026-08-16.** Migration `0034` removes the foreign row under identity and order-reference guards; the immutability concept was dropped rather than repointed, since the demo catalog already serves the purpose and is fully editable | `src/db/migrations/0034_remove_foreign_sample_product.sql` |
 | G5 | Home *shell* falls back to built-in copy | Narrowed 2026-08-17 (ADR-016): no dataset ships, and the product section, `/produk` and `/kontak` all render explicit empty states. What remains is the shell — `getTenantHomeContent` never returns `null`, so the operator setup branch is unreachable (A-12b) | `src/lib/tenant-content.ts` |
 | G6 | Theme set is compile-time | Templates can now be *switched* from `/admin/settings/store`; **adding** one still needs a rebuild | `src/lib/tenant-contract.ts` |

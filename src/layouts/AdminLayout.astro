@@ -11,6 +11,8 @@ interface Props {
 const { title, activeMenu } = Astro.props;
 const currentPath = (Astro.url.pathname + Astro.url.search).replace(/\/$/, '') || '/';
 const adminRole = Astro.locals.admin?.role ?? 'customer_service';
+const mustChangePassword = Astro.locals.admin?.mustChangePassword ?? false;
+const sidebarDefaultOpen = Astro.cookies.get('sidebar_state')?.value !== 'false';
 
 ---
 
@@ -48,6 +50,8 @@ const adminRole = Astro.locals.admin?.role ?? 'customer_service';
       currentPath={currentPath}
       siteUrl={Astro.locals.tenant.siteUrl}
       adminRole={adminRole}
+      mustChangePassword={mustChangePassword}
+      sidebarDefaultOpen={sidebarDefaultOpen}
     >
       <slot />
     </AdminShell>

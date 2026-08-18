@@ -78,7 +78,7 @@ Known data issues, all tracked:
 
 - The local development D1 may hold a previously provisioned warehouse row with address, phone, and Mengantar identifiers. Remote state was not read and is explicitly unverified; any local or remote scrub is a separate destructive-data decision.
 - No seed ships. `scripts/seed-catalog.sql`, `public/images/products/` and `db:reset:demo:local` were removed on 2026-08-17 (ADR-016); whether to reintroduce sample data, and in what form, is deferred rather than decided against. The earlier `src/db/seed.sql`, which held two previous merchants' catalogs plus genuine-looking provider ids, a real address and a real phone number, was deleted on 2026-08-16.
-- Migration `0017` once aborted the chain on an empty database; that insert was removed 2026-08-16. All 41 migrations now apply from zero, and the Worker applies a valid missing suffix automatically before database-backed requests. Migration `0040` adds persisted provider status text, provider event time, and synchronization time to `orders`.
+- Migration `0017` once aborted the chain on an empty database; that insert was removed 2026-08-16. All 42 migrations now apply from zero, and the Worker applies a valid missing suffix automatically before database-backed requests. Migration `0040` adds persisted provider status text, provider event time, and synchronization time to `orders`; migration `0041` adds persisted missed-order follow-up state.
 
 ---
 
@@ -117,13 +117,12 @@ System-wide security, correctness, documentation, navigation, and UX audit:
 
 | Severity | Current fact |
 | --- | --- |
-| High | An uninstalled public Worker can be claimed by the first direct caller to unauthenticated `/api/install`; the second-install guard does not authenticate the first operator |
-| Medium | Public location/shipping proxies still need complete abuse controls |
-| Medium | Product-grain feeds still need a truthful standard-identifier policy and stable out-of-stock publication contract |
-| Medium | Settings handlers still attempt runtime DDL although migrations own schema truth |
-| Medium | Theme colour, locale, and admin display name resolve from D1 but still lack admin editors |
-| Medium | External uptime checks and a cross-install operational view do not exist; per-install schema/CAPI webhook alerting does |
-| Blocked | Unpaid-order recovery and several provider edge contracts require an explicitly approved live capture before implementation |
+| Release blocker | AutoLaris QRIS/VA payment creation exists, but the accepted cron-based confirmation path lacks a canonical read-only transaction-inquiry endpoint and paid/pending/expired/failed schemas. Production online checkout must remain disabled until that contract is implemented and proven. |
+| Medium | Product-grain feeds still need a truthful standard-identifier policy and stable out-of-stock publication contract. |
+| Medium | Theme colour, locale, and admin display name resolve from D1 but still lack complete admin editors. |
+| Medium | External uptime checks and a cross-install operational view do not exist; per-install schema/CAPI alerting does. |
+| Blocked | Mengantar tracking, pickup, insufficient-wallet recovery, and wallet balance still require canonical provider contracts or explicitly approved sandbox/live evidence. |
+| Release evidence | Commit `0af225b` has local test/check/build and authenticated browser evidence, but no hosted CI result, production-D1 preflight, or install-specific provider smoke. |
 | Data note | Local/remote D1 may still contain a previously provisioned warehouse address, phone, and provider ObjectIds; scrubbing it is a separate destructive/remote-data action |
 
 ---

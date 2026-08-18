@@ -1,6 +1,6 @@
 # AdsBookCMS — Remaining Work and Blockers
 
-> Reviewed against disk: 2026-08-17 @ `5cb1d32` + current A13 source; execution remains pending in the main session.
+> Reviewed against disk: 2026-08-18 @ `0af225b` on `feat/admin-access-dashboard`.
 
 This is the single ledger of work that is **not** done. Implemented behaviour belongs in `STATUS.md`, history in `BUILD-LOG.md`, accepted product behaviour in `PRD.md`, real architecture in `ARCHITECTURE.md`, and constraining decisions in `DECISIONS.md`.
 
@@ -83,14 +83,16 @@ These are not engineering gaps. They require an explicit human decision and, whe
 
 ## 6. Execution Order
 
-1. **AD3** define stable truthful out-of-stock feed behavior.
-2. **S1** complete the runtime store identity editor.
-3. **D1** remove obsolete runtime DDL now that schema readiness is enforced.
-4. **AD3** make product-level identifiers and out-of-stock availability truthful.
-5. **S1** complete runtime identity editing.
-6. **DOC1** rebuild the design-system record from the current tree.
-7. Resolve provider blockers only from canonical documentation or approved live evidence.
-8. Implement **H9** only after the consent contract is accepted.
+1. Keep AutoLaris QRIS/VA disabled for production checkout until the canonical
+   transaction-inquiry contract is implemented and proven through the scheduled
+   Worker path.
+2. Resolve Mengantar provider blockers only from canonical documentation or
+   approved sandbox/live evidence.
+3. **AD3** define and implement stable, truthful out-of-stock feed behavior and
+   standard-identifier policy.
+4. **S1** complete the runtime store identity editor.
+5. **DOC1** rebuild the design-system record from the current tree.
+6. Implement **H9** only after the consent contract is accepted.
 
 ---
 

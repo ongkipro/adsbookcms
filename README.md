@@ -1,6 +1,6 @@
 # AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A11 working tree
+> Verified against disk: 2026-08-18 @ `0af225b` on `feat/admin-access-dashboard`
 
 A self-contained direct-response commerce CMS that installs onto Cloudflare Workers. One install runs one store: storefront, landing-page builder, checkout with COD and online payment, order management, courier dispatch, ad-signal tracking, and an admin dashboard — in a single Worker with its own database.
 
@@ -31,7 +31,7 @@ Full procedure, including creating the Cloudflare resources: `INSTALLATION.md`.
 
 ```bash
 npm ci
-npm run db:migrate:local      # 41 migrations, applied to a local D1
+npm run db:migrate:local      # 42 migrations, applied to a local D1
 npm run cf:dev                # wrangler dev --local, closest to production
 ```
 
@@ -100,7 +100,7 @@ src/
   pages/           storefront, admin, /api/*, /api/v1/*, feeds, media
   components/      admin/ forms/ home/ seo/ shared/ storefront/ tracking/ ui/
   lib/             business logic and colocated tests
-  db/              41 hand-authored migrations — the only schema description
+  db/              42 hand-authored migrations — the only schema description
   layouts/         BaseLayout, AdminLayout, EmbedLayout
   styles/           global.css (Tailwind v4 entry), form-hybrid.css (checkout)
   data/             reference data (Indonesian districts) + legal page templates

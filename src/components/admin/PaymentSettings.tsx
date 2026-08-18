@@ -3,12 +3,12 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
-  Clipboard,
   EllipsisVertical,
   Landmark,
   Lock,
   RefreshCw,
   Settings2,
+  ShieldCheck,
   WalletCards,
 } from "lucide-react";
 import SellerBankAccounts from "./SellerBankAccounts";
@@ -35,7 +35,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { Input } from "../ui/input";
 import { Switch } from "../ui/switch";
 import {
   Table,
@@ -63,8 +62,6 @@ type SettingsResponse = {
       autolaris?: {
         api_key_configured?: boolean;
         api_key_masked?: string;
-        webhook_secret_configured?: boolean;
-        webhook_secret_masked?: string;
       };
     };
     store?: {
@@ -177,13 +174,7 @@ function FeeChoice({
   );
 }
 
-export default function PaymentSettings({
-  callbackUrl,
-  channels,
-}: {
-  callbackUrl: string;
-  channels: PaymentChannel[];
-}) {
+export default function PaymentSettings({ channels }: { channels: PaymentChannel[] }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState("");
@@ -191,9 +182,7 @@ export default function PaymentSettings({
   const [codEnabled, setCodEnabled] = useState(false);
   const [autolarisEnabled, setAutolarisEnabled] = useState(false);
   const [apiReady, setApiReady] = useState(false);
-  const [callbackReady, setCallbackReady] = useState(false);
   const [apiMasked, setApiMasked] = useState("Belum dikonfigurasi");
-  const [callbackMasked, setCallbackMasked] = useState("Belum dikonfigurasi");
   const [disabledChannels, setDisabledChannels] = useState<string[]>([]);
   const [paymentFeeBearer, setPaymentFeeBearer] = useState<FeeBearer>("buyer");
   const [codFeeBearer, setCodFeeBearer] = useState<FeeBearer>("buyer");
@@ -241,20 +230,17 @@ export default function PaymentSettings({
       const nextPaymentFee = store.payment_fee_bearer === "seller" ? "seller" : "buyer";
       const nextCodFee = store.cod_fee_bearer === "seller" ? "seller" : "buyer";
       const nextApiReady = Boolean(credentials?.api_key_configured);
-      const nextCallbackReady = Boolean(credentials?.webhook_secret_configured);
       setCodEnabled(Boolean(store.is_cod_enabled));
       setAutolarisEnabled(Boolean(store.is_autolaris_enabled));
       setApiReady(nextApiReady);
-      setCallbackReady(nextCallbackReady);
       setApiMasked(credentials?.api_key_masked || "Belum dikonfigurasi");
-      setCallbackMasked(credentials?.webhook_secret_masked || "Belum dikonfigurasi");
       setDisabledChannels(Array.isArray(store.disabled_autolaris_channels) ? store.disabled_autolaris_channels : []);
       setPaymentFeeBearer(nextPaymentFee);
       setCodFeeBearer(nextCodFee);
       setSavedFee({ payment: nextPaymentFee, cod: nextCodFee });
       const methodList = Array.isArray(methods.data) ? methods.data as PaymentMethod[] : [];
       setManualActiveCount(methodList.filter((item) => item.payment_method === "manual_transfer" && item.is_active).length);
-      setCredentialsOpen(!(nextApiReady && nextCallbackReady));
+      setCredentialsOpen(!nextApiReady);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Pengaturan pembayaran gagal dimuat.");
     } finally {
@@ -354,15 +340,6 @@ export default function PaymentSettings({
       setNotice({ tone: "error", text: error instanceof Error ? error.message : "Konfigurasi gagal diperiksa." });
     } finally {
       setBusy("");
-    }
-  };
-
-  const copyCallback = async () => {
-    try {
-      await navigator.clipboard.writeText(callbackUrl);
-      setNotice({ tone: "success", text: "URL callback disalin." });
-    } catch {
-      setNotice({ tone: "error", text: "URL callback tidak dapat disalin. Salin langsung dari kolom URL." });
     }
   };
 
@@ -573,10 +550,10 @@ export default function PaymentSettings({
       <Collapsible open={credentialsOpen} onOpenChange={setCredentialsOpen}>
         <Card>
           <CardHeader className="border-b">
-            <CardTitle as="h3" className="font-semibold">Kesiapan AutoLaris & callback</CardTitle>
-            <CardDescription>Validasi lokal untuk API key, callback secret, dan URL webhook.</CardDescription>
+            <CardTitle as="h3" className="font-semibold">Konfigurasi Create Order AutoLaris</CardTitle>
+            <CardDescription>Validasi lokal untuk API key dan alur checkout melalui endpoint Create Order.</CardDescription>
             <CardAction className="flex items-center gap-2">
-              <StatusBadge ready={apiReady && callbackReady}>{Number(apiReady) + Number(callbackReady)}/2 siap</StatusBadge>
+              <StatusBadge ready={apiReady}>{apiReady ? "API key tersimpan" : "API key belum diatur"}</StatusBadge>
               <CollapsibleTrigger
                 className="inline-flex size-11 items-center justify-center rounded-lg outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="Buka detail kesiapan AutoLaris"
@@ -587,36 +564,30 @@ export default function PaymentSettings({
           </CardHeader>
           <CollapsibleContent>
             <CardContent className="space-y-4 pt-1">
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <div className="rounded-xl border border-border bg-muted/25 p-4">
                   <p className="text-xs font-medium text-muted-foreground">AutoLaris API key</p>
                   <p className="mt-2 truncate font-mono text-sm text-foreground">{loading ? "Memuat…" : apiMasked}</p>
                   <StatusBadge ready={apiReady}>{apiReady ? "Tersimpan" : "Belum diatur"}</StatusBadge>
                 </div>
                 <div className="rounded-xl border border-border bg-muted/25 p-4">
-                  <p className="text-xs font-medium text-muted-foreground">Callback secret</p>
-                  <p className="mt-2 truncate font-mono text-sm text-foreground">{loading ? "Memuat…" : callbackMasked}</p>
-                  <StatusBadge ready={callbackReady}>{callbackReady ? "Tersimpan" : "Belum diatur"}</StatusBadge>
-                </div>
-                <div className="rounded-xl border border-border bg-muted/25 p-4">
-                  <label htmlFor="autolaris-callback-url" className="text-xs font-medium text-muted-foreground">Webhook callback URL</label>
-                  <div className="mt-2 flex gap-2">
-                    <Input id="autolaris-callback-url" value={callbackUrl} readOnly className="h-11 min-w-0 font-mono text-xs" />
-                    <Button type="button" variant="outline" size="icon-lg" className="size-11" onClick={() => void copyCallback()} aria-label="Salin URL callback">
-                      <Clipboard />
-                    </Button>
-                  </div>
+                  <p className="text-xs font-medium text-muted-foreground">Konfirmasi pembayaran</p>
+                  <p className="mt-2 text-sm font-medium text-foreground">Verifikasi manual oleh owner/admin</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Status pembayaran dikonfirmasi manual. Operator mencocokkan transaksi di dashboard AutoLaris sebelum menandai lunas di CMS.
+                  </p>
                 </div>
               </div>
-              {!callbackReady && (
-                <InlineNotice notice={{ tone: "info", text: "Callback secret diatur melalui environment server, bukan dari browser. Checkout online dapat aktif, tetapi rekonsiliasi callback belum siap sampai secret tersedia." }} />
-              )}
+              <InlineNotice notice={{ tone: "info", text: "Pemeriksaan lokal hanya memvalidasi konfigurasi Create Order; hasilnya bukan bukti kesehatan live provider atau settlement dana." }} />
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" size="xl" onClick={() => void runLocalCheck("test-autolaris")} disabled={mutationsDisabled || !apiReady}>
-                  <RefreshCw className={busy === "test-autolaris" ? "animate-spin" : ""} /> Periksa kesiapan lokal
+                  <RefreshCw className={busy === "test-autolaris" ? "animate-spin" : ""} /> Periksa konfigurasi lokal
                 </Button>
                 <Button type="button" variant="outline" size="xl" onClick={() => window.location.assign("/admin/profile")}>
                   <Settings2 /> Kelola kredensial API
+                </Button>
+                <Button type="button" size="xl" onClick={() => window.location.assign("/admin/balance")}>
+                  <ShieldCheck /> Buka verifikasi manual
                 </Button>
               </div>
             </CardContent>

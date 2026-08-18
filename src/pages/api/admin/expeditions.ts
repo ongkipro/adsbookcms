@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { jsonError, jsonOk } from '../../../lib/api';
-import { getRuntimeEnv } from '../../../lib/env';
+import { jsonError, jsonOk } from '../../../lib/api.ts';
+import { getRuntimeEnv } from '../../../lib/env.ts';
 import {
   parseProvinceCodeList,
   validateProvinceCodeList,
-} from '../../../lib/province';
+} from '../../../lib/province.ts';
 
 export const prerender = false;
 

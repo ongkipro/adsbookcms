@@ -22,7 +22,6 @@ const channelLabels: Record<(typeof AUTOLARIS_CHECKOUT_CHANNELS)[number], string
   VADANAMON: 'Virtual Account Danamon',
 };
 
-const callbackUrl = new URL('/api/webhooks/autolaris', Astro.url.origin).toString();
 const channels = AUTOLARIS_CHECKOUT_CHANNELS.map((code) => ({
   code,
   label: channelLabels[code],
@@ -36,9 +35,9 @@ const channels = AUTOLARIS_CHECKOUT_CHANNELS.map((code) => ({
     <AdminPageHeader
       eyebrow="Payments & Gateways"
       title="Metode Pembayaran"
-      description="Kelola ketersediaan metode checkout, channel AutoLaris, biaya transaksi, kesiapan callback, dan rekening transfer dari satu workspace."
+      description="Kelola metode checkout, channel AutoLaris, biaya transaksi, konfigurasi Create Order, verifikasi manual, dan rekening transfer dari satu workspace."
     />
 
-    <PaymentSettings client:load callbackUrl={callbackUrl} channels={channels} />
+    <PaymentSettings client:load channels={channels} />
   </div>
 </AdminLayout>

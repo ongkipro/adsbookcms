@@ -195,7 +195,7 @@ Pushing to `main` in **this** repository deploys nothing — CI runs check, test
    - `/admin/settings/store` — store name and support WhatsApp (the support number feeds the public `/kontak` page)
    - `/admin/settings/warehouse` — pickup origin and Mengantar origin ids; shipping quotes fail without this
    - `/admin/profile` — provider API keys and base URLs
-   - `/admin/expeditions` — which couriers and which COD services are offered
+   - `/admin/expeditions` — which couriers and which COD services are offered; a fresh install starts with the neutral ten-courier catalogue, and the operator may narrow it here
    - `/admin/ads/meta` and `/admin/ads/google` — pixel, CAPI token, GTM, conversion ids
    - `/admin/settings/crm` — WhatsApp follow-up templates
    - `/admin/products` — the real catalog

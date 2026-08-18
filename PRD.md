@@ -90,11 +90,11 @@ AdsBookCMS gives one merchant a complete direct-response storefront: catalog, la
 
 | ID | Requirement | Status |
 | --- | --- | --- |
-| REQ-30 | The system shall support cash on delivery, manual bank transfer against configured seller accounts, and online payment through AutoLaris (QRIS and virtual accounts). | Implemented |
+| REQ-30 | The system shall support cash on delivery, manual bank transfer against configured seller accounts, and online payment through AutoLaris (QRIS and virtual accounts). Online checkout shall create exactly one AutoLaris provider order through `POST /api/h2h/submit`, use the provider's exact `courir_id` spelling with the operationally assigned value `1`, source shipping/customer/item facts from D1, and fail before the provider request when those facts are incomplete. It shall not call the standalone `/api/h2h/create_payment` path. | Implemented 2026-08-18 — exact mocked outbound contract and D1 orchestration passed |
 | REQ-31 | Fee bearer shall be configurable independently for payment fees and COD fees. | Implemented |
 | REQ-32 | Payment channels shall be individually toggleable by the operator. | Implemented |
 | REQ-33 | The payment instruction page shall show only recorded amounts and instructions, with copy-to-clipboard, expiry countdown, and automatic status polling. | Implemented |
-| REQ-34 | The payment webhook shall reconcile idempotently and shall reject unauthenticated callbacks. | Partial — shared-secret validation ships; the provider's official signature contract is unverified |
+| REQ-34 | Until AutoLaris publishes an authoritative transaction-inquiry contract, only an authenticated owner/admin may manually confirm an AutoLaris payment after checking the provider dashboard. Confirmation shall require exact re-entry of the recorded billed total and provider reference, explicit acknowledgement, and an operator note; atomically append immutable audit evidence and mark the payment/order paid; reject released-stock, cancelled, refunded, mismatched, or stale objects; remain idempotent under retries; never call a provider or dispatch shipment; and become visible to the buyer's existing status polling so `/payment` redirects to `/thanks`. The pending-verification queue may refresh once per minute and flag overdue records, but no timer or cron may infer `paid`. | Implemented locally 2026-08-18 — awaiting final A17 evidence reconciliation |
 | REQ-35 | The balance view shall present recorded reconciliation only, and shall not claim to be a live or withdrawable provider wallet. | Implemented |
 | REQ-36 | Every submitted non-COD checkout shall persist a normal pending order before payment is completed. Pending, failed, cancelled, or expired VA, QRIS, and bank-transfer payment states shall remain order states and shall never be reclassified as abandoned capture. | Implemented 2026-08-17 — full-funnel regression passed |
 
@@ -104,7 +104,7 @@ AdsBookCMS gives one merchant a complete direct-response storefront: catalog, la
 
 | ID | Requirement | Status |
 | --- | --- | --- |
-| REQ-40 | The system shall quote live courier rates for the resolved destination, filtered by courier availability and COD rules. | Implemented |
+| REQ-40 | The system shall quote live courier rates for the resolved destination, filtered by courier availability and COD rules. A fresh install shall start with the neutral courier catalogue, while upgrades shall backfill it only for stores whose courier policy is completely empty. | Implemented 2026-08-18 — fresh install and empty-policy repair contracts passed |
 | REQ-41 | Destination resolution shall use a local district index with provider address search as a fallback. | Implemented |
 | REQ-42 | Dispatch shall run sequentially under a single-flight lease and shall return independent per-order results. | Implemented |
 | REQ-43 | Only an accepted provider response shall advance an order to processing; failures shall remain pending and retryable. | Implemented |

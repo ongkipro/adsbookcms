@@ -2,14 +2,14 @@ import {
   AutoLarisClient,
   type AutoLarisCheckoutChannel,
   type AutoLarisPayment,
-} from "./autolaris-client";
+} from "./autolaris-client.ts";
 import {
   calculateAutoLarisRequestAmount,
   calculatePaymentAdminFee,
   normalizePaymentFeeBearer,
   type PaymentFeeBearer,
-} from "./payment-fee-policy";
-import { getProviderConfig } from "./provider-config";
+} from "./payment-fee-policy.ts";
+import { getProviderConfig } from "./provider-config.ts";
 
 export type AutoLarisPaymentRecord = {
   id: number;
@@ -33,12 +33,35 @@ export type AutoLarisPaymentRecord = {
 type PaymentOrderRow = {
   id: number;
   order_number: string;
+  store_id: number;
   customer_name: string;
   customer_phone: string;
   customer_email: string | null;
+  address: string;
+  province: string;
+  city: string;
+  district: string;
+  postal_code: string | null;
+  destination_area_id: string | null;
   total_amount: number;
   payment_method: string;
   payment_fee_bearer: string | null;
+  store_name: string;
+  warehouse_name: string | null;
+  origin_area_id: string | null;
+  warehouse_contact_name: string | null;
+  warehouse_contact_phone: string | null;
+  warehouse_address: string | null;
+  warehouse_city: string | null;
+  warehouse_province: string | null;
+};
+
+type PaymentOrderItemRow = {
+  quantity: number;
+  unit_price: number;
+  weight_grams: number;
+  product_title: string;
+  variant_title: string;
 };
 
 type PaymentTransactionRow = {
@@ -108,7 +131,6 @@ export async function createAutoLarisPaymentForOrder(
   input: {
     orderId: number;
     channelCode: AutoLarisCheckoutChannel;
-    callbackUrl: string;
   },
 ): Promise<AutoLarisPaymentRecord> {
   const existing = await loadPaymentRecord(database, input.orderId);
@@ -116,24 +138,41 @@ export async function createAutoLarisPaymentForOrder(
 
   const order = await database
     .prepare(
-      `SELECT o.id, o.order_number, o.customer_name, o.customer_phone,
-        o.customer_email, o.total_amount, o.payment_method,
-        s.payment_fee_bearer
+      `SELECT o.id, o.order_number, o.store_id, o.customer_name,
+        o.customer_phone, o.customer_email, o.address, o.province, o.city,
+        o.district, o.postal_code, o.destination_area_id, o.total_amount,
+        o.payment_method, s.payment_fee_bearer, s.name AS store_name,
+        w.name AS warehouse_name, w.origin_area_id,
+        w.contact_name AS warehouse_contact_name,
+        w.contact_phone AS warehouse_contact_phone,
+        w.address AS warehouse_address, w.city AS warehouse_city,
+        w.province AS warehouse_province
       FROM orders o
       INNER JOIN stores s ON s.id = o.store_id
+      LEFT JOIN warehouses w ON w.id = o.warehouse_id
+        AND w.store_id = o.store_id
       WHERE o.id = ?
       LIMIT 1`,
     )
     .bind(input.orderId)
     .first<PaymentOrderRow>();
   if (!order) throw new Error("Order pembayaran tidak ditemukan.");
-  if (order.payment_method === "cod") {
-    throw new Error("Order COD tidak memerlukan AutoLaris.");
+  if (!["bank_transfer", "qris"].includes(order.payment_method)) {
+    throw new Error("Metode pembayaran order tidak menggunakan AutoLaris.");
   }
-  const cleanPhone = order.customer_phone?.replace(/\D/g, "") || "081234567890";
-  const customerEmail =
-    order.customer_email?.trim() ||
-    `${cleanPhone}@${new URL(input.callbackUrl).hostname}`;
+  const itemsResult = await database
+    .prepare(
+      `SELECT oi.quantity, oi.unit_price, pv.weight_grams,
+        p.title AS product_title, pv.title AS variant_title
+      FROM order_items oi
+      INNER JOIN product_variants pv ON pv.id = oi.variant_id
+      INNER JOIN products p ON p.id = pv.product_id
+      WHERE oi.order_id = ? AND p.store_id = ?
+      ORDER BY oi.id`,
+    )
+    .bind(order.id, order.store_id)
+    .all<PaymentOrderItemRow>();
+  const items = itemsResult.results || [];
 
 
   const now = new Date();
@@ -201,16 +240,45 @@ export async function createAutoLarisPaymentForOrder(
     const payment: AutoLarisPayment = await new AutoLarisClient(
       config.apiKey,
       config.baseUrl,
-    ).createPayment({
+    ).createOrder({
       reffId: order.order_number,
       channelCode: input.channelCode,
-      customerId: String(order.id),
-      customerName: order.customer_name,
-      customerPhone: order.customer_phone,
-      customerEmail: customerEmail,
+      originAreaId: order.origin_area_id || "",
+      destinationAreaId: order.destination_area_id || "",
+      weightGrams: items.reduce(
+        (total, item) => total + Number(item.weight_grams) * Number(item.quantity),
+        0,
+      ),
+      shipperName:
+        order.warehouse_contact_name || order.warehouse_name || order.store_name,
+      shipperPhone: order.warehouse_contact_phone || "",
+      shipperAddress: [
+        order.warehouse_address,
+        order.warehouse_city,
+        order.warehouse_province,
+      ]
+        .filter(Boolean)
+        .join(", "),
+      receiverName: order.customer_name,
+      receiverPhone: order.customer_phone,
+      receiverEmail: order.customer_email || "",
+      receiverAddress: [
+        order.address,
+        order.district,
+        order.city,
+        order.province,
+        order.postal_code,
+      ]
+        .filter(Boolean)
+        .join(", "),
+      orderDetails: items.map((item) => ({
+        name: [item.product_title, item.variant_title]
+          .filter(Boolean)
+          .join(" - "),
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unit_price),
+      })),
       amount: requestAmount,
-      callbackUrl: input.callbackUrl,
-      expiresAt,
     });
 
     await database
@@ -251,4 +319,3 @@ export async function createAutoLarisPaymentForOrder(
   if (!updated) throw new Error("Catatan pembayaran gagal dimuat ulang.");
   return updated;
 }
-

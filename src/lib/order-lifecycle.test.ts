@@ -103,6 +103,7 @@ class FakeStatement {
   }
 
   async first<T>() {
+    if (this.sql.includes("FROM payment_reconciliation_audits")) return null;
     const numericArgs = this.args
       .map(Number)
       .filter((value) => Number.isInteger(value) && value > 0);
@@ -330,6 +331,10 @@ class SqliteStatement {
     return new SqliteStatement(this.database, this.sql, values);
   }
 
+  async first<T>() {
+    return (this.prepare().get(...this.values) as T | undefined) ?? null;
+  }
+
   execute() {
     const statement = this.prepare();
     if (/\bRETURNING\b/i.test(this.sql)) {
@@ -376,6 +381,9 @@ class SqliteD1Database {
         id INTEGER PRIMARY KEY,
         order_id INTEGER NOT NULL REFERENCES orders(id),
         reference_id TEXT NOT NULL
+      );
+      CREATE TABLE payment_reconciliation_audits (
+        payment_transaction_id INTEGER NOT NULL UNIQUE
       );
     `);
   }
@@ -880,6 +888,50 @@ test("delete SQL restores and rolls back atomically on a real SQLite engine", as
     )?.count,
     1,
   );
+});
+
+test("single and bulk delete reject audited payments before restoring stock", async () => {
+  const database = new SqliteD1Database();
+  database.exec(`
+    INSERT INTO product_variants (id, stock) VALUES (501, 10);
+    INSERT INTO orders (
+      id, order_number, payment_method, payment_status, shipping_status
+    ) VALUES
+      (83, 'INV-10083', 'qris', 'paid', 'pending'),
+      (84, 'INV-10084', 'cod', 'unpaid', 'pending');
+    INSERT INTO order_items (order_id, variant_id, quantity) VALUES
+      (83, 501, 2), (84, 501, 3);
+    INSERT INTO payment_transactions (id, order_id, reference_id) VALUES
+      (183, 83, 'INV-10083'), (184, 84, 'INV-10084');
+    INSERT INTO payment_reconciliation_audits (payment_transaction_id)
+      VALUES (183);
+  `);
+
+  for (const ids of [[83], [83, 84]]) {
+    await assert.rejects(
+      deleteOrdersRestoringStock(database as unknown as D1Database, ids),
+      (error: unknown) =>
+        error instanceof OrderLifecycleError && error.status === 409,
+    );
+    assert.equal(
+      database.get<{ stock: number }>(
+        "SELECT stock FROM product_variants WHERE id = 501",
+      )?.stock,
+      10,
+    );
+    assert.equal(
+      database.get<{ count: number }>(
+        "SELECT COUNT(*) AS count FROM orders WHERE id IN (83, 84)",
+      )?.count,
+      2,
+    );
+    assert.equal(
+      database.get<{ count: number }>(
+        "SELECT COUNT(*) AS count FROM order_items WHERE order_id IN (83, 84)",
+      )?.count,
+      2,
+    );
+  }
 });
 
 test("lifecycle mutation and restoration are atomic on D1 batch failure", async () => {

@@ -65,6 +65,7 @@ const ADMIN_API_ROUTES = [
   '/api/admin/media',
   '/api/admin/upload-r2',
   '/api/admin/seller-bank-accounts',
+  '/api/admin/payment-reconciliation',
   '/api/admin/profile',
   '/api/admin/logout',
 ] as const;

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   AutoLarisClient,
   autoLarisChannelLockReason,
+  type AutoLarisCreateOrderInput,
   resolveDisabledAutoLarisChannels,
 } from "./autolaris-client.ts";
 import { POST as updateSettings } from "../pages/api/admin/settings.ts";
@@ -16,6 +17,25 @@ const PROVIDER_CONFIG_ROW = {
   autolaris_api_key: "autolaris-secret-must-not-leak",
   autolaris_base_url: "https://autolaris.example.test",
 } as const;
+
+const CREATE_ORDER_INPUT = {
+  reffId: "INV-QA-10001",
+  channelCode: "QRIS",
+  originAreaId: "3517100",
+  destinationAreaId: "3518010",
+  weightGrams: 1200,
+  shipperName: "QA Warehouse",
+  shipperPhone: "08123456789",
+  shipperAddress: "Warehouse Street, Surabaya, Jawa Timur",
+  receiverName: "QA Customer",
+  receiverPhone: "081331000000",
+  receiverEmail: "qa@example.test",
+  receiverAddress: "Customer Street, Nganjuk, Jawa Timur",
+  orderDetails: [
+    { name: "QA Product - 500 ml", quantity: 2, unitPrice: 50_000 },
+  ],
+  amount: 118_400,
+} as const satisfies AutoLarisCreateOrderInput;
 
 test("AutoLaris credential verification is explicitly unsupported and makes no provider request", async (context) => {
   const originalFetch = globalThis.fetch;
@@ -65,17 +85,101 @@ test("provider-locked AutoLaris channels fail before an outbound payment request
   };
 
   await assert.rejects(
-    new AutoLarisClient("qa-key").createPayment({
+    new AutoLarisClient("qa-key").createOrder({
+      ...CREATE_ORDER_INPUT,
       reffId: "INV-QA-LOCKED",
       channelCode: "VABSI",
-      customerId: "1",
-      customerName: "QA Customer",
-      customerPhone: "6281234567890",
-      customerEmail: "qa@example.test",
-      amount: 100_000,
-      callbackUrl: "https://store.example.test/api/webhooks/autolaris",
     }),
     /tidak aktif di provider/i,
+  );
+  assert.equal(providerCalls, 0);
+});
+
+test("AutoLaris online orders use submit with the fixed operational courir id", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let requestedUrl = "";
+  let requestedBody: Record<string, unknown> | undefined;
+  globalThis.fetch = async (input, init) => {
+    requestedUrl = String(input);
+    requestedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      rc: "00",
+      ket: "Success",
+      data: {
+        transaction_id: "874546",
+        biaya_admin: 84,
+        total: 118_484,
+        payment_info: {
+          va: "",
+          qr: "000201010212...",
+          url: "https://pay.example.test/874546",
+        },
+      },
+    });
+  };
+
+  const payment = await new AutoLarisClient(
+    "qa-key",
+    "https://autolaris.example.test",
+  ).createOrder(CREATE_ORDER_INPUT);
+
+  assert.equal(requestedUrl, "https://autolaris.example.test/api/h2h/submit");
+  assert.deepEqual(requestedBody, {
+    reff_id: "INV-QA-10001",
+    channel_code: "QRIS",
+    courir_id: 1,
+    origin: 3517100,
+    destination: 3518010,
+    weight: "1200",
+    shipper_name: "QA Warehouse",
+    shipper_phone: "08123456789",
+    shipper_email: "",
+    shipper_address: "Warehouse Street, Surabaya, Jawa Timur",
+    receiver_name: "QA Customer",
+    receiver_phone: "081331000000",
+    receiver_email: "qa@example.test",
+    receiver_address: "Customer Street, Nganjuk, Jawa Timur",
+    callback_url: "",
+    grand_total: "100000",
+    cod_value: "0",
+    remark: "AdsBookCMS INV-QA-10001",
+    order_details: [
+      { name: "QA Product - 500 ml", qty: "2", unit_price: "50000" },
+    ],
+  });
+  assert.deepEqual(payment, {
+    transactionId: "874546",
+    virtualAccount: undefined,
+    qr: "000201010212...",
+    paymentCode: undefined,
+    url: "https://pay.example.test/874546",
+    amount: 118_400,
+    admin: 84,
+    total: 118_484,
+  });
+});
+
+test("AutoLaris Create Order fails closed before fetch when a required area is missing", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let providerCalls = 0;
+  globalThis.fetch = async () => {
+    providerCalls += 1;
+    return new Response(null, { status: 500 });
+  };
+
+  await assert.rejects(
+    new AutoLarisClient("qa-key").createOrder({
+      ...CREATE_ORDER_INPUT,
+      destinationAreaId: "",
+    }),
+    /destination.*tidak lengkap/i,
   );
   assert.equal(providerCalls, 0);
 });

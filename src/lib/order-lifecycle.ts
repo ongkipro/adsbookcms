@@ -325,6 +325,23 @@ export async function deleteOrdersRestoringStock(
   }
 
   const cte = selectedOrdersCte(orderIds);
+  const auditedPayment = await database
+    .prepare(
+      `${cte}
+      SELECT audit.payment_transaction_id
+      FROM payment_reconciliation_audits audit
+      INNER JOIN payment_transactions pt
+        ON pt.id = audit.payment_transaction_id
+      WHERE pt.order_id IN (SELECT order_id FROM selected)
+      LIMIT 1`,
+    )
+    .bind(...orderIds)
+    .first<{ payment_transaction_id: number }>();
+  if (auditedPayment) {
+    throw new OrderLifecycleError(
+      "Order dengan pembayaran terverifikasi tidak dapat dihapus. Gunakan alur refund dan pertahankan catatan order.",
+    );
+  }
   const statements = [
     ...buildStockRestorationStatements(database, orderIds, false),
     database

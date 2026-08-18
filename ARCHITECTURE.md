@@ -68,7 +68,7 @@ Runs on every request, in order: canonical host redirect (`www` → apex), ad cl
 | Admin | `/hello` (login), `/admin/*` — 27 pages |
 | Public API | `/api/*` — checkout, locations, shipping rates, payment methods, order status, Meta events |
 | Headless API | `/api/v1/*` — storefront descriptor, products, geo, shipping rates, checkout, tracking events |
-| Webhook | `/api/webhooks/autolaris` |
+| Admin payment reconciliation | `/api/admin/payment-reconciliation` |
 
 The headless `/api/v1/*` family is **implemented and shipping**, authenticated by `X-App-Key`/`Bearer` against the `developer_api_keys` table (`src/lib/headless-api.ts`) plus an origin allowlist. Keys are issued at `/admin/settings/developer`.
 
@@ -167,7 +167,7 @@ including the normalized-path shapes that once walked past it.
 2. **Form** — `/hybrid-form` resolves COD eligibility from trusted Cloudflare geo; a known eligible province routes to the middle form, a disabled or unknown province routes to the full form (`src/lib/form-mode.ts`).
 3. **Rates** — `/api/shipping-rates` quotes Mengantar for the resolved destination, filtered by `courier_rules` and store-level COD province exclusions.
 4. **Submit** — `/api/submit-order` persists order, items, and stock reservation atomically. It is rate-limited, honeypot-guarded, and idempotent via `submit_token`. **Checkout never dispatches to the courier.**
-5. **Payment** — online orders create one AutoLaris transaction; `/api/webhooks/autolaris` reconciles payment state idempotently. Paid status changes dispatch *eligibility*, never dispatch itself.
+5. **Payment** — online orders create one AutoLaris provider order through `POST /api/h2h/submit`. The adapter sends the provider's exact `courir_id` field with the operationally assigned value `1` and builds origin, destination, warehouse, receiver, weight, and item details from D1. Until an authoritative inquiry contract exists, only the owner/admin manual-reconciliation boundary may mark AutoLaris paid: exact amount/reference re-entry, explicit acknowledgement, immutable actor/status snapshots, and one atomic idempotent transition. The public payment page reads that D1 state and redirects to `/thanks`; neither confirmation nor its one-minute queue refresh dispatches shipment. The legacy provider webhook is retired.
 6. **Dispatch** — an operator explicitly pushes eligible orders to Mengantar from `/admin/orders`. Requests run sequentially under a `provider_dispatch_locks` lease. Only an accepted provider response moves an order to `processing`.
 7. **Provider status synchronization** — `/admin/shipping` explicitly polls Mengantar `GET /order?tracking_id=<cnote_no>` through the configured server-side client. Eligible rows are processed sequentially; raw provider status evidence is persisted, and only monotonic lifecycle advances pass through the shared atomic order-lifecycle boundary.
 8. **Ad tracking** — browser Pixel plus server-side Meta CAPI through `capi_event_outbox`, a durable transactional outbox with retry and a shared per-order `event_id` for deduplication.

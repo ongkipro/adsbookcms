@@ -6,10 +6,14 @@ import {
 } from "react";
 import {
   AlertCircle,
+  BadgeCheck,
   ChevronLeft,
   ChevronRight,
+  CircleDashed,
+  CircleOff,
   ExternalLink,
   Loader2,
+  MessageCircle,
   PackageSearch,
   RefreshCw,
   Search,
@@ -21,6 +25,14 @@ import { groupLocationResults } from "@/lib/location-search";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -30,12 +42,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+} from "@/components/ui/pagination";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -93,11 +111,21 @@ const followUpLabels: Record<FollowUpStatus, string> = {
   not_interested: "Tidak berminat",
 };
 
-const followUpStyles: Record<FollowUpStatus, string> = {
-  new: "border-amber-200 bg-amber-50 text-amber-800",
-  contacted: "border-blue-200 bg-blue-50 text-blue-800",
-  qualified: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  not_interested: "border-slate-200 bg-slate-100 text-slate-700",
+const followUpVariants: Record<
+  FollowUpStatus,
+  "secondary" | "outline" | "default" | "destructive"
+> = {
+  new: "secondary",
+  contacted: "outline",
+  qualified: "default",
+  not_interested: "destructive",
+};
+
+const followUpIcons = {
+  new: CircleDashed,
+  contacted: MessageCircle,
+  qualified: BadgeCheck,
+  not_interested: CircleOff,
 };
 
 const formatDate = (value: string | null) => {
@@ -411,97 +439,120 @@ function ConversionDialog({
   return (
     <Dialog open={Boolean(lead)} onOpenChange={(open) => !open && !saving && onClose()}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto p-0 sm:max-w-3xl">
-        <DialogHeader className="border-b px-5 py-4 text-left">
+        <DialogHeader className="px-5 pt-5 text-left">
           <DialogTitle>Edit & jadikan order</DialogTitle>
           <DialogDescription>
             Lengkapi pesanan {lead?.orderNumber}. Konversi membuat order COD, tetapi belum mengirimkannya ke Mengantar.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} noValidate className="space-y-5 px-5 pb-5">
+        <Separator />
+        <form onSubmit={submit} noValidate className="space-y-6 px-5 pb-5">
           {error && (
-            <div ref={errorRef} role="alert" tabIndex={-1} className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm font-medium text-rose-800">
+            <div ref={errorRef} role="alert" tabIndex={-1} className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm font-medium text-destructive outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {error}
             </div>
           )}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="space-y-1.5 text-sm font-medium" htmlFor="lead-customer-name">
-              <span>Nama pembeli</span>
-              <Input id="lead-customer-name" autoComplete="name" aria-invalid={fieldError?.id === "lead-customer-name"} aria-describedby={fieldError?.id === "lead-customer-name" ? "lead-customer-name-error" : undefined} value={form.customerName} onChange={(event) => setForm({ ...form, customerName: event.target.value })} required />
-              {fieldError?.id === "lead-customer-name" && <span id="lead-customer-name-error" className="block text-xs text-rose-700">{fieldError.message}</span>}
-            </label>
-            <label className="space-y-1.5 text-sm font-medium" htmlFor="lead-customer-phone">
-              <span>Nomor WhatsApp</span>
-              <Input id="lead-customer-phone" autoComplete="tel" inputMode="tel" aria-invalid={fieldError?.id === "lead-customer-phone"} aria-describedby={fieldError?.id === "lead-customer-phone" ? "lead-customer-phone-error" : undefined} value={form.customerPhone} onChange={(event) => setForm({ ...form, customerPhone: event.target.value })} required />
-              {fieldError?.id === "lead-customer-phone" && <span id="lead-customer-phone-error" className="block text-xs text-rose-700">{fieldError.message}</span>}
-            </label>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_7rem]">
-            <div className="space-y-1.5">
-              <label htmlFor="lead-variant" className="text-sm font-medium">Produk & varian</label>
-              <Select value={form.variantId} onValueChange={(value) => setForm({ ...form, variantId: value ?? "", courierServiceId: "" })}>
-                <SelectTrigger id="lead-variant" aria-invalid={fieldError?.id === "lead-variant"} aria-describedby={fieldError?.id === "lead-variant" ? "lead-variant-error" : undefined}><SelectValue placeholder="Pilih produk" /></SelectTrigger>
-                <SelectContent>
-                  {products.filter((product) => product.is_active).flatMap((product) => product.variants.map((variant) => (
-                    <SelectItem key={variant.id} value={String(variant.id)} disabled={variant.stock === 0}>
-                      {product.title} · {variant.title} ({formatIdr(variant.price)})
-                    </SelectItem>
-                  )))}
-                </SelectContent>
-              </Select>
-              {fieldError?.id === "lead-variant" && <p id="lead-variant-error" className="text-xs text-rose-700">{fieldError.message}</p>}
+          <section aria-labelledby="lead-buyer-heading" className="space-y-4">
+            <div>
+              <h3 id="lead-buyer-heading" className="font-medium">Data pembeli</h3>
+              <p className="text-sm text-muted-foreground">Pastikan nama dan nomor WhatsApp dapat dihubungi.</p>
             </div>
-            <label className="space-y-1.5 text-sm font-medium" htmlFor="lead-quantity">
-              <span>Jumlah</span>
-              <Input id="lead-quantity" type="number" min="1" max="100" aria-invalid={fieldError?.id === "lead-quantity"} aria-describedby={fieldError?.id === "lead-quantity" ? "lead-quantity-error" : undefined} value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value, courierServiceId: "" })} required />
-              {fieldError?.id === "lead-quantity" && <span id="lead-quantity-error" className="block text-xs text-rose-700">{fieldError.message}</span>}
-            </label>
-          </div>
-          <label className="block space-y-1.5 text-sm font-medium" htmlFor="lead-address">
-            <span>Alamat lengkap</span>
-            <Textarea id="lead-address" autoComplete="street-address" aria-invalid={fieldError?.id === "lead-address"} aria-describedby={fieldError?.id === "lead-address" ? "lead-address-error" : undefined} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} placeholder="Jalan, nomor rumah, RT/RW, dan patokan" required />
-            {fieldError?.id === "lead-address" && <span id="lead-address-error" className="block text-xs text-rose-700">{fieldError.message}</span>}
-          </label>
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="lead-location">Kecamatan tujuan</label>
-            <div className="relative">
-              <Input id="lead-location" value={locationQuery} onChange={(event) => setLocationQuery(event.target.value)} placeholder="Ketik minimal 2 huruf" aria-invalid={fieldError?.id === "lead-location"} aria-describedby={fieldError?.id === "lead-location" ? "lead-location-error" : "lead-location-help"} />
-              {locationLoading && <Loader2 className="absolute right-3 top-2.5 size-4 animate-spin text-slate-500" aria-hidden="true" />}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="space-y-1.5 text-sm font-medium" htmlFor="lead-customer-name">
+                <span>Nama pembeli</span>
+                <Input id="lead-customer-name" autoComplete="name" aria-invalid={fieldError?.id === "lead-customer-name"} aria-describedby={fieldError?.id === "lead-customer-name" ? "lead-customer-name-error" : undefined} value={form.customerName} onChange={(event) => setForm({ ...form, customerName: event.target.value })} required />
+                {fieldError?.id === "lead-customer-name" && <span id="lead-customer-name-error" className="block text-xs text-destructive">{fieldError.message}</span>}
+              </label>
+              <label className="space-y-1.5 text-sm font-medium" htmlFor="lead-customer-phone">
+                <span>Nomor WhatsApp</span>
+                <Input id="lead-customer-phone" autoComplete="tel" inputMode="tel" aria-invalid={fieldError?.id === "lead-customer-phone"} aria-describedby={fieldError?.id === "lead-customer-phone" ? "lead-customer-phone-error" : undefined} value={form.customerPhone} onChange={(event) => setForm({ ...form, customerPhone: event.target.value })} required />
+                {fieldError?.id === "lead-customer-phone" && <span id="lead-customer-phone-error" className="block text-xs text-destructive">{fieldError.message}</span>}
+              </label>
             </div>
-            <p id="lead-location-help" className="text-xs text-slate-500">
-              {form.destinationAreaId ? `${form.district}, ${form.city}, ${form.province}` : "Pilih hasil pencarian agar ongkir dapat dihitung."}
-            </p>
-            {fieldError?.id === "lead-location" && <p id="lead-location-error" className="text-xs text-rose-700">{fieldError.message}</p>}
-            {locations.length > 0 && (
-              <div className="max-h-40 overflow-y-auto rounded-lg border bg-white p-1" role="listbox" aria-label="Hasil pencarian kecamatan">
-                {locations.map((location) => (
-                  <button key={location.id} type="button" role="option" aria-selected={form.destinationAreaId === location.id} className="block min-h-11 w-full rounded-md px-3 py-2 text-left text-sm hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600" onClick={() => {
-                    setForm({ ...form, district: location.district, city: location.city, province: location.province, postalCode: location.postal_code || "", destinationAreaId: String(location.id), courierServiceId: "" });
-                    setLocationQuery(location.label);
-                    setLocations([]);
-                  }}>
-                    {location.label}
-                  </button>
-                ))}
+          </section>
+          <Separator />
+          <section aria-labelledby="lead-product-heading" className="space-y-4">
+            <div>
+              <h3 id="lead-product-heading" className="font-medium">Produk</h3>
+              <p className="text-sm text-muted-foreground">Harga dan stok tetap diverifikasi dari data produk aktif.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_7rem]">
+              <div className="space-y-1.5">
+                <label htmlFor="lead-variant" className="text-sm font-medium">Produk & varian</label>
+                <Select value={form.variantId} onValueChange={(value) => setForm({ ...form, variantId: value ?? "", courierServiceId: "" })}>
+                  <SelectTrigger id="lead-variant" aria-invalid={fieldError?.id === "lead-variant"} aria-describedby={fieldError?.id === "lead-variant" ? "lead-variant-error" : undefined}><SelectValue placeholder="Pilih produk" /></SelectTrigger>
+                  <SelectContent>
+                    {products.filter((product) => product.is_active).flatMap((product) => product.variants.map((variant) => (
+                      <SelectItem key={variant.id} value={String(variant.id)} disabled={variant.stock === 0}>
+                        {product.title} · {variant.title} ({formatIdr(variant.price)})
+                      </SelectItem>
+                    )))}
+                  </SelectContent>
+                </Select>
+                {fieldError?.id === "lead-variant" && <p id="lead-variant-error" className="text-xs text-destructive">{fieldError.message}</p>}
               </div>
-            )}
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Kurir & ongkir</p>
-            {ratesLoading ? <Skeleton className="h-12 w-full" /> : rates.length > 0 ? (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Pilihan kurir dan ongkir">
-                {rates.map((rate) => {
-                  const selected = form.courierServiceId === String(rate.courier_service_id);
-                  return <button key={rate.courier_service_id} type="button" role="radio" aria-checked={selected} className={`min-h-12 rounded-lg border p-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${selected ? "border-blue-600 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50"}`} onClick={() => setForm({ ...form, courierServiceId: String(rate.courier_service_id) })}>
-                    <span className="block font-semibold">{rate.courier_code} · {rate.courier_service}</span>
-                    <span className="text-xs text-slate-600">{formatIdr(rate.shipping_cost)}{rate.estimated_days ? ` · ${rate.estimated_days}` : ""}</span>
-                  </button>;
-                })}
+              <label className="space-y-1.5 text-sm font-medium" htmlFor="lead-quantity">
+                <span>Jumlah</span>
+                <Input id="lead-quantity" type="number" min="1" max="100" aria-invalid={fieldError?.id === "lead-quantity"} aria-describedby={fieldError?.id === "lead-quantity" ? "lead-quantity-error" : undefined} value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value, courierServiceId: "" })} required />
+                {fieldError?.id === "lead-quantity" && <span id="lead-quantity-error" className="block text-xs text-destructive">{fieldError.message}</span>}
+              </label>
+            </div>
+          </section>
+          <Separator />
+          <section aria-labelledby="lead-shipping-heading" className="space-y-4">
+            <div>
+              <h3 id="lead-shipping-heading" className="font-medium">Alamat & pengiriman</h3>
+              <p className="text-sm text-muted-foreground">Pilih kecamatan agar ongkir COD dapat dihitung.</p>
+            </div>
+            <label className="block space-y-1.5 text-sm font-medium" htmlFor="lead-address">
+              <span>Alamat lengkap</span>
+              <Textarea id="lead-address" autoComplete="street-address" aria-invalid={fieldError?.id === "lead-address"} aria-describedby={fieldError?.id === "lead-address" ? "lead-address-error" : undefined} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} placeholder="Jalan, nomor rumah, RT/RW, dan patokan" required />
+              {fieldError?.id === "lead-address" && <span id="lead-address-error" className="block text-xs text-destructive">{fieldError.message}</span>}
+            </label>
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="lead-location">Kecamatan tujuan</label>
+              <div className="relative">
+                <Input id="lead-location" value={locationQuery} onChange={(event) => setLocationQuery(event.target.value)} placeholder="Ketik minimal 2 huruf" aria-invalid={fieldError?.id === "lead-location"} aria-describedby={fieldError?.id === "lead-location" ? "lead-location-error" : "lead-location-help"} />
+                {locationLoading && <Loader2 className="absolute right-3 top-2.5 size-4 animate-spin text-muted-foreground" aria-hidden="true" />}
               </div>
-            ) : <p className="rounded-lg border border-dashed p-3 text-sm text-slate-500">Pilih produk dan kecamatan untuk melihat kurir.</p>}
-          </div>
-          <DialogFooter className="mx-0 mb-0 px-0 pb-0">
-            <Button type="button" variant="outline" className="min-h-11" onClick={() => onClose()} disabled={saving}>Batal</Button>
-            <Button type="submit" className="min-h-11" disabled={saving}>
+              <p id="lead-location-help" className="text-xs text-muted-foreground">
+                {form.destinationAreaId ? `${form.district}, ${form.city}, ${form.province}` : "Pilih hasil pencarian agar ongkir dapat dihitung."}
+              </p>
+              {fieldError?.id === "lead-location" && <p id="lead-location-error" className="text-xs text-destructive">{fieldError.message}</p>}
+              {locations.length > 0 && (
+                <div className="max-h-40 overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground" role="listbox" aria-label="Hasil pencarian kecamatan">
+                  {locations.map((location) => (
+                    <Button key={location.id} type="button" variant="ghost" role="option" aria-selected={form.destinationAreaId === location.id} className="h-auto min-h-11 w-full justify-start whitespace-normal px-3 py-2 text-left" onClick={() => {
+                      setForm({ ...form, district: location.district, city: location.city, province: location.province, postalCode: location.postal_code || "", destinationAreaId: String(location.id), courierServiceId: "" });
+                      setLocationQuery(location.label);
+                      setLocations([]);
+                    }}>
+                      {location.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Kurir & ongkir</p>
+              {ratesLoading ? <Skeleton className="h-14 w-full" /> : rates.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Pilihan kurir dan ongkir">
+                  {rates.map((rate) => {
+                    const selected = form.courierServiceId === String(rate.courier_service_id);
+                    return <Button key={rate.courier_service_id} type="button" variant={selected ? "secondary" : "outline"} role="radio" aria-checked={selected} className="h-auto min-h-14 items-start justify-start whitespace-normal p-3 text-left" onClick={() => setForm({ ...form, courierServiceId: String(rate.courier_service_id) })}>
+                      <span>
+                        <span className="block font-semibold">{rate.courier_code} · {rate.courier_service}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">{formatIdr(rate.shipping_cost)}{rate.estimated_days ? ` · ${rate.estimated_days}` : ""}</span>
+                      </span>
+                    </Button>;
+                  })}
+                </div>
+              ) : <div className="rounded-lg border border-dashed bg-muted/30 p-3 text-sm text-muted-foreground">Pilih produk dan kecamatan untuk melihat kurir.</div>}
+            </div>
+          </section>
+          <DialogFooter className="mx-0 mb-0 border-t px-0 pt-5 pb-0">
+            <Button type="button" variant="outline" size="xl" onClick={() => onClose()} disabled={saving}>Batal</Button>
+            <Button type="submit" size="xl" disabled={saving}>
               {saving && <Loader2 className="animate-spin" aria-hidden="true" />}
               Jadikan order
             </Button>
@@ -576,50 +627,132 @@ export function AbandonedOrders() {
     }
   };
 
-  if (loading) return <div className="space-y-3" aria-label="Memuat pesanan tertinggal" aria-busy="true">{Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-28 w-full" />)}</div>;
+  if (loading) return (
+    <div className="space-y-3" aria-label="Memuat pesanan tertinggal" aria-busy="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <Card key={index} size="sm">
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+            <div className="space-y-2"><Skeleton className="h-4 w-2/3" /><Skeleton className="h-3 w-1/2" /></div>
+            <div className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-3 w-2/3" /></div>
+            <Skeleton className="h-11 w-full sm:w-40" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 
-  if (error) return <section role="alert" className="rounded-xl border border-rose-200 bg-white p-6 text-center"><AlertCircle className="mx-auto size-8 text-rose-600" /><h2 className="mt-3 font-semibold">Pesanan tertinggal gagal dimuat</h2><p className="mt-1 text-sm text-slate-600">{error}</p><Button className="mt-4 min-h-11" variant="outline" onClick={() => void load()}><RefreshCw />Coba lagi</Button></section>;
+  if (error) return (
+    <Card role="alert" className="border-destructive/20">
+      <CardContent className="py-6 text-center">
+        <AlertCircle className="mx-auto size-8 text-destructive" aria-hidden="true" />
+        <h2 className="mt-3 font-semibold">Pesanan tertinggal gagal dimuat</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+        <Button className="mt-4" size="xl" variant="outline" onClick={() => void load()}><RefreshCw />Coba lagi</Button>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 sm:flex-row sm:items-end">
-        <label className="flex-1 space-y-1.5 text-sm font-medium" htmlFor="abandoned-search"><span>Cari lead</span><span className="relative block"><Search className="absolute left-3 top-2.5 size-4 text-slate-400" aria-hidden="true" /><Input id="abandoned-search" className="pl-9" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Produk, nama, WhatsApp, atau ABN" /></span></label>
-        <div className="w-full space-y-1.5 sm:w-48"><label htmlFor="follow-up-filter" className="text-sm font-medium">Status follow-up</label><Select value={status} onValueChange={(value) => { setStatus((value || "all") as FollowUpStatus | "all"); setPage(1); }}><SelectTrigger id="follow-up-filter"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Semua status</SelectItem>{Object.entries(followUpLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
-      </div>
-      <p className="text-xs font-medium text-slate-500" role="status" aria-live="polite">
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle as="h2">Cari & saring lead</CardTitle>
+          <CardDescription>Temukan calon pembeli berdasarkan identitas atau tahap follow-up.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="flex-1 space-y-1.5 text-sm font-medium" htmlFor="abandoned-search">
+            <span>Cari lead</span>
+            <span className="relative block">
+              <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" aria-hidden="true" />
+              <Input id="abandoned-search" className="pl-9" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Produk, nama, WhatsApp, atau ABN" />
+            </span>
+          </label>
+          <div className="w-full space-y-1.5 sm:w-52">
+            <label htmlFor="follow-up-filter" className="text-sm font-medium">Status follow-up</label>
+            <Select value={status} onValueChange={(value) => { setStatus((value || "all") as FollowUpStatus | "all"); setPage(1); }}>
+              <SelectTrigger id="follow-up-filter"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua status</SelectItem>
+                {Object.entries(followUpLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+      <p className="text-xs font-medium text-muted-foreground" role="status" aria-live="polite">
         {refreshing ? "Memperbarui pesanan tertinggal…" : `${pagination.totalItems} pesanan tertinggal`}
       </p>
-      {notice && <p role="status" aria-live="polite" className="rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-700">{notice}</p>}
-      {leads.length === 0 ? <section className="rounded-xl border border-dashed bg-white p-10 text-center"><PackageSearch className="mx-auto size-9 text-slate-400" /><h2 className="mt-3 font-semibold">{search.trim() || status !== "all" ? "Tidak ada hasil yang cocok" : "Belum ada pesanan tertinggal"}</h2><p className="mt-1 text-sm text-slate-500">{search.trim() || status !== "all" ? "Ubah pencarian atau filter follow-up." : "Lead akan muncul ketika pembeli sudah mengisi nama dan WhatsApp tetapi belum menyelesaikan order."}</p></section> : (
+      {notice && (
+        <Card size="sm" role="status" aria-live="polite" className="bg-muted/40">
+          <CardContent className="text-muted-foreground">{notice}</CardContent>
+        </Card>
+      )}
+      {leads.length === 0 ? (
+        <Card className="border-dashed">
+          <CardContent className="py-10 text-center">
+            <PackageSearch className="mx-auto size-9 text-muted-foreground" aria-hidden="true" />
+            <h2 className="mt-3 font-semibold">{search.trim() || status !== "all" ? "Tidak ada hasil yang cocok" : "Belum ada pesanan tertinggal"}</h2>
+            <p className="mx-auto mt-1 max-w-xl text-sm text-muted-foreground">{search.trim() || status !== "all" ? "Ubah pencarian atau filter follow-up." : "Lead akan muncul ketika pembeli sudah mengisi nama dan WhatsApp tetapi belum menyelesaikan order."}</p>
+          </CardContent>
+        </Card>
+      ) : (
         <div className="grid grid-cols-1 gap-3">
           {leads.map((lead) => {
             const phone = lead.customerPhone.replace(/\D/g, "").replace(/^0/, "62");
             const message = `Halo Kak ${lead.customerName || "Pelanggan"}, kami ingin membantu melanjutkan pesanan ${lead.productName || "produk pilihan Kakak"}. Apakah ada yang bisa kami bantu?`;
-            return <article key={lead.id} className="grid grid-cols-1 gap-4 rounded-xl border bg-white p-4 shadow-xs md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(12rem,.8fr)_auto] md:items-center">
-              <div className="min-w-0"><p className="truncate font-semibold text-slate-950">{lead.productName || "Produk belum dipilih"}</p><p className="mt-1 truncate text-sm text-slate-500">{lead.variantName || "Varian belum dipilih"} · {lead.orderNumber}</p>{!lead.variantId && <p className="mt-2 flex items-center gap-1 text-xs font-medium text-amber-700"><AlertCircle className="size-3.5" />Pilih produk sebelum konversi</p>}</div>
-              <div className="min-w-0"><p className="truncate font-medium text-slate-900">{lead.customerName}</p><p className="mt-1 font-mono text-sm text-slate-600">{lead.customerPhone}</p><p className="mt-1 text-xs text-slate-400">Masuk {formatDate(lead.createdAt)}</p></div>
-              <div><Badge variant="outline" className={followUpStyles[lead.followUpStatus]}><span className="size-1.5 rounded-full bg-current" aria-hidden="true" />{followUpLabels[lead.followUpStatus]}</Badge><p className="mt-2 text-xs text-slate-500">{lead.followedUpAt ? `Dicatat ${formatDate(lead.followedUpAt)}${lead.followedUpBy ? ` oleh ${lead.followedUpBy}` : ""}` : "Belum ada follow-up tercatat"}</p></div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:w-48 md:grid-cols-1">
-                <Button type="button" variant="outline" size="sm" className="min-h-11" disabled={updatingId === lead.id} onClick={() => {
-                  window.open(buildWaUrl(phone, message), "_blank", "noopener,noreferrer");
-                  void followUp(lead);
-                }}><ExternalLink />{updatingId === lead.id ? "Mencatat…" : "Follow up WA"}</Button>
-                <Button size="sm" className="min-h-11" onClick={() => setSelectedLead(lead)}><UserRoundPlus />Edit & jadikan order</Button>
-              </div>
-            </article>;
+            const FollowUpIcon = followUpIcons[lead.followUpStatus];
+            return (
+              <Card key={lead.id} role="article" aria-labelledby={`lead-${lead.id}-title`} size="sm">
+                <CardHeader>
+                  <CardTitle as="h3" id={`lead-${lead.id}-title`} className="truncate">{lead.productName || "Produk belum dipilih"}</CardTitle>
+                  <CardDescription className="truncate">{lead.variantName || "Varian belum dipilih"} · {lead.orderNumber}</CardDescription>
+                  {!lead.variantId && (
+                    <div className="pt-1"><Badge variant="destructive"><AlertCircle aria-hidden="true" />Pilih produk sebelum konversi</Badge></div>
+                  )}
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground">Calon pembeli</p>
+                    <p className="mt-1 truncate font-medium">{lead.customerName}</p>
+                    <p className="mt-1 font-mono text-sm text-muted-foreground">{lead.customerPhone}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Masuk {formatDate(lead.createdAt)}</p>
+                  </div>
+                  <div>
+                    <p className="mb-1.5 text-xs font-medium text-muted-foreground">Follow-up</p>
+                    <Badge variant={followUpVariants[lead.followUpStatus]}><FollowUpIcon aria-hidden="true" />{followUpLabels[lead.followUpStatus]}</Badge>
+                    <p className="mt-2 text-xs text-muted-foreground">{lead.followedUpAt ? `Dicatat ${formatDate(lead.followedUpAt)}${lead.followedUpBy ? ` oleh ${lead.followedUpBy}` : ""}` : "Belum ada follow-up tercatat"}</p>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+                  <Button type="button" variant="outline" size="xl" className="w-full sm:w-auto" disabled={updatingId === lead.id} onClick={() => {
+                    window.open(buildWaUrl(phone, message), "_blank", "noopener,noreferrer");
+                    void followUp(lead);
+                  }}><ExternalLink />{updatingId === lead.id ? "Mencatat…" : "Follow up WA"}</Button>
+                  <Button type="button" size="xl" className="w-full sm:w-auto" onClick={() => setSelectedLead(lead)}><UserRoundPlus />Edit & jadikan order</Button>
+                </CardFooter>
+              </Card>
+            );
           })}
         </div>
       )}
       {pagination.totalPages > 1 && (
-        <nav className="flex items-center justify-between gap-3 rounded-xl border bg-white p-3" aria-label="Halaman pesanan tertinggal">
-          <Button type="button" variant="outline" className="min-h-11" disabled={refreshing || pagination.page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
-            <ChevronLeft /> Sebelumnya
-          </Button>
-          <span className="text-sm font-medium text-slate-600">Halaman {pagination.page} dari {pagination.totalPages}</span>
-          <Button type="button" variant="outline" className="min-h-11" disabled={refreshing || pagination.page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)}>
-            Berikutnya <ChevronRight />
-          </Button>
-        </nav>
+        <Pagination aria-label="Halaman pesanan tertinggal" className="justify-between">
+          <PaginationContent className="w-full justify-between gap-3">
+            <PaginationItem>
+              <Button type="button" variant="outline" size="xl" disabled={refreshing || pagination.page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                <ChevronLeft /> <span className="hidden sm:inline">Sebelumnya</span>
+              </Button>
+            </PaginationItem>
+            <PaginationItem>
+              <span className="text-sm font-medium text-muted-foreground" aria-current="page">Halaman {pagination.page} dari {pagination.totalPages}</span>
+            </PaginationItem>
+            <PaginationItem>
+              <Button type="button" variant="outline" size="xl" disabled={refreshing || pagination.page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)}>
+                <span className="hidden sm:inline">Berikutnya</span> <ChevronRight />
+              </Button>
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       )}
       <ConversionDialog lead={selectedLead} products={products} onClose={(orderNumber) => {
         setSelectedLead(null);

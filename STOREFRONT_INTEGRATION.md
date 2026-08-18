@@ -46,7 +46,7 @@ A second store is a second install — separate Worker, D1, KV, R2, and domain. 
 
 **Storefront-owned (built-in renderer):** `/`, `/produk`, `/produk/[slug]`, `/[slug]` landing catch-all, `/404`, content pages (`/tentang`, `/kontak`, `/testimoni`, `/sitemap`, `/disclaimer`, `/kebijakan-privasi`, `/kebijakan-cookie`, `/syarat-ketentuan`, `/pengiriman`), feeds (`/sitemap.xml`, `/feed/google-catalog.xml`, `/feed/meta-catalog.xml`, `/robots.txt`), and media (`/assets/[...key]`, `/media/[...key]`).
 
-**System-owned, never forked:** `/admin/*`, `/hello`, `/api/*`, `/payment`, `/thanks`, `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`, `/api/webhooks/autolaris`.
+**System-owned, never forked:** `/admin/*`, `/hello`, `/api/*`, `/payment`, `/thanks`, `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`, `/api/admin/payment-reconciliation`, and the retired tombstone `/api/webhooks/autolaris`.
 
 ### Form route redirects — verified
 

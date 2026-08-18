@@ -14,7 +14,7 @@ The Worker also owns one scheduled maintenance trigger (`*/5 * * * *`). It check
 schema history and CAPI outbox age, persists signal transition state under
 `adsbookcms:operational-alert:v1:*` in the `SESSION` KV binding, and sends
 deduplicated firing/recovery events to `OPS_ALERT_WEBHOOK_URL` when that
-HTTPS secret is configured. Missing webhook configuration is explicit
+HTTPS URL is configured. Missing notification configuration is explicit
 `notification: "disabled"` state, never simulated success.
 
 External uptime monitoring and a fleet-wide view are not implemented.
@@ -29,7 +29,7 @@ What exists:
 | Per-install schema alert | **Implemented**; scheduled every five minutes |
 | Per-install CAPI outbox alert | **Implemented**; fires when failed/dead events exist or oldest pending age is at least 15 minutes |
 | Deduplication and recovery | **Implemented** through KV transition state |
-| Notification transport | **Implemented** for an operator-configured HTTPS webhook |
+| Notification transport | **Implemented** for an operator-configured HTTPS URL |
 | External uptime check | **Absent** |
 | Cross-install monitor | **Absent** |
 | Alert dashboard/history | **Absent** beyond KV state and retained logs |
@@ -47,7 +47,7 @@ Error logging follows a consistent convention worth preserving: a stable kebab-c
 console.error("storefront-support-whatsapp-load", error);
 ```
 
-Roughly 85 distinct labels are in use, named after the surface that produced them — `admin-products-patch`, `autolaris-webhook`, `mengantar-dispatch-lease-release`, `shipping-pickup`, `settings-put`, `google-catalog-xml-error`, and so on. Workers Logs is enabled, so these labels are queryable during the configured retention window. **Keep this convention.** A new log line without a stable label is a log line nobody will ever find.
+Roughly 85 distinct labels are in use, named after the surface that produced them — `admin-products-patch`, `manual-payment-reconciliation`, `mengantar-dispatch-lease-release`, `shipping-pickup`, `settings-put`, `google-catalog-xml-error`, and so on. Workers Logs is enabled, so these labels are queryable during the configured retention window. **Keep this convention.** A new log line without a stable label is a log line nobody will ever find.
 
 Three `console.log` calls exist and should be reviewed — informational logging in a Worker costs money at scale and usually indicates leftover debugging.
 
@@ -64,7 +64,7 @@ These are the paths where the system degrades without telling anyone. Each is a 
 | Meta CAPI delivery failure | Retried through `capi_event_outbox` with attempt counting | Good design — but nothing surfaces an outbox that has stopped draining |
 | Mengantar dispatch failure | Order stays `pending` and remains retryable | Correct, but an operator must notice manually |
 | Mengantar tracking poll failure | The affected row fails independently, remains at its prior lifecycle state, and returns an operator-visible error in the Shipping workspace | Correct interactive behavior; no automatic retry or alert is claimed |
-| AutoLaris webhook signature mismatch | Rejected | No counter distinguishes "provider changed contract" from "nobody paid today" |
+| AutoLaris paid transaction with no operator confirmation yet | Order remains pending/unpaid until an owner/admin confirms the exact billed amount and provider reference from the provider dashboard | Correct current contract, but there is no automatic provider-side inquiry yet |
 | Stock trigger rejection | `INSUFFICIENT_STOCK` raised by D1 | Surfaces to the caller, but is not counted |
 | Landing pages fail to load on the homepage | `catch {}` swallowed it; the solutions grid silently loses every CMS landing page | Now logged as `home-landing-pages-load` |
 | Support WhatsApp lookup finds no store row | returned `""`, identical to "number simply not saved" | Now logged as `storefront-support-whatsapp-no-store-row`, which distinguishes an unseeded database from an unconfigured one |
@@ -104,7 +104,7 @@ The scheduled handler evaluates:
 - `capi-outbox`: firing when failed/dead rows are present or the oldest pending event is at least 15 minutes old; healthy otherwise.
 
 `unknown` does not overwrite a previously known state. A healthy→firing transition
-persists before notification. A failed webhook remains `pending` so the next
+persists before notification. A failed notification remains `pending` so the next
 scheduled run retries; a successful notification becomes `sent`. A
 firing→healthy recovery emits once and returns to healthy state.
 

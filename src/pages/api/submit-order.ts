@@ -295,7 +295,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
         payment = await createAutoLarisPaymentForOrder(database, locals, {
           orderId: order.id,
           channelCode: data.payment_channel!,
-          callbackUrl: new URL("/api/webhooks/autolaris", request.url).toString(),
         });
         if (payment.status === "failed") {
           await database

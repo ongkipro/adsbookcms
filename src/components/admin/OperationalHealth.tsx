@@ -20,7 +20,7 @@ const SIGNAL_TITLES: Record<HealthSignal["id"], string> = {
   "capi-outbox": "Antrean Meta CAPI",
   "meta-capi": "Pengiriman Meta CAPI terakhir",
   mengantar: "Kontak Mengantar terakhir",
-  autolaris: "Kontak AutoLaris terakhir",
+  autolaris: "AutoLaris Create Order & verifikasi",
 };
 
 const REASONS: Record<string, string> = {
@@ -46,9 +46,9 @@ const REASONS: Record<string, string> = {
   "never-used": "Belum pernah ada transaksi payment gateway.",
   "no-accepted-request": "Belum ada request pembayaran yang diterima AutoLaris.",
   "create-failing": "Semua request pembuatan pembayaran gagal.",
-  "awaiting-first-callback":
-    "Request diterima AutoLaris, callback pembayaran belum pernah masuk.",
-  "callback-received": "Callback pembayaran terakhir diterima.",
+  "awaiting-first-manual-confirmation":
+    "Create Order diterima AutoLaris; belum ada pembayaran yang dikonfirmasi manual.",
+  "manually-confirmed": "Pembayaran terakhir dikonfirmasi manual dengan audit operator.",
 };
 
 const STATE_LABEL: Record<HealthState, string> = {
@@ -90,6 +90,11 @@ function describeMetrics(signal: HealthSignal) {
 }
 
 function ageLabel(signal: HealthSignal) {
+  if (signal.id === "autolaris") {
+    return signal.reason === "manually-confirmed"
+      ? "Verifikasi terakhir"
+      : "Create Order terakhir";
+  }
   return signal.id === "capi-outbox" ? "Antrean tertua" : "Terakhir sukses";
 }
 

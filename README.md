@@ -31,7 +31,7 @@ Full procedure, including creating the Cloudflare resources: `INSTALLATION.md`.
 
 ```bash
 npm ci
-npm run db:migrate:local      # 42 migrations, applied to a local D1
+npm run db:migrate:local      # 44 migrations, applied to a local D1
 npm run cf:dev                # wrangler dev --local, closest to production
 ```
 

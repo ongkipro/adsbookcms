@@ -32,7 +32,6 @@ interface SharedEnvVars {
   MENGANTAR_PICKUP_ADDRESS_ID?: string;
   AUTOLARIS_API_KEY?: string;
   AUTOLARIS_BASE_URL?: string;
-  AUTOLARIS_WEBHOOK_SECRET?: string;
   META_PIXEL_ID?: string;
   META_CAPI_ACCESS_TOKEN?: string;
   META_CAPI_TOKEN?: string;

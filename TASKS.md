@@ -1337,3 +1337,33 @@ Worker, and by reading the emitted stylesheets rather than the source.
 - [x] **A-121** — Verify and reconcile the missed-order recovery flow. **Done 2026-08-18.**
   -> Primary requirements: REQ-23, REQ-24, REQ-25, REQ-27, REQ-29, REQ-47 · Dependencies: A-118..A-120 · Done when: focused lifecycle/API tests, the full test/check/build gates, and authenticated Chromium at 390, 768, and 1280 CSS px prove list separation, lead editing/conversion, order editing, dispatch eligibility, keyboard/focus behavior, and zero page overflow without a live provider call or deployment.
   -> Evidence: focused lead, authorization, lifecycle, concurrency, and order-edit contracts passed; the full suite passed 401/401; `npm run check` reported zero diagnostics across 349 files; and the Cloudflare server build completed. Isolated authenticated Chromium at 390, 768, and 1280 CSS px proved the dedicated empty queue and invoice editor have zero root overflow. A controlled populated state proved product/customer/follow-up rendering, focused invalid conversion input, exact conversion payload, INV redirect, and a dirty-field-only buyer edit. No provider request, remote database mutation, deployment, commit, or push occurred.
+
+## A16 — Lead UI, AutoLaris Create Order, and install defaults
+
+- [x] **A-122** — Apply the installed shadcn system to **Pesanan tertinggal**. **Done 2026-08-18.**
+  -> Primary requirements: REQ-27, REQ-29 · Dependencies: A-118 · Done when: the dedicated lead workspace uses the installed Card, Badge, Button, Dialog, Separator, Skeleton, and Pagination primitives with semantic tokens; retains the follow-up and conversion behavior; focuses inline validation; returns focus after dismissal; and has no page overflow at 390, 768, or 1280 CSS px.
+
+- [x] **A-123** — Cut AutoLaris online checkout over to Create Order. **Done 2026-08-18.**
+  -> Primary requirements: REQ-30, REQ-36 · Done when: online checkout calls only `POST /api/h2h/submit`, sends the exact provider field `courir_id: 1`, sources origin/destination/warehouse/receiver/weight/items from D1, maps the nested payment instructions, and fails before fetch when required provider facts are missing. The fixed value is an operational provider-team instruction, not a value inferred from the published examples.
+
+- [x] **A-124** — Bootstrap the expedition catalogue on fresh and empty installs. **Done 2026-08-18.**
+  -> Primary requirements: REQ-40 · Done when: install atomically creates the neutral ten-courier policy; migration `0042` repairs only stores with zero courier rows; an existing customized policy is unchanged; and `/api/admin/expeditions` exposes the rows after a fresh install.
+
+- [x] **A-125** — Verify and reconcile A16. **Done 2026-08-18.**
+  -> Primary requirements: REQ-27, REQ-29, REQ-30, REQ-36, REQ-40 · Dependencies: A-122..A-124 · Done when: exact adapter, orchestration, migration, install, API, full test/check/build, and isolated browser gates pass; canonical documents match the executable tree; and no live provider call, remote mutation, or deployment occurs.
+  -> Evidence: the full suite passed 408/408; `npm run check` reported zero diagnostics across 350 files; the Cloudflare build completed; and the corrected `0042` migration applied through Wrangler after a browser gate caught and removed a compound-SELECT incompatibility. A fresh isolated install returned ten couriers. Authenticated Chromium at 390, 768, and 1280 CSS px proved the populated shadcn lead workspace, zero overflow, validation focus, focus return, and no console/network error. No live provider request, remote database mutation, or deployment occurred.
+
+## A17 — Manual AutoLaris reconciliation and payment-status hardening
+
+- [x] **A-126** — Replace webhook reconciliation with immutable manual confirmation. **Done 2026-08-18.**
+  -> Primary requirements: REQ-11, REQ-12, REQ-21 · Done when: `/api/admin/payment-reconciliation` lists only scoped AutoLaris online transactions, owner/admin can confirm one payment only by exact billed amount and provider reference, the update is atomic and idempotent, an append-only audit row is written, the retired public webhook returns `410`, and destructive order deletion rejects audited payments up front.
+
+- [x] **A-127** — Ship the admin and buyer UI for manual confirmation. **Done 2026-08-18.**
+  -> Primary requirements: REQ-11, REQ-12, REQ-21, REQ-27 · Dependencies: A-126 · Done when: `/admin/balance` becomes the manual verification queue with eligibility/lock reasons, inline validation, mobile/desktop shadcn rendering, and no callback-secret readiness copy; `/payment` truthfully says admin verification/manual refresh, polls CMS status every minute, and still replaces itself with `/thanks` after a server-confirmed paid state.
+
+- [x] **A-128** — Align operational semantics, install/runtime guards, and docs. **Done 2026-08-18.**
+  -> Primary requirements: REQ-40, REQ-82, REQ-85 · Dependencies: A-126, A-127 · Done when: operational health reflects manual confirmation instead of webhook success, fresh/empty installs still expose the neutral courier policy, provider-created online checkout uses `POST /api/h2h/submit` with exact `courir_id: 1`, and canonical docs stop describing callback-based readiness as current runtime truth.
+
+- [x] **A-129** — Verify and reconcile A17. **Done 2026-08-18.**
+  -> Primary requirements: REQ-11, REQ-12, REQ-21, REQ-27, REQ-40, REQ-82, REQ-85 · Dependencies: A-126..A-128 · Done when: focused reconciliation/lifecycle/operational-health tests, full suite, repository check, production build, isolated browser queue validation, and isolated paid redirect proof pass; canonical docs match the executable tree; and no live provider call, remote mutation, deployment, commit, or push occurs.
+  -> Evidence: the full suite passed 419/419; `npm run check` reported zero diagnostics across 353 files; the Cloudflare build completed; and the manual confirmation surface plus paid redirect were exercised on isolated local runtime only.

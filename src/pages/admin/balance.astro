@@ -1,170 +1,21 @@
 ---
 import AdminLayout from "../../layouts/AdminLayout.astro";
 import AdminPageHeader from "../../components/admin/AdminPageHeader.astro";
-import { getRuntimeEnv } from "../../lib/env";
-import {
-  loadRecordedAutoLarisBalance,
-  type RecordedBalanceSummary,
-  type RecordedPaymentRow,
-} from "../../lib/autolaris-balance";
+import PaymentReconciliationQueue from "../../components/admin/PaymentReconciliationQueue";
 
 export const prerender = false;
-
-const emptySummary: RecordedBalanceSummary = {
-  paidFunds: 0,
-  pendingBilled: 0,
-  recordedFees: 0,
-  failedCount: 0,
-};
-let summary = emptySummary;
-let transactions: RecordedPaymentRow[] = [];
-let loadError = "";
-const database = getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined;
-if (!database?.prepare) {
-  loadError = "Database rekonsiliasi belum tersedia.";
-} else {
-  try {
-    ({ summary, transactions } = await loadRecordedAutoLarisBalance(database));
-  } catch (error) {
-    console.error("admin-autolaris-balance", error);
-    loadError = "Data rekonsiliasi AutoLaris gagal dimuat.";
-  }
-}
-
-const currency = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
-  maximumFractionDigits: 0,
-});
-const dateTime = new Intl.DateTimeFormat("id-ID", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "Asia/Jakarta",
-});
-const formatDate = (value: string | null) => {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : `${dateTime.format(date)} WIB`;
-};
-const statusLabels: Record<string, string> = {
-  paid: "Lunas",
-  pending: "Menunggu",
-  failed: "Gagal",
-  expired: "Kedaluwarsa",
-  refunded: "Dikembalikan",
-};
-const statusStyles: Record<string, string> = {
-  paid: "bg-blue-100 text-blue-800",
-  pending: "bg-amber-100 text-amber-800",
-  failed: "bg-rose-100 text-rose-800",
-  expired: "bg-slate-100 text-slate-700",
-  refunded: "bg-sky-100 text-sky-800",
-};
 ---
 
-<AdminLayout title="Rekonsiliasi AutoLaris" activeMenu="payments">
+<AdminLayout title="Verifikasi pembayaran AutoLaris" activeMenu="payments">
   <div class="mx-auto max-w-7xl space-y-5">
     <AdminPageHeader
-      eyebrow="Recorded ledger"
-      title="Rekonsiliasi AutoLaris"
-      description="Ringkasan transaksi yang tercatat di D1. Data ini bukan saldo wallet live atau dana yang dipastikan sudah settled."
+      eyebrow="Payment operations"
+      title="Verifikasi pembayaran AutoLaris"
+      description="Periksa pembayaran QRIS dan virtual account yang masih menunggu, lalu konfirmasi hanya setelah transaksi terlihat berhasil di dashboard AutoLaris."
       backHref="/admin/payments"
       backLabel="Payment AutoLaris"
     />
 
-    {loadError && (
-      <section class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
-        <strong>Rekonsiliasi tidak tersedia.</strong> {loadError}
-      </section>
-    )}
-
-    <section class="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4" aria-label="Ringkasan rekonsiliasi">
-      <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
-        <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">Dana tercatat lunas</p>
-        <p class="mt-2 font-mono text-2xl font-black text-blue-700">{currency.format(summary.paidFunds)}</p>
-        <p class="mt-2 text-xs leading-5 text-slate-500">Total tagihan D1 berstatus paid/settled/success.</p>
-      </article>
-      <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
-        <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">Tagihan menunggu</p>
-        <p class="mt-2 font-mono text-2xl font-black text-amber-700">{currency.format(summary.pendingBilled)}</p>
-        <p class="mt-2 text-xs leading-5 text-slate-500">Instruksi dibuat, pembayaran belum direkonsiliasi.</p>
-      </article>
-      <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
-        <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">Biaya admin tercatat</p>
-        <p class="mt-2 font-mono text-2xl font-black text-slate-950">{currency.format(summary.recordedFees)}</p>
-        <p class="mt-2 text-xs leading-5 text-slate-500">Akumulasi fee dari respons transaksi yang disimpan.</p>
-      </article>
-      <article class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
-        <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">Transaksi gagal</p>
-        <p class="mt-2 font-mono text-2xl font-black text-rose-700">{summary.failedCount.toLocaleString("id-ID")}</p>
-        <p class="mt-2 text-xs leading-5 text-slate-500">Jumlah catatan pembayaran berstatus failed.</p>
-      </article>
-    </section>
-
-    <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div class="border-b border-slate-200 p-5">
-        <h3 class="font-black text-slate-950">Transfer masuk tercatat</h3>
-        <p class="mt-1 text-xs leading-5 text-slate-500">Maksimal 100 transaksi terbaru. Buka order untuk detail operasional dan status pengiriman.</p>
-      </div>
-
-      {transactions.length === 0 ? (
-        <div class="p-8 text-center">
-          <p class="font-bold text-slate-900">Belum ada transaksi AutoLaris tercatat.</p>
-          <p class="mt-1 text-sm text-slate-500">Data akan muncul setelah checkout online berhasil membuat catatan pembayaran.</p>
-        </div>
-      ) : (
-        <>
-          <div class="hidden overflow-x-auto lg:block">
-            <table class="w-full min-w-[980px] text-left text-xs">
-              <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th class="px-4 py-3">Order</th>
-                  <th class="px-4 py-3">Customer</th>
-                  <th class="px-4 py-3">Channel</th>
-                  <th class="px-4 py-3">Status</th>
-                  <th class="px-4 py-3 text-right">Nominal</th>
-                  <th class="px-4 py-3 text-right">Fee</th>
-                  <th class="px-4 py-3 text-right">Total</th>
-                  <th class="px-4 py-3">Waktu</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100">
-                {transactions.map((transaction) => (
-                  <tr class="align-top hover:bg-slate-50/70">
-                    <td class="px-4 py-4"><a class="font-mono font-black text-blue-700 hover:underline" href={`/admin/orders/${encodeURIComponent(transaction.order_number)}`}>{transaction.order_number}</a><p class="mt-1 max-w-44 break-all font-mono text-[10px] text-slate-400">{transaction.provider_transaction_id || "ID provider belum tersedia"}</p></td>
-                    <td class="px-4 py-4 font-bold text-slate-900">{transaction.customer_name}</td>
-                    <td class="px-4 py-4 font-mono font-bold text-slate-700">{transaction.channel_code}</td>
-                    <td class="px-4 py-4"><span class={`inline-flex rounded-full px-2.5 py-1 font-black ${statusStyles[transaction.status] || "bg-slate-100 text-slate-700"}`}>{statusLabels[transaction.status] || transaction.status}</span>{transaction.failed_reason && <p class="mt-2 max-w-56 break-words text-[11px] leading-4 text-rose-700">{transaction.failed_reason}</p>}</td>
-                    <td class="px-4 py-4 text-right font-mono font-bold text-slate-900">{currency.format(transaction.amount)}</td>
-                    <td class="px-4 py-4 text-right font-mono text-slate-600">{currency.format(transaction.admin_fee)}</td>
-                    <td class="px-4 py-4 text-right font-mono font-black text-slate-950">{currency.format(transaction.total_amount)}</td>
-                    <td class="px-4 py-4 text-slate-600"><p>{formatDate(transaction.paid_at || transaction.created_at)}</p>{transaction.expires_at && <p class="mt-1 text-[10px] text-slate-400">Exp. {formatDate(transaction.expires_at)}</p>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="divide-y divide-slate-100 lg:hidden">
-            {transactions.map((transaction) => (
-              <article class="space-y-3 p-4">
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0"><a class="break-all font-mono text-sm font-black text-blue-700 hover:underline" href={`/admin/orders/${encodeURIComponent(transaction.order_number)}`}>{transaction.order_number}</a><p class="mt-1 truncate text-xs text-slate-500">{transaction.customer_name}</p><p class="mt-1 break-all font-mono text-[10px] text-slate-400">{transaction.provider_transaction_id || "ID provider belum tersedia"}</p></div>
-                  <span class={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${statusStyles[transaction.status] || "bg-slate-100 text-slate-700"}`}>{statusLabels[transaction.status] || transaction.status}</span>
-                </div>
-                <dl class="grid grid-cols-2 gap-3 text-xs">
-                  <div><dt class="text-slate-400">Channel</dt><dd class="mt-1 font-mono font-bold text-slate-900">{transaction.channel_code}</dd></div>
-                  <div class="text-right"><dt class="text-slate-400">Total</dt><dd class="mt-1 font-mono font-black text-slate-950">{currency.format(transaction.total_amount)}</dd></div>
-                  <div><dt class="text-slate-400">Nominal</dt><dd class="mt-1 font-mono text-slate-700">{currency.format(transaction.amount)}</dd></div>
-                  <div class="text-right"><dt class="text-slate-400">Fee</dt><dd class="mt-1 font-mono text-slate-700">{currency.format(transaction.admin_fee)}</dd></div>
-                </dl>
-                <div><p class="text-[11px] text-slate-500">{formatDate(transaction.paid_at || transaction.created_at)}</p>{transaction.expires_at && <p class="mt-1 text-[10px] text-slate-400">Exp. {formatDate(transaction.expires_at)}</p>}</div>
-                {transaction.failed_reason && <p class="break-words rounded-lg bg-rose-50 p-2 text-[11px] leading-4 text-rose-700">{transaction.failed_reason}</p>}
-              </article>
-            ))}
-          </div>
-        </>
-      )}
-    </section>
+    <PaymentReconciliationQueue client:load />
   </div>
 </AdminLayout>

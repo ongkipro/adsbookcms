@@ -43,14 +43,14 @@ These cannot be closed from this repository alone. Each needs canonical provider
 | --- | --- | --- |
 | Mengantar tracking live proof | Accepted, missing, malformed, timeout, and representative shipped/delivered/RTS responses from the active account | Operator-triggered authenticated polling, sequential isolation, raw evidence persistence, and monotonic status mapping are implemented and locally tested. No callback contract is assumed; no live provider read was performed in this change. |
 | Mengantar wallet | Canonical balance endpoint and response schema | `/admin/balance` is an AutoLaris D1 reconciliation ledger, not a provider wallet. |
-| AutoLaris payment-status polling | Canonical read-only inquiry endpoint, authentication, request identifier (`trx_id` or `reff_id`), paid/pending/expired/failed response schemas, polling interval, and retry/rate-limit semantics | Coordination with the AutoLaris team is in progress. The documented `GET /api/h2h/list_payment` endpoint was verified against the configured account on 2026-08-18: requests without parameters and with `trx_id`, `transaction_id`, or `reff_id` all returned the same channel-and-fee catalog with no transaction status fields. It must not be used for reconciliation. Payment creation ships, but the scheduled Worker must not mark a transaction paid until an authoritative inquiry response is available. The legacy webhook path is not the accepted production confirmation contract. |
+| AutoLaris payment-status polling | Canonical read-only inquiry endpoint, authentication, request identifier (`trx_id` or `reff_id`), paid/pending/expired/failed response schemas, polling interval, and retry/rate-limit semantics | Coordination with the AutoLaris team is in progress. The documented `GET /api/h2h/list_payment` endpoint was verified against the configured account on 2026-08-18: requests without parameters and with `trx_id`, `transaction_id`, or `reff_id` all returned the same channel-and-fee catalog with no transaction status fields. It must not be used for reconciliation. Online creation now calls the documented Create Order path `POST /api/h2h/submit`, uses the provider's exact `courir_id` spelling, and fixes its value to `1` solely from the provider-team operational instruction; published examples do not establish that value. The scheduled Worker must not mark a transaction paid until an authoritative inquiry response is available. The legacy webhook path is not the accepted production confirmation contract. |
 | Mengantar unpaid recovery | Real insufficient-wallet response plus verified `/order/pay-unpaid` response shape, idempotency, and failure semantics | Automatic `/order/create` dispatch is a separate contract. A provider-created unpaid draft may retain its accepted provider order ID with no cnote and be visible under **Perlu Dibuatkan Resi**, but `MengantarClient.payUnpaidOrder` has no verified internal operator action. No local flow may fabricate or persist a waybill before provider acceptance. |
 | Mengantar pickup proof | Current `/address` and `/time` schemas plus live accepted/rejected/timeout/duplicate evidence | Existing handlers already call provider-before-persist and leave D1 unchanged on provider failure. |
 
 ### Closing a blocked contract
 
 1. Obtain the canonical specification or an explicitly approved capture: endpoint, authentication, schemas, status enum, retry/idempotency semantics, and replay window.
-2. Implement inside the existing provider client or webhook boundary; do not open a second HTTP path.
+2. Implement inside the existing provider client or admin reconciliation boundary; do not open a second HTTP path.
 3. Persist provider identifiers and confirmed state only after provider acceptance.
 4. Keep local failure actionable; never present an unsynchronized D1 row as provider-confirmed.
 5. Cover accepted, rejected, timeout, and retry paths with a runnable check.
@@ -83,9 +83,10 @@ These are not engineering gaps. They require an explicit human decision and, whe
 
 ## 6. Execution Order
 
-1. Keep AutoLaris QRIS/VA disabled for production checkout until the canonical
+1. Keep automatic AutoLaris paid marking disabled until the canonical
    transaction-inquiry contract is implemented and proven through the scheduled
-   Worker path.
+   Worker path. The current accepted production-safe fallback is owner/admin
+   manual confirmation with immutable audit evidence.
 2. Resolve Mengantar provider blockers only from canonical documentation or
    approved sandbox/live evidence.
 3. **AD3** define and implement stable, truthful out-of-stock feed behavior and

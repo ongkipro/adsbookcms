@@ -1,11 +1,11 @@
 # STATUS — AdsBookCMS
 
-> Last executed baseline: 2026-08-18 @ `5cb1d32` + the A15 working tree.
+> Last executed baseline: 2026-08-18 @ `09812c7` + the A17 working tree.
 > `main` was re-founded as AdsBookCMS and its history rewritten (ADR-012), so the
 > commit range this document once cited no longer exists on this branch; the
 > previous 61 commits are preserved on `backup/pre-history-rewrite`. Gates re-run
-> on the current tree, not inherited: `npm run check` 349 files / 0 errors /
-> 0 warnings / 0 hints · `npm test` 401 / 401 · `npm run build` Cloudflare server
+> on the current tree, not inherited: `npm run check` 353 files / 0 errors /
+> 0 warnings / 0 hints · `npm test` 419 / 419 · `npm run build` Cloudflare server
 > bundle complete.
 
 Current state of the system. Implemented behaviour lives here; history lives in `BUILD-LOG.md`; remaining work lives in `UNIMPLEMENTED_SPECS.md`; structure lives in `ARCHITECTURE.md`.
@@ -22,7 +22,7 @@ The previous version of this file described a different repository — it opened
 | Repository role | **Product.** Deploys nothing; CI runs check, test and build only |
 | Install model | 1 installer = 1 Worker = 1 store (ADR-001) |
 | Version | `1.2.0` / `2026.08-hardened` (`src/lib/version.ts`) |
-| Schema | 42 migration files, `0000`-`0041` |
+| Schema | 44 migration files, `0000`-`0043` |
 | Bindings | `OMS_DB` (D1), `SESSION` (KV), `ASSET_BUCKET` (R2), `AI`, `ASSETS` — names fixed across installs |
 | `wrangler.jsonc` | template of placeholders; each install supplies its own resources |
 
@@ -40,10 +40,10 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **401 / 401 passing** |
-| `npm run check` | 349 files · 0 errors · 0 warnings · 0 hints |
-| `npm run build` | Cloudflare server bundle complete; 42 bundled migrations |
-| Browser smoke | `/admin/orders/abandoned` and the order buyer/address editor were exercised in an isolated authenticated Worker at 390, 768, and 1280 CSS px with zero root overflow. A controlled populated lead proved field-level focus, the exact ABN-to-INV payload, redirect intent, and dirty-field-only buyer edits. Provider boundaries were intercepted; no live provider request, deployment, or remote D1 mutation occurred. |
+| `npm test` | **419 / 419 passing** |
+| `npm run check` | 353 files · 0 errors · 0 warnings · 0 hints |
+| `npm run build` | Cloudflare server bundle complete; 43 bundled migrations |
+| Browser smoke | A fresh isolated install exposed all ten default couriers through `/api/admin/expeditions`. `/admin/orders/abandoned` rendered its shadcn Card/Badge/Button/Dialog composition at 390, 768, and 1280 CSS px with zero overflow, no stuck busy state, no failed request, and no console error. A populated lead opened the conversion Dialog, focused the invalid address, and returned focus after `Escape`. A separate isolated owner session on `/admin/balance` rendered pending and locked AutoLaris rows, blocked blank manual-confirmation submission with focused inline errors, and an already-confirmed payment redirected `/payment` to `/thanks` with zero console errors. No live provider request, deployment, or remote D1 mutation occurred. |
 
 ---
 
@@ -55,11 +55,11 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 **Checkout** — three form modes (hybrid, middle, full) plus a geo-resolved variant and a cross-origin embed. Province-based COD gating from trusted Cloudflare geo, district autocomplete over a 7,285-district index, live Mengantar rate quotes, honeypot and rate-limit guards, `submit_token` idempotency, atomic order + items + stock reservation, one atomic order-number allocator, and scheduled abandoned-order retention. Qualified unsubmitted leads retain a per-tab set of successful normalized identity/product fingerprints: identical combinations are suppressed across blur and reload, changed combinations may capture, and failed capture or unavailable storage fails open. Submitted non-COD checkouts remain real orders with pending shipping; successfully-created unpaid VA/QRIS and bank transfer remain payment-pending, while an explicit AutoLaris creation failure may be payment-failed.
 
-**Payments** — COD, manual bank transfer with seller bank accounts, and AutoLaris QRIS/VA with per-channel toggles enforced at listing and submit boundaries, fee-bearer policy (buyer or seller) for both payment and COD fees, and a dedicated instruction page with copy-to-clipboard, countdown, token-scoped polling, and automatic `/thanks` replacement after the server confirms payment. Manual seller-bank transfers remain visible in analytics but are excluded from AutoLaris reconciliation. AutoLaris payment-status confirmation is externally blocked pending the provider's canonical read-only inquiry contract; the documented `list_payment` endpoint returns channel/fee capability only. Paid confirmation changes shipping eligibility only and never dispatches automatically.
+**Payments** — COD, manual bank transfer with seller bank accounts, and AutoLaris QRIS/VA with per-channel toggles enforced at listing and submit boundaries, fee-bearer policy (buyer or seller) for both payment and COD fees, and a dedicated instruction page with copy-to-clipboard, countdown, token-scoped CMS-status refresh, and automatic `/thanks` replacement after the server confirms payment. Online checkout creates one AutoLaris provider order through `POST /api/h2h/submit`; the request uses the provider's exact `courir_id` spelling with the operationally assigned value `1`, and D1 is authoritative for origin, destination, warehouse, receiver, weight, and item details. Manual seller-bank transfers remain visible in analytics but are excluded from AutoLaris reconciliation. Because AutoLaris has not published an authoritative transaction-inquiry contract, an owner/admin must verify the provider dashboard and re-enter the exact recorded total and provider reference before the CMS marks the payment paid. Every accepted transition is atomic, idempotent, append-only audited, and blocked for released or incompatible orders. The legacy webhook is retired. Paid confirmation changes shipping eligibility only and never dispatches automatically.
 
 **Orders and shipping** — one shared lifecycle validates every single/bulk status transition, restores reserved stock exactly once on cancellation or deletion, and prevents destructive removal after provider dispatch. **Pesanan tertinggal** has a dedicated product-first lead workspace and is excluded from normal order lists, summaries, details, bulk actions, and shipping. CS can record follow-up and explicitly convert one ABN lead into one complete pending INV with a current server-side rate and exactly-once stock reservation. Checkout, conversion, and payment confirmation only persist or change eligibility. Mengantar dispatch runs solely after an explicit authenticated single/bulk operator action under a single-flight lease; provider acceptance rechecks the claim and dispatch-critical snapshot so concurrent cancellation or buyer edits cannot be overwritten. Accepted provider identifiers and provider-supplied waybills persist, duplicates are suppressed, and bounded failures remain pending and retryable. The Shipping workspace exposes exactly **Semua Pengiriman**, **Perlu Dibuatkan Resi**, **Perlu Pickup**, and **Sampai Tujuan**, with responsive state-valid actions and explicit sequential provider polling by waybill. `/order/pay-unpaid` recovery remains provider-blocked.
 
-**Admin** — 27 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker, payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. Warehouse settings create the required single-row origin on a fresh install and update it thereafter. Navigation and route authorization share one deny-by-default role policy. Phones use role-aware bottom navigation and sheets, tablet starts with a 48 px rail, desktop uses a 256 px sidebar, and first-run sessions expose only password rotation and logout.
+**Admin** — 27 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker, payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. Warehouse settings create the required single-row origin on a fresh install and update it thereafter. Fresh installation also creates the neutral ten-courier policy; migration `0042` repairs only installed stores with no courier rows and never overwrites an existing policy. Navigation and route authorization share one deny-by-default role policy. Phones use role-aware bottom navigation and sheets, tablet starts with a 48 px rail, desktop uses a 256 px sidebar, and first-run sessions expose only password rotation and logout.
 
 **Headless API** — nine `/api/v1/*` routes authenticated by API key and independently origin-checked. Every operation has a minimum scope; origin denials occur before quota, minute denials do not spend daily quota, and D1 records the final handler status exactly once without request payloads. The order-status route requires the order number plus its public status token and returns no customer PII.
 
@@ -78,7 +78,7 @@ Known data issues, all tracked:
 
 - The local development D1 may hold a previously provisioned warehouse row with address, phone, and Mengantar identifiers. Remote state was not read and is explicitly unverified; any local or remote scrub is a separate destructive-data decision.
 - No seed ships. `scripts/seed-catalog.sql`, `public/images/products/` and `db:reset:demo:local` were removed on 2026-08-17 (ADR-016); whether to reintroduce sample data, and in what form, is deferred rather than decided against. The earlier `src/db/seed.sql`, which held two previous merchants' catalogs plus genuine-looking provider ids, a real address and a real phone number, was deleted on 2026-08-16.
-- Migration `0017` once aborted the chain on an empty database; that insert was removed 2026-08-16. All 42 migrations now apply from zero, and the Worker applies a valid missing suffix automatically before database-backed requests. Migration `0040` adds persisted provider status text, provider event time, and synchronization time to `orders`; migration `0041` adds persisted missed-order follow-up state.
+- Migration `0017` once aborted the chain on an empty database; that insert was removed 2026-08-16. All 44 migrations now apply from zero, and the Worker applies a valid missing suffix automatically before database-backed requests. Migration `0040` adds persisted provider status text, provider event time, and synchronization time to `orders`; migration `0041` adds persisted missed-order follow-up state; migration `0042` restores the neutral courier catalogue only for stores with an empty policy; migration `0043` adds immutable manual-payment reconciliation evidence.
 
 ---
 
@@ -117,12 +117,12 @@ System-wide security, correctness, documentation, navigation, and UX audit:
 
 | Severity | Current fact |
 | --- | --- |
-| Release blocker | AutoLaris QRIS/VA payment creation exists, but the accepted cron-based confirmation path lacks a canonical read-only transaction-inquiry endpoint and paid/pending/expired/failed schemas. Production online checkout must remain disabled until that contract is implemented and proven. |
+| Release blocker | AutoLaris QRIS/VA payment creation exists, but the accepted scheduled/provider-read confirmation path still lacks a canonical read-only transaction-inquiry endpoint and paid/pending/expired/failed schemas. The current production-safe path is owner/admin manual confirmation from the provider dashboard; any automatic paid marking must stay disabled until that contract is implemented and proven. |
 | Medium | Product-grain feeds still need a truthful standard-identifier policy and stable out-of-stock publication contract. |
 | Medium | Theme colour, locale, and admin display name resolve from D1 but still lack complete admin editors. |
 | Medium | External uptime checks and a cross-install operational view do not exist; per-install schema/CAPI alerting does. |
 | Blocked | Mengantar tracking, pickup, insufficient-wallet recovery, and wallet balance still require canonical provider contracts or explicitly approved sandbox/live evidence. |
-| Release evidence | Commit `0af225b` has local test/check/build and authenticated browser evidence, but no hosted CI result, production-D1 preflight, or install-specific provider smoke. |
+| Release evidence | Commit `09812c7` plus the A17 working tree has local test/check/build and isolated browser evidence, but no hosted CI result, production-D1 preflight, or install-specific provider smoke. |
 | Data note | Local/remote D1 may still contain a previously provisioned warehouse address, phone, and provider ObjectIds; scrubbing it is a separate destructive/remote-data action |
 
 ---

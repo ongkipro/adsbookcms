@@ -116,7 +116,7 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         <div id="account-section" class="mt-5 rounded-none border border-slate-200 bg-[#F8F7F4] p-4.5" hidden>
           <div class="flex items-center justify-between">
             <p id="account-label" class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Nomor Virtual Account</p>
-            <span id="account-verification" class="rounded-none border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Verifikasi Otomatis</span>
+            <span id="account-verification" class="rounded-none border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700">Verifikasi Admin</span>
           </div>
           <div class="mt-2 flex items-center justify-between gap-3 rounded-none border border-slate-200 bg-white p-3 shadow-2xs">
             <strong id="account-value" class="min-w-0 break-all font-mono text-xl font-bold tracking-wider text-slate-950"></strong>
@@ -169,8 +169,8 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         <div class="mt-5 flex items-start gap-3 rounded-none border border-emerald-200 bg-emerald-50/60 p-4">
           <Icon name="lucide:shield-check" class="mt-0.5 size-5 shrink-0 text-emerald-700" aria-hidden="true" />
           <div class="text-xs leading-5 text-emerald-950">
-            <strong id="payment-monitor-title" class="block font-semibold">Status Pembayaran Otomatis</strong>
-            <span id="payment-monitor-copy">Sistem memeriksa pembayaran Anda secara real-time. Setelah terbayar, Anda akan otomatis dialihkan ke halaman terima kasih.</span>
+            <strong id="payment-monitor-title" class="block font-semibold">Menunggu Verifikasi Pembayaran</strong>
+            <span id="payment-monitor-copy">Tim toko memeriksa pembayaran di dashboard AutoLaris dan memperbarui status di CMS. Halaman ini menyegarkan status tiap menit, lalu otomatis berpindah ke halaman terima kasih setelah pembayaran dikonfirmasi.</span>
           </div>
         </div>
       </section>
@@ -532,12 +532,9 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
             : payment.virtual_account
               ? 'Nomor Virtual Account'
               : 'Kode Pembayaran';
-        accountVerification.textContent = manualTransfer
-          ? 'Konfirmasi Admin'
-          : 'Verifikasi Otomatis';
-        accountVerification.className = manualTransfer
-          ? 'rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800'
-          : 'rounded-md bg-emerald-100/80 px-2 py-0.5 text-[10px] font-medium text-emerald-700';
+        accountVerification.textContent = 'Verifikasi Admin';
+        accountVerification.className =
+          'rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800';
         accountValue.textContent = account;
         copyAccount.dataset.value = account;
         copyAccountLabel.textContent = manualTransfer ? 'Salin Rekening' : 'Salin VA';
@@ -556,10 +553,10 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
       instructionsList.innerHTML = guideSteps.map(step => `<li>${step}</li>`).join('');
       paymentMonitorCopy.textContent = manualTransfer
         ? 'Pembayaran transfer bank dikonfirmasi oleh admin setelah dana diterima.'
-        : 'Sistem memeriksa pembayaran Anda secara real-time. Setelah terbayar, Anda akan otomatis dialihkan ke halaman terima kasih.';
+        : 'Admin memeriksa pembayaran melalui dashboard AutoLaris. Status CMS diperbarui setiap menit dan, setelah dikonfirmasi lunas, halaman ini otomatis dialihkan ke halaman terima kasih.';
       paymentMonitorTitle.textContent = manualTransfer
         ? 'Konfirmasi Pembayaran'
-        : 'Status Pembayaran Otomatis';
+        : 'Menunggu Verifikasi Pembayaran';
 
       const paymentUrl = text(payment.payment_url);
       if (paymentUrl) {
@@ -700,7 +697,7 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
       const interval = window.setInterval(async () => {
         if (document.visibilityState !== 'visible') return;
         if (await refreshStatus()) window.clearInterval(interval);
-      }, 3000);
+      }, 60_000);
     });
   </script>
 </BaseLayout>

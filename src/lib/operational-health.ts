@@ -77,7 +77,7 @@ export type MengantarWindow = {
 export type AutoLarisWindow = {
   rowsScanned: number;
   lastOutboundAt: string | null;
-  lastCallbackAt: string | null;
+  lastManualConfirmationAt: string | null;
   failedInWindow: number;
 };
 
@@ -184,13 +184,13 @@ export function classifyMengantar(
 }
 
 /**
- * When AutoLaris was last reached, in each direction.
+ * When AutoLaris was last reached and when an operator last verified payment.
  *
  * Outbound: a `payment_transactions` row that received a
  * `provider_transaction_id` proves AutoLaris accepted a create-payment call.
- * Inbound: `paid_at` is written only by the webhook, so it proves a callback
- * arrived. Payments created but never paid is "nobody paid yet", not a fault —
- * `OBSERVABILITY.md` §3 names exactly that confusion.
+ * Manual confirmation is authoritative only when an immutable reconciliation
+ * audit exists. Payments created but never confirmed is "nobody verified one
+ * yet", not evidence of an upstream outage.
  */
 export function classifyAutoLaris(
   window: AutoLarisWindow | null,
@@ -209,11 +209,11 @@ export function classifyAutoLaris(
       ? signal("autolaris", "degraded", "create-failing", null, now, metrics)
       : signal("autolaris", "unknown", "no-accepted-request", null, now, metrics);
   }
-  if (!window.lastCallbackAt) {
+  if (!window.lastManualConfirmationAt) {
     return signal(
       "autolaris",
       "unknown",
-      "awaiting-first-callback",
+      "awaiting-first-manual-confirmation",
       window.lastOutboundAt,
       now,
       metrics,
@@ -222,8 +222,8 @@ export function classifyAutoLaris(
   return signal(
     "autolaris",
     "healthy",
-    "callback-received",
-    window.lastCallbackAt,
+    "manually-confirmed",
+    window.lastManualConfirmationAt,
     now,
     metrics,
   );
@@ -280,10 +280,9 @@ async function readMengantarWindow(
 }
 
 /**
- * lazy: same bounded window, same reason — neither `created_at` nor `paid_at`
- * on `payment_transactions` is indexed. `created_at` rather than `updated_at`
- * dates the outbound call, because the webhook bumps `updated_at` too and would
- * make an inbound callback masquerade as an outbound success.
+ * lazy: same bounded window, same reason — neither transaction `created_at` nor
+ * audit `confirmed_at` is indexed for this exact query. `created_at` rather
+ * than `updated_at` dates the outbound call independently of reconciliation.
  */
 async function readAutoLarisWindow(
   database: D1Database,
@@ -294,24 +293,27 @@ async function readAutoLarisWindow(
         `SELECT
            COUNT(*) AS rows_scanned,
            MAX(CASE WHEN provider_transaction_id IS NOT NULL THEN created_at END) AS last_outbound_at,
-           MAX(paid_at) AS last_callback_at,
+           MAX(confirmed_at) AS last_manual_confirmation_at,
            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_in_window
          FROM (
-           SELECT provider_transaction_id, created_at, paid_at, status
-           FROM payment_transactions ORDER BY id DESC LIMIT ?
+           SELECT pt.provider_transaction_id, pt.created_at, audit.confirmed_at, pt.status
+           FROM payment_transactions pt
+           LEFT JOIN payment_reconciliation_audits audit
+             ON audit.payment_transaction_id = pt.id
+           ORDER BY pt.id DESC LIMIT ?
          )`,
       )
       .bind(PROVIDER_WINDOW)
       .first<{
         rows_scanned: number | null;
         last_outbound_at: string | null;
-        last_callback_at: string | null;
+        last_manual_confirmation_at: string | null;
         failed_in_window: number | null;
       }>();
     return {
       rowsScanned: Number(row?.rows_scanned ?? 0),
       lastOutboundAt: row?.last_outbound_at ?? null,
-      lastCallbackAt: row?.last_callback_at ?? null,
+      lastManualConfirmationAt: row?.last_manual_confirmation_at ?? null,
       failedInWindow: Number(row?.failed_in_window ?? 0),
     };
   } catch (error) {

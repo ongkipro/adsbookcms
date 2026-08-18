@@ -221,10 +221,6 @@ async function getSettingsRow(database: D1Database) {
 
 async function credentialStatus(database: D1Database, locals: App.Locals) {
   const config = await getProviderConfig(database, locals);
-  const webhookSecret = getEnvValue(
-    "AUTOLARIS_WEBHOOK_SECRET",
-    getRuntimeEnv(locals),
-  );
 
   return {
     mengantar: {
@@ -239,8 +235,6 @@ async function credentialStatus(database: D1Database, locals: App.Locals) {
       api_key_masked: maskSecretValue(config.autolaris.apiKey),
       base_url: config.autolaris.baseUrl,
       source: config.autolaris.source,
-      webhook_secret_configured: Boolean(webhookSecret),
-      webhook_secret_masked: maskSecretValue(webhookSecret),
     },
   };
 }

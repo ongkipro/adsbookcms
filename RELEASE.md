@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-08-18 @ `0af225b` on `feat/admin-access-dashboard`
+> Verified against disk: 2026-08-18 @ `09812c7` + the A16 working tree on `feat/admin-access-dashboard`
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -49,12 +49,12 @@ npm run check     # astro check && tsc --noEmit
 npm run build     # astro build
 ```
 
-Current verified branch baseline: **401 tests passing**, `tsc` clean, `astro check` 349 files, 0 errors / 0 warnings / 0 hints, and the Cloudflare server build complete. The branch push itself has no hosted CI result because this workflow runs only for `main`, pull requests, or manual dispatch.
+Current verified working-tree baseline: **419 tests passing**, `tsc` clean, `astro check` 353 files, 0 errors / 0 warnings / 0 hints, and the Cloudflare server build complete. The pushed branch does not yet contain the A17 working tree and has no hosted CI result because this workflow runs only for `main`, pull requests, or manual dispatch.
 
 ### Current production-readiness assessment
 
-Commit `0af225b` is a **release candidate**, not an unconditional full-production
-release. The local automated and browser gates are green, but the following
+Commit `09812c7` plus the verified A17 working tree is a **release candidate**,
+not an unconditional full-production release. The local automated and browser gates are green, but the following
 release evidence is still missing:
 
 - a hosted CI run for the exact commit;
@@ -63,12 +63,14 @@ release evidence is still missing:
 - read-only or approved sandbox/live smoke evidence for the active Mengantar
   account's tracking, pickup, and insufficient-wallet responses;
 - the canonical AutoLaris transaction-inquiry endpoint and paid/pending/expired/
-  failed schemas required by the scheduled reconciliation job.
+  failed schemas required by any future automated reconciliation job.
 
 COD and manual seller-bank transfer can be considered for a controlled canary
 after install-specific configuration, backup/rollback preparation, and provider
-smoke checks. AutoLaris QRIS/VA must remain disabled for production checkout
-until authoritative scheduled payment reconciliation is implemented and proven.
+smoke checks. AutoLaris QRIS/VA no longer depends on the retired webhook path:
+the accepted production-safe path today is owner/admin manual confirmation from
+the provider dashboard with immutable audit evidence. Any automatic paid marking
+must remain disabled until authoritative provider inquiry is implemented and proven.
 
 A green build is not proof the storefront works. For any browser-visible change, open the affected page before merging. Neither `tsc` nor `astro check` catches a route that fails to compose — an unterminated `.astro` frontmatter block silently produced a 404 on `/disclaimer` while every static check stayed green.
 
@@ -107,13 +109,13 @@ Two registries, currently in step:
 | --- | --- | --- |
 | `src/lib/version.ts` | `version` | `1.2.0` |
 | `src/lib/version.ts` | `releaseTag` | `2026.08-hardened` |
-| `src/lib/version.ts` | `schemaVersion` | `42` |
+| `src/lib/version.ts` | `schemaVersion` | `44` |
 | `package.json` | `version` | `1.2.0` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration files, and the tree holds 42 (`0000`–`0041`).
+`schemaVersion` counts migration files, and the tree holds 44 (`0000`–`0043`).
 `schema-version.test.ts` fails CI on drift; middleware enforces the same chain at
 runtime; `operational-health.ts` and the dashboard expose applied version.
 

@@ -2764,3 +2764,76 @@ Dialog. A controlled populated lead proved product/customer/follow-up rendering,
 first-invalid-field focus, exact conversion payload, INV redirect intent, and a
 dirty-field-only buyer edit. No live provider request, remote database mutation,
 deployment, commit, or push occurred.
+
+---
+
+## 2026-08-18 — Lead shadcn UI, AutoLaris Create Order, and courier bootstrap
+
+- Rebuilt the dedicated **Pesanan tertinggal** surface from the repository's
+  installed base-nova shadcn primitives: Card, Badge, Button, Dialog,
+  Separator, Skeleton, and Pagination. Follow-up, ABN-to-INV conversion,
+  inline validation, and redirect behavior remain unchanged.
+- Replaced the standalone AutoLaris `POST /api/h2h/create_payment` call with the
+  documented Create Order `POST /api/h2h/submit` contract. The adapter sends
+  the provider's exact `courir_id` spelling with fixed value `1` from the
+  provider-team operational instruction, not from a published example. Origin,
+  destination, warehouse, receiver, weight, and item facts come from D1; an
+  incomplete order fails before any provider request. The tracking callback is
+  empty because production payment confirmation is reserved for the still-
+  blocked scheduled inquiry contract.
+- Restored the neutral ten-courier catalogue to installation. The installer
+  writes it atomically with the store and credential, while migration `0042`
+  backfills only a store with no courier policy and never overwrites existing
+  operator choices.
+- The first real Wrangler migration check exposed `SQLITE_ERROR: too many terms
+  in compound SELECT`; replacing the generated `UNION ALL` catalogue with a
+  `VALUES` CTE fixed the D1-local boundary. Re-running the migration and a fresh
+  install succeeded, and the protected Expeditions API returned ten rows.
+
+Evidence: `npm test` passed 408/408; `npm run check` inspected 350 files with
+zero diagnostics; the Cloudflare server build completed; and `git diff --check`
+passed. Isolated authenticated Chromium at 390, 768, and 1280 CSS px rendered a
+populated shadcn lead workspace with zero overflow, focused the invalid address,
+returned focus after `Escape`, and reported no console or network failure. No
+live provider request, remote database mutation, deployment, commit, or push
+occurred.
+
+---
+
+## 2026-08-18 — Manual AutoLaris reconciliation, buyer-status truthfulness, and audited delete guard
+
+- Replaced the legacy callback-driven AutoLaris paid mutation with an explicit
+  owner/admin reconciliation queue at `/admin/balance`. The new protected
+  `/api/admin/payment-reconciliation` contract lists scoped AutoLaris online
+  transactions, exposes exact confirmation eligibility and lock reasons, and
+  accepts only exact billed amount plus exact provider reference alongside a
+  mandatory audit note.
+- Added immutable reconciliation evidence through migration `0043`. Every
+  accepted manual confirmation is atomic, idempotent, append-only audited, and
+  blocked for released, refunded, stock-restored, incompatible, or already
+  provider-confirmed-locally invalid states. The retired public
+  `/api/webhooks/autolaris` route now returns `410 Gone` without mutating local
+  state.
+- Hardened payment-related lifecycle boundaries: audited payments cannot be
+  deleted through single or bulk order removal; manual transfer remains visible
+  in analytics but excluded from AutoLaris reconciliation; operational health
+  now reports manual-confirmation semantics instead of webhook/callback success.
+- Updated buyer-facing payment UX to match runtime truth. `/payment` now says
+  admin verification/manual refresh rather than automatic real-time callback,
+  polls CMS status every 60 seconds, and still replaces itself with `/thanks`
+  after a server-confirmed paid response even when browser storage is
+  unavailable.
+- Kept the already accepted AutoLaris Create Order cutover intact: online
+  checkout still calls only `POST /api/h2h/submit`, preserves the exact
+  provider field spelling `courir_id`, and fixes the value to `1` from the
+  provider-team operational instruction. Automatic paid marking remains blocked
+  until the canonical provider inquiry contract exists.
+
+Evidence: focused manual reconciliation, operational-health, and lifecycle
+contracts passed; `npm test` passed 419/419; `npm run check` inspected 353 files
+with zero diagnostics; the Cloudflare server build completed; and
+`git diff --check` passed. Isolated local owner runtime rendered pending and
+locked reconciliation rows, rejected blank manual confirmation with focused
+inline errors, and redirected an already-paid token-scoped `/payment` flow to
+`/thanks` with zero console errors. No live provider request, remote database
+mutation, deployment, commit, or push occurred.

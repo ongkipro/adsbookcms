@@ -1,5 +1,30 @@
 # PRD — AdsBookCMS (single)
 
+## A18 — Deterministic storefront home and structured content editor
+
+### Goals
+
+- Make the public homepage automatically index active products and published landing pages.
+- Replace JSON/AI homepage authoring with bounded banner, slider, and supporting-copy fields.
+
+### Non-goals
+
+- Runtime discovery of arbitrary `.astro` files, raw HTML/JSON authoring, Workers AI generation, or deleting existing landing URLs.
+
+### Requirements
+
+- **REQ-140** — The system shall render the public homepage with the canonical `compact-market` composition only; a stored alternate template shall not change homepage layout.
+- **REQ-141** — When a product is active and has a sellable variant, the system shall include it in the homepage catalog automatically, newest first, in a two-column grid with ten items initially visible and an accessible Load more control for remaining items.
+- **REQ-142** — When a CMS landing page is active, the system shall include its title, safe summary, and canonical public URL in the homepage landing-page index and sitemap without a separate homepage publish action.
+- **REQ-143** — Where a native Astro landing page is registered in a typed source manifest, the system shall validate its unique slug and required public metadata at build time and include it in the same homepage index and sitemap.
+- **REQ-144** — The system shall replace the `admin/content` JSON editor with named, bounded fields for homepage banner, slider, and supporting public copy; it shall not expose raw JSON, raw HTML, or AI generation controls.
+- **REQ-145** — If structured homepage content is absent or invalid, then the system shall still render the automatic product and landing-page index with a neutral, truthful fallback rather than a setup-blocking homepage.
+
+### Technical decisions
+
+- **Native landing registry:** a typed source manifest, not runtime filesystem discovery. Cloudflare Workers bundles routes and cannot enumerate source files safely at runtime.
+- **Migration:** preserve existing `storefront_content` records during migration, then expose only bounded structured fields to operators.
+
 > Last executed baseline: 2026-08-17 @ `5cb1d32` + the A13 working tree.
 
 ## 0. About this document

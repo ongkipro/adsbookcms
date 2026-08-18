@@ -9,7 +9,7 @@ import { resolveMetaEventId } from "./meta-capi.ts";
 // quote that same order number instead of minting one of its own.
 
 const TRACKER_SOURCE = readFileSync(
-  new URL("../components/tracking/MetaThanksTracker.astro", import.meta.url),
+  new URL("../components/storefront/tracking/MetaThanksTracker.astro", import.meta.url),
   "utf8",
 );
 

@@ -140,7 +140,7 @@ test("the admin shell keeps phone, tablet, and desktop navigation distinct", () 
 });
 
 test("admin navigation changes state without decorative motion", () => {
-  const styles = readFileSync("src/styles/global.css", "utf8");
+  const styles = readFileSync("src/styles/admin.css", "utf8");
   const sidebar = readFileSync("src/components/admin/AppSidebar.tsx", "utf8");
 
   assert.match(styles, /\[data-slot="sidebar"\][\s\S]*animation: none !important;[\s\S]*transition: none !important;/);

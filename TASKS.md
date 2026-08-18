@@ -1,5 +1,20 @@
 # Tasks: AdsBookCMS
 
+## A18 — Deterministic storefront home and structured content editor
+
+- [ ] **A-130** — Establish the canonical compact homepage composition and remove alternate-template selection from the public home path.
+      -> REQ: REQ-140 · deps: [] · Done when: a local route test proves every stored template choice renders the compact homepage without changing product or landing URLs.
+- [ ] **A-131** — Render active product cards as a two-column homepage catalog with ten initial cards and accessible Load more behavior.
+      -> REQ: REQ-141 · deps: [A-130] · Done when: browser evidence at 390px and 1280px proves ten initial cards, two-column layout, no horizontal overflow, and correct remaining-card reveal.
+- [ ] **A-132** — Add the unified CMS/native landing-page homepage index and sitemap feed.
+      -> REQ: REQ-142 · deps: [A-130] · Done when: focused tests prove only active CMS pages and typed native entries are listed once with canonical URLs.
+- [ ] **A-133** — Add a typed native Astro landing-page registry with build-time slug and metadata validation.
+      -> REQ: REQ-143 · deps: [] · Done when: duplicate or incomplete registry entries fail the focused test while a registered route appears in the homepage index.
+- [ ] **A-134** — Replace the operator JSON content workbench with bounded homepage banner, slider, and supporting-copy fields.
+      -> REQ: REQ-144 · deps: [A-130] · Done when: `/admin/content` contains no raw JSON/AI control, saves validated named fields, and preserves existing content safely.
+- [ ] **A-135** — Add the fallback automatic homepage state for missing or invalid structured content.
+      -> REQ: REQ-145 · deps: [A-131, A-132, A-134] · Done when: a local route/browser test proves the homepage stays useful and truthful with unavailable optional content.
+
 > Last executed baseline: 2026-08-17 @ `5cb1d32` + A13.
 
 ## Provenance — read before citing any task

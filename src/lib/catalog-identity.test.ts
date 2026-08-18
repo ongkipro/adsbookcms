@@ -85,7 +85,7 @@ test("what the feed publishes is what the pixel sends", () => {
 
 test("tracking surfaces use the canonical Product ID without rebuilding variant IDs", () => {
   const offenders: string[] = [];
-  const roots = ["src/components/tracking", "src/scripts", "src/pages"];
+  const roots = ["src/components/storefront/tracking", "src/scripts", "src/pages"];
 
   function walk(dir: string): string[] {
     const out: string[] = [];
@@ -117,7 +117,7 @@ test("tracking surfaces use the canonical Product ID without rebuilding variant 
 
   const trackingSources = [
     readFileSync("src/scripts/form-hybrid.ts", "utf8"),
-    readFileSync("src/components/tracking/MetaThanksTracker.astro", "utf8"),
+    readFileSync("src/components/storefront/tracking/MetaThanksTracker.astro", "utf8"),
   ].join("\n");
   assert.doesNotMatch(trackingSources, /p\$\{productId\}-v\$\{/);
 });

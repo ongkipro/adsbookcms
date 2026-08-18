@@ -21,6 +21,7 @@ export default defineConfig({
         'astro',
         '@astrojs/cloudflare',
         'astro-seo',
+        '@iconify/utils',
       ],
     },
     server: {

@@ -1,12 +1,12 @@
 ---
 import FormHybridContent from './FormHybridContent.astro';
 import FormMiddleContent from './FormMiddleContent.astro';
-import { getRuntimeEnv } from '../../lib/env';
+import { getRuntimeEnv } from '../../../lib/env';
 import {
   loadStoreCodDisabledProvinceCodes,
   resolveFormModeContext,
   type FormMode,
-} from '../../lib/form-mode';
+} from '../../../lib/form-mode';
 
 interface Props {
   bannerImage?: string;
@@ -62,4 +62,3 @@ const resolvedProvince = province || formContext.province;
     )
   }
 </div>
-

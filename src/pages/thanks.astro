@@ -1,11 +1,11 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import MetaThanksTracker from '../components/tracking/MetaThanksTracker.astro';
+import MetaThanksTracker from '../components/storefront/tracking/MetaThanksTracker.astro';
 import { getStorefrontProducts } from '../lib/catalog';
 import { getStoreSupportWhatsapp } from '../lib/public-store';
 import { cn } from '../lib/cn';
 import { badgeVariants, buttonVariants } from '../lib/ui-variants';
-import Icon from '../components/shared/Icon.astro';
+import Icon from '../components/storefront/shared/Icon.astro';
 
 if (
   Astro.url.searchParams.has('order_id') ||

@@ -1,29 +1,30 @@
 ---
-import { formatIdr } from '../../lib/format-idr';
-import { getStorefrontProduct } from '../../lib/catalog';
-import { resolveFormVariant } from '../../lib/form-config';
-import { getRuntimeEnv } from '../../lib/env';
-import { loadStoreCodDisabledProvinceCodes } from '../../lib/form-mode';
+import { formatIdr } from '../../../lib/format-idr';
+import { getStorefrontProduct } from '../../../lib/catalog';
+import { resolveFormVariant } from '../../../lib/form-config';
+import { getRuntimeEnv } from '../../../lib/env';
+import { loadStoreCodDisabledProvinceCodes } from '../../../lib/form-mode';
 import Icon from '../shared/Icon.astro';
 
 interface Props {
   productSlug?: string;
   selectedVariantId?: string;
-  province?: string;
   embedded?: boolean;
   bannerImage?: string;
+  province?: string;
   product?: any;
   codDisabledProvinceCodes?: string[];
 }
 
 const {
   productSlug = 'asahan-portable',
-  province = '',
-  selectedVariantId,
   embedded = false,
+  selectedVariantId,
   bannerImage,
+  province = '',
   codDisabledProvinceCodes: codDisabledProvinceCodesProp,
 } = Astro.props;
+
 const product = await getStorefrontProduct(Astro.locals, productSlug);
 if (!product) throw new Error(`Product ${productSlug} not found`);
 const defaultVariant = resolveFormVariant(product, selectedVariantId) || product.variants[0];
@@ -33,12 +34,12 @@ const database = getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined;
 const codDisabledProvinceCodes =
   codDisabledProvinceCodesProp ??
   await loadStoreCodDisabledProvinceCodes(database);
-const instanceId = `middle-${product.slug}-${embedded ? 'embedded' : 'standalone'}`;
 const RootTag = embedded ? 'section' : 'main';
-const formId = embedded ? `${instanceId}-form` : 'middle-form';
+const instanceId = `hybrid-${product.slug}-${embedded ? 'embedded' : 'standalone'}`;
+const formId = embedded ? `${instanceId}-form` : 'checkout-form';
 ---
 
-<RootTag class="bg-white" data-middle-form-root data-instance-id={instanceId}>
+<RootTag class="bg-white" data-hybrid-form-root data-instance-id={instanceId}>
   <section class="pb-8 pt-0">
     <form id={formId} class="grid gap-5 pt-4" novalidate>
       <div class="absolute left-[-10000px] top-auto size-px overflow-hidden" aria-hidden="true">
@@ -113,7 +114,7 @@ const formId = embedded ? `${instanceId}-form` : 'middle-form';
             </div>
             <div class="form-field form-field-full">
               <input
-                id="middle-phone"
+                id="hybrid-phone"
                 name="customer_phone"
                 required
                 type="tel"
@@ -121,16 +122,55 @@ const formId = embedded ? `${instanceId}-form` : 'middle-form';
                 autocomplete="tel"
                 placeholder=" "
               />
-              <label for="middle-phone">Nomor WhatsApp</label>
+              <label for="hybrid-phone">Nomor WhatsApp</label>
             </div>
             <div class="form-field form-field-full">
-              <textarea id="middle-address" name="address" rows="2" required placeholder=" "></textarea>
-              <label for="middle-address">Alamat lengkap &amp; patokan</label>
+              <textarea id="hybrid-address" name="address" rows="2" required placeholder=" "></textarea>
+              <label for="hybrid-address">Alamat lengkap &amp; patokan</label>
+            </div>
+            <div class="form-field form-field-full">
+              <div id="district-search-container" class="form-field">
+                <input
+                  id="district-search"
+                  name="district"
+                  required
+                  placeholder="Ketik kecamatan atau kota"
+                  autocomplete="off"
+                />
+                <label for="district-search">Kecamatan</label>
+              </div>
+              <div id="district-list" class="district-list" hidden></div>
+              <div id="district-picked" class="shipping-address-summary" aria-live="polite" hidden>
+                <div class="shipping-address-summary-head">
+                  <strong>Kirim ke</strong>
+                  <button type="button" id="district-edit-button" class="district-edit-button">Ubah</button>
+                </div>
+                <p id="shipping-address-line">Alamat lengkap belum diisi.</p>
+                <p id="district-picked-subtitle">-</p>
+              </div>
+              <small id="district-help" class="district-help">Ketik minimal 3 huruf (kecamatan atau kota).</small>
+              <input type="hidden" name="location_id" id="location-id" />
+              <input type="hidden" name="postal_code" id="postal-code" />
+              <input type="hidden" name="province" id="province-name" />
+              <input type="hidden" name="city" id="city-name" />
             </div>
           </div>
         </section>
-
-        <input type="hidden" name="payment_method" value="cod" />
+        <section class="form-block" id="payment-method-block" hidden>
+          <div class="inner-card">
+            <div class="space-y-3 payment-block">
+              <div class="payment-block-anchor" aria-hidden="true">
+                <span></span>
+                <small>Pilih cara bayar</small>
+                <span></span>
+              </div>
+              <div id="payment-options" class="payment-options"></div>
+            </div>
+            <input type="hidden" name="courier_service_id" id="courier-service-id" />
+            <input type="hidden" name="shipment_provider_code" id="shipment-provider-code" />
+            <input type="hidden" name="warehouse_unique_id" id="warehouse-unique-id" />
+          </div>
+        </section>
 
         <section class="form-block summary-block">
           <div class="form-block-head">
@@ -153,10 +193,12 @@ const formId = embedded ? `${instanceId}-form` : 'middle-form';
                 >- {formatIdr(Math.max(0, defaultComparePrice - defaultVariant.price))}</strong
               >
             </div>
+            <div class="summary-row"><span>Biaya Pengiriman</span><strong id="summary-shipping">-</strong></div>
+            <div id="summary-admin-fee-row" class="summary-row" hidden><span id="summary-admin-fee-label">Biaya Pembayaran</span><strong id="summary-admin-fee">Rp0</strong></div>
             <div class="total-box">
               <div>
                 <p>Total Pembayaran</p>
-                <small id="summary-total-note">Ongkir &amp; admin dikonfirmasi via CS</small>
+                <small id="summary-total-note">Sudah termasuk produk + ongkir</small>
               </div>
               <div class="total-box-side">
                 <strong id="summary-total">{formatIdr(defaultVariant.price)}</strong>
@@ -198,7 +240,7 @@ const formId = embedded ? `${instanceId}-form` : 'middle-form';
                 </div>
               )
             }
-            <p id="middle-error" class="form-error" hidden></p>
+            <p id="hybrid-error" class="form-error" hidden></p>
           </div>
         </section>
       </div>
@@ -210,7 +252,7 @@ const formId = embedded ? `${instanceId}-form` : 'middle-form';
   is:inline
   type="application/json"
   id={`${instanceId}-config`}
-  data-middle-form-config
+  data-hybrid-form-config
   set:html={JSON.stringify({
     instanceId,
     productSlug: product.slug,
@@ -222,8 +264,7 @@ const formId = embedded ? `${instanceId}-form` : 'middle-form';
 />
 
 <script>
-  import { initMiddleOrderForm, initPromoSessionStock } from '../../scripts/form-middle';
-
+  import { initHybridOrderForm, initPromoSessionStock } from '../../../scripts/form-hybrid';
   initPromoSessionStock();
-  initMiddleOrderForm();
+  initHybridOrderForm();
 </script>

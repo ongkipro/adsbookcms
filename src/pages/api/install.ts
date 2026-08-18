@@ -1,8 +1,9 @@
 import type { APIRoute } from "astro";
 
-import { getEnvValue, getRuntimeEnv } from "../../lib/env";
-import { planInstall, runInstall } from "../../lib/install";
-import { readStoreIdentity } from "../../lib/tenant";
+import { getEnvValue, getRuntimeEnv } from "../../lib/env.ts";
+import { secureEqual } from "../../lib/auth.ts";
+import { planInstall, runInstall } from "../../lib/install.ts";
+import { readStoreIdentity } from "../../lib/tenant.ts";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 
@@ -70,6 +71,23 @@ export const POST: APIRoute = async ({ request, locals }) => {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
     return json({ success: false, error: "Data tidak valid." }, 400);
+  }
+
+  const installToken = getEnvValue("INSTALL_TOKEN", getRuntimeEnv(locals));
+  if (installToken.length < 16) {
+    console.error("install-missing-setup-token");
+    return json(
+      {
+        success: false,
+        error: "INSTALL_TOKEN belum diatur (minimal 16 karakter). Atur sebagai Worker secret sebelum instalasi.",
+      },
+      503,
+    );
+  }
+  const providedInstallToken =
+    typeof body.install_token === "string" ? body.install_token : "";
+  if (!(await secureEqual(providedInstallToken, installToken))) {
+    return json({ success: false, error: "Token instalasi tidak valid." }, 403);
   }
 
   const planned = planInstall({

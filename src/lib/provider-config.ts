@@ -1,4 +1,4 @@
-import { getEnvValue, getRuntimeEnv } from "./env";
+import { getEnvValue, getRuntimeEnv } from "./env.ts";
 
 export const DEFAULT_MENGANTAR_BASE_URL = "https://api-public.mengantar.com";
 export const DEFAULT_AUTOLARIS_BASE_URL = "https://api-h2h.autolaris.com";

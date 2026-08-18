@@ -21,9 +21,14 @@ interface ProductCard {
 interface Props {
   content: TenantHomeContent;
   products: ProductCard[];
+  sections: {
+    hero: boolean;
+    catalog: true;
+    proofs: boolean;
+  };
 }
 
-const { content, products } = Astro.props;
+const { content, products, sections } = Astro.props;
 
 const heroSlides =
   content.heroSlides.length > 0
@@ -44,9 +49,9 @@ const heroSlides =
     id="home"
     class="mx-auto flex min-h-screen w-full max-w-[480px] flex-col border-x border-[#E5E5E5] bg-[#F8F7F4]"
   >
-    <HeroSection slides={heroSlides} highlights={content.heroHighlights} content={content.hero} />
-    <ProductsSection products={products} heading={content.catalog} />
-    <ProofsSection proofs={content.proofs} heading={content.proofsHeading} />
+    {sections.hero && <HeroSection slides={heroSlides} highlights={content.heroHighlights} content={content.hero} />}
+    {sections.catalog && <ProductsSection products={products} heading={content.catalog} />}
+    {sections.proofs && <ProofsSection proofs={content.proofs} heading={content.proofsHeading} />}
   </div>
 </main>
 

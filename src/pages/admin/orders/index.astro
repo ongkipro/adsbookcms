@@ -6,6 +6,14 @@ import { getRuntimeEnv } from '../../../lib/env';
 
 export const prerender = false;
 
+const legacyStatus = Astro.url.searchParams.get('status') ?? Astro.url.searchParams.get('shipping_status');
+if (legacyStatus === 'abandoned') {
+  const target = new URL('/admin/orders/abandoned', Astro.url.origin);
+  const search = Astro.url.searchParams.get('search');
+  if (search) target.searchParams.set('search', search);
+  return Astro.redirect(`${target.pathname}${target.search}`, 302);
+}
+
 type AdminLocalsWithDatabase = App.Locals & {
   OMS_DB?: D1Database;
 };
@@ -92,6 +100,7 @@ if (database?.prepare) {
           orders.provider_order_id AS providerOrderId,
           orders.ad_click_ids AS adClickIds
         FROM orders
+        WHERE orders.shipping_status <> 'abandoned'
         ORDER BY orders.id DESC
         LIMIT 20
       `)

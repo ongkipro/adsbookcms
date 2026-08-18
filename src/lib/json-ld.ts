@@ -122,33 +122,12 @@ export function buildProductJsonLd({
     ? product.image
     : [product.image]
   ).map((image) => absoluteUrl(image, siteUrl));
-  const defaultValidUntil = new Date(Date.now() + 365 * 86400 * 1000).toISOString().slice(0, 10);
-  const defaultMerchantReturnPolicy = {
-    "@type": "MerchantReturnPolicy",
-    applicableCountry: "ID",
-    returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnPeriod",
-    merchantReturnDays: 7,
-    returnMethod: "https://schema.org/ReturnByMail",
-    returnFees: "https://schema.org/FreeReturn",
-  };
-  const defaultShippingDetails = {
-    "@type": "OfferShippingDetails",
-    shippingRate: {
-      "@type": "MonetaryAmount",
-      value: 0,
-      currency: "IDR",
-    },
-    shippingDestination: {
-      "@type": "DefinedRegion",
-      addressCountry: "ID",
-    },
-  };
 
   const offers = product.offers.map((offer) => ({
     "@type": "Offer",
     price: offer.price,
     priceCurrency: offer.priceCurrency ?? "IDR",
-    priceValidUntil: offer.priceValidUntil ?? defaultValidUntil,
+    ...(offer.priceValidUntil ? { priceValidUntil: offer.priceValidUntil } : {}),
     availability: schemaUrl(offer.availability),
     itemCondition: schemaUrl(offer.itemCondition ?? "NewCondition"),
     url: absoluteUrl(offer.url ?? product.url, siteUrl),
@@ -156,8 +135,6 @@ export function buildProductJsonLd({
       "@type": "Organization",
       name: organization.name,
     },
-    hasMerchantReturnPolicy: defaultMerchantReturnPolicy,
-    shippingDetails: defaultShippingDetails,
     ...(offer.name ? { name: offer.name } : {}),
     ...(offer.sku ? { sku: offer.sku } : {}),
   }));

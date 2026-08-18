@@ -91,7 +91,7 @@
 }
 
 .admin-input-flat {
-  @apply flex min-h-11 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm;
+  @apply flex min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100 md:text-sm;
 }
 
 .btn-primary:focus-visible,
@@ -573,32 +573,53 @@ input[type="number"] {
    login screen of every install. That is exactly the class of asset that must
    never ship for another merchant, so the stage is now colour only. */
 .admin-login-page {
-  --admin-login-gutter: clamp(1rem, 4vw, 4rem);
   min-height: 100dvh;
   overflow-x: hidden;
-  background-color: #0b1120;
-  background-image: radial-gradient(125% 90% at 50% 0%, #1e293b 0%, #0b1120 62%);
+  background-color: var(--bg-canvas);
 }
 
 .admin-login-stage {
-  display: flex;
   min-height: 100dvh;
   width: 100%;
-  align-items: center;
-  justify-content: center;
-  /* LOGIN-16. The gutter never falls below the device's own inset, in either
-     orientation — a landscape phone is wider than the 767px branch below, so
-     the notch has to be handled here rather than only on small screens. */
-  padding:
-    max(var(--admin-login-gutter), env(safe-area-inset-top))
-    max(var(--admin-login-gutter), env(safe-area-inset-right))
-    max(var(--admin-login-gutter), env(safe-area-inset-bottom))
-    max(var(--admin-login-gutter), env(safe-area-inset-left));
 }
 
-.admin-login-card {
-  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.34);
+@media (min-width: 1024px) {
+  .admin-login-stage {
+    display: grid;
+    grid-template-columns: minmax(400px, 1fr) minmax(400px, 1fr);
+  }
+  @media (min-width: 1280px) {
+    .admin-login-stage {
+      grid-template-columns: minmax(480px, 1.25fr) minmax(480px, 1fr);
+    }
+  }
 }
+
+.admin-login-brand {
+  /* Extend the brand panel's dark background into the safe areas on large screens */
+  padding:
+    max(3.5rem, env(safe-area-inset-top))
+    max(3.5rem, env(safe-area-inset-right))
+    max(3.5rem, env(safe-area-inset-bottom))
+    max(3.5rem, env(safe-area-inset-left));
+}
+
+.admin-login-form-wrapper {
+  padding:
+    max(3rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(3rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+}
+
+/* On small and medium screens, let the wrapper fill the stage */
+@media (max-width: 1023px) {
+  .admin-login-form-wrapper {
+    min-height: 100dvh;
+  }
+}
+
+/* .admin-login-card styling moved to Tailwind classes on the element itself */
 
 /* LOGIN-15. Floors rather than sizes, so a utility class that sets something
    smaller (`h-10`, `md:text-sm`) cannot drop below them. 44px is the tap-target
@@ -618,28 +639,14 @@ input[type="number"] {
   line-height: 1.5rem;
 }
 
-@media (max-width: 767px) {
-  .admin-login-page {
-    --admin-login-gutter: 0.75rem;
+/* Desktop viewports, or landscape mobile viewports */
+@media (max-height: 640px) and (max-width: 1023px) {
+  .admin-login-form-wrapper {
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   }
-
-  .admin-login-stage {
-    align-items: center;
-  }
-
   .admin-login-card {
-    max-width: none;
-    border-radius: 1rem;
-  }
-
-  @media (max-height: 640px) {
-    .admin-login-stage {
-      align-items: flex-start;
-    }
-
-    .admin-login-header {
-      padding-top: 1.25rem;
-      padding-bottom: 0.75rem;
-    }
+    margin-top: 0;
+    margin-bottom: 0;
   }
 }

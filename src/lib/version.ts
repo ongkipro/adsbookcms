@@ -12,6 +12,6 @@ export const CMS_VERSION: CmsVersionInfo = {
   channel: "production",
   releaseTag: "2026.08-hardened",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
-  schemaVersion: 37,
-  lastUpdated: "2026-08-16",
+  schemaVersion: 42,
+  lastUpdated: "2026-08-18",
 };

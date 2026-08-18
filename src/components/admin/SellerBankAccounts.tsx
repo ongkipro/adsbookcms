@@ -3,12 +3,29 @@ import {
   ArrowDown,
   ArrowUp,
   CheckCircle2,
+  EllipsisVertical,
   Pencil,
   Trash2,
   X,
 } from "lucide-react";
 import { SELLER_BANK_OPTIONS } from "../../lib/payment-brand";
 import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import {
   Select,
@@ -17,8 +34,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import { Switch } from "../ui/switch";
 
-type SellerBankAccount = {
+export type SellerBankAccount = {
   id: number;
   bank_code: string;
   account_holder: string;
@@ -45,7 +63,11 @@ function cleanAccountNumber(value: string) {
   return value.replace(/\D/g, "").slice(0, 24);
 }
 
-export default function SellerBankAccounts() {
+export default function SellerBankAccounts({
+  onAccountsChange,
+}: {
+  onAccountsChange?: (accounts: SellerBankAccount[]) => void;
+}) {
   const holderInput = useRef<HTMLInputElement>(null);
   const [accounts, setAccounts] = useState<SellerBankAccount[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -56,6 +78,7 @@ export default function SellerBankAccounts() {
   const [status, setStatus] = useState("Memuat rekening…");
   const [statusError, setStatusError] = useState(false);
   const [pending, setPending] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SellerBankAccount | null>(null);
 
   const requestAccounts = async (
     method = "GET",
@@ -75,6 +98,7 @@ export default function SellerBankAccounts() {
     }
     const next = Array.isArray(payload.data) ? payload.data : [];
     setAccounts(next);
+    onAccountsChange?.(next);
     return next as SellerBankAccount[];
   };
 
@@ -179,27 +203,27 @@ export default function SellerBankAccounts() {
   };
 
   const deleteAccount = async (account: SellerBankAccount) => {
-    if (!window.confirm(`Hapus rekening ${account.bank_code} ${account.account_number}?`)) {
-      return;
-    }
     const deleted = await mutate(
       "DELETE",
       { id: account.id },
       "Rekening bank dihapus.",
     );
-    if (deleted && editingId === account.id) resetForm();
+    if (deleted) {
+      setDeleteTarget(null);
+      if (editingId === account.id) resetForm();
+    }
   };
 
   return (
     <section className="mt-4 space-y-4" aria-labelledby="seller-bank-accounts-heading">
       {/* The panel had no heading at all, so a screen reader could not reach it
           by outline — it sits under the page h2 on /admin/payments. */}
-      <h3
+      <h4
         id="seller-bank-accounts-heading"
         className="text-base leading-snug font-semibold text-slate-900"
       >
         Rekening tujuan transfer
-      </h3>
+      </h4>
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950">
         <strong className="block font-bold">Cek ulang sebelum menyimpan</strong>
         Pastikan pilihan bank, nama penerima, dan nomor rekening sama persis dengan
@@ -357,28 +381,71 @@ export default function SellerBankAccounts() {
                   </div>
                   <p className="mt-1 font-mono text-xs text-slate-600">{account.account_number}</p>
                 </div>
-                <div className="flex flex-wrap gap-1.5 sm:justify-end">
-                  <Button type="button" variant="outline" size="sm" onClick={() => void reorderAccount(index, -1)} disabled={pending || index === 0} aria-label={`Naikkan urutan ${account.bank_code}`}>
-                    <ArrowUp /> Naik
+                <div className="flex min-h-11 items-center gap-2 sm:justify-end">
+                  <label className="flex min-h-11 cursor-pointer items-center gap-2 text-xs font-medium text-slate-700">
+                    <span className="sr-only">Status rekening {account.bank_code}</span>
+                    <Switch
+                      checked={Boolean(account.is_active)}
+                      onCheckedChange={() => void toggleAccount(account)}
+                      disabled={pending}
+                      aria-label={`${account.is_active ? "Nonaktifkan" : "Aktifkan"} rekening ${account.bank_code}`}
+                    />
+                    <span aria-hidden="true">{account.is_active ? "Aktif" : "Nonaktif"}</span>
+                  </label>
+                  <Button type="button" variant="outline" size="icon-lg" onClick={() => editAccount(account)} disabled={pending} aria-label={`Edit rekening ${account.bank_code}`}>
+                    <Pencil />
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => void reorderAccount(index, 1)} disabled={pending || index === accounts.length - 1} aria-label={`Turunkan urutan ${account.bank_code}`}>
-                    <ArrowDown /> Turun
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => void toggleAccount(account)} disabled={pending}>
-                    {account.is_active ? "Nonaktifkan" : "Aktifkan"}
-                  </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => editAccount(account)} disabled={pending}>
-                    <Pencil /> Edit
-                  </Button>
-                  <Button type="button" variant="destructive" size="sm" onClick={() => void deleteAccount(account)} disabled={pending}>
-                    <Trash2 /> Hapus
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="outline" size="icon-lg" disabled={pending} aria-label={`Aksi rekening ${account.bank_code}`}>
+                        <EllipsisVertical />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-48">
+                      <DropdownMenuItem disabled={index === 0} onSelect={() => void reorderAccount(index, -1)}>
+                        <ArrowUp /> Naikkan urutan
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={index === accounts.length - 1} onSelect={() => void reorderAccount(index, 1)}>
+                        <ArrowDown /> Turunkan urutan
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onSelect={() => setDeleteTarget(account)}>
+                        <Trash2 /> Hapus rekening
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </article>
             );
           })
         )}
       </div>
+
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus rekening?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget
+                ? `${deleteTarget.bank_code} · ${deleteTarget.account_number} akan dihapus dan tidak lagi tersedia di checkout.`
+                : "Rekening akan dihapus."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" disabled={pending}>Batal</Button>
+            </DialogClose>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={pending || !deleteTarget}
+              onClick={() => deleteTarget && void deleteAccount(deleteTarget)}
+            >
+              <Trash2 /> {pending ? "Menghapus…" : "Hapus rekening"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

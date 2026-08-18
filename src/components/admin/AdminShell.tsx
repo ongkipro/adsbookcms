@@ -75,6 +75,9 @@ export function AdminShell({
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [expandedMobileMenus, setExpandedMobileMenus] = React.useState<Set<string>>(
+    () => new Set([activeMenu]),
+  );
   const [isDesktop, setIsDesktop] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(sidebarDefaultOpen);
   const groups = mustChangePassword ? [] : getVisibleNavGroups(adminRole);
@@ -304,12 +307,15 @@ export function AdminShell({
                   <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                     {group.items.map((item) => {
                       const active = activeMenu === item.id;
+                      const hasChildren = Boolean(item.children?.length);
+                      const expanded = hasChildren && expandedMobileMenus.has(item.id);
                       const activeChild = item.children?.find((child) =>
                         isAdminNavHrefActive(currentPath, child.href),
                       );
                       return (
                         <div key={item.id} className="border-b border-slate-100 last:border-b-0">
-                          <a href={item.href} aria-current={!activeChild && isAdminNavHrefActive(currentPath, item.href) ? "page" : undefined} className="flex min-h-13 items-center gap-3 px-3 py-2 active:bg-slate-50">
+                          <div className="flex min-h-13 items-center gap-2 px-3 py-2 active:bg-slate-50">
+                            <a href={item.href} aria-current={!activeChild && isAdminNavHrefActive(currentPath, item.href) ? "page" : undefined} className="flex min-w-0 flex-1 items-center gap-3">
                             <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600" style={active ? { backgroundColor: `${ADMIN_ACCENT}14`, color: ADMIN_ACCENT } : undefined}>
                               <item.icon className="size-4" aria-hidden="true" />
                             </span>
@@ -317,10 +323,30 @@ export function AdminShell({
                               <span className={`block truncate text-sm text-slate-900 ${active ? "font-medium" : "font-normal"}`}>{item.label}</span>
                               <span className="block truncate text-[11px] text-slate-500">{item.description}</span>
                             </span>
-                            <ChevronRight className="size-4 shrink-0 text-slate-300" aria-hidden="true" />
+                            {!hasChildren && (
+                              <ChevronRight className="size-4 shrink-0 text-slate-300" aria-hidden="true" />
+                            )}
                           </a>
-                          {item.children && item.children.length > 0 && (
-                            <div className="bg-slate-50/50 pb-1.5 pl-14 pr-3 pt-0">
+                            {hasChildren && (
+                              <button
+                                type="button"
+                                className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                                aria-label={`${expanded ? "Tutup" : "Buka"} submenu ${item.label}`}
+                                aria-expanded={expanded}
+                                aria-controls={`mobile-submenu-${item.id}`}
+                                onClick={() => setExpandedMobileMenus((current) => {
+                                  const next = new Set(current);
+                                  if (next.has(item.id)) next.delete(item.id);
+                                  else next.add(item.id);
+                                  return next;
+                                })}
+                              >
+                                <ChevronRight className={`size-4 ${expanded ? "rotate-90" : ""}`} aria-hidden="true" />
+                              </button>
+                            )}
+                          </div>
+                          {item.children && expanded && (
+                            <div id={`mobile-submenu-${item.id}`} className="bg-slate-50/50 pb-1.5 pl-14 pr-3 pt-0">
                               {item.children.map((child) => {
                                 const childActive = isAdminNavHrefActive(
                                   currentPath,

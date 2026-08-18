@@ -2,6 +2,7 @@ type ReconciliationRow = {
   transaction_id: number;
   order_id: number;
   order_number: string;
+  payment_method: string;
   provider_transaction_id: string | null;
   reference_id: string;
   status: string;
@@ -10,6 +11,7 @@ export class AutoLarisPaymentNotFoundError extends Error {}
 
 export async function reconcileAutoLarisPaidPayment(
   database: D1Database,
+  _locals: App.Locals,
   input: {
     providerTransactionId?: string;
     referenceId?: string;
@@ -26,11 +28,12 @@ export async function reconcileAutoLarisPaidPayment(
   const row = await database
     .prepare(
       `SELECT
-        pt.id AS transaction_id, pt.order_id, o.order_number,
+        pt.id AS transaction_id, pt.order_id, o.order_number, o.payment_method,
         pt.provider_transaction_id, pt.reference_id, pt.status
       FROM payment_transactions pt
       INNER JOIN orders o ON o.id = pt.order_id
-      WHERE pt.provider_transaction_id = ? OR pt.reference_id = ?
+      WHERE (pt.provider_transaction_id = ? OR pt.reference_id = ?)
+        AND o.payment_method IN ('bank_transfer', 'qris')
       LIMIT 1`,
     )
     .bind(providerTransactionId, referenceId)
@@ -61,7 +64,7 @@ export async function reconcileAutoLarisPaidPayment(
       .prepare(
         `UPDATE orders
         SET payment_status = 'paid'
-        WHERE id = ? AND payment_method <> 'cod'`,
+        WHERE id = ? AND payment_method IN ('bank_transfer', 'qris')`,
       )
       .bind(row.order_id),
   ]);

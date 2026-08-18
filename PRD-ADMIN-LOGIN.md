@@ -1,6 +1,6 @@
 # PRD — Admin Login and First-Run Access
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A10 working tree
 
 Scope: everything between an operator opening the admin and reaching a working dashboard — the login screen at `/hello`, the first-run credential, the forced password rotation, and the session that carries them. It does not cover the dashboard itself.
 

@@ -3,160 +3,139 @@ import test from "node:test";
 import type { Product } from "../data/products.ts";
 import { mergeStorefrontCatalog } from "./catalog-data.ts";
 
-function product(slug: string, productId: string): Product {
+function runtimePresentation(productId: string): Product {
   return {
-    slug,
+    slug: "presentation-slug",
     productId,
-    productName: slug,
-    contentName: `${slug} content`,
-    headline: `${slug} headline`,
-    subheadline: `${slug} subheadline`,
-    seoTitle: slug,
-    seoDescription: slug,
-    price: 100000,
-    comparePrice: 150000,
-    image: `/images/${slug}.webp`,
-    heroImage: `/images/${slug}.webp`,
-    tag: slug,
-    category: slug,
-    relatedCategories: [],
-    description: slug,
-    benefits: [],
-    keyPoints: [],
-    idealFor: [],
-    offerText: slug,
-    ctaText: slug,
+    productName: "Presentation Name",
+    contentName: "Merchant presentation",
+    headline: "Merchant-authored headline",
+    subheadline: "Merchant-authored subheadline",
+    seoTitle: "Merchant SEO title",
+    seoDescription: "Merchant SEO description",
+    price: 1,
+    image: "/images/adsbook-mark.webp",
+    heroImage: "/images/adsbook-mark.webp",
+    images: ["/images/adsbook-mark.webp"],
+    tag: "Merchant tag",
+    category: "Presentation category",
+    relatedCategories: ["Merchant category"],
+    description: "Merchant-authored description",
+    benefits: ["Merchant benefit"],
+    keyPoints: ["Merchant key point"],
+    idealFor: ["Merchant audience"],
+    offerText: "Merchant offer",
+    ctaText: "Merchant CTA",
     reviews: [],
-    variants: [
-      { id: `${slug}-variant`, label: `${slug} - 500ml`, price: 100000 },
-    ],
+    variants: [],
   };
 }
 
-const alpha = product("alpha", "10001");
-const beta = product("beta", "10002");
+const completeProductRow = {
+  id: 50001,
+  title: "Pupuk Organik Super",
+  slug: "pupuk-organik-super",
+  category: "Pupuk",
+  image_url: "/assets/uploads/pupuk.webp",
+  is_active: 1,
+};
 
-test("D1 product identity and sellable variants override editorial catalog operations", () => {
+const completeVariantRows = [
+  {
+    id: 60001,
+    product_id: 50001,
+    sku: "PUPUK-1L",
+    title: "1 Liter",
+    price: 120000,
+    compare_price: 150000,
+    stock: 50,
+  },
+  {
+    id: 60002,
+    product_id: 50001,
+    sku: "PUPUK-2L",
+    title: "2 Liter",
+    price: 200000,
+    compare_price: null,
+    stock: 0,
+  },
+];
+
+test("empty D1 product rows always produce an empty public catalog", () => {
+  assert.deepEqual(
+    mergeStorefrontCatalog([], [], [runtimePresentation("50001")]),
+    [],
+  );
+});
+
+test("D1 rows are the sole source of public identity, image, price, stock, and variants", () => {
   const products = mergeStorefrontCatalog(
-    [alpha, beta],
+    [completeProductRow],
+    completeVariantRows,
     [
-      {
-        id: 10001,
-        title: "Alpha Admin",
-        slug: "alpha-admin",
-        category: "Admin Category",
-        image_url: "/assets/uploads/alpha.webp",
-        is_active: 1,
-      },
-    ],
-    [
-      {
-        id: 20001,
-        product_id: 10001,
-        title: "500ml",
-        price: 151000,
-        compare_price: 229000,
-        stock: 4,
-      },
-      {
-        id: 20002,
-        product_id: 10001,
-        title: "1 Liter",
-        price: 300000,
-        compare_price: 349000,
-        stock: 0,
-      },
+      runtimePresentation("50001"),
+      runtimePresentation("99999"),
     ],
   );
 
-  const merged = products.find(
-    (product) => product.productId === alpha.productId,
-  );
-  assert.ok(merged);
-  assert.equal(merged.productName, "Alpha Admin");
-  assert.equal(merged.slug, "alpha-admin");
-  assert.equal(merged.category, "Admin Category");
-  assert.equal(merged.image, "/assets/uploads/alpha.webp");
-  assert.equal(merged.price, 151000);
-  assert.deepEqual(merged.variants, [
-    {
-      catalogId: 20001,
-      id: "20001",
-      label: "500ml",
-      price: 151000,
-      comparePrice: 229000,
-    },
-  ]);
-  assert.ok(!products.some((product) => product.productId === beta.productId));
-});
-
-test("inactive or checkout-incomplete D1 products are hidden from storefront output", () => {
-  const baseRow = {
-    id: 10001,
-    title: "Alpha",
-    slug: "alpha",
-    category: null,
-    image_url: null,
-  };
-
-  assert.deepEqual(
-    mergeStorefrontCatalog([alpha], [{ ...baseRow, is_active: 0 }], []),
-    [],
-  );
-  assert.deepEqual(
-    mergeStorefrontCatalog(
-      [alpha],
-      [{ ...baseRow, is_active: 1 }],
-      [
-        {
-          id: 20001,
-          product_id: 10001,
-          title: "500ml",
-          price: 0,
-          compare_price: null,
-          stock: 10,
-        },
-      ],
-    ),
-    [],
-  );
-});
-test("custom D1 products created manually without editorial match are synthesized correctly", () => {
-  const customProductRow = {
-    id: 50001,
-    title: "Pupuk Organik Super",
-    slug: "pupuk-organik-super",
-    category: "Pupuk",
-    image_url: "/uploads/pupuk.webp",
-    is_active: 1,
-  };
-  const customVariantRows = [
-    {
-      id: 60001,
-      product_id: 50001,
-      sku: "PUPUK-1L",
-      title: "1 Liter",
-      price: 120000,
-      compare_price: 150000,
-      stock: 50,
-    },
-  ];
-
-  const products = mergeStorefrontCatalog([], [customProductRow], customVariantRows);
   assert.equal(products.length, 1);
   assert.equal(products[0].productId, "50001");
   assert.equal(products[0].productName, "Pupuk Organik Super");
   assert.equal(products[0].slug, "pupuk-organik-super");
+  assert.equal(products[0].category, "Pupuk");
+  assert.equal(products[0].image, "/assets/uploads/pupuk.webp");
+  assert.equal(products[0].heroImage, "/assets/uploads/pupuk.webp");
+  assert.deepEqual(products[0].images, ["/assets/uploads/pupuk.webp"]);
+  assert.equal(products[0].headline, "Merchant-authored headline");
   assert.equal(products[0].price, 120000);
-  assert.equal(products[0].variants[0].label, "1 Liter");
-  assert.equal(products[0].headline, "Pupuk Organik Super");
-  assert.equal(products[0].seoTitle, "Pupuk Organik Super");
-  assert.deepEqual(products[0].images, ["/uploads/pupuk.webp"]);
-  assert.deepEqual(products[0].benefits, []);
-  assert.deepEqual(products[0].keyPoints, []);
-  assert.deepEqual(products[0].idealFor, []);
-  assert.doesNotMatch(
-    JSON.stringify(products[0]),
-    /Korean|original|garansi|COD|gratis ongkir/i,
+  assert.deepEqual(products[0].variants, [
+    {
+      catalogId: 60001,
+      sku: "PUPUK-1L",
+      id: "60001",
+      label: "1 Liter",
+      price: 120000,
+      comparePrice: 150000,
+    },
+  ]);
+  assert.ok(!products.some((product) => product.productId === "99999"));
+});
+
+test("active products fail closed without complete merchant data", () => {
+  const invalidProducts = [
+    { ...completeProductRow, is_active: 0 },
+    { ...completeProductRow, title: " " },
+    { ...completeProductRow, slug: " " },
+    { ...completeProductRow, image_url: null },
+  ];
+
+  for (const product of invalidProducts) {
+    assert.deepEqual(
+      mergeStorefrontCatalog([product], completeVariantRows),
+      [],
+    );
+  }
+
+  for (const variant of [
+    { ...completeVariantRows[0], title: " " },
+    { ...completeVariantRows[0], price: 0 },
+    { ...completeVariantRows[0], stock: 0 },
+    { ...completeVariantRows[0], stock: null },
+  ]) {
+    assert.deepEqual(
+      mergeStorefrontCatalog([completeProductRow], [variant]),
+      [],
+    );
+  }
+});
+
+test("missing D1 product image is never replaced with an AdsBookCMS asset", () => {
+  const products = mergeStorefrontCatalog(
+    [{ ...completeProductRow, image_url: null }],
+    completeVariantRows,
+    [runtimePresentation("50001")],
   );
+
+  assert.deepEqual(products, []);
+  assert.doesNotMatch(JSON.stringify(products), /adsbook-mark\.webp/);
 });

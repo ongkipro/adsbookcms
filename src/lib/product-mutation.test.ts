@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { deleteCatalogProduct } from "./product-mutation.ts";
+import {
+  deleteCatalogProduct,
+  parseProductMutationPayload,
+} from "./product-mutation.ts";
 
 type MockStatement = {
   sql: string;
@@ -84,9 +87,11 @@ test("product deletion removes variants before an unreferenced product", async (
   assert.equal(batches.length, 1);
   assert.match(batches[0][0].sql, /DELETE FROM product_variants/);
   assert.match(batches[0][1].sql, /DELETE FROM products/);
+  assert.match(batches[0][2].sql, /DELETE FROM storefront_content/);
   assert.deepEqual(batches[0].map((statement) => statement.args), [
     [10002, 10002],
     [10002, 10002],
+    ["product:10002", 10002],
   ]);
 });
 
@@ -100,4 +105,93 @@ test("product deletion reports a missing product without writes", async () => {
     status: "not_found",
   });
   assert.equal(batches.length, 0);
+});
+
+function validMutationPayload(overrides: Record<string, unknown> = {}) {
+  return {
+    title: "Produk Merchant",
+    slug: "produk-merchant",
+    image_url: "/assets/uploads/produk-merchant.webp",
+    is_active: true,
+    variants: [
+      {
+        sku: "MERCHANT-1",
+        title: "1 Liter",
+        price: 125000,
+        weight_grams: 1000,
+        stock: 12,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+test("active product validation accepts complete merchant-owned data", () => {
+  const parsed = parseProductMutationPayload(validMutationPayload(), false);
+  assert.ok("value" in parsed);
+  if ("value" in parsed) {
+    assert.equal(parsed.value.title, "Produk Merchant");
+    assert.equal(parsed.value.slug, "produk-merchant");
+    assert.equal(
+      parsed.value.image_url,
+      "/assets/uploads/produk-merchant.webp",
+    );
+    assert.equal(parsed.value.variants[0].stock, 12);
+  }
+});
+
+test("active product validation rejects a missing image", () => {
+  assert.deepEqual(
+    parseProductMutationPayload(
+      validMutationPayload({ image_url: "" }),
+      false,
+    ),
+    { error: "Produk aktif wajib memiliki gambar." },
+  );
+});
+
+test("active product validation rejects a catalog with no in-stock variant", () => {
+  assert.deepEqual(
+    parseProductMutationPayload(
+      validMutationPayload({
+        variants: [
+          {
+            sku: "MERCHANT-1",
+            title: "1 Liter",
+            price: 125000,
+            weight_grams: 1000,
+            stock: 0,
+          },
+        ],
+      }),
+      false,
+    ),
+    {
+      error:
+        "Produk aktif wajib memiliki minimal 1 varian valid dan tersedia.",
+    },
+  );
+});
+
+test("product validation never synthesizes a missing slug or stock", () => {
+  assert.deepEqual(
+    parseProductMutationPayload(validMutationPayload({ slug: "" }), false),
+    { error: "Judul dan slug produk wajib diisi." },
+  );
+  assert.deepEqual(
+    parseProductMutationPayload(
+      validMutationPayload({
+        variants: [
+          {
+            sku: "MERCHANT-1",
+            title: "1 Liter",
+            price: 125000,
+            weight_grams: 1000,
+          },
+        ],
+      }),
+      false,
+    ),
+    { error: "Stok varian MERCHANT-1 harus integer nol atau lebih." },
+  );
 });

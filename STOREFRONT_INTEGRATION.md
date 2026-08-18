@@ -1,6 +1,6 @@
 # AdsBookCMS — Storefront, Form, and Ads Integration Contract
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A10 working tree
 
 This document is the implementation handoff for anyone — human or agent — building a public storefront experience against an **AdsBookCMS** install. Two integration shapes are supported and both are shipping today:
 
@@ -74,9 +74,9 @@ These serve the built-in forms. They take no admin session or API key; each writ
 
 ## 4. Headless API — `/api/v1/*` (Implemented)
 
-Seven routes ship. They are the contract an external storefront builds against; there is no "planned bootstrap endpoint" and no reason to hard-code a catalog.
+Eight routes ship. They are the contract an external storefront builds against; there is no planned bootstrap endpoint and no reason to hard-code a catalog.
 
-All seven share the same envelope from `src/lib/headless-api.ts`:
+All eight share the same envelope from `src/lib/headless-api.ts`:
 
 - Success: `{ "success": true, "timestamp": "<ISO>", ...payload }`
 - Failure: `{ "success": false, "timestamp": "<ISO>", "error": { "message": "<Indonesian>", "code": "<CODE>", ... } }`
@@ -86,19 +86,19 @@ All seven share the same envelope from `src/lib/headless-api.ts`:
 
 ### 4.1 Access control — the real surface
 
-Every `/api/v1/*` request passes `validateHeadlessRequest(request, locals)` before any work happens. Two independent checks, in this order:
+Every `/api/v1/*` request passes `validateHeadlessRequest(request, locals, { operation })` before route work. Four checks run in order:
 
-**a. Developer API key (401 on failure).** The secret is read from, in precedence order:
+1. **Developer API key.** `X-App-Key`, legacy `X-API-Key`, then `Authorization: Bearer`. The SHA-256 hash must match one active D1 key and the secret is re-verified in constant time.
+2. **Origin allowlist.** Browser callers must match the independent Headless origin policy; server-to-server callers without `Origin`/`Referer` still require the API key.
+3. **Minimum scope.** `HEADLESS_OPERATIONS` maps every route operation to exactly one scope: `storefront:read`, `catalog:read`, `shipping:read`, `checkout:write`, `orders:read`, or `tracking:write`. Missing authority returns 403 `API_SCOPE_FORBIDDEN`.
+4. **Per-key quota.** D1 atomically increments minute and daily buckets in `developer_api_key_usage`; exhausted keys return 429 with `Retry-After`. The default is 120 requests/minute and 100,000/day, bounded on key creation.
 
-1. `X-App-Key: <secret>`
-2. `X-API-Key: <secret>` (legacy header, still accepted)
-3. `Authorization: Bearer <secret>`
+Headless write handlers record one payload-free `headless_api_audit_events` row
+with key id, operation, status code, and timestamp after the response is known.
+Audit insertion failure is logged but cannot turn an accepted commerce write into
+a client-visible retry that could duplicate it.
 
-A missing secret returns 401 `API_KEY_REQUIRED`. The secret is SHA-256 hashed to hex and looked up in the D1 table `developer_api_keys` with `revoked_at IS NULL`, then re-verified with a constant-time comparison (`verifyApiKeySecret`). No match, or a revoked key, returns 401 `API_KEY_INVALID`. A successful match writes `last_used_at`. If D1 is unavailable the request fails closed with 503 `API_KEY_STORE_UNAVAILABLE`.
-
-**b. Origin allowlist (403 on failure).** `getRequestOrigin` reads the `Origin` header, falling back to the origin of `Referer`. Patterns support `*`, bare hosts, `https://host`, `*.host` wildcards, and explicit scheme/port matching, plus `localhost`/`127.0.0.1`. A browser origin outside the allowlist returns 403 `ORIGIN_FORBIDDEN` with the allowed patterns echoed back. **A request with no `Origin` and no `Referer` — server-to-server, cURL, a native app — passes this check**; the API key is the only gate in that path.
-
-**Key issuance** is at `/admin/settings/developer` (page) backed by `/api/admin/settings/developer` (`POST` create, `DELETE` revoke, both admin-session-guarded). Secrets are generated as `adsbook_live_<43-char base64url>` from 32 random bytes, stored only as a SHA-256 hash plus a masked preview, and returned in **full exactly once** — on the creation response. Revocation is a soft delete (`revoked_at` + `revoked_by`); the key stops validating on the next request.
+**Key issuance** is at `/admin/settings/developer` backed by `/api/admin/settings/developer`. Operators choose scopes and bounded minute/daily quotas. Secrets are generated as `adsbook_live_<43-char base64url>`, stored only as a SHA-256 hash plus masked preview, and returned in full exactly once. Revocation takes effect on the next request.
 
 **Where the allowlist comes from.** Headless API and iframe embedding have separate policies:
 
@@ -115,9 +115,9 @@ Both admin fields accept one exact origin or wildcard subdomain pattern per line
 
 The bootstrap contract. Returns four groups:
 
-- `storefront` — `slug`, `name`, `tagline`, `description`, `site_url`, `logo`, `theme_color`, `locale`, `template`, `admin_name`. All of these come from `resolveTenantConfig`, which reads the `stores` row per request and falls back to the `PUBLIC_SITE_*` vars only where the row has not set a field (ARCHITECTURE §5; gap G1 closed). They are the same values the admin edits, and they change on the next request.
-- `content` — the published home content object from `getTenantHomeContent`. Note gap G5: with no published home row this returns a shell from `buildDefaultHomeContent`, composed from this store's own identity and logged as `home-content-unpublished`, rather than an honest empty state.
-- `tracking` — `meta_pixel_id`, `google_ads_conversion_id`, `google_ads_conversion_label`, `google_tag_manager_id`, each `null` when unset. Read live from the `stores` row. **The Meta CAPI token is never included and must never be added here.**
+- `storefront` — runtime identity from `resolveTenantConfig`.
+- `content` — either published home content or `{ "state": "setup-required" }`; no compiled/generated merchant-facing fallback is emitted.
+- `tracking` — public Meta/Google identifiers only. The Meta CAPI token is never included.
 - `payment` — `cod_enabled` (hardcoded `true`), `cod_disabled_provinces` (live from `stores.cod_disabled_province_codes`), and `supported_methods: ["COD","BANK_TRANSFER","E_WALLET","QRIS"]` (a static list, not a live eligibility check — use `/api/payment-methods` for eligibility).
 
 Cache: `Cache-Control: no-store`; storefront configuration changes take effect on the next authenticated request. Failure: 500 `STOREFRONT_LOAD_ERROR`.
@@ -128,7 +128,7 @@ Cache: `Cache-Control: no-store`; storefront configuration changes take effect o
 
 Query: `limit` (1–100, default 20), `offset` (≥0, default 0), `q` or `search`, `category`. Filtering by search and category happens **in memory after loading the full catalog**, so `total` reflects the filtered set.
 
-Returns `total`, `limit`, `offset`, `has_more`, and `products[]`. Each product carries `id` (the canonical numeric D1 catalog ID), `content_id` (the catalog **item group id**, `p{product_id}`), `slug`, `name`, `category`, `headline`, `subheadline`, `price`, `compare_price`, `image`, `hero_image`, `rating_value`, `review_count`, `sold_count`, `variants[]` (`id`, `content_id` — the catalog **item id**, `p{product_id}-v{variant_id}`, and the value to send in `content_ids` — `label`, `price`, `compare_price`), and a `urls` block.
+Returns `total`, `limit`, `offset`, `has_more`, and `products[]`. Each product carries `id` (the canonical numeric D1 Product ID), `content_id` (the same decimal Product ID, with at least five digits), `slug`, `name`, `category`, `headline`, `subheadline`, `price`, `compare_price`, `image`, `hero_image`, `rating_value`, `review_count`, `sold_count`, `variants[]` (`id`, the raw selectable variant ID; `content_id`, the parent Product ID used by ads; `label`, `price`, `compare_price`), and a `urls` block.
 
 Cache: `Cache-Control: private, max-age=60, stale-while-revalidate=600`; browser clients may reuse a response, shared caches may not. Failure: 500 `PRODUCTS_LOAD_ERROR`.
 
@@ -138,7 +138,7 @@ Source is `getStorefrontProducts`, which merges operational `products`/`product_
 
 `src/pages/api/v1/products/[slug].ts`. Methods: `GET`, `OPTIONS`.
 
-The path segment resolves against slug, `content_id` (`p{product_id}`), or numeric catalog ID (`getStorefrontProduct` matches all three), so a `content_id` returned by the list endpoint can be handed straight back. Returns the full product record — everything in the list payload plus `tag`, `seo_title`, `seo_description`, `description`, `benefits`, `key_points`, `ideal_for`, `offer_text`, `cta_text`, `reviews[]` — plus a `forms` block and up to four `related_products` from the same category.
+The path segment resolves against slug or numeric Product ID, so a `content_id` returned by the list endpoint can be handed straight back. Returns the full product record — everything in the list payload plus `tag`, `seo_title`, `seo_description`, `description`, `benefits`, `key_points`, `ideal_for`, `offer_text`, `cta_text`, `reviews[]` — plus a `forms` block and up to four `related_products` from the same category.
 
 Cache: envelope default, `Cache-Control: private, max-age=60`. Failures: 400 `SLUG_REQUIRED`, 404 `PRODUCT_NOT_FOUND`, 500 `PRODUCT_DETAIL_ERROR`.
 
@@ -182,13 +182,20 @@ Payload is validated by `validateMetaEventPayload` (400 `INVALID_TRACKING_PAYLOA
 
 Accepted events are written to the `capi_event_outbox` through `enqueueCapiEvent`. A repeated `event_id` returns 200 `{ deduplicated: true, event_id }` without re-sending. Otherwise the event is delivered immediately, the rest of the outbox is drained in the background via `waitUntil`, and the response reports `{ event_id, event_name, delivered, queued }`.
 
-Client IP and user agent are taken **server-side** from request headers, not from the payload. Failure: 500 `TRACKING_SIGNAL_ERROR`.
+Client IP and user agent are taken **server-side** from request headers, not from the payload. `event_source_url` must match either the API origin or the already-validated Headless request origin; the server adapter sets `Origin` from that URL so an allowlisted external storefront preserves its real source without weakening the origin gate. Failure: 500 `TRACKING_SIGNAL_ERROR`.
 
-### 4.9 Headless surface — known gaps
+### 4.9 `POST /api/v1/orders/status`
 
-- **No `/api/v1` write path for anything but checkout and tracking.** There is no headless order-status read; use the session-authenticated `/api/order-status`.
-- **No per-key scoping, quota, or rate limit.** Any valid key reaches every `/api/v1` route. Only `/api/v1/checkout` is rate-limited, and by IP rather than by key.
-- **No published OpenAPI document or client SDK.**
+Requires scope `orders:read`. The JSON body must contain both `order_number` and
+the matching `status_token` returned by Headless checkout. The response contains
+only public order/payment state and recorded amounts/instructions; it excludes
+name, phone, address, provider credentials, and internal ids.
+
+### 4.10 Executable contract assets
+
+- **Authenticated OpenAPI 3.1 contract:** `GET /api/v1/openapi.json` with a key carrying `storefront:read`.
+- **Framework-neutral server adapter:** `src/lib/headless-client.ts` validates API envelopes and covers storefront bootstrap, catalog, shipping quote, checkout, token-scoped confirmation/status, tracking submission, and confirmation focus. `src/lib/headless-client.test.ts` executes the commerce journey through the real route handlers.
+- The adapter is repository source, not a separately published npm package. A consuming storefront keeps its developer key server-side and imports or vendors this reviewed module.
 
 ---
 
@@ -231,7 +238,7 @@ The `stores` row, edited under `/admin/ads/*`, owns the Meta Pixel ID, the maske
 | Event | Browser trigger | Server rule | Required identity |
 | --- | --- | --- | --- |
 | `PageView` | Eligible page load once the consent rule allows it | Optional CAPI mirror through the validated endpoint | Unique event ID when mirrored |
-| `ViewContent` | Canonical product becomes the viewed product | Validate supported event and product payload | Catalog item id (`p{product}-v{variant}`) in `content_ids` |
+| `ViewContent` | Canonical product becomes the viewed product | Validate supported event and product payload | Numeric Product ID in `content_ids` |
 | `AddToCart` | Qualified customer intent, never arbitrary scroll or click | Validate supported event | Product ID, value, currency, event ID |
 | `InitiateCheckout` | Valid form submission begins | Validate supported event | Product ID, value, currency, event ID |
 | `Purchase` | Only after the install confirms the qualifying order state | CAPI reuses the same Purchase event ID; unsupported or unqualified requests fail closed | Persisted order identity and canonical product ID |
@@ -249,15 +256,16 @@ Do not map page scroll, CTA impression, menu click, or form focus to `Lead` or `
 
 ### Product identity
 
-`content_ids` is the **`content_id` of the variant** — `p{product_id}-v{variant_id}`,
-from the `variants[]` entry in `/api/v1/products` — not the numeric `id`, not the
-slug, not a SKU, not an array index, not a provider ID. It is the same string the
-catalog feeds publish as `<g:id>`. Storefront events, CAPI and any connected Meta
-Commerce Catalog must agree exactly.
+`content_ids` is the decimal **Product ID** returned as `content_id` by
+`/api/v1/products`. It has at least five digits and is the same string both
+catalog feeds publish as `<g:id>`. A selected variant remains a separate raw
+`variant_id`; never substitute that row ID, a slug, SKU, array index, or provider
+ID for the Product ID. Storefront events, CAPI, Google ecommerce, and connected
+catalogs must agree exactly.
 
-**Changed 2026-08-17.** This previously specified the numeric `id`, and the code
-sent it, while the feeds published `10000 + id`. A client that followed the old
-text was already failing to match; one that follows this text will.
+**Changed 2026-08-18.** ADR-017 supersedes the earlier variant-grained
+`p{product}-v{variant}` contract. Existing external catalogs need a coordinated
+refresh when this change is deployed.
 
 ### Attribution and matching
 
@@ -339,7 +347,7 @@ An integration is complete only when:
 - no Zanoby, Petani Sejahtera, or other prior-merchant content, cookie name, or conversion label is introduced into new code;
 - product and variant data comes from `/api/v1/products` and `/api/v1/products/[slug]` (external) or `src/lib/catalog.ts` (built-in) — never from a fixture, a copied JSON blob, or a manually maintained parallel catalog;
 - the developer API key is stored as a server-side secret in the storefront and never shipped to the browser;
-- location, rate, payment, submit, and confirmation failure states are all exercised, including 401, 403, 429, and 422 from the headless API;
+- location, rate, payment, submit, status, and confirmation failure states are all exercised, including 401, 403, 429, and 422 from the Headless API;
 - known-eligible, COD-disabled, and unknown-province outcomes match server policy;
 - the chosen middle/full/hybrid form preserves canonical validation;
 - Meta browser events use the correct config, IDs, values, event IDs, and Purchase gate;
@@ -401,19 +409,16 @@ DATA AND COMMERCE INTEGRATION
 1. Bootstrap identity and tracking config from GET /api/v1/storefront. Treat the response as
    runtime data and honour its cache policy; store identity can change in D1 without a redeploy.
 2. Render the catalog from GET /api/v1/products and GET /api/v1/products/[slug]. Use the
-   variant `content_id` (`p{product}-v{variant}`) in content_ids, and the numeric `id` for everything else.
-3. (No longer required — the API never returns a legacy /form-* URL. Kept so a
-   client written against the older advice can see it was withdrawn.)
-   Rewrite the returned form URLs from /form-* to the canonical /hybrid-form, /middle-form,
-   /full-form before rendering a CTA.
+   numeric product `content_id` in ads `content_ids`; use each variant's raw `id` only as `variant_id`.
+3. Use only the canonical `/hybrid-form`, `/middle-form`, and `/full-form` routes. The API never returns legacy `/form-*` URLs.
 4. Resolve destinations with GET /api/v1/geo/districts and quote with
    GET|POST /api/v1/geo/shipping-rates. Re-quote before submit; never trust a cached price.
 5. Submit with `POST /api/v1/checkout`. Handle 401, 403, 422, 429, and 409 distinctly.
    On 201, persist only the returned identifiers needed by the storefront and render its own
    confirmation state. Checkout is never courier dispatch.
 6. Do not send a Headless customer to `/thanks` or `/payment`; both are same-origin hosted
-   checkout surfaces backed by session state. A dedicated authenticated Headless status read
-   does not exist yet, so do not invent polling against `/api/v1` (tracked as H6).
+   checkout surfaces backed by session state. Read confirmation state with
+   `POST /api/v1/orders/status` using the returned `order_number` and `public_status_token`.
 7. Render honest loading, empty, unavailable, out-of-stock, error, and retry states. An empty
    catalog response may mean a backend failure — never present it as "no products" silently.
 

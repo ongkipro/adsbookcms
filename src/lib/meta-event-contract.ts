@@ -35,9 +35,10 @@ type ValidationResult =
 
 const EVENT_NAMES = new Set<string>(META_EVENT_NAMES);
 const EVENT_ID_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/;
-// Catalog IDs are numeric D1 product ids or formatted strings - minimum 5 characters / digits
-// (e.g. 10001, 434683). The 5-character minimum pattern lock ensures Meta Commerce & Google Catalog match.
-const PRODUCT_ID_PATTERN = /^[A-Za-z0-9_./-]{5,128}$/;
+// Product ID, Meta content_id, Google item_id and both feed g:id values share
+// this exact decimal identity. Leading zeroes are rejected because they are not
+// the D1 integer Product ID the admin displays.
+const PRODUCT_ID_PATTERN = /^[1-9]\d{4,15}$/;
 // fb.<subdomainIndex>.<timestamp>.<payload>
 const FB_COOKIE_PATTERN = /^fb\.\d\.\d{10,20}\..+$/;
 
@@ -55,7 +56,11 @@ function optionalString(value: unknown, maxLength: number): string | undefined |
   return normalized;
 }
 
-export function validateMetaEventPayload(input: unknown, requestUrl: string): ValidationResult {
+export function validateMetaEventPayload(
+  input: unknown,
+  requestUrl: string,
+  allowedSourceOrigin?: string | null,
+): ValidationResult {
   const payload = record(input);
   if (!payload) return { ok: false, error: 'Payload Meta harus berupa object JSON.' };
 
@@ -78,8 +83,12 @@ export function validateMetaEventPayload(input: unknown, requestUrl: string): Va
   } catch {
     return { ok: false, error: 'Meta event_source_url tidak valid.' };
   }
-  if (eventSourceUrl.origin !== currentUrl.origin) {
-    return { ok: false, error: 'Meta event_source_url harus berasal dari storefront ini.' };
+  const sourceMatchesApi = eventSourceUrl.origin === currentUrl.origin;
+  const sourceMatchesAllowedStorefront =
+    typeof allowedSourceOrigin === 'string' &&
+    eventSourceUrl.origin === allowedSourceOrigin;
+  if (!sourceMatchesApi && !sourceMatchesAllowedStorefront) {
+    return { ok: false, error: 'Meta event_source_url harus berasal dari storefront yang diizinkan.' };
   }
 
   const userData = payload.user_data === undefined ? null : record(payload.user_data);

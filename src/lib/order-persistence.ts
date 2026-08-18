@@ -48,6 +48,81 @@ export type PersistedOrder = {
 export class DuplicateSubmissionError extends Error {}
 export class OrderInputError extends Error {}
 
+export type OrderNumberPrefix = "INV" | "ABN";
+
+/**
+ * Advances the one store-wide order sequence in a single D1 statement.
+ *
+ * Completed and abandoned orders deliberately share a sequence. An abandoned
+ * number can therefore be promoted by changing only its prefix without ever
+ * colliding with a completed order allocated in the meantime.
+ */
+export async function allocateOrderNumber(
+  database: D1Database,
+  prefix: OrderNumberPrefix,
+): Promise<string> {
+  const row = await database
+    .prepare(
+      `UPDATE order_number_counters
+       SET last_value = last_value + 1,
+           updated_at = ?
+       WHERE counter_name = 'orders'
+       RETURNING last_value`,
+    )
+    .bind(new Date().toISOString())
+    .first<{ last_value: number }>();
+  const value = Number(row?.last_value);
+  if (!Number.isInteger(value) || value <= 10000) {
+    throw new Error("Nomor order gagal dialokasikan.");
+  }
+  return `${prefix}-${value}`;
+}
+
+function completedNumberFromAbandoned(orderNumber: string): string {
+  if (!/^ABN-\d{5,}$/.test(orderNumber)) {
+    throw new Error("Nomor pesanan tertinggal tidak valid.");
+  }
+  return `INV-${orderNumber.slice(4)}`;
+}
+
+export const ABANDONED_RETENTION_DAYS = 7;
+
+export async function purgeExpiredAbandonedOrders(
+  database: D1Database,
+  now = new Date(),
+): Promise<number> {
+  if (!Number.isFinite(now.getTime())) {
+    throw new Error("Waktu retensi tidak valid.");
+  }
+  const cutoff = now.toISOString();
+  const eligibleOrderIds = `SELECT id
+    FROM orders
+    WHERE shipping_status = 'abandoned'
+      AND payment_status = 'unpaid'
+      AND unixepoch(created_at) < unixepoch(?, '-${ABANDONED_RETENTION_DAYS} days')`;
+  const results = await database.batch([
+    database
+      .prepare(
+        `DELETE FROM payment_transactions
+         WHERE order_id IN (${eligibleOrderIds})`,
+      )
+      .bind(cutoff),
+    database
+      .prepare(
+        `DELETE FROM order_items
+         WHERE order_id IN (${eligibleOrderIds})`,
+      )
+      .bind(cutoff),
+    database
+      .prepare(
+        `DELETE FROM orders
+         WHERE id IN (${eligibleOrderIds})`,
+      )
+      .bind(cutoff),
+  ]);
+  return Number(results[2]?.meta?.changes ?? 0);
+}
+
 export type RecordAbandonedOrderInput = {
   customerName: string;
   customerPhone: string;
@@ -78,10 +153,21 @@ export async function recordAbandonedOrder(
   }
   const address = input.address?.trim() || "";
   const province = input.province?.trim() || "";
-  const totalAmount =
-    typeof input.totalAmount === "number" && Number.isFinite(input.totalAmount)
-      ? Math.max(0, Math.round(input.totalAmount))
-      : 0;
+  const selectedVariant = input.variantId && input.variantId > 0
+    ? await database
+        .prepare(
+          `SELECT pv.id, pv.price
+           FROM product_variants pv
+           INNER JOIN products p ON p.id = pv.product_id
+           WHERE pv.id = ? AND p.is_active = 1
+           LIMIT 1`,
+        )
+        .bind(input.variantId)
+        .first<{ id: number; price: number }>()
+    : null;
+  const totalAmount = selectedVariant
+    ? Math.max(0, Math.round(Number(selectedVariant.price) || 0))
+    : 0;
   const createdAt = new Date().toISOString();
   const existing = await database
     .prepare(
@@ -97,7 +183,7 @@ export async function recordAbandonedOrder(
     .first<{ id: number; order_number: string }>();
 
   if (existing) {
-    await database
+    const statements = [database
       .prepare(
         `UPDATE orders
          SET customer_name = ?,
@@ -117,7 +203,21 @@ export async function recordAbandonedOrder(
         createdAt,
         existing.id,
       )
-      .run();
+    ];
+    if (selectedVariant) {
+      statements.push(
+        database
+          .prepare("DELETE FROM order_items WHERE order_id = ?")
+          .bind(existing.id),
+        database
+          .prepare(
+            `INSERT INTO order_items (order_id, variant_id, quantity, unit_price)
+             VALUES (?, ?, 1, ?)`,
+          )
+          .bind(existing.id, selectedVariant.id, totalAmount),
+      );
+    }
+    await database.batch(statements);
     return {
       id: existing.id,
       orderNumber: existing.order_number,
@@ -131,11 +231,7 @@ export async function recordAbandonedOrder(
     .first<{ id: number }>();
   if (!store) throw new Error("Store belum dikonfigurasi.");
 
-  const maxRow = await database
-    .prepare("SELECT MAX(id) as max_id FROM orders")
-    .first<{ max_id: number | null }>();
-  const nextId = (maxRow?.max_id || 0) + 1;
-  const orderNumber = `ABN-${10000 + nextId}`;
+  const orderNumber = await allocateOrderNumber(database, "ABN");
   const statements = [
     database
       .prepare(
@@ -172,7 +268,7 @@ export async function recordAbandonedOrder(
         customerPhone,
       ),
   ];
-  if (input.variantId && input.variantId > 0) {
+  if (selectedVariant) {
     statements.push(
       database
         .prepare(
@@ -182,7 +278,7 @@ export async function recordAbandonedOrder(
            INNER JOIN product_variants pv ON pv.id = ?
            WHERE o.order_number = ?`,
         )
-        .bind(totalAmount, input.variantId, orderNumber),
+        .bind(totalAmount, selectedVariant.id, orderNumber),
     );
   }
   statements.push(
@@ -203,7 +299,7 @@ export async function recordAbandonedOrder(
     | { id?: number; order_number?: string }
     | undefined;
   if (!row?.id || !row.order_number) {
-    throw new Error("Order terbengkalai gagal disimpan.");
+    throw new Error("Pesanan tertinggal gagal disimpan.");
   }
   return {
     id: row.id,
@@ -213,13 +309,6 @@ export async function recordAbandonedOrder(
   };
 }
 
-async function generateNextInvoiceNumber(database: D1Database): Promise<string> {
-  const row = await database
-    .prepare("SELECT MAX(id) as max_id FROM orders")
-    .first<{ max_id: number | null }>();
-  const nextId = (row?.max_id || 0) + 1;
-  return `INV-${10000 + nextId}`;
-}
 
 export async function persistOrder(
   database: D1Database,
@@ -284,8 +373,8 @@ export async function persistOrder(
       public_status_token: string | null;
     }>();
   const orderNumber = abandonedOrder
-    ? `INV-${10000 + abandonedOrder.id}`
-    : (await generateNextInvoiceNumber(database));
+    ? completedNumberFromAbandoned(abandonedOrder.order_number)
+    : (await allocateOrderNumber(database, "INV"));
   const publicStatusToken =
     abandonedOrder?.public_status_token || crypto.randomUUID();
   const unitPrice = Number(variant.price);
@@ -319,6 +408,7 @@ export async function persistOrder(
                  city = ?,
                  district = ?,
                  postal_code = ?,
+                 warehouse_id = ?,
                  total_amount = ?,
                  shipping_cost = ?,
                  discount_amount = 0,
@@ -354,6 +444,7 @@ export async function persistOrder(
             input.city,
             input.district,
             input.postalCode || null,
+            input.warehouseId || null,
             totalAmount,
             input.shippingCost,
             codFee.serviceFee,

@@ -49,6 +49,7 @@ const ADMIN_PAGE_ROUTES = [
 
 const ADMIN_API_ROUTES = [
   '/api/admin/analytics',
+  '/api/admin/abandoned-orders',
   '/api/admin/health',
   '/api/admin/orders',
   '/api/admin/products',
@@ -100,6 +101,7 @@ const ROLE_API_ROUTES: Record<Exclude<AdminRole, 'owner' | 'admin'>, readonly st
   ],
   customer_service: [
     '/api/admin/analytics',
+    '/api/admin/abandoned-orders',
     '/api/admin/orders',
     '/api/admin/shipping',
     '/api/admin/check',

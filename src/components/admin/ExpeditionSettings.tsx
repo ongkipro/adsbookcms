@@ -1,4 +1,4 @@
-import { SearchIcon, MapPinIcon, CalculatorIcon, PackageIcon } from 'lucide-react';
+import { SearchIcon, MapPinIcon, PackageIcon } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
@@ -103,12 +103,6 @@ export function ExpeditionSettings() {
   const [courierFilter, setCourierFilter] = useState<'all' | 'active' | 'non_cod'>('all');
   const [provinceSearch, setProvinceSearch] = useState('');
 
-  // Live Calculator states
-  const [calcDest, setCalcDest] = useState('');
-  const [calcWeight, setCalcWeight] = useState('1000');
-  const [calcLoading, setCalcLoading] = useState(false);
-  const [calcRates, setCalcRates] = useState<any[]>([]);
-
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError('');
@@ -173,32 +167,6 @@ export function ExpeditionSettings() {
 
   const handleResetProvinces = () => {
     setPolicyCodes([]);
-  };
-
-  const checkRatesLive = async () => {
-    if (!calcDest || !calcWeight) {
-      toast.error('Masukkan area tujuan dan berat paket');
-      return;
-    }
-    setCalcLoading(true);
-    try {
-      const res = await fetch('/api/admin/expeditions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'test-rate', destinationAreaId: calcDest, weightGrams: parseInt(calcWeight) })
-      });
-      const json = await res.json();
-      if (json.success && json.data?.rates) {
-        setCalcRates(json.data.rates);
-        toast.success('Berhasil memuat tarif');
-      } else {
-        toast.error(json.error || 'Gagal memuat tarif');
-      }
-    } catch (e) {
-      toast.error('Gagal menghubungi server');
-    } finally {
-      setCalcLoading(false);
-    }
   };
 
   const toggle = async (courier: CourierRule, field: 'enabled' | 'cod') => {
@@ -440,67 +408,6 @@ export function ExpeditionSettings() {
         </div>
       </section>
 
-      {/* Simulasi Ongkir */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-        <div className="border-b border-slate-100 pb-5">
-          <h2 className="text-lg font-black tracking-tight text-slate-950 flex items-center gap-2"><CalculatorIcon className="size-5" /> Simulasi Ongkir (Live)</h2>
-          <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">Gunakan fitur ini untuk mengetes respon ongkir Mengantar berdasarkan pengaturan kurir yang aktif.</p>
-        </div>
-        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-[1fr,1fr,auto] items-end">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700">ID Area Tujuan (Kecamatan)</label>
-            <Input type="text" placeholder="Misal: ID-3273050" value={calcDest} onChange={(e) => setCalcDest(e.target.value)} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700">Berat (gram)</label>
-            <Input type="number" min="1" placeholder="1000" value={calcWeight} onChange={(e) => setCalcWeight(e.target.value)} />
-          </div>
-          <Button onClick={checkRatesLive} disabled={calcLoading || !calcDest || !calcWeight} className="min-h-11">
-            {calcLoading ? <LoaderCircleIcon className="size-4 animate-spin mr-2" /> : <RefreshCwIcon className="size-4 mr-2" />} Cek Tarif Live
-          </Button>
-        </div>
-        {/* overflow-x-auto, not overflow-hidden: the three columns' min-content width
-            exceeds a 360px viewport, and clipping put the Tarif column — the only
-            output of this simulation — off-screen with no way to reach it.
-            overflow-x-auto still clips the rounded corners. */}
-        {calcRates.length > 0 && (
-          <div className="mt-5 border rounded-lg overflow-x-auto">
-             <table className="w-full min-w-[420px] text-sm text-left">
-               <thead className="bg-slate-50 text-xs uppercase font-black text-slate-500 border-b">
-                 <tr>
-                   <th className="px-4 py-3">Kurir & Layanan</th>
-                   <th className="px-4 py-3">Status</th>
-                   <th className="px-4 py-3 text-right">Tarif</th>
-                 </tr>
-               </thead>
-               <tbody className="divide-y divide-slate-100">
-                 {calcRates.map((rate, i) => {
-                    const isActive = rate.isEnabled;
-                    return (
-                      <tr key={i} className={isActive ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/50 opacity-75 grayscale-[50%]'}>
-                        <td className="px-4 py-3 font-semibold text-slate-900">
-                          <div className="flex items-center gap-2">
-                            <span className="font-black text-xs">{rate.courierName}</span>
-                            <span className="text-slate-500 text-xs">({rate.serviceName})</span>
-                            {rate.codAvailable && rate.isCodEnabled && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">COD</span>}
-                            {rate.codAvailable && !rate.isCodEnabled && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-400 font-bold" title="COD Dinonaktifkan">COD 🚫</span>}
-                          </div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">{rate.estimatedDays ? `Estimasi: ${rate.estimatedDays}` : 'Estimasi tidak tersedia'}</div>
-                        </td>
-                        <td className="px-4 py-3 align-middle">
-                          {isActive ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700"><span className="size-1.5 rounded-full bg-emerald-500"></span>Aktif</span> : <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600"><span className="size-1.5 rounded-full bg-slate-400"></span>Nonaktif</span>}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-slate-900 align-middle">
-                          Rp {rate.price.toLocaleString('id-ID')}
-                        </td>
-                      </tr>
-                    )
-                 })}
-               </tbody>
-             </table>
-          </div>
-        )}
-      </section>
     </div>
   );
 }

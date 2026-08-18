@@ -2,6 +2,12 @@ import { formatIdr } from "../lib/format-idr";
 import { pushGtmEcomEvent } from "../lib/gtm";
 import { isValidWa62 } from "../lib/validation";
 import { navigateAfterCheckout } from "../lib/checkout-navigation";
+import {
+  AbandonedLeadCaptureGate,
+  createAbandonedLeadFingerprint,
+  readAbandonedLeadFingerprints,
+  writeAbandonedLeadFingerprint,
+} from "../lib/abandoned-lead-session";
 
 type MiddleFormConfig = {
   instanceId: string;
@@ -232,22 +238,35 @@ export function initMiddleOrderForm(
       country: "id",
     });
   };
-  let hasRecordedAbandonedLead = false;
-  let abandonedTimer: ReturnType<typeof setTimeout> | null = null;
+  const abandonedCapture = new AbandonedLeadCaptureGate(
+    readAbandonedLeadFingerprints(sessionStorage),
+  );
+  let abandonedTimer: number | undefined;
 
   const maybeRecordAbandonedLead = () => {
-    if (hasRecordedAbandonedLead) return;
     const customerName = String(nameInput?.value || "").trim();
     const customerPhone = normalizePhone(String(phoneInput?.value || ""));
     if (customerName.length < 3 || !isValidWa62(customerPhone)) return;
 
-    if (abandonedTimer) clearTimeout(abandonedTimer);
-    abandonedTimer = setTimeout(() => {
-      hasRecordedAbandonedLead = true;
+    const fingerprint = createAbandonedLeadFingerprint({
+      customerName,
+      customerPhone,
+      productId,
+    });
+    if (!abandonedCapture.shouldStart(fingerprint)) return;
+
+    window.clearTimeout(abandonedTimer);
+    abandonedTimer = window.setTimeout(() => {
+      if (!abandonedCapture.start(fingerprint)) return;
       void fetch("/api/record-abandoned-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          website: String(
+            formRoot?.querySelector<HTMLInputElement>(
+              '[name="contact_url_confirm"]',
+            )?.value || "",
+          ),
           customer_name: customerName,
           customer_phone: customerPhone,
           product_id: productId,
@@ -255,9 +274,15 @@ export function initMiddleOrderForm(
           address: addressInput ? addressInput.value.trim() : "",
           province,
         }),
-      }).catch(() => {
-        hasRecordedAbandonedLead = false;
-      });
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error("Abandoned capture rejected.");
+          abandonedCapture.finish(fingerprint, true);
+          writeAbandonedLeadFingerprint(sessionStorage, fingerprint);
+        })
+        .catch(() => {
+          abandonedCapture.finish(fingerprint, false);
+        });
     }, 600);
   };
 
@@ -691,6 +716,7 @@ export function initMiddleOrderForm(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           submit_token: guardToken,
+          website: String(fd.get("contact_url_confirm") || ""),
           customer_name: customerName,
           customer_phone: customerPhone,
           address,

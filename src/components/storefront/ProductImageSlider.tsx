@@ -10,10 +10,10 @@ interface ProductImageSliderProps {
 export default function ProductImageSlider({
   images,
   productName,
-  badgeText = 'Bestseller',
+  badgeText,
   discountPercentage = 0,
 }: ProductImageSliderProps) {
-  const gallery = images && images.length > 0 ? images : ['/images/adsbook-mark.webp'];
+  const gallery = images.filter((image) => image.trim());
   const [activeIndex, setActiveIndex] = useState(0);
   const thumbnailRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const touchStartX = useRef<number | null>(null);
@@ -59,6 +59,7 @@ export default function ProductImageSlider({
     }
     touchStartX.current = null;
   };
+  if (!activeImage) return null;
 
   return (
     <div className="relative flex w-full select-none flex-row gap-2.5 sm:gap-3">

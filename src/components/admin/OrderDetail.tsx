@@ -1,13 +1,17 @@
 import { formatIdr } from "@/lib/format-idr";
+import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from "@/lib/payment-fee-policy";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
-import { type SyntheticEvent, useEffect, useMemo, useState } from "react";
+import { type SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
 import { buildWaUrl, defaultCrmTemplates, renderCrmMessage } from "../../lib/crm-template";
 import { CrmActionGroup } from "./CrmActionGroup";
 import { CRM_STEPS } from "./CrmActionButton";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/badge";
 import { Button, buttonVariants } from "../ui/button";
 import { Input } from "../ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Textarea } from "../ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { groupLocationResults } from "../../lib/location-search";
@@ -85,6 +89,7 @@ type Order = {
   destination_area_id: string | null;
   total_amount: number;
   shipping_cost: number;
+  discount_amount?: number;
   cod_service_fee: number;
   cod_service_fee_vat: number;
   cod_fee_bearer: "buyer" | "seller";
@@ -169,7 +174,8 @@ const paymentLabels: Record<string, string> = {
 
 const paymentMethodLabels: Record<string, string> = {
   cod: "COD",
-  bank_transfer: "Transfer bank",
+  manual_transfer: "Transfer bank manual",
+  bank_transfer: "Virtual Account",
   qris: "QRIS",
   invoice: "Pembayaran online",
 };
@@ -196,11 +202,15 @@ function EditCustomerDialog({
 }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("edit") === "shipping") {
+    if (!order.provider_order_id && new URLSearchParams(window.location.search).get("edit") === "shipping") {
       setOpen(true);
     }
-  }, []);
+  }, [order.provider_order_id]);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const submitErrorRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [showValidation, setShowValidation] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(false);
   const [searchLocation, setSearchLocation] = useState("");
   const [locations, setLocations] = useState<LocationOption[]>([]);
@@ -231,7 +241,15 @@ function EditCustomerDialog({
       postal_code: order.postal_code || "",
       destination_area_id: order.destination_area_id || "",
     });
+    setSearchLocation("");
+    setLocations([]);
+    setLocationError("");
+    setShowValidation(false);
   }, [order, open]);
+
+  useEffect(() => {
+    if (submitError) submitErrorRef.current?.focus();
+  }, [submitError]);
 
   const visibleLocations = useMemo(
     () =>
@@ -240,9 +258,12 @@ function EditCustomerDialog({
         : groupLocationResults(locations).map((group) => group.items[0]),
     [locations, useSubdistrict]
   );
-  const shippingEditable =
-    ["pending", "processing"].includes(order.shipping_status) &&
-    !order.provider_order_id;
+  const customerEditable = !order.provider_order_id;
+  const courierEditable =
+    customerEditable &&
+    order.payment_method === "cod" &&
+    order.shipping_status === "pending";
+  const locationEditable = courierEditable;
   const firstItem = order.items?.[0];
 
   useEffect(() => {
@@ -286,7 +307,7 @@ function EditCustomerDialog({
   useEffect(() => {
     if (
       !open ||
-      !shippingEditable ||
+      !courierEditable ||
       !formData.destination_area_id ||
       !firstItem
     ) {
@@ -319,7 +340,7 @@ function EditCustomerDialog({
             rate.courier_service === order.courier_service
         );
         setSelectedCourierServiceId(
-          current ? String(current.courier_service_id) : (rates[0] ? String(rates[0].courier_service_id) : "")
+          current ? String(current.courier_service_id) : ""
         );
       })
       .catch((reason) => {
@@ -343,30 +364,100 @@ function EditCustomerDialog({
     open,
     order.courier_code,
     order.courier_service,
-    shippingEditable,
+    courierEditable,
   ]);
 
   const selectedRate = shippingRates.find(
     (rate) => String(rate.courier_service_id) === selectedCourierServiceId
   );
+  const editableFields = [
+    "customer_name",
+    "customer_phone",
+    "address",
+    "district",
+    "city",
+    "province",
+    "postal_code",
+    "destination_area_id",
+  ] as const;
+  const customerDirty = editableFields.some(
+    (field) => formData[field].trim() !== String(order[field] || "").trim(),
+  );
+  const isFieldDirty = (field: (typeof editableFields)[number]) =>
+    formData[field].trim() !== String(order[field] || "").trim();
+  const fieldErrors = {
+    customer_name:
+      isFieldDirty("customer_name") && formData.customer_name.trim().length < 2
+        ? "Nama minimal 2 karakter."
+        : "",
+    customer_phone:
+      isFieldDirty("customer_phone") &&
+      !/^(08|628)\d{8,11}$/.test(formData.customer_phone.replace(/[^\d]/g, ""))
+        ? "Nomor HP harus berisi 10–13 digit, misalnya 081234567890."
+        : "",
+    address:
+      isFieldDirty("address") && formData.address.trim().length < 10
+        ? "Alamat lengkap minimal 10 karakter."
+        : "",
+    district:
+      isFieldDirty("district") && formData.district.trim().length < 2
+        ? "Pilih kecamatan dari hasil pencarian."
+        : "",
+    city:
+      isFieldDirty("city") && formData.city.trim().length < 2
+        ? "Kota/kabupaten belum valid."
+        : "",
+    province:
+      isFieldDirty("province") && formData.province.trim().length < 2
+        ? "Provinsi belum valid."
+        : "",
+    postal_code:
+      isFieldDirty("postal_code") &&
+      Boolean(formData.postal_code) &&
+      !/^\d{5}$/.test(formData.postal_code)
+        ? "Kode pos harus 5 digit."
+        : "",
+    destination_area_id: "",
+  } satisfies Record<(typeof editableFields)[number], string>;
+  const selectedRateChanged = Boolean(
+    courierEditable &&
+    selectedRate &&
+    (selectedRate.courier_code !== order.courier_code ||
+      selectedRate.courier_service !== order.courier_service ||
+      formData.destination_area_id !== String(order.destination_area_id || "")),
+  );
+  const locationChanged =
+    formData.destination_area_id.trim() !==
+    String(order.destination_area_id || "").trim();
+  const rateRequired = courierEditable && locationChanged && !selectedRate;
+  const formValid =
+    !Object.values(fieldErrors).some(Boolean) &&
+    !rateRequired;
 
   const handleSubmit = async (
     event: SyntheticEvent<HTMLFormElement, SubmitEvent>
   ) => {
     event.preventDefault();
+    setShowValidation(true);
+    if (!customerEditable || (!customerDirty && !selectedRateChanged)) return;
+    if (!formValid) {
+      window.requestAnimationFrame(() => {
+        formRef.current
+          ?.querySelector<HTMLElement>('[aria-invalid="true"], [data-validation-error="true"]')
+          ?.focus();
+      });
+      return;
+    }
     setLoading(true);
+    setSubmitError("");
     try {
-      const customerPayload = {
-        customer_name: formData.customer_name,
-        customer_phone: formData.customer_phone,
-        address: formData.address,
-        district: formData.district,
-        city: formData.city,
-        province: formData.province,
-        postal_code: formData.postal_code,
-      };
+      const customerPayload = Object.fromEntries(
+        editableFields
+          .filter((field) => formData[field].trim() !== String(order[field] || "").trim())
+          .map((field) => [field, formData[field].trim()]),
+      );
       const shippingPayload =
-        shippingEditable && selectedRate
+        selectedRateChanged && selectedRate
           ? {
               destination_area_id: formData.destination_area_id,
               courier_code: selectedRate.courier_code,
@@ -389,78 +480,131 @@ function EditCustomerDialog({
       setOpen(false);
       toast.success("Data pembeli dan pengiriman berhasil diperbarui.");
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Terjadi kesalahan."
-      );
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan.";
+      setSubmitError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <div className="flex flex-col items-end gap-1">
+    <Dialog open={open} onOpenChange={(nextOpen) => {
+      if (!loading) {
+        setSubmitError("");
+        setOpen(nextOpen);
+      }
+    }}>
       <DialogTrigger asChild>
         <Button
           type="button"
           variant="outline"
           size="sm"
+          disabled={!customerEditable}
+          title={!customerEditable ? "Data terkunci karena shipment Mengantar sudah dibuat." : undefined}
           className="h-8.5 px-3 rounded-lg border-slate-200 bg-white font-extrabold text-xs text-slate-700 hover:bg-slate-50"
         >
           <Edit3 className="mr-1.5 size-3.5 text-slate-500" />
           Edit Pembeli & Alamat
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto p-0 sm:max-w-[600px] rounded-2xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto p-0 sm:max-w-2xl rounded-2xl">
         <DialogHeader className="border-b border-slate-100 px-6 py-4 text-left">
           <DialogTitle className="text-base font-black text-slate-900">
             Edit Pembeli & Pengiriman
           </DialogTitle>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Perbarui nama, nomor WA, alamat penerima, dan tarif kurir pengiriman.
-          </p>
+          <DialogDescription className="text-xs">
+            Data pembeli dapat diperbarui sebelum shipment dibuat. Kurir hanya dapat diganti untuk order COD yang masih menunggu.
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+        <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4 px-6 py-5">
+          {submitError && (
+            <div ref={submitErrorRef} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800" role="alert" tabIndex={-1}>
+              {submitError}
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block space-y-1 text-xs font-bold text-slate-700">
               <span>Nama Lengkap</span>
               <Input
+                id="edit-customer-name"
+                name="customer_name"
                 value={formData.customer_name}
                 onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+                autoComplete="name"
+                maxLength={100}
+                aria-invalid={showValidation && Boolean(fieldErrors.customer_name)}
+                aria-describedby={fieldErrors.customer_name ? "edit-customer-name-error" : undefined}
                 className="h-10 text-xs font-bold"
-                required
               />
+              {showValidation && fieldErrors.customer_name && (
+                <span id="edit-customer-name-error" className="block text-[11px] font-semibold text-rose-700">
+                  {fieldErrors.customer_name}
+                </span>
+              )}
             </label>
             <label className="block space-y-1 text-xs font-bold text-slate-700">
               <span>Nomor WhatsApp / HP</span>
               <Input
+                id="edit-customer-phone"
+                name="customer_phone"
                 value={formData.customer_phone}
                 onChange={(e) => setFormData({ ...formData, customer_phone: e.target.value })}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                maxLength={40}
+                aria-invalid={showValidation && Boolean(fieldErrors.customer_phone)}
+                aria-describedby={fieldErrors.customer_phone ? "edit-customer-phone-error" : undefined}
                 className="h-10 text-xs font-bold font-mono"
-                required
               />
+              {showValidation && fieldErrors.customer_phone && (
+                <span id="edit-customer-phone-error" className="block text-[11px] font-semibold text-rose-700">
+                  {fieldErrors.customer_phone}
+                </span>
+              )}
             </label>
           </div>
 
           <label className="block space-y-1 text-xs font-bold text-slate-700">
             <span>Alamat Jalan / Rumah</span>
-            <Input
+            <Textarea
+              id="edit-customer-address"
+              name="address"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="h-10 text-xs font-medium"
+              autoComplete="street-address"
+              maxLength={500}
+              aria-invalid={showValidation && Boolean(fieldErrors.address)}
+              aria-describedby={fieldErrors.address ? "edit-customer-address-error" : undefined}
+              className="min-h-24 resize-y text-xs font-medium"
               placeholder="Contoh: Jl. Merdeka No. 12 RT 01/02"
-              required
             />
+            {showValidation && fieldErrors.address && (
+              <span id="edit-customer-address-error" className="block text-[11px] font-semibold text-rose-700">
+                {fieldErrors.address}
+              </span>
+            )}
           </label>
 
           <div className="space-y-2 border-t border-slate-100 pt-3">
             <label className="block space-y-1 text-xs font-bold text-slate-700">
               <span>Cari Kecamatan / Kota</span>
               <Input
+                id="edit-customer-location-search"
                 value={searchLocation}
                 onChange={(e) => setSearchLocation(e.target.value)}
+                disabled={!locationEditable}
+                type="search"
                 placeholder="Ketik minimal 2 huruf (contoh: Kebayoran Baru)"
+                aria-controls="edit-customer-location-results"
+                aria-describedby="edit-customer-location-help"
                 className="h-10 text-xs"
               />
+              <span id="edit-customer-location-help" className="block text-[11px] font-medium text-slate-500">
+                Pilih hasil pencarian agar kecamatan, kota, provinsi, dan ID tujuan tetap sinkron.
+              </span>
             </label>
 
             {isSearchingLocations && (
@@ -471,7 +615,7 @@ function EditCustomerDialog({
             )}
 
             {visibleLocations.length > 0 && (
-              <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 space-y-1">
+              <div id="edit-customer-location-results" className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 space-y-1" aria-label="Hasil pencarian lokasi">
                 {visibleLocations.map((loc) => (
                   <button
                     key={loc.id}
@@ -503,7 +647,7 @@ function EditCustomerDialog({
                 <span className="text-[10px] font-bold uppercase text-slate-400">Kecamatan</span>
                 <Input
                   value={formData.district}
-                  onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+                  readOnly
                   placeholder="Nama kecamatan"
                   className="h-8 text-xs font-semibold"
                 />
@@ -512,7 +656,7 @@ function EditCustomerDialog({
                 <span className="text-[10px] font-bold uppercase text-slate-400">Kota / Kab</span>
                 <Input
                   value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  readOnly
                   placeholder="Nama kota/kabupaten"
                   className="h-8 text-xs font-semibold"
                 />
@@ -521,7 +665,7 @@ function EditCustomerDialog({
                 <span className="text-[10px] font-bold uppercase text-slate-400">Provinsi</span>
                 <Input
                   value={formData.province}
-                  onChange={(e) => setFormData({ ...formData, province: e.target.value })}
+                  readOnly
                   placeholder="Nama provinsi"
                   className="h-8 text-xs font-semibold"
                 />
@@ -530,7 +674,7 @@ function EditCustomerDialog({
                 <span className="text-[10px] font-bold uppercase text-slate-400">Kode Pos</span>
                 <Input
                   value={formData.postal_code}
-                  onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                  readOnly
                   placeholder="5 digit"
                   className="h-8 text-xs font-semibold font-mono"
                 />
@@ -558,7 +702,7 @@ function EditCustomerDialog({
                 <div className="h-12 w-full rounded-xl bg-slate-100 animate-pulse border border-slate-200" />
               </div>
             ) : shippingRates.length > 0 ? (
-              <div className="grid-cols-1 grid gap-2 max-h-52 overflow-y-auto pr-1">
+              <div className="grid-cols-1 grid gap-2 max-h-52 overflow-y-auto pr-1" role="radiogroup" aria-label="Pilihan kurir dan ongkir">
                 {shippingRates.map((rate) => {
                   const isSelected = String(rate.courier_service_id) === selectedCourierServiceId;
                   return (
@@ -566,6 +710,8 @@ function EditCustomerDialog({
                       key={rate.courier_service_id}
                       type="button"
                       onClick={() => setSelectedCourierServiceId(String(rate.courier_service_id))}
+                      role="radio"
+                      aria-checked={isSelected}
                       className={cn(
                         "w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between",
                         isSelected
@@ -604,7 +750,7 @@ function EditCustomerDialog({
                   );
                 })}
               </div>
-            ) : !shippingEditable ? (
+            ) : !courierEditable ? (
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
                 <span className="font-bold block text-slate-800">Biaya Ongkir Terkunci</span>
                 <span>
@@ -624,6 +770,16 @@ function EditCustomerDialog({
                 Cari & pilih kecamatan pada kolom pencarian di atas untuk menampilkan opsi kurir & biaya pengiriman.
               </p>
             )}
+            {showValidation && rateRequired && (
+              <p
+                tabIndex={-1}
+                data-validation-error="true"
+                className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800"
+                role="alert"
+              >
+                Pilih layanan kurir untuk lokasi COD yang baru sebelum menyimpan.
+              </p>
+            )}
           {/* Ringkasan Real-Time Total Order (Preview) */}
           {(() => {
             const itemTotal =
@@ -634,7 +790,14 @@ function EditCustomerDialog({
             const newShippingCost = selectedRate
               ? Number(selectedRate.shipping_cost || 0)
               : Number(order.shipping_cost || 0);
-            const newTotalAmount = itemTotal + newShippingCost;
+            const discount = Number(order.discount_amount || 0);
+            const orderAmount = Math.max(0, itemTotal - discount + newShippingCost);
+            const codFee = order.payment_method === "cod"
+              ? calculateCodFeeBreakdown(orderAmount)
+              : null;
+            const newTotalAmount = order.payment_method === "cod"
+              ? calculateCodCustomerTotal(orderAmount, order.cod_fee_bearer)
+              : orderAmount;
             return (
               <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-1.5 text-xs">
                 <span className="font-bold text-slate-700 text-[10px] uppercase tracking-wider block">
@@ -648,6 +811,18 @@ function EditCustomerDialog({
                   <span>Biaya Pengiriman (Ongkir Baru)</span>
                   <span className="font-semibold text-emerald-700">{currency(newShippingCost)}</span>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Diskon</span>
+                    <span className="font-semibold text-slate-900">−{currency(discount)}</span>
+                  </div>
+                )}
+                {codFee && order.cod_fee_bearer === "buyer" && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Fee COD + PPN</span>
+                    <span className="font-semibold text-slate-900">{currency(codFee.totalFee)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-black text-sm text-slate-900 pt-1.5 border-t border-slate-200">
                   <span>Total Tagihan Order</span>
                   <span className="text-emerald-700">{currency(newTotalAmount)}</span>
@@ -657,7 +832,7 @@ function EditCustomerDialog({
           })()}
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <DialogFooter className="border-t border-slate-100 pt-4">
             <Button
               type="button"
               variant="outline"
@@ -669,15 +844,21 @@ function EditCustomerDialog({
             </Button>
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || (!customerDirty && !selectedRateChanged)}
               className="h-10 text-xs font-bold"
             >
               {loading ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+    {!customerEditable && (
+      <span className="max-w-52 text-right text-[10px] leading-snug text-slate-500">
+        Terkunci: shipment Mengantar sudah dibuat.
+      </span>
+    )}
+    </div>
   );
 }
 
@@ -1100,17 +1281,17 @@ export function OrderDetail({ invoice }: { invoice: string }) {
         <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${paymentStatusStyle}`}>
+              <Badge variant="outline" className={`gap-1.5 text-[10px] font-black uppercase tracking-wider ${paymentStatusStyle}`}>
                 <span className={`size-1.5 shrink-0 rounded-full ${paymentDotColor}`} aria-hidden="true" />
                 {paymentLabels[paymentStatus] || order.payment_status}
-              </span>
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${shippingStatusBadges[order.shipping_status] || "bg-slate-100 text-slate-800"}`}>
+              </Badge>
+              <Badge variant="outline" className={`gap-1.5 text-[10px] font-black uppercase tracking-wider ${shippingStatusBadges[order.shipping_status] || "bg-slate-100 text-slate-800"}`}>
                 <span className={`size-1.5 shrink-0 rounded-full ${shippingStatusDots[order.shipping_status] || "bg-slate-400"}`} aria-hidden="true" />
                 {shippingLabels[order.shipping_status] || order.shipping_status}
-              </span>
-              <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${risk.style}`}>
+              </Badge>
+              <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-wider ${risk.style}`}>
                 {risk.label}
-              </span>
+              </Badge>
               <TrafficSourceBadge adClickIds={order.ad_click_ids} />
             </div>
 
@@ -1147,18 +1328,22 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-600">Status:</span>
-              <select
+              <Select
                 value={order.shipping_status}
                 disabled={saving}
-                onChange={(event) => void updateStatus(event.target.value)}
-                className="h-9.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-900 shadow-xs focus:border-slate-400 focus:outline-none"
+                onValueChange={(value) => value && void updateStatus(value)}
               >
-                {statusOptions.map((value) => (
-                  <option key={value} value={value}>
-                    {shippingLabels[value] || value}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-10 min-w-44 text-xs font-bold">
+                  <SelectValue>{shippingLabels[order.shipping_status] || order.shipping_status}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {shippingLabels[value] || value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {safePhone && (

@@ -53,6 +53,20 @@ test('live six-digit catalog ids reach Meta', () => {
   }
 });
 
+test('catalog ids are decimal Product IDs with a five-digit minimum', () => {
+  for (const id of ['9999', '010000', 'p10000', 'product-slug']) {
+    assert.equal(
+      validateMetaEventPayload({ ...wirePayload, product_id: id }, requestUrl).ok,
+      false,
+      `catalog id ${id} must be rejected`,
+    );
+  }
+  assert.equal(
+    validateMetaEventPayload({ ...wirePayload, product_id: '10000' }, requestUrl).ok,
+    true,
+  );
+});
+
 test('match signals survive the contract instead of being dropped', () => {
   const result = validateMetaEventPayload(wirePayload, requestUrl);
   assert.equal(result.ok, true);
@@ -93,6 +107,32 @@ test('malformed browser cookies are dropped without failing the event', () => {
   if (!result.ok) return;
   assert.equal(result.value.fbp, undefined);
   assert.equal(result.value.fbc, undefined);
+});
+
+test('an allowlisted external storefront can preserve its real event source', () => {
+  const externalPayload = {
+    ...wirePayload,
+    event_source_url: 'https://storefront.example/confirmation?order=INV-10001',
+  };
+  const apiUrl = 'https://cms.example/api/v1/tracking/events';
+
+  const accepted = validateMetaEventPayload(
+    externalPayload,
+    apiUrl,
+    'https://storefront.example',
+  );
+  assert.equal(accepted.ok, true);
+  if (accepted.ok) {
+    assert.equal(
+      accepted.value.eventSourceUrl,
+      'https://storefront.example/confirmation',
+    );
+  }
+
+  assert.equal(
+    validateMetaEventPayload(externalPayload, apiUrl, 'https://other.example').ok,
+    false,
+  );
 });
 
 test('poisoning inputs are rejected before transport', () => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "../ui/card";
 import { Button } from "../ui/button";
+import { Skeleton } from "../ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../ui/chart';
 import {
   Select,
@@ -27,6 +28,7 @@ import {
   BadgeDollarSign,
   CalendarDays,
   CircleCheckBig,
+  CreditCard,
   PackageCheck,
   RefreshCw,
   RotateCcw,
@@ -48,8 +50,25 @@ type AnalyticsData = {
   cod_percentage: number;
   transfer_percentage: number;
   qris_percentage: number;
+  payment_methods: {
+    total: number;
+    cod: PaymentMethodBucket;
+    manual_transfer: PaymentMethodBucket;
+    virtual_account: PaymentMethodBucket;
+    qris: PaymentMethodBucket;
+    unknown_count: number;
+  };
+  period: {
+    start_date: string | null;
+    end_date: string | null;
+    timezone: string;
+    basis: string;
+    interval: "hour" | "day";
+  };
   trends: Array<{ date: string; revenue: number; orders: number }>;
 };
+
+type PaymentMethodBucket = { count: number; percentage: number };
 
 const currency = new Intl.NumberFormat("id-ID", {
   style: "currency",
@@ -68,13 +87,10 @@ function LoadingState() {
     >
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white p-4"
-          />
+          <Skeleton key={index} className="h-32 rounded-2xl" />
         ))}
       </div>
-      <div className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+      <Skeleton className="h-72 rounded-2xl" />
     </div>
   );
 }
@@ -87,6 +103,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
   const [dateFilter, setDateFilter] = useState("7d");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const requestSequence = useRef(0);
   const today = formatJakartaDate(new Date());
   const customEndMax = customStart
     ? [shiftAdminDate(customStart, 30), today].sort()[0]
@@ -98,6 +115,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
       showLoading = false,
       customRange?: { start: string; end: string },
     ) => {
+      const sequence = ++requestSequence.current;
       if (showLoading) setLoading(true);
       else setRefreshing(true);
       setError("");
@@ -131,7 +149,16 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success)
           throw new Error(payload.error || "Ringkasan analitik gagal dimuat.");
+        if (sequence !== requestSequence.current) return;
         const source = payload.data ?? {};
+        const sourcePayments = source.payment_methods ?? {};
+        const bucket = (value: unknown): PaymentMethodBucket => {
+          const item = value && typeof value === "object" ? value as Record<string, unknown> : {};
+          return {
+            count: Number(item.count) || 0,
+            percentage: Number(item.percentage) || 0,
+          };
+        };
         setData({
           total_revenue: Number(source.total_revenue) || 0,
           total_orders: Number(source.total_orders) || 0,
@@ -140,15 +167,32 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
           cod_percentage: Number(source.cod_percentage) || 0,
           transfer_percentage: Number(source.transfer_percentage) || 0,
           qris_percentage: Number(source.qris_percentage) || 0,
+          payment_methods: {
+            total: Number(sourcePayments.total) || 0,
+            cod: bucket(sourcePayments.cod),
+            manual_transfer: bucket(sourcePayments.manual_transfer),
+            virtual_account: bucket(sourcePayments.virtual_account),
+            qris: bucket(sourcePayments.qris),
+            unknown_count: Number(sourcePayments.unknown_count) || 0,
+          },
+          period: {
+            start_date: typeof source.period?.start_date === "string" ? source.period.start_date : null,
+            end_date: typeof source.period?.end_date === "string" ? source.period.end_date : null,
+            timezone: String(source.period?.timezone || "Asia/Jakarta"),
+            basis: String(source.period?.basis || "order_created_at"),
+            interval: source.period?.interval === "hour" ? "hour" : "day",
+          },
           trends: Array.isArray(source.trends) ? source.trends : [],
         });
       } catch (reason) {
+        if (sequence !== requestSequence.current) return;
         setError(
           reason instanceof Error
             ? reason.message
             : "Ringkasan analitik gagal dimuat.",
         );
       } finally {
+        if (sequence !== requestSequence.current) return;
         if (showLoading) setLoading(false);
         else setRefreshing(false);
       }
@@ -223,23 +267,39 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
   const payments = [
     {
       name: "COD",
-      value: data.cod_percentage,
+      ...data.payment_methods.cod,
       bar: "bg-blue-600",
-      countLabel: "Bayar saat barang diterima",
+      detail: "Bayar saat barang diterima",
     },
     {
-      name: "Transfer Bank",
-      value: data.transfer_percentage,
-      bar: "bg-blue-600",
-      countLabel: "Virtual Account AutoLaris",
+      name: "Transfer bank manual",
+      ...data.payment_methods.manual_transfer,
+      bar: "bg-emerald-600",
+      detail: "Langsung ke rekening seller · tanpa rekonsiliasi AutoLaris",
+    },
+    {
+      name: "Virtual Account",
+      ...data.payment_methods.virtual_account,
+      bar: "bg-violet-600",
+      detail: "Pembayaran dan rekonsiliasi AutoLaris",
     },
     {
       name: "QRIS",
-      value: data.qris_percentage,
+      ...data.payment_methods.qris,
       bar: "bg-slate-500",
-      countLabel: "QR dan e-wallet",
+      detail: "Pembayaran dan rekonsiliasi AutoLaris",
     },
   ];
+
+  const customRangeValid = Boolean(
+    customStart &&
+    customEnd &&
+    customStart <= customEnd &&
+    customEnd <= customEndMax,
+  );
+  const periodLabel = data.period.start_date && data.period.end_date
+    ? `${data.period.start_date.split("-").reverse().join("/")}–${data.period.end_date.split("-").reverse().join("/")} · WIB`
+    : "Semua pesanan checkout · WIB";
 
 
   return (
@@ -290,7 +350,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
                   : undefined,
               )
             }
-            disabled={refreshing}
+            disabled={refreshing || (dateFilter === "custom" && !customRangeValid)}
             aria-label="Perbarui data dashboard"
             aria-busy={refreshing}
             className="size-11 shrink-0 border border-slate-200 bg-white shadow-none"
@@ -338,10 +398,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
               })
             }
             disabled={
-              !customStart ||
-              !customEnd ||
-              customStart > customEnd ||
-              customEnd > customEndMax ||
+              !customRangeValid ||
               loading ||
               refreshing
             }
@@ -361,7 +418,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
           className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800"
           role="alert"
         >
-          {error}
+          {error}{data ? " Data periode terakhir yang berhasil dimuat tetap ditampilkan." : ""}
         </div>
       )}
 
@@ -439,8 +496,8 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
                         tickFormatter={(value) => {
                           if (value.includes(":"))
                             return value.split(" ")[1].substring(0, 5);
-                          const date = new Date(value);
-                          return `${date.getDate()}/${date.getMonth() + 1}`;
+                          const [year, month, day] = String(value).slice(0, 10).split("-");
+                          return year && month && day ? `${Number(day)}/${Number(month)}` : value;
                         }}
                         tickLine={false}
                         axisLine={false}
@@ -479,36 +536,46 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
               Metode pembayaran
             </CardTitle>
             <CardDescription className="text-xs">
-              Komposisi transaksi pada periode aktif.
+              Pesanan dibuat, {periodLabel}.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 p-5">
-            {payments.map((item) => (
+            {data.payment_methods.total === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
+                <CreditCard className="mx-auto size-5 text-slate-400" aria-hidden="true" />
+                <p className="mt-2 text-xs font-semibold text-slate-800">Belum ada pesanan selesai checkout pada periode ini.</p>
+              </div>
+            ) : payments.map((item) => (
               <div key={item.name}>
                 <div className="flex items-end justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-xs font-medium text-slate-800">
                       {item.name}
                     </p>
-                    <p className="mt-0.5 truncate text-[10px] text-slate-500">
-                      {item.countLabel}
+                    <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                      {item.detail}
                     </p>
                   </div>
                   <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-950">
-                    {percentage(item.value)}
+                    {item.count.toLocaleString("id-ID")} pesanan · {percentage(item.percentage)}
                   </span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
                   <div
                     className={`h-full rounded-full ${item.bar}`}
                     style={{
-                      width: `${Math.max(0, Math.min(100, item.value))}%`,
+                      width: `${Math.max(0, Math.min(100, item.percentage))}%`,
                     }}
                     aria-hidden="true"
                   />
                 </div>
               </div>
             ))}
+            {data.payment_methods.unknown_count > 0 && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">
+                {data.payment_methods.unknown_count.toLocaleString("id-ID")} pesanan memakai metode pembayaran legacy yang belum dipetakan.
+              </p>
+            )}
             {showPaymentsLink && (
               <a href="/admin/payments" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
                 Kelola payment

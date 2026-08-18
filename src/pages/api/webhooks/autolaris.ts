@@ -85,10 +85,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   try {
-    const reconciliation = await reconcileAutoLarisPaidPayment(database, {
-      providerTransactionId: parsed.data.trx_id,
-      referenceId: parsed.data.reff_id || parsed.data.order_id,
-    });
+    const reconciliation = await reconcileAutoLarisPaidPayment(
+      database,
+      locals,
+      {
+        providerTransactionId: parsed.data.trx_id,
+        referenceId: parsed.data.reff_id || parsed.data.order_id,
+      },
+    );
     return json({
       success: true,
       order_id: reconciliation.orderNumber,

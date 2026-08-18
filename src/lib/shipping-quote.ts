@@ -1,11 +1,11 @@
 import {
   isCourierRateEnabled,
   type CourierAvailabilityRule,
-} from "./courier-rules";
-import { getEnvValue, getRuntimeEnv } from "./env";
-import { MengantarClient, type CourierRateResult } from "./mengantar-client";
-import { getProviderConfig } from "./provider-config";
-import { buildCityAverageFallbackRate } from "./shipping-fallback";
+} from "./courier-rules.ts";
+import { getEnvValue, getRuntimeEnv } from "./env.ts";
+import { MengantarClient, type CourierRateResult } from "./mengantar-client.ts";
+import { getProviderConfig } from "./provider-config.ts";
+import { buildCityAverageFallbackRate } from "./shipping-fallback.ts";
 
 export type ShippingQuoteInput = {
   destinationId: string;
@@ -18,12 +18,13 @@ export type ShippingQuoteInput = {
 };
 
 export class ShippingQuoteError extends Error {
-  constructor(
-    message: string,
-    readonly code: string,
-    readonly status: number,
-  ) {
+  readonly code: string;
+  readonly status: number;
+
+  constructor(message: string, code: string, status: number) {
     super(message);
+    this.code = code;
+    this.status = status;
   }
 }
 

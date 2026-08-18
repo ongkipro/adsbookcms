@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A11 working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -49,7 +49,7 @@ npm run check     # astro check && tsc --noEmit
 npm run build     # astro build
 ```
 
-Current verified working-tree baseline: **310 tests passing**, `tsc` clean, `astro check` 318 files, 0 errors / 0 warnings / 0 hints.
+Current verified working-tree baseline: **356 tests passing**, `tsc` clean, `astro check` 336 files, 0 errors / 0 warnings / 0 hints.
 
 A green build is not proof the storefront works. For any browser-visible change, open the affected page before merging. Neither `tsc` nor `astro check` catches a route that fails to compose — an unterminated `.astro` frontmatter block silently produced a 404 on `/disclaimer` while every static check stayed green.
 
@@ -57,19 +57,26 @@ A green build is not proof the storefront works. For any browser-visible change,
 
 ## 3. Database migrations
 
-Migrations are **not** applied by CI. They are a separate, explicitly approved step.
+The Worker bundle contains the exact SQL from `src/db/migrations/`. Before a
+database-backed request reaches route code, middleware validates `d1_migrations`
+against that chain and atomically applies a valid missing suffix. Each migration's
+statements and claim row execute in one D1 batch, so concurrent first requests
+cannot claim success around a partial schema.
+
+Operators may still apply the same chain explicitly as a preflight:
 
 ```bash
-npm run db:migrate:local    # wrangler d1 migrations apply OMS_DB --local
-npm run db:migrate:remote   # wrangler d1 migrations apply OMS_DB --remote  ← production
+npm run db:migrate:local
+npm run db:migrate:remote   # production D1 — approval required
 ```
 
-`wrangler d1 migrations apply` reads the `src/db/migrations/` directory. Rules:
+Rules:
 
-- **Never edit an applied migration in place.** A database that already ran `0017` will never see your edit. Corrections ship as a new forward migration.
+- **Never edit an applied migration in place.** Corrections ship as a new forward migration.
 - **Write migrations by hand.** There is no generator; Drizzle was retired (ADR-005).
-- **Apply the migration before deploying code that depends on it.** Deploy and migration are independent operations against the same live store.
-- `src/db/migrations/` is the only migration directory. A duplicate previously sat at the repository root outside the configured `migrations_dir`; it was removed on 2026-08-16 and the test fixture that read it now points at the canonical copy.
+- **Keep every migration backward-compatible with the previous Worker bundle.** A Worker rollback cannot roll schema back.
+- `src/db/migrations/` is the only migration directory.
+- Invalid, unknown, or ahead history fails closed with `SCHEMA_UPGRADE_*`; never bypass the gate.
 
 ---
 
@@ -81,16 +88,15 @@ Two registries, currently in step:
 | --- | --- | --- |
 | `src/lib/version.ts` | `version` | `1.2.0` |
 | `src/lib/version.ts` | `releaseTag` | `2026.08-hardened` |
-| `src/lib/version.ts` | `schemaVersion` | `37` |
+| `src/lib/version.ts` | `schemaVersion` | `41` |
 | `package.json` | `version` | `1.2.0` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration *files*, and the tree holds 37 (`0000`–`0036`),
-so it matches. It is **enforced**, not merely declared: `schema-version.test.ts`
-counts the directory and fails CI on drift, `operational-health.ts` reads it, and
-`dashboard.astro` surfaces a mismatch to the operator.
+`schemaVersion` counts migration files, and the tree holds 41 (`0000`–`0040`).
+`schema-version.test.ts` fails CI on drift; middleware enforces the same chain at
+runtime; `operational-health.ts` and the dashboard expose applied version.
 
 > This section previously declared the two drifted (`34` against `36`) and said
 > `schemaVersion` was "read by nothing in `src/`". Both were false, and acting on
@@ -118,8 +124,8 @@ There is no automated rollback. Options, in order of preference:
 
 ## 6. What deploying does not do
 
-- It does not apply migrations (§3).
-- It does not seed or modify catalog data.
+- It does not require a separate migration command; runtime applies a valid missing suffix on the first database-backed request. An explicit preflight is still a separate approved production action.
+- It does not seed or modify catalog data beyond forward migration logic.
 - It does not rotate secrets. Worker secrets are set out of band and are never in `wrangler.jsonc`.
 - It does not touch provider state at Mengantar or AutoLaris.
 
@@ -172,14 +178,18 @@ git fetch product                       # or `git fetch origin` in shape A
 git merge product/main                  # resolve conflicts; keep the install's config
 npm ci                                  # only if the lockfile moved
 npm run check && npm test               # gates, before touching anything live
-npm run db:migrate:remote               # ONLY if new migrations arrived — separate approval
 npm run build                           # identity is runtime-owned; this is code only
 npx wrangler deploy
+# optional before deploy, when the operator wants explicit schema preflight:
+npm run db:migrate:remote               # separate production approval
 ```
 
-### Why the order is not negotiable
+### Why the order is safe
 
-**Migrations precede the deploy.** Code that reads a new column will fail against a database that does not have it yet. Migrations never ride along with a deploy; they are a separate, separately approved step (§3).
+**Runtime owns schema readiness.** A newly deployed Worker validates and applies
+the bundled missing suffix before route code sees D1. Explicit migration remains
+useful as a pre-deploy failure check, but it is not a hidden prerequisite for a
+working install.
 
 **Identity is not in the build.** It was, and gap G1 tracked that; the `stores`
 row now owns it (migration `0036`, `readStoreIdentity`), resolved per request in

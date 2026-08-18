@@ -20,179 +20,170 @@ export interface CatalogVariantRow {
   stock?: number | null;
 }
 
-function variantLabel(productTitle: string, variantTitle: string): string {
-  const cleanVariant = variantTitle.trim();
-  return cleanVariant || productTitle.trim();
-}
+type PublicationProduct = {
+  title?: string | null;
+  slug?: string | null;
+  image_url?: string | null;
+};
 
-function getCatalogProductDetails(title: string, category: string) {
-  const categoryLabel = category.trim() || "Produk";
-  return {
-    subheadline: `Pilih varian ${title} berdasarkan opsi dan harga yang tersedia.`,
-    description: `${title} tercantum dalam kategori ${categoryLabel}. Detail yang ditampilkan mengikuti data katalog toko.`,
-    benefits: [],
-    keyPoints: [],
-    idealFor: [],
-  };
+type PublicationVariant = {
+  title?: string | null;
+  price?: number | null;
+  stock?: number | null;
+};
+
+export function getPublicProductValidationError(
+  product: PublicationProduct,
+  variants: readonly PublicationVariant[],
+): string | null {
+  if (!product.title?.trim()) {
+    return "Produk aktif wajib memiliki judul.";
+  }
+  if (!product.slug?.trim()) {
+    return "Produk aktif wajib memiliki slug.";
+  }
+  if (!product.image_url?.trim()) {
+    return "Produk aktif wajib memiliki gambar.";
+  }
+  if (
+    !variants.some(
+      (variant) =>
+        Boolean(variant.title?.trim()) &&
+        Number.isSafeInteger(variant.price) &&
+        Number(variant.price) > 0 &&
+        Number.isSafeInteger(variant.stock) &&
+        Number(variant.stock) > 0,
+    )
+  ) {
+    return "Produk aktif wajib memiliki minimal 1 varian valid dan tersedia.";
+  }
+  return null;
 }
 
 export function mergeStorefrontCatalog(
-  editorialProducts: Product[],
   productRows: CatalogProductRow[],
-  variantRows: CatalogVariantRow[]
-) {
+  variantRows: CatalogVariantRow[],
+  runtimePresentations: Product[] = [],
+): Product[] {
   const variantsByProduct = new Map<number, CatalogVariantRow[]>();
   for (const variant of variantRows) {
-    if (!variant.product_id) continue;
+    if (!Number.isSafeInteger(variant.product_id) || variant.product_id <= 0) {
+      continue;
+    }
     const existing = variantsByProduct.get(variant.product_id) ?? [];
     existing.push(variant);
     variantsByProduct.set(variant.product_id, existing);
   }
 
-  const matchedProductIds = new Set<string>();
-
-  const catalog = editorialProducts.flatMap((editorialProduct) => {
-    const matchedRow = productRows.find(
-      (row) =>
-        row.slug === editorialProduct.slug ||
-        row.id === editorialProduct.catalogId ||
-        String(row.id) === editorialProduct.productId ||
-        row.title.toLowerCase().trim() === editorialProduct.productName.toLowerCase().trim()
-    );
-
-    if (productRows.length > 0 && !matchedRow) {
-      return [];
-    }
-    if (matchedRow && !matchedRow.is_active) {
-      return [];
-    }
-
-    if (matchedRow) {
-      matchedProductIds.add(String(matchedRow.id));
-    }
-
-    const availableVariants = matchedRow
-      ? variantsByProduct.get(matchedRow.id) ?? []
-      : [];
-
-    if (matchedRow && availableVariants.length === 0) {
-      return [];
-    }
-
-    const productName = matchedRow?.title?.trim() || editorialProduct.productName;
-    const slug = matchedRow?.slug?.trim() || editorialProduct.slug;
-    const category = matchedRow?.category?.trim() || editorialProduct.category;
-
-    const variants =
-      availableVariants.length > 0
-        ? availableVariants
-            .filter((variant) => variant.price > 0 && (variant.stock === null || variant.stock === undefined || variant.stock > 0))
-            .map((variant) => {
-              const comparePrice =
-                variant.compare_price && variant.compare_price > variant.price
-                  ? variant.compare_price
-                  : undefined;
-              return {
-                catalogId: variant.id,
-                ...(variant.sku ? { sku: variant.sku } : {}),
-                id: String(variant.id),
-                label: variantLabel(productName, variant.title),
-                price: variant.price,
-                ...(comparePrice ? { comparePrice } : {}),
-              };
-            })
-        : editorialProduct.variants;
-
-    if (variants.length === 0) return [];
-
-    const firstVariant = variants[0];
-    const image = matchedRow?.image_url || editorialProduct.image || editorialProduct.heroImage;
-
-    const baseDir = image.endsWith("/1.webp") ? image.slice(0, -7) : null;
-    const galleryImages = baseDir
-      ? [1, 2, 3, 4, 5, 6, 7].map((num) => `${baseDir}/${num}.webp`)
-      : editorialProduct.images || [image];
-
-    return [
-      {
-        ...editorialProduct,
-        ...(matchedRow ? { catalogId: matchedRow.id, productId: String(matchedRow.id) } : {}),
-        productName,
-        slug,
-        category,
-        price: firstVariant.price,
-        ...(firstVariant.comparePrice ? { comparePrice: firstVariant.comparePrice } : {}),
-        image,
-        heroImage: image,
-        images: galleryImages,
-        variants,
-      },
-    ];
-  });
-
-  for (const product of productRows) {
-    const productId = String(product.id);
-    if (!product.is_active || matchedProductIds.has(productId)) continue;
-
-    const productName = product.title.trim() || `Produk #${product.id}`;
-    const variants = (variantsByProduct.get(product.id) ?? [])
-      .filter((variant) => variant.price > 0 && (variant.stock === null || variant.stock === undefined || variant.stock > 0))
-      .map((variant) => {
-        // Compare price is merchant data or nothing. Never synthesised.
-        const comparePrice =
-          variant.compare_price && variant.compare_price > variant.price
-            ? variant.compare_price
-            : undefined;
-        return {
-          catalogId: variant.id,
-          ...(variant.sku ? { sku: variant.sku } : {}),
-          id: String(variant.id),
-          label: variantLabel(productName, variant.title),
-          price: variant.price,
-          ...(comparePrice ? { comparePrice } : {}),
-        };
-      });
-
-    if (variants.length === 0) continue;
-
-    const firstVariant = variants[0];
-    const image = product.image_url || "/images/adsbook-mark.webp";
-
-    const categoryLabel = product.category?.trim() || "Produk";
-    const details = getCatalogProductDetails(productName, categoryLabel);
-
-    catalog.push({
-      catalogId: product.id,
-      productId,
-      slug: product.slug,
-      productName,
-      contentName: productName,
-      headline: productName,
-      subheadline: details.subheadline,
-      seoTitle: productName,
-      seoDescription: `Lihat pilihan varian, harga, dan ketersediaan ${productName}. Detail mengikuti informasi katalog toko.`,
-      price: firstVariant.price,
-      ...(firstVariant.comparePrice ? { comparePrice: firstVariant.comparePrice } : {}),
-      image,
-      heroImage: image,
-      images: [image],
-      tag: categoryLabel,
-      category: categoryLabel,
-      relatedCategories: [categoryLabel],
-      description: details.description,
-      benefits: details.benefits,
-      keyPoints: details.keyPoints,
-      idealFor: details.idealFor,
-      offerText: "Harga mengikuti varian terpilih.",
-      ctaText: "Lanjutkan Pesanan",
-      // Ratings, sold counts and reviews are merchant-owned evidence. They are
-      // published through /admin/content or they do not exist. Downstream
-      // consumers already omit the rating block, the review section and the
-      // JSON-LD aggregateRating when these are absent.
-      reviews: [],
-      variants,
-    });
+  const presentationsByProductId = new Map<string, Product>();
+  for (const presentation of runtimePresentations) {
+    presentationsByProductId.set(String(presentation.productId), presentation);
   }
 
+  const catalog: Product[] = [];
+  for (const product of productRows) {
+    if (
+      !product.is_active ||
+      !Number.isSafeInteger(product.id) ||
+      product.id <= 0
+    ) {
+      continue;
+    }
+
+    const availableVariants = (variantsByProduct.get(product.id) ?? []).filter(
+      (variant) =>
+        Number.isSafeInteger(variant.id) &&
+        variant.id > 0 &&
+        Boolean(variant.title?.trim()) &&
+        Number.isSafeInteger(variant.price) &&
+        variant.price > 0 &&
+        Number.isSafeInteger(variant.stock) &&
+        Number(variant.stock) > 0,
+    );
+    const publicationError = getPublicProductValidationError(
+      product,
+      availableVariants,
+    );
+    if (publicationError) continue;
+
+    const productId = String(product.id);
+    const productName = product.title.trim();
+    const slug = product.slug.trim();
+    const image = product.image_url!.trim();
+    const categoryLabel = product.category?.trim() || "Produk";
+    const presentation = presentationsByProductId.get(productId);
+    const details = {
+      subheadline: `Pilih varian ${productName} berdasarkan opsi dan harga yang tersedia.`,
+      description: `${productName} tercantum dalam kategori ${categoryLabel}. Detail yang ditampilkan mengikuti data katalog toko.`,
+      benefits: [],
+      keyPoints: [],
+      idealFor: [],
+    };
+
+    const variants = availableVariants.map((variant) => {
+      const comparePrice =
+        Number.isSafeInteger(variant.compare_price) &&
+        Number(variant.compare_price) > variant.price
+          ? Number(variant.compare_price)
+          : undefined;
+      return {
+        catalogId: variant.id,
+        ...(variant.sku?.trim() ? { sku: variant.sku.trim() } : {}),
+        id: String(variant.id),
+        label: variant.title.trim(),
+        price: variant.price,
+        ...(comparePrice ? { comparePrice } : {}),
+      };
+    });
+    const firstVariant = variants[0];
+
+    catalog.push({
+        catalogId: product.id,
+        productId,
+        slug,
+        productName,
+        contentName: presentation?.contentName || productName,
+        headline: presentation?.headline || productName,
+        subheadline: presentation?.subheadline || details.subheadline,
+        seoTitle: presentation?.seoTitle || productName,
+        seoDescription:
+          presentation?.seoDescription ||
+          `Lihat pilihan varian, harga, dan ketersediaan ${productName}. Detail mengikuti informasi katalog toko.`,
+        price: firstVariant.price,
+        ...(firstVariant.comparePrice
+          ? { comparePrice: firstVariant.comparePrice }
+          : {}),
+        image,
+        heroImage: image,
+        images: [image],
+        tag: presentation?.tag || categoryLabel,
+        category: categoryLabel,
+        relatedCategories:
+          presentation?.relatedCategories?.length
+            ? presentation.relatedCategories
+            : [categoryLabel],
+        ...(presentation?.relatedTags
+          ? { relatedTags: presentation.relatedTags }
+          : {}),
+        description: presentation?.description || details.description,
+        benefits: presentation?.benefits || details.benefits,
+        keyPoints: presentation?.keyPoints || details.keyPoints,
+        idealFor: presentation?.idealFor || details.idealFor,
+        offerText:
+          presentation?.offerText || "Harga mengikuti varian terpilih.",
+        ctaText: presentation?.ctaText || "Lanjutkan Pesanan",
+        ...(presentation?.ratingValue !== undefined
+          ? { ratingValue: presentation.ratingValue }
+          : {}),
+        ...(presentation?.reviewCount !== undefined
+          ? { reviewCount: presentation.reviewCount }
+          : {}),
+        ...(presentation?.soldCount !== undefined
+          ? { soldCount: presentation.soldCount }
+          : {}),
+        reviews: presentation?.reviews || [],
+        variants,
+    });
+  }
   return catalog;
 }

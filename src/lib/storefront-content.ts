@@ -165,20 +165,36 @@ export function parsePublishedContent(
   }
 }
 
-export async function loadPublishedHomeContent(database: D1Database) {
+export type PublishedHomeContentRead =
+  | { state: "published"; content: HomeContent }
+  | { state: "unpublished" }
+  | { state: "unavailable" };
+
+export async function loadPublishedHomeContent(
+  database: D1Database,
+): Promise<PublishedHomeContentRead> {
   try {
     const row = await database
       .prepare(
         "SELECT published_json FROM storefront_content WHERE content_key = 'home' LIMIT 1",
       )
       .first<{ published_json: string | null }>();
-    return parsePublishedContent(
-      "home",
-      row?.published_json,
-    ) as HomeContent | null;
+    if (!row?.published_json) return { state: "unpublished" };
+    try {
+      return {
+        state: "published",
+        content: validateContent(
+          "home",
+          JSON.parse(row.published_json),
+        ) as HomeContent,
+      };
+    } catch (error) {
+      console.error("storefront-home-content-invalid", error);
+      return { state: "unavailable" };
+    }
   } catch (error) {
     console.error("storefront-home-content-load", error);
-    return null;
+    return { state: "unavailable" };
   }
 }
 

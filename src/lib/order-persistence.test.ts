@@ -21,8 +21,8 @@ test("persistOrder returns the newly inserted order data", async () => {
           if (statementSql.includes("FROM stores")) {
             return { id: 1, cod_fee_bearer: "buyer" };
           }
-          if (statementSql.includes("SELECT MAX(id)")) {
-            return { max_id: 17 };
+          if (statementSql.includes("UPDATE order_number_counters")) {
+            return { last_value: 10018 };
           }
           return null;
         },
@@ -83,7 +83,7 @@ test("persistOrder promotes the recent abandoned row and replaces its items", as
           ) {
             return {
               id: 7,
-              order_number: "ABN-ORIGINAL",
+              order_number: "ABN-10007",
               public_status_token: "status-original",
             };
           }
@@ -128,6 +128,8 @@ test("persistOrder promotes the recent abandoned row and replaces its items", as
   assert.equal(batchStatements.length, 5);
   assert.match(batchStatements[0].sql, /^\s*UPDATE orders/);
   assert.match(batchStatements[0].sql, /shipping_status = 'pending'/);
+  assert.match(batchStatements[0].sql, /warehouse_id = \?/);
+  assert.ok(batchStatements[0].args.includes(3));
   assert.match(batchStatements[0].sql, /ad_click_ids = COALESCE/);
   assert.ok(batchStatements[0].args.includes("sb_promote_123456"));
   assert.ok(batchStatements[0].args.includes('{"gclid":"click-123"}'));
@@ -154,7 +156,12 @@ test("recordAbandonedOrder normalizes an Indonesian phone and creates an unpaid 
           return stmt;
         },
         async first() {
-          if (sql.includes("MAX(id)")) return { max_id: 100 };
+          if (sql.includes("FROM product_variants")) {
+            return { id: 101, price: 50000 };
+          }
+          if (sql.includes("UPDATE order_number_counters")) {
+            return { last_value: 10101 };
+          }
           if (
             sql.includes("FROM orders") &&
             sql.includes("shipping_status = 'abandoned'")
@@ -190,6 +197,7 @@ test("recordAbandonedOrder normalizes an Indonesian phone and creates an unpaid 
   assert.equal(result.id, 41);
   assert.equal(result.customerPhone, "628123456789");
   assert.equal(result.action, "created");
+  assert.equal(result.orderNumber, "ABN-10101");
   assert.match(batchStatements[0].sql, /'unpaid', 'abandoned'/);
   assert.ok(batchStatements[0].args.includes("628123456789"));
   assert.match(batchStatements[1].sql, /INSERT INTO order_items/);
@@ -201,6 +209,7 @@ test("recordAbandonedOrder upserts the matching recent lead", async () => {
   let batchCalled = false;
   const mockDb = {
     prepare(sql: string) {
+      if (sql.includes("UPDATE orders")) updateSql = sql;
       const stmt = {
         bind(...args: unknown[]) {
           if (sql.includes("UPDATE orders")) updateArgs = args;
@@ -211,10 +220,6 @@ test("recordAbandonedOrder upserts the matching recent lead", async () => {
             id: 22,
             order_number: "ABN-EXISTING",
           };
-        },
-        async run() {
-          updateSql = sql;
-          return { success: true };
         },
       };
       return stmt;
@@ -234,10 +239,11 @@ test("recordAbandonedOrder upserts the matching recent lead", async () => {
   assert.equal(result.id, 22);
   assert.equal(result.orderNumber, "ABN-EXISTING");
   assert.equal(result.action, "updated");
-  assert.equal(batchCalled, false);
+  assert.equal(batchCalled, true);
   assert.match(updateSql, /payment_status = 'unpaid'/);
   assert.match(updateSql, /shipping_status = 'abandoned'/);
-  assert.ok(updateArgs.includes(75000));
+  assert.ok(updateArgs.includes(0));
+  assert.ok(!updateArgs.includes(75000));
 });
 
 test("recordAbandonedOrder rejects a non-mobile Indonesian phone", async () => {

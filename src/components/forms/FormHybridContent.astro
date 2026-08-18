@@ -42,6 +42,17 @@ const formId = embedded ? `${instanceId}-form` : 'checkout-form';
 <RootTag class="bg-white" data-hybrid-form-root data-instance-id={instanceId}>
   <section class="pb-8 pt-0">
     <form id={formId} class="grid gap-5 pt-4" novalidate>
+      <div class="absolute left-[-10000px] top-auto size-px overflow-hidden" aria-hidden="true">
+        <label>
+          Jangan isi kolom ini
+          <input
+            type="text"
+            name="contact_url_confirm"
+            tabindex="-1"
+            autocomplete="off"
+          />
+        </label>
+      </div>
       <div class="px-4">
         <section class="form-block form-block-first">
           <div class="form-block-head gap-1.5">

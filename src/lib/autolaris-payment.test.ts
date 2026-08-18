@@ -5,7 +5,10 @@ import {
   parseAutoLarisPaymentResponse,
 } from "./autolaris-client.ts";
 import { summarizePaymentBuckets } from "./autolaris-balance.ts";
-import { reconcileAutoLarisPaidPayment } from "./autolaris-reconciliation.ts";
+import {
+  AutoLarisPaymentNotFoundError,
+  reconcileAutoLarisPaidPayment,
+} from "./autolaris-reconciliation.ts";
 
 test("AutoLaris response parsing preserves provider instructions and billed total", () => {
   const payment = parseAutoLarisPaymentResponse({
@@ -69,6 +72,7 @@ test("paid reconciliation is idempotent and preserves the first paid timestamp",
     paidAt: null as string | null,
     shippingStatus: "pending",
   };
+  let autoDispatchChecks = 0;
   type MockStatement = {
     sql: string;
     args: unknown[];
@@ -85,18 +89,28 @@ test("paid reconciliation is idempotent and preserves the first paid timestamp",
           return statement;
         },
         async first() {
+          if (statement.sql.includes("FROM payment_transactions")) {
+            return {
+              transaction_id: 10,
+              order_id: 20,
+              order_number: "INV-20260810-TEST",
+              payment_method: "bank_transfer",
+              provider_transaction_id: "TRX-TEST",
+              reference_id: "INV-20260810-TEST",
+              status: state.transactionStatus,
+            };
+          }
+          autoDispatchChecks += 1;
           return {
-            transaction_id: 10,
-            order_id: 20,
-            order_number: "INV-20260810-TEST",
-            provider_transaction_id: "TRX-TEST",
-            reference_id: "INV-20260810-TEST",
-            status: state.transactionStatus,
+            payment_method: "bank_transfer",
+            payment_status: state.paymentStatus,
             shipping_status: state.shippingStatus,
-            warehouse_id: 1,
+            provider_order_id: "mengantar-existing",
+            provider_dispatch_error: null,
+            provider_dispatch_claimed_at: null,
             destination_area_id: "destination-1",
             courier_code: "JNE",
-            address: "Jalan Pengujian Nomor 10",
+            pickup_address_id: "pickup-1",
           };
         },
       };
@@ -117,15 +131,23 @@ test("paid reconciliation is idempotent and preserves the first paid timestamp",
     },
   } as unknown as D1Database;
 
-  const first = await reconcileAutoLarisPaidPayment(database, {
-    providerTransactionId: "TRX-TEST",
-    referenceId: "INV-20260810-TEST",
-  });
+  const first = await reconcileAutoLarisPaidPayment(
+    database,
+    {} as App.Locals,
+    {
+      providerTransactionId: "TRX-TEST",
+      referenceId: "INV-20260810-TEST",
+    },
+  );
   const originalPaidAt = state.paidAt;
-  const duplicate = await reconcileAutoLarisPaidPayment(database, {
-    providerTransactionId: "TRX-TEST",
-    referenceId: "INV-20260810-TEST",
-  });
+  const duplicate = await reconcileAutoLarisPaidPayment(
+    database,
+    {} as App.Locals,
+    {
+      providerTransactionId: "TRX-TEST",
+      referenceId: "INV-20260810-TEST",
+    },
+  );
 
   assert.equal(first.transitioned, true);
   assert.equal(duplicate.transitioned, false);
@@ -133,5 +155,27 @@ test("paid reconciliation is idempotent and preserves the first paid timestamp",
   assert.equal(state.paymentStatus, "paid");
   assert.equal(state.shippingStatus, "pending");
   assert.equal(state.paidAt, originalPaidAt);
+  assert.equal(autoDispatchChecks, 0);
 });
 
+test("paid reconciliation excludes manual seller bank transfers", async () => {
+  let lookupSql = "";
+  const database = {
+    prepare(sql: string) {
+      lookupSql = sql;
+      return {
+        bind() { return this; },
+        async first() { return null; },
+      };
+    },
+  } as unknown as D1Database;
+
+  await assert.rejects(
+    () => reconcileAutoLarisPaidPayment(database, {} as App.Locals, {
+      referenceId: "MANUAL-TRANSFER-TEST",
+    }),
+    AutoLarisPaymentNotFoundError,
+  );
+  assert.match(lookupSql, /payment_method IN \('bank_transfer', 'qris'\)/);
+  assert.doesNotMatch(lookupSql, /manual_transfer/);
+});

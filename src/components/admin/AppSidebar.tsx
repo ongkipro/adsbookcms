@@ -12,7 +12,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { LogOut } from "lucide-react";
+import { ChevronRight, LogOut } from "lucide-react";
 import {
   ADMIN_ACCENT,
   getVisibleNavGroups,
@@ -123,8 +123,8 @@ export function AppSidebar({
                     <SidebarMenuButton
                       asChild
                       isActive={active}
-                      tooltip={item.label}
-                      className="h-9 rounded-lg px-2.5 font-normal text-slate-600 hover:bg-slate-100 hover:text-slate-950 data-[active=true]:font-medium group-data-[collapsible=icon]:size-10!"
+                      tooltip={children.length > 0 ? `${item.label} · memiliki submenu` : item.label}
+                      className="relative h-9 rounded-lg px-2.5 font-normal text-slate-600 hover:bg-slate-100 hover:text-slate-950 data-[active=true]:font-medium group-data-[collapsible=icon]:size-10!"
                       style={itemStyle}
                     >
                       <a
@@ -132,7 +132,16 @@ export function AppSidebar({
                         aria-current={overviewActive ? "page" : undefined}
                       >
                         <item.icon className="size-[17px]" aria-hidden="true" />
-                        <span>{item.label}</span>
+                        <span className="min-w-0 flex-1 truncate">
+                          {item.label}
+                          {children.length > 0 && <span className="sr-only"> · memiliki submenu</span>}
+                        </span>
+                        {children.length > 0 && (
+                          <ChevronRight
+                            className={`ml-auto size-3.5 shrink-0 group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-0.5 group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:size-2.5 ${active ? "rotate-90" : ""}`}
+                            aria-hidden="true"
+                          />
+                        )}
                       </a>
                     </SidebarMenuButton>
                     {active && children.length > 0 && (

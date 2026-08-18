@@ -1,12 +1,11 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
->
+> Last executed baseline: 2026-08-18 @ `5cb1d32` + the A15 working tree.
 > `main` was re-founded as AdsBookCMS and its history rewritten (ADR-012), so the
 > commit range this document once cited no longer exists on this branch; the
 > previous 61 commits are preserved on `backup/pre-history-rewrite`. Gates re-run
-> on the current tree, not inherited: `npm run check` 318 files / 0 errors /
-> 0 warnings / 0 hints · `npm test` 310 / 310 · `npm run build` Cloudflare server
+> on the current tree, not inherited: `npm run check` 349 files / 0 errors /
+> 0 warnings / 0 hints · `npm test` 401 / 401 · `npm run build` Cloudflare server
 > bundle complete.
 
 Current state of the system. Implemented behaviour lives here; history lives in `BUILD-LOG.md`; remaining work lives in `UNIMPLEMENTED_SPECS.md`; structure lives in `ARCHITECTURE.md`.
@@ -23,7 +22,7 @@ The previous version of this file described a different repository — it opened
 | Repository role | **Product.** Deploys nothing; CI runs check, test and build only |
 | Install model | 1 installer = 1 Worker = 1 store (ADR-001) |
 | Version | `1.2.0` / `2026.08-hardened` (`src/lib/version.ts`) |
-| Schema | 37 migration files, `0000`-`0036` |
+| Schema | 42 migration files, `0000`-`0041` |
 | Bindings | `OMS_DB` (D1), `SESSION` (KV), `ASSET_BUCKET` (R2), `AI`, `ASSETS` — names fixed across installs |
 | `wrangler.jsonc` | template of placeholders; each install supplies its own resources |
 
@@ -41,44 +40,45 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **310 / 310 passing** |
-| `npm run check` | 318 files · 0 errors · 0 warnings · 0 hints |
-| `npm run build` | Cloudflare server bundle complete |
-| Browser smoke | Built Worker on HTTP Tailscale establishes the login session; Chromium completed login, forced rotation, normal dashboard, search, mobile Menu, and logout at 320/390/768/1280 px with 0 px overflow and no runtime/network failures |
+| `npm test` | **401 / 401 passing** |
+| `npm run check` | 349 files · 0 errors · 0 warnings · 0 hints |
+| `npm run build` | Cloudflare server bundle complete; 42 bundled migrations |
+| Browser smoke | `/admin/orders/abandoned` and the order buyer/address editor were exercised in an isolated authenticated Worker at 390, 768, and 1280 CSS px with zero root overflow. A controlled populated lead proved field-level focus, the exact ABN-to-INV payload, redirect intent, and dirty-field-only buyer edits. Provider boundaries were intercepted; no live provider request, deployment, or remote D1 mutation occurred. |
 
 ---
 
 ## 3. What is implemented
 
-**Storefront** — SSR home with two selectable templates, product listing with progressive load-more, product detail with variant selection and sticky mobile CTA, custom 404 with related products, hand-authored `sitemap.xml`, Google and Meta catalog feeds, JSON-LD (Organization, WebSite, Product, ItemList, Breadcrumb).
+**Storefront** — SSR home with an explicit unpublished setup state, runtime D1-backed template definitions, product listing with progressive load-more, product detail with variant selection and sticky mobile CTA, custom 404 with related products, hand-authored `sitemap.xml`, Google and Meta catalog feeds, JSON-LD (Organization, WebSite, Product, ItemList, Breadcrumb).
 
 **Landing pages** — D1-backed builder with ordered `html` and `form` sections, drag reorder, shortcode pills, 480px mobile canvas preview, rendered through the `/[slug]` catch-all with admin-gated `?preview=1`.
 
-**Checkout** — three form modes (hybrid, middle, full) plus a geo-resolved variant and a cross-origin embed. Province-based COD gating from trusted Cloudflare geo, district autocomplete over a 7,285-district index, live Mengantar rate quotes, honeypot and rate-limit guards, `submit_token` idempotency, atomic order + items + stock reservation.
+**Checkout** — three form modes (hybrid, middle, full) plus a geo-resolved variant and a cross-origin embed. Province-based COD gating from trusted Cloudflare geo, district autocomplete over a 7,285-district index, live Mengantar rate quotes, honeypot and rate-limit guards, `submit_token` idempotency, atomic order + items + stock reservation, one atomic order-number allocator, and scheduled abandoned-order retention. Qualified unsubmitted leads retain a per-tab set of successful normalized identity/product fingerprints: identical combinations are suppressed across blur and reload, changed combinations may capture, and failed capture or unavailable storage fails open. Submitted non-COD checkouts remain real orders with pending shipping; successfully-created unpaid VA/QRIS and bank transfer remain payment-pending, while an explicit AutoLaris creation failure may be payment-failed.
 
-**Payments** — COD, manual bank transfer with seller bank accounts, and AutoLaris QRIS/VA with per-channel toggles, fee-bearer policy (buyer or seller) for both payment and COD fees, a dedicated instruction page with copy-to-clipboard and countdown, and idempotent webhook reconciliation.
+**Payments** — COD, manual bank transfer with seller bank accounts, and AutoLaris QRIS/VA with per-channel toggles enforced at listing and submit boundaries, fee-bearer policy (buyer or seller) for both payment and COD fees, and a dedicated instruction page with copy-to-clipboard, countdown, token-scoped polling, and automatic `/thanks` replacement after the server confirms payment. Manual seller-bank transfers remain visible in analytics but are excluded from AutoLaris reconciliation. AutoLaris payment-status confirmation is externally blocked pending the provider's canonical read-only inquiry contract; the documented `list_payment` endpoint returns channel/fee capability only. Paid confirmation changes shipping eligibility only and never dispatches automatically.
 
-**Orders and shipping** — operator-controlled dispatch to Mengantar under a single-flight lease, sequential shipment creation with independent per-order results, pickup address and schedule synchronisation with the provider, receiver RTS scoring, and a shipping lifecycle view separate from pending intake.
+**Orders and shipping** — one shared lifecycle validates every single/bulk status transition, restores reserved stock exactly once on cancellation or deletion, and prevents destructive removal after provider dispatch. **Pesanan tertinggal** has a dedicated product-first lead workspace and is excluded from normal order lists, summaries, details, bulk actions, and shipping. CS can record follow-up and explicitly convert one ABN lead into one complete pending INV with a current server-side rate and exactly-once stock reservation. Checkout, conversion, and payment confirmation only persist or change eligibility. Mengantar dispatch runs solely after an explicit authenticated single/bulk operator action under a single-flight lease; provider acceptance rechecks the claim and dispatch-critical snapshot so concurrent cancellation or buyer edits cannot be overwritten. Accepted provider identifiers and provider-supplied waybills persist, duplicates are suppressed, and bounded failures remain pending and retryable. The Shipping workspace exposes exactly **Semua Pengiriman**, **Perlu Dibuatkan Resi**, **Perlu Pickup**, and **Sampai Tujuan**, with responsive state-valid actions and explicit sequential provider polling by waybill. `/order/pay-unpaid` recovery remains provider-blocked.
 
-**Admin** — 27 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker, payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. Navigation and route authorization share one deny-by-default role policy. Phones use role-aware bottom navigation and sheets, tablet starts with a 48 px rail, desktop uses a 256 px sidebar, and first-run sessions expose only password rotation and logout. The dashboard leads with role-safe business analytics and follows with owner/admin health diagnostics; action links are rendered only when the role policy grants their destination.
+**Admin** — 27 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker, payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. Warehouse settings create the required single-row origin on a fresh install and update it thereafter. Navigation and route authorization share one deny-by-default role policy. Phones use role-aware bottom navigation and sheets, tablet starts with a 48 px rail, desktop uses a 256 px sidebar, and first-run sessions expose only password rotation and logout.
 
-**Headless API** — seven `/api/v1/*` routes (storefront descriptor, products list and detail, district lookup, shipping rates, checkout, tracking events) authenticated by API key against `developer_api_keys`. The independently validated Headless origin allowlist is persisted on `stores.headless_allowed_origins` and editable in Developer settings.
+**Headless API** — nine `/api/v1/*` routes authenticated by API key and independently origin-checked. Every operation has a minimum scope; origin denials occur before quota, minute denials do not spend daily quota, and D1 records the final handler status exactly once without request payloads. The order-status route requires the order number plus its public status token and returns no customer PII.
 
-**Tracking** — Meta Pixel plus server-side CAPI through a durable outbox with retry and a shared, order-derived `event_id`; Google Tag and Ads conversion configuration with region-scoped Consent Mode v2; TikTok event hooks; and click-id capture for `gclid`/`gbraid`/`wbraid`/`fbclid`/`ttclid`. Hosted and embedded checkout surfaces emit Purchase only after the order can be resolved and verified.
+**Tracking** — Meta Pixel plus server-side CAPI through a durable outbox with retry and a shared, order-derived `event_id`; Google Tag and Ads conversion configuration with region-scoped Consent Mode v2; TikTok event hooks; and click-id capture for `gclid`/`gbraid`/`wbraid`/`fbclid`/`ttclid`. Hosted and embedded checkout surfaces emit Purchase only after the order can be resolved and verified. Product ID is the canonical advertising identity: the API `content_id`, Meta `content_ids`, Google ecommerce `item_id`, and `<g:id>` in both catalog feeds are the same numeric value with at least five digits; variants remain separate checkout selections.
+
 
 ---
 
 ## 4. Data state
 
-17 tables. `stores` is a single row carrying provider keys, tracking ids, fee policy, payment toggles, CRM templates, independent embed and Headless origin policies, AI instructions, and COD province exclusions.
+21 tables. `stores` is a single row carrying provider keys, tracking ids, fee policy, payment toggles, CRM templates, independent embed and Headless origin policies, AI instructions, and COD province exclusions. `order_number_counters` owns collision-free numbering; Headless usage/audits and runtime storefront definitions have dedicated tables.
 
-Catalog: **empty by default**. No dataset ships (ADR-016); an install starts with no products and the storefront renders an explicit "Katalog sedang disiapkan" state rather than a broken-looking grid.
+Catalog: **empty by default**. No dataset ships (ADR-016); an install starts with no products and the storefront renders an explicit setup state until the operator publishes home content and adds products.
 
 Known data issues, all tracked:
 
 - The local development D1 may hold a previously provisioned warehouse row with address, phone, and Mengantar identifiers. Remote state was not read and is explicitly unverified; any local or remote scrub is a separate destructive-data decision.
 - No seed ships. `scripts/seed-catalog.sql`, `public/images/products/` and `db:reset:demo:local` were removed on 2026-08-17 (ADR-016); whether to reintroduce sample data, and in what form, is deferred rather than decided against. The earlier `src/db/seed.sql`, which held two previous merchants' catalogs plus genuine-looking provider ids, a real address and a real phone number, was deleted on 2026-08-16.
-- Migration `0017` aborted the chain on an empty database, so **no new install could be created**; fixed 2026-08-16 by removing the sample-data insert it carried. All 37 migrations now apply from zero.
+- Migration `0017` once aborted the chain on an empty database; that insert was removed 2026-08-16. All 41 migrations now apply from zero, and the Worker applies a valid missing suffix automatically before database-backed requests. Migration `0040` adds persisted provider status text, provider event time, and synchronization time to `orders`.
 
 ---
 
@@ -108,26 +108,21 @@ System-wide security, correctness, documentation, navigation, and UX audit:
 - Closed inactive-product exposure, landing-preview cache, custom-HTML preview injection, legacy embed redirect, catalog identity, and public cache-control defects. Removed dead completion-query builders after the safe navigation boundary made them redundant.
 - Centralised admin navigation contracts, aligned menu visibility with authorization, repaired nested `<main>` landmarks, and made public/admin skip links target the actual main content.
 - Reconciled repository specifications, architecture, installation notes, storefront integration guidance, remaining-gap register, and migration `0034` behaviour with the executable tree.
+- Published the authenticated OpenAPI 3.1 contract and framework-neutral server adapter for the complete Headless commerce journey. External tracking now preserves the allowlisted storefront origin instead of replacing it with the CMS origin, while the developer key remains server-side.
 - The 2026-08-17 repository audit found open correctness and abuse-control defects. They are recorded in §6 and `UNIMPLEMENTED_SPECS.md`; the earlier statement that no exploitable finding remained is superseded.
 
 ---
 
 ## 6. Known issues
 
-| Severity | Issue |
+| Severity | Current fact |
 | --- | --- |
-| High | Bulk order status writes bypass the guarded single-order lifecycle and can move a stock-restored cancelled/returned order back in flight without reserving inventory again |
-| High | Single and bulk order deletion remove reserved line items without restoring stock |
 | High | An uninstalled public Worker can be claimed by the first direct caller to unauthenticated `/api/install`; the second-install guard does not authenticate the first operator |
-| Medium | Public location/shipping proxies and abandoned-order capture lack complete abuse controls; abandoned-row purge is claimed historically but not implemented |
-| Medium | Order-number allocation uses `MAX(id) + 1`, so concurrent independent submissions can collide |
-| Medium | Payment and ad-signal edge paths have policy/identity gaps: disabled methods are not enforced at every submit boundary, manual transfer cannot reach the current paid dispatch state, and Meta server/headless Purchase contracts diverge |
+| Medium | Public location/shipping proxies still need complete abuse controls |
+| Medium | Product-grain feeds still need a truthful standard-identifier policy and stable out-of-stock publication contract |
 | Medium | Settings handlers still attempt runtime DDL although migrations own schema truth |
-| Fixed | HTTP Tailscale login loop and scoped-role dashboard health 403 were fixed locally by A-88/A-90; the normalized-path admin bypass remains fixed and test-pinned |
-| Medium | There is no automatic schema-upgrade path (**G3**) |
-| Medium | Fresh-install home content and compile-time theme selection remain coupled to repository defaults (**G5**, **G6**) |
-| Medium | Headless key scope/quota, authenticated order-status read, a published OpenAPI contract, and an executable adapter remain open (**H4**, **H6**, **H7**, **H8**) |
-| Medium | Alerting and a cross-install view remain absent; Workers Logs and the per-install health endpoint exist (**G7**, `OBSERVABILITY.md`) |
+| Medium | Theme colour, locale, and admin display name resolve from D1 but still lack admin editors |
+| Medium | External uptime checks and a cross-install operational view do not exist; per-install schema/CAPI webhook alerting does |
 | Blocked | Unpaid-order recovery and several provider edge contracts require an explicitly approved live capture before implementation |
 | Data note | Local/remote D1 may still contain a previously provisioned warehouse address, phone, and provider ObjectIds; scrubbing it is a separate destructive/remote-data action |
 
@@ -141,6 +136,6 @@ redirects to `/install`, the wizard writes the store and the operator's own
 credential, and the wizard locks itself afterwards. It has been exercised against
 a real Worker on a real empty D1, not only in tests.
 
-**Three** structural gaps remain open — **G3**, **G5**, **G6** — tracked in
-`ARCHITECTURE.md` §10, with constraining decisions in `DECISIONS.md`. G1, G2, G4,
-G8, G9 and G10 are closed.
+All ten structural gaps in `ARCHITECTURE.md` §10 are closed. Remaining audited
+defects, documentation debt, integration deliverables, and provider-blocked work
+are tracked only in `UNIMPLEMENTED_SPECS.md`.

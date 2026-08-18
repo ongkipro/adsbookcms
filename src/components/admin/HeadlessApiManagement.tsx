@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
+type HeadlessScope =
+  | "storefront:read"
+  | "catalog:read"
+  | "shipping:read"
+  | "checkout:write"
+  | "orders:read"
+  | "tracking:write";
+
 type DeveloperApiKey = {
   id: number;
   name: string;
@@ -12,7 +20,20 @@ type DeveloperApiKey = {
   created_by: string;
   created_at: string;
   last_used_at: string | null;
+  scopes: HeadlessScope[];
+  rate_limit_per_minute: number;
+  daily_quota: number;
   active: boolean;
+};
+
+type HeadlessAuditEvent = {
+  id: number;
+  api_key_id: number;
+  key_name: string;
+  operation: string;
+  outcome: string;
+  status_code: number;
+  created_at: string;
 };
 
 type ApiEnvelope<T> = {
@@ -22,8 +43,26 @@ type ApiEnvelope<T> = {
   error?: string;
 };
 
-type KeyListData = { keys: DeveloperApiKey[] };
+type KeyListData = { keys: DeveloperApiKey[]; audit_events: HeadlessAuditEvent[] };
 type KeyCreationData = { key: DeveloperApiKey; secret: string };
+
+const SCOPE_OPTIONS: ReadonlyArray<{ value: HeadlessScope; label: string }> = [
+  { value: "storefront:read", label: "Storefront" },
+  { value: "catalog:read", label: "Katalog" },
+  { value: "shipping:read", label: "Ongkir" },
+  { value: "checkout:write", label: "Checkout" },
+  { value: "orders:read", label: "Status order" },
+  { value: "tracking:write", label: "Tracking" },
+];
+
+const DEFAULT_SCOPES = SCOPE_OPTIONS.map((scope) => scope.value);
+const AUDIT_OUTCOME_LABELS: Record<string, string> = {
+  allowed: "Diizinkan",
+  scope_denied: "Scope ditolak",
+  rate_limited: "Batas menit tercapai",
+  quota_exhausted: "Kuota harian habis",
+  origin_denied: "Origin ditolak",
+};
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("id-ID", {
   dateStyle: "medium",
@@ -42,8 +81,17 @@ function formatTimestamp(value: string | null): string {
 
 export function HeadlessApiManagement() {
   const [keys, setKeys] = useState<DeveloperApiKey[]>([]);
+  const [auditEvents, setAuditEvents] = useState<HeadlessAuditEvent[]>([]);
   const [name, setName] = useState("");
   const [generatedSecret, setGeneratedSecret] = useState<string | null>(null);
+  const [scopes, setScopes] = useState<HeadlessScope[]>([...DEFAULT_SCOPES]);
+  const [rateLimit, setRateLimit] = useState(120);
+  const [dailyQuota, setDailyQuota] = useState(10_000);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draftScopes, setDraftScopes] = useState<HeadlessScope[]>([]);
+  const [draftRateLimit, setDraftRateLimit] = useState(120);
+  const [draftDailyQuota, setDraftDailyQuota] = useState(10_000);
+  const [savingPolicy, setSavingPolicy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -60,7 +108,10 @@ export function HeadlessApiManagement() {
         if (!response.ok || !payload.success || !payload.data) {
           throw new Error(payload.error || "Daftar API key gagal dimuat.");
         }
-        if (!cancelled) setKeys(payload.data.keys);
+        if (!cancelled) {
+          setKeys(payload.data.keys);
+          setAuditEvents(payload.data.audit_events);
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -93,7 +144,12 @@ export function HeadlessApiManagement() {
       const response = await fetch("/api/admin/settings/developer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({
+          name,
+          scopes,
+          rate_limit_per_minute: rateLimit,
+          daily_quota: dailyQuota,
+        }),
       });
       const payload = await readEnvelope<KeyCreationData>(response);
       if (!response.ok || !payload.success || !payload.data) {
@@ -105,10 +161,66 @@ export function HeadlessApiManagement() {
       setGeneratedSecret(creation.secret);
       setName("");
       toast.success(payload.message || "API key berhasil dibuat.");
+      setScopes([...DEFAULT_SCOPES]);
+      setRateLimit(120);
+      setDailyQuota(10_000);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "API key gagal dibuat.");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const toggleScope = (
+    scope: HeadlessScope,
+    current: HeadlessScope[],
+    update: (next: HeadlessScope[]) => void,
+  ) => {
+    update(
+      current.includes(scope)
+        ? current.filter((candidate) => candidate !== scope)
+        : [...current, scope],
+    );
+  };
+
+  const beginPolicyEdit = (key: DeveloperApiKey) => {
+    setEditingId(key.id);
+    setDraftScopes([...key.scopes]);
+    setDraftRateLimit(key.rate_limit_per_minute);
+    setDraftDailyQuota(key.daily_quota);
+  };
+
+  const savePolicy = async () => {
+    if (!editingId || savingPolicy) return;
+    setSavingPolicy(true);
+    try {
+      const response = await fetch("/api/admin/settings/developer", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingId,
+          scopes: draftScopes,
+          rate_limit_per_minute: draftRateLimit,
+          daily_quota: draftDailyQuota,
+        }),
+      });
+      const payload = await readEnvelope<{ key: Pick<
+        DeveloperApiKey,
+        "id" | "scopes" | "rate_limit_per_minute" | "daily_quota"
+      > }>(response);
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.error || "Kebijakan API key gagal disimpan.");
+      }
+      const updated = payload.data.key;
+      setKeys((current) =>
+        current.map((key) => key.id === updated.id ? { ...key, ...updated } : key),
+      );
+      setEditingId(null);
+      toast.success(payload.message || "Kebijakan API key berhasil disimpan.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Kebijakan API key gagal disimpan.");
+    } finally {
+      setSavingPolicy(false);
     }
   };
 
@@ -183,52 +295,147 @@ export function HeadlessApiManagement() {
               <p className="mt-1 text-xs text-slate-500">Buat key pertama untuk menghubungkan backend eksternal.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
-              <table className="w-full min-w-[720px] text-left text-xs">
-                <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th scope="col" className="px-4 py-3">Nama</th>
-                    <th scope="col" className="px-4 py-3">Key</th>
-                    <th scope="col" className="px-4 py-3">Dibuat</th>
-                    <th scope="col" className="px-4 py-3">Terakhir digunakan</th>
-                    <th scope="col" className="px-4 py-3 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {keys.map((key) => (
-                    <tr key={key.id} className="bg-white">
-                      <td className="px-4 py-3">
+            <div className="space-y-3">
+              {keys.map((key) => {
+                const editing = editingId === key.id;
+                return (
+                  <section key={key.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
                         <p className="font-black text-slate-900">{key.name}</p>
-                        <span className="mt-1 inline-flex items-center gap-1.5 font-bold text-emerald-700">
-                          <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-                          Aktif
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-[11px] text-slate-600">{key.key_preview}</td>
-                      <td className="px-4 py-3 text-slate-600">
-                        <span className="block">{formatTimestamp(key.created_at)}</span>
-                        <span className="mt-0.5 block text-[10px]">oleh {key.created_by}</span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">{formatTimestamp(key.last_used_at)}</td>
-                      <td className="px-4 py-3 text-right">
+                        <p className="mt-1 break-all font-mono text-[11px] text-slate-600">{key.key_preview}</p>
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          Dibuat {formatTimestamp(key.created_at)} oleh {key.created_by} · Terakhir dipakai {formatTimestamp(key.last_used_at)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="min-h-11"
+                          onClick={() => editing ? setEditingId(null) : beginPolicyEdit(key)}
+                          aria-expanded={editing}
+                        >
+                          {editing ? "Batal" : "Atur kebijakan"}
+                        </Button>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           disabled={revokingId !== null}
                           onClick={() => void revokeKey(key)}
-                          className="text-rose-700 hover:bg-rose-50 hover:text-rose-800"
-                          aria-label={`Cabut API key ${key.name}`}
+                          className="min-h-11 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
                         >
                           <Trash2 className="size-3.5" aria-hidden="true" />
                           {revokingId === key.id ? "Mencabut…" : "Cabut"}
                         </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                    {editing ? (
+                      <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                        <fieldset>
+                          <legend className="text-xs font-black text-slate-700">Scope yang diizinkan</legend>
+                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            {SCOPE_OPTIONS.map((scope) => (
+                              <label key={scope.value} className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700">
+                                <input
+                                  type="checkbox"
+                                  checked={draftScopes.includes(scope.value)}
+                                  onChange={() => toggleScope(scope.value, draftScopes, setDraftScopes)}
+                                  className="size-4"
+                                />
+                                {scope.label}
+                              </label>
+                            ))}
+                          </div>
+                        </fieldset>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <label className="grid grid-cols-1 gap-2 text-xs font-bold text-slate-700">
+                            Request per menit
+                            <Input
+                              type="number"
+                              min={1}
+                              max={600}
+                              value={draftRateLimit}
+                              className="min-h-11"
+                              onChange={(event) => setDraftRateLimit(Number(event.target.value))}
+                            />
+                          </label>
+                          <label className="grid grid-cols-1 gap-2 text-xs font-bold text-slate-700">
+                            Kuota per hari
+                            <Input
+                              type="number"
+                              min={1}
+                              max={100000}
+                              value={draftDailyQuota}
+                              className="min-h-11"
+                              onChange={(event) => setDraftDailyQuota(Number(event.target.value))}
+                            />
+                          </label>
+                        </div>
+                        <Button
+                          type="button"
+                          disabled={savingPolicy || draftScopes.length === 0}
+                          onClick={() => void savePolicy()}
+                          className="min-h-11"
+                        >
+                          {savingPolicy ? "Menyimpan…" : "Simpan kebijakan"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        {key.scopes.map((scope) => (
+                          <span key={scope} className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700">
+                            {SCOPE_OPTIONS.find((option) => option.value === scope)?.label || scope}
+                          </span>
+                        ))}
+                        <span className="text-[10px] font-bold text-slate-500">
+                          {key.rate_limit_per_minute}/menit · {key.daily_quota.toLocaleString("id-ID")}/hari
+                        </span>
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
             </div>
+          )}
+          {!loading && (
+            <section className="mt-6 border-t border-slate-200 pt-5" aria-labelledby="headless-audit-title">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h4 id="headless-audit-title" className="text-sm font-black text-slate-900">Aktivitas API terbaru</h4>
+                  <p className="mt-1 text-[11px] text-slate-500">Hanya keputusan autentikasi, scope, dan kuota. Payload tidak disimpan.</p>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500">{auditEvents.length} event</span>
+              </div>
+              {auditEvents.length === 0 ? (
+                <p className="mt-3 rounded-lg bg-slate-50 px-3 py-4 text-xs text-slate-500">Belum ada penggunaan API tercatat.</p>
+              ) : (
+                <div className="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-200">
+                  <table className="w-full min-w-[560px] text-left text-xs">
+                    <thead className="sticky top-0 bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+                      <tr>
+                        <th className="px-3 py-2" scope="col">Waktu</th>
+                        <th className="px-3 py-2" scope="col">Key</th>
+                        <th className="px-3 py-2" scope="col">Operasi</th>
+                        <th className="px-3 py-2" scope="col">Hasil</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {auditEvents.map((event) => (
+                        <tr key={event.id}>
+                          <td className="px-3 py-2 text-slate-500">{formatTimestamp(event.created_at)}</td>
+                          <td className="px-3 py-2 font-bold text-slate-700">{event.key_name}</td>
+                          <td className="px-3 py-2 font-mono text-[10px] text-slate-600">{event.operation}</td>
+                          <td className="px-3 py-2 text-slate-600">{AUDIT_OUTCOME_LABELS[event.outcome] || "Ditolak"} · {event.status_code}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
           )}
         </CardContent>
       </Card>
@@ -250,9 +457,50 @@ export function HeadlessApiManagement() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Contoh: Storefront Production"
                 autoComplete="off"
+                className="min-h-11"
               />
             </label>
-            <Button type="submit" disabled={creating} className="w-full">
+            <fieldset>
+              <legend className="text-xs font-black text-slate-700">Scope awal</legend>
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                {SCOPE_OPTIONS.map((scope) => (
+                  <label key={scope.value} className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={scopes.includes(scope.value)}
+                      onChange={() => toggleScope(scope.value, scopes, setScopes)}
+                      className="size-4"
+                    />
+                    {scope.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <label className="grid grid-cols-1 gap-2 text-xs font-bold text-slate-700">
+                Request per menit
+                <Input
+                  type="number"
+                  min={1}
+                  max={600}
+                  value={rateLimit}
+                  className="min-h-11"
+                  onChange={(event) => setRateLimit(Number(event.target.value))}
+                />
+              </label>
+            <label className="grid grid-cols-1 gap-2 text-xs font-bold text-slate-700">
+                Kuota per hari
+                <Input
+                  type="number"
+                  min={1}
+                  max={100000}
+                  value={dailyQuota}
+                  className="min-h-11"
+                  onChange={(event) => setDailyQuota(Number(event.target.value))}
+                />
+              </label>
+            </div>
+            <Button type="submit" disabled={creating || scopes.length === 0} className="min-h-11 w-full">
               <KeyRound className="size-4" aria-hidden="true" />
               {creating ? "Membuat…" : "Generate API Key"}
             </Button>
@@ -265,7 +513,7 @@ export function HeadlessApiManagement() {
                 <Input
                   readOnly
                   value={generatedSecret}
-                  className="min-w-0 bg-white font-mono text-[11px]"
+                  className="min-h-11 min-w-0 bg-white font-mono text-[11px]"
                   aria-label="API key baru"
                   onFocus={(event) => event.currentTarget.select()}
                 />
@@ -274,8 +522,8 @@ export function HeadlessApiManagement() {
                   variant="outline"
                   size="icon"
                   onClick={() => void copySecret()}
-                  className={copied ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "bg-white"}
                   aria-label={copied ? "API key sudah disalin" : "Salin API key"}
+                  className={copied ? "min-h-11 min-w-11 border-emerald-300 bg-emerald-50 text-emerald-700" : "min-h-11 min-w-11 bg-white"}
                 >
                   {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
                 </Button>

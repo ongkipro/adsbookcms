@@ -1,6 +1,6 @@
 # Mengantar Integration — Technical Contract and Gap Register
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A11 working tree
 
 This document is the technical source of truth for AdsBookCMS behavior at the Mengantar boundary. It separates repository-observed transport code, locally verified application behavior, operator-gated live mutations, and provider contracts that remain unknown.
 
@@ -45,7 +45,7 @@ Status distinguishes three separate things: whether the **transport method** exi
 | `/order` | `POST` | Create provider order/draft and optional waybill | Implemented; live mutation gated | Only explicit eligible Push actions in Order Management may invoke it. Bulk calls run sequentially with per-order outcomes. |
 | `/order/pay-unpaid` | `POST` | Recover accepted non-COD unpaid draft | **Transport implemented and unit-tested; no operator UI** | `payUnpaidOrder(batchId, courierCode)` exists in `src/lib/mengantar-client.ts` and is covered by `src/lib/mengantar-client.test.ts`. It is called by no route and no admin component, so the recovery workflow cannot be triggered in production. See §5F. |
 | Wallet balance | Unknown | Read active Mengantar wallet | Blocked | No canonical endpoint or response schema is verified; do not assume `/user/balance`. |
-| Tracking synchronization | Unknown | Reconcile shipment lifecycle | Blocked | No authenticated callback/polling contract, status enum, or retry behavior is verified. |
+| `/order?tracking_id=` | `GET` | Reconcile one provider-created shipment by waybill | Implemented and locally verified; active-account read not exercised | An explicit Shipping action processes at most 50 rows sequentially, persists raw provider evidence, and allows only monotonic local lifecycle advances. |
 
 ## 3. Area Search and Quote Resolution
 
@@ -183,30 +183,53 @@ Remaining work for full pickup synchronization:
 4. retry behavior that cannot duplicate pickup creation;
 5. UI language that distinguishes local D1 schedule from provider-confirmed pickup.
 
-## 7. Blocked Contracts
+## 7. Shipment Tracking Synchronization
 
-These have no transport method and no verified provider contract.
+Tracking is an authenticated, operator-triggered polling path; AdsBookCMS does
+not assume that Mengantar sends callbacks.
 
-### Tracking synchronization
+1. `POST /api/admin/shipping` with `action: "sync-provider"` accepts either
+   1–50 positive integer order IDs or selects up to 50 provider-created rows in
+   `processing`/`shipped` state.
+2. Each row is awaited sequentially. `MengantarClient.getOrderByTrackingId()`
+   calls `GET /order?tracking_id=<cnote_no>` through the configured server-side
+   credential and rejects an empty or missing result.
+3. Only status-object entries whose value is exactly `true` count as active.
+   Pickup/transit flags map to `shipped`; delivered-complete flags map to
+   `delivered`; RTS/returned flags map to `returned`; otherwise the evidence
+   remains `processing`.
+4. The latest timestamped history entry supplies the operator-visible raw
+   description and provider event time. D1 persists those values with the poll
+   timestamp in `provider_status_text`, `provider_status_at`, and
+   `provider_synced_at`.
+5. `selectProviderShippingAdvance()` rejects regressions, same-rank changes, and
+   any change from terminal `delivered`, `returned`, or `cancelled` state.
+   Accepted advances run through `applyOrderLifecycleMutation()`, preserving the
+   shared atomic stock-restoration invariant.
+6. One missing waybill, missing provider row, transport error, or failed
+   persistence produces an independent result; it does not fabricate evidence
+   or prevent sibling rows from completing.
 
-Required before implementation:
+The admin workspace exposes summary counts, search/date/status/courier filters,
+pickup selection and history, provider description/event/sync timestamps,
+loading/error/empty feedback, a desktop table, and mobile cards. Automatic
+background retries and provider callbacks are intentionally absent: the
+verified contract is explicit polling.
 
-- canonical callback or polling endpoint;
-- authentication or signature verification;
-- status enum and transition rules;
-- retry, duplicate, and ordering behavior;
-- mapping for shipped, delivered, returned, and terminal exceptions.
+Live evidence still required is narrowed to representative accepted, missing,
+malformed, timeout, shipped, delivered, and RTS responses from the active
+account. The repository tests prove request construction, parsing, ordering,
+persistence, and lifecycle behavior; they are not live-provider evidence.
+
+## 8. Blocked Contract
 
 ### Live wallet balance
 
-Required before implementation:
+No canonical endpoint or response schema is verified. Before implementation,
+obtain the endpoint and method, authentication, response schema, amount units,
+currency, and error/stale-data semantics. Do not assume `/user/balance`.
 
-- canonical endpoint and method;
-- authentication;
-- response schema, amount units, and currency;
-- error and stale-data semantics.
-
-## 8. Sandbox Reference
+## 9. Sandbox Reference
 
 When an approved sandbox test is performed, preserve the known environment limitations as test preconditions rather than production rules:
 
@@ -216,7 +239,7 @@ When an approved sandbox test is performed, preserve the known environment limit
 
 Re-check these constraints against the active sandbox documentation before treating a failure as an application regression.
 
-## 9. Verification and Evidence Boundary
+## 10. Verification and Evidence Boundary
 
 Repository-level proof currently covers payload construction, response parsing, eligibility, sequential execution, leases/claims, partial outcomes, persistence rules, local API behavior, and responsive single/bulk Shipping controls. Recent browser audits intentionally did not submit live provider mutations.
 
@@ -230,6 +253,9 @@ Relevant implementation owners:
 - `src/data/indonesia-districts.ts` — the bundled 7,285-district index;
 - `src/pages/api/admin/orders/[id].ts`;
 - `src/pages/api/admin/shipping.ts` — pickup scheduling and the 90-minute rule;
+- `src/db/migrations/0040_provider_shipping_status.sql` — persisted provider observation fields;
+- `src/lib/order-lifecycle.ts` — atomic monotonic lifecycle and stock boundary;
+- `src/components/admin/ShippingOperations.tsx` — operator polling, evidence, filters, pickup, and responsive states;
 - `src/pages/api/locations.ts`;
 - `src/pages/api/shipping-options.ts`.
 

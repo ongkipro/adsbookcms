@@ -123,7 +123,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
       availability: 'InStock',
       url: canonical,
       name: v.label,
-      sku: v.sku || `SKU-${product.productId}-${v.id}`,
+      ...(v.sku ? { sku: v.sku } : {}),
     })),
   }}
   breadcrumbs={[
@@ -154,7 +154,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
         client:load
         images={productImages}
         productName={product.productName}
-        badgeText={product.tag || 'Bestseller'}
+        badgeText={product.tag}
         discountPercentage={displayDiscount}
       />
     </div>

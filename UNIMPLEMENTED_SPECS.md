@@ -1,6 +1,6 @@
 # AdsBookCMS — Remaining Work and Blockers
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
+> Reviewed against disk: 2026-08-17 @ `5cb1d32` + current A13 source; execution remains pending in the main session.
 
 This is the single ledger of work that is **not** done. Implemented behaviour belongs in `STATUS.md`, history in `BUILD-LOG.md`, accepted product behaviour in `PRD.md`, real architecture in `ARCHITECTURE.md`, and constraining decisions in `DECISIONS.md`.
 
@@ -9,208 +9,106 @@ Two rules govern every entry, per ADR-010:
 1. **Disk wins.** Code, migrations, runtime configuration, and executed evidence outrank this file. When they disagree, fix this file.
 2. **A missing contract is not a licence to invent one.** An absent provider specification never justifies inferring an endpoint, payload, authentication method, retry policy, or status enum.
 
----
-
-## 1. Product Gaps — owned by the gap register
-
-**Three** structural gaps remain open, and they live in **`ARCHITECTURE.md`
-§10** — that register is authoritative and this section defers to it rather than
-restating it:
-
-- **G3** no schema auto-upgrade
-- **G5** home content does not fail closed
-- **G6** a template cannot be *added* without a rebuild (switching one works)
-
-Closed: G1 (runtime identity, migration `0036`), G2 (`/install`), G4 (migration
-`0034`), G8 (Drizzle retired), G9 and G10 (Purchase deduplication). G7 is partial
-— Workers Logs and a health endpoint exist; alerting and a cross-install view do
-not.
-
-Governing decisions: ADR-003 (runtime identity), ADR-004 (install wizard),
-ADR-005 (raw SQL data layer), ADR-006 (neutral sample data), ADR-007 (fail
-closed).
-
-Everything below is work the gap register does **not** cover: external provider contracts, the headless API surface, inherited-identity cleanup, merchant inputs, and operator-gated actions.
+All ten structural gaps in `ARCHITECTURE.md` §10 are closed. This file now owns only audited defects, incomplete product surfaces, documentation debt, and external blockers.
 
 ---
 
-## 2. Audited Correctness and Abuse-Control Gaps
+## 1. Audited Engineering Gaps
 
-These findings were re-traced against the current tree on 2026-08-17. They are
-not provider unknowns and should be addressed before new order-lifecycle work.
-
-| ID | Severity | Gap | Executable boundary |
+| ID | Severity | Gap | Completion boundary |
 | --- | --- | --- | --- |
-| O1 | High | Bulk order status update writes any enum state directly and bypasses the transition, payment, waybill, and provider guards used by the detail route. A cancelled/returned order can therefore return to flight after stock was restored. | Replace the direct write with the canonical transition policy; prove cancelled/returned cannot reopen without an explicit reserve operation. |
-| O2 | High | Single and bulk order deletion remove items/payment/order without restoring stock reserved during checkout. | Restore exactly once before destructive row removal, in the same failure-safe boundary; cover both paths. |
-| I1 | High | `/api/install` is intentionally unauthenticated and only prevents a second install. The first direct caller can claim an exposed uninstalled Worker. | Add an operator-verifiable setup capability or an infrastructure gate without making a fresh install unreachable. |
-| A1 | Medium | Public location/shipping endpoints can fan out into paid provider calls without KV rate limiting; caller-controlled `origin_id` is accepted by the public rates route. | Rate-limit by a defensible public key and remove or authenticate origin override. |
-| A2 | Medium | `/api/record-abandoned-order` has no rate limit or honeypot, and the claimed >7-day automatic purge does not exist. | Bound creation and implement a scheduled/explicit retention path before claiming purge. |
-| O3 | Medium | Invoice and abandoned numbers use `SELECT MAX(id) + 1`; concurrent submissions can choose the same unique number. | Allocate atomically and add a concurrency regression check. |
-| P1 | High | Manual transfer begins pending but the admin path rejects marking non-COD orders paid, leaving the method unable to become dispatch-eligible. | Define and implement a reviewed verification transition for seller-bank transfers. |
-| P2 | Medium | Payment master/channel toggles affect method listing but are not enforced consistently at submit endpoints. | Enforce the same persisted policy at every order trust boundary. |
-| T1 | Medium | Meta server Purchase does not consistently require paid online state; browser/server content identifiers diverge; headless Purchase delivery omits the required order number. | One paid-state predicate and one canonical order/product identity builder must feed every Purchase leg. |
-| D1 | Medium | Settings request handlers attempt `ALTER TABLE` and swallow errors even though migrations `0032`/`0033` own those columns. | Remove runtime DDL after migration-chain verification. |
-| DOC1 | Low | `DESIGN-SYSTEM.md` still describes deleted components, old font/CSS ownership, build-time tenant fallback, and historical test counts. | Re-extract the document from the current component/style tree instead of incrementally restamping stale sections. |
+| AD3 | Medium | Product-grain Google feed items still map the first variant's merchant-editable internal SKU to MPN while declaring `identifier_exists` as `no`; products with no sellable variant disappear instead of retaining a stable `out_of_stock` item. | Separate internal SKU from standard identifiers, define the product-level price/availability fallback contract, retain stable out-of-stock items when truthful data exists, and cover Google and Meta XML with executable fixtures. |
+| S1 | Medium | `theme_color`, `locale`, and `admin_name` resolve from D1 but have no complete operator editor. | Add validated fields to the existing store settings boundary and verify runtime rendering without a rebuild. |
+| DOC1 | Low | `DESIGN-SYSTEM.md` still describes deleted components, old font/CSS ownership, build-time tenant fallback, and historical gate counts. | Re-extract it from the current component and style tree instead of incrementally restamping stale sections. |
 
-The scoped-role dashboard health defect found by the same audit is closed by
-A-90: the component and action links now derive visibility from
-`canAccessAdminRoute`. The HTTP Tailscale login loop is closed by A-88.
+Closed by the A10 work and 2026-08-18 production hardening recorded in `BUILD-LOG.md`: canonical single/bulk order transitions; exactly-once stock restoration on cancellation/deletion; non-destructive dispatched-order deletion; atomic order numbers; abandoned-order abuse controls and retention; bank-transfer verification; submit-boundary payment policy; canonical Meta Purchase identity and paid-state gates; runtime schema upgrades; fresh-install home fail-closed; runtime storefront definitions; Headless scopes, quotas, final-response audits, and public order status; per-install schema/CAPI alerting; one-time install capability; public provider rate limits with server-owned origin; and migration-owned settings schema.
+
+---
+
+## 2. Headless API Deliverables
+
+Nine `/api/v1/*` routes ship with hashed developer keys, independent origin policy, minimum per-operation scopes, D1-backed per-key quotas, payload-free write audits, token-scoped public order status, and an authenticated OpenAPI 3.1 document at `/api/v1/openapi.json`. `STOREFRONT_INTEGRATION.md` §4 is the human-readable contract.
+
+| ID | Item | Why it remains |
+| --- | --- | --- |
+| H9 | Cross-storefront consent handoff | No accepted merchant/legal contract defines how consent state crosses an external storefront handoff. Checkout must remain usable when tracking is declined or unavailable. |
 
 ---
 
 ## 3. External Provider Blockers
 
-These cannot be closed from inside this repository. Each needs a canonical provider document or an explicitly approved live capture.
+These cannot be closed from this repository alone. Each needs canonical provider documentation or an explicitly approved live capture.
 
-| Subsystem | What is missing | Status | Verified boundary |
-| --- | --- | --- | --- |
-| Mengantar tracking | Synchronize shipped / delivered / returned state | **Blocked** | No canonical authenticated callback or polling contract, no retry semantics, no status mapping is available to this repository. |
-| Mengantar wallet | Display live provider balance | **Blocked** | No canonical balance endpoint or verified response schema. `/admin/balance` is an AutoLaris D1 reconciliation ledger, not a provider wallet and not a withdrawal surface. |
-| AutoLaris callback | Replace the configured shared-secret callback with the provider's official authentication/signature contract | **Blocked** | Payment creation, persistence, instruction rendering, and idempotent paid reconciliation all work. `/api/webhooks/autolaris` authenticates against `AUTOLARIS_WEBHOOK_SECRET`; the provider's official signature/header specification and replay rules are unavailable. |
-
-Unknown or unauthenticated provider events **must fail closed** (ADR-007). Do not add a permissive branch to unblock testing.
+| Subsystem | Missing contract | Verified boundary |
+| --- | --- | --- |
+| Mengantar tracking live proof | Accepted, missing, malformed, timeout, and representative shipped/delivered/RTS responses from the active account | Operator-triggered authenticated polling, sequential isolation, raw evidence persistence, and monotonic status mapping are implemented and locally tested. No callback contract is assumed; no live provider read was performed in this change. |
+| Mengantar wallet | Canonical balance endpoint and response schema | `/admin/balance` is an AutoLaris D1 reconciliation ledger, not a provider wallet. |
+| AutoLaris payment-status polling | Canonical read-only inquiry endpoint, authentication, request identifier (`trx_id` or `reff_id`), paid/pending/expired/failed response schemas, polling interval, and retry/rate-limit semantics | Coordination with the AutoLaris team is in progress. The documented `GET /api/h2h/list_payment` endpoint was verified against the configured account on 2026-08-18: requests without parameters and with `trx_id`, `transaction_id`, or `reff_id` all returned the same channel-and-fee catalog with no transaction status fields. It must not be used for reconciliation. Payment creation ships, but the scheduled Worker must not mark a transaction paid until an authoritative inquiry response is available. The legacy webhook path is not the accepted production confirmation contract. |
+| Mengantar unpaid recovery | Real insufficient-wallet response plus verified `/order/pay-unpaid` response shape, idempotency, and failure semantics | Automatic `/order/create` dispatch is a separate contract. A provider-created unpaid draft may retain its accepted provider order ID with no cnote and be visible under **Perlu Dibuatkan Resi**, but `MengantarClient.payUnpaidOrder` has no verified internal operator action. No local flow may fabricate or persist a waybill before provider acceptance. |
+| Mengantar pickup proof | Current `/address` and `/time` schemas plus live accepted/rejected/timeout/duplicate evidence | Existing handlers already call provider-before-persist and leave D1 unchanged on provider failure. |
 
 ### Closing a blocked contract
 
-1. Obtain the canonical provider specification — endpoint, authentication, request/response schema, status enum, retry and idempotency semantics, replay window.
-2. Implement inside the existing client boundary (`src/lib/mengantar-client.ts`, the AutoLaris webhook handler). Do not open a second HTTP path.
-3. Persist provider identifiers and confirmed state **only** after an accepted response.
+1. Obtain the canonical specification or an explicitly approved capture: endpoint, authentication, schemas, status enum, retry/idempotency semantics, and replay window.
+2. Implement inside the existing provider client or webhook boundary; do not open a second HTTP path.
+3. Persist provider identifiers and confirmed state only after provider acceptance.
 4. Keep local failure actionable; never present an unsynchronized D1 row as provider-confirmed.
 5. Cover accepted, rejected, timeout, and retry paths with a runnable check.
 
 ---
 
-## 4. Provider Work With a Verified Transport but an Incomplete Surface
+## 4. Inherited Identity and Account-Coupled Copy
 
-### A. Non-COD unpaid recovery — transport done, operator surface missing
+One known row remains: `Zanoby Purchase` in `src/pages/admin/ads/google.astro` names a conversion action configured in a Google Ads account. Editing repository copy does not rename that remote conversion action; coordinate the change with the account owner.
 
-`MengantarClient.payUnpaidOrder(batchId, courierCode)` posts to `/order/pay-unpaid` (`src/lib/mengantar-client.ts:358`) and is covered by a test (`src/lib/mengantar-client.test.ts:114`). **Nothing calls it.** There is no admin action, no route, and no operator UI, so an order that came back from sequential dispatch with `isPaid: false` and no `cnote_no` is currently unrecoverable without leaving the product.
-
-Remaining work:
-
-1. Capture an explicitly approved real insufficient-wallet response to confirm the exact failure shape.
-2. Verify `/order/pay-unpaid` authentication, idempotency, and failure semantics against that capture.
-3. Expose a recovery action in `/admin/orders` or `/admin/shipping`, scoped to the verified state only.
-4. Persist returned payment and waybill fields only after provider acceptance.
-
-The blocker here is the operator surface plus a live capture — not the transport.
-
-### B. Pickup address and schedule — implemented, needs contract re-verification and live proof
-
-This is **implemented**, not pending. Both paths already follow accept-before-persist:
-
-- `src/pages/api/admin/settings.ts:620` calls `ensurePickupAddress` before writing the `warehouses` row; a provider failure returns 502 (504 on timeout) with `"Data gudang lokal tidak diubah."` and D1 is left untouched.
-- `src/pages/api/admin/shipping.ts:395` calls `schedulePickupTime`, requires a provider schedule reference in the response, and returns 502 `"Mengantar tidak mengembalikan referensi jadwal; D1 tidak diubah."` when it is absent.
-
-What remains is not code:
-
-1. Re-verify the `/address` and `/time` request/response schemas against current Mengantar documentation — they were implemented from an earlier reading.
-2. Exercise the accepted, rejected, timeout, and duplicate-pickup paths against the live provider under explicit approval (see §6).
+The legacy `zanoby_click_ids` cookie remains a read-only 90-day attribution fallback by deliberate compatibility decision. New writes use `adsbook_click_ids`; remove the fallback only after the upgrade window has elapsed.
 
 ---
 
-## 5. Headless API Surface — shipping, with real gaps
-
-The `/api/v1/*` family is **implemented** — seven routes, key-authenticated, documented in `STOREFRONT_INTEGRATION.md` §4. It is no longer a planned contract and must not be listed as one. Note that `TASKS.md` T174 and T175 are stale: the bootstrap and catalog contracts they describe both ship.
-
-Genuine remaining work on that surface:
-
-| # | Item | Why it matters |
-| --- | --- | --- |
-| H4 | No per-key scoping, quota, or rate limit | Any valid key reaches every `/api/v1` route. Only `/api/v1/checkout` is rate-limited, and by client IP rather than by key. |
-| H6 | No headless order-status read | An external storefront cannot poll payment state through `/api/v1`; only the session-authenticated `/api/order-status` exists. |
-| H7 | No published API contract | No OpenAPI document, no client SDK, no versioning policy for `/api/v1`. |
-| H8 | Executable storefront adapter | `STOREFRONT_INTEGRATION.md` §10 is a documentation brief, not a shipped adapter. Nothing packaged proves bootstrap → catalog → form handoff → confirmation → error mapping → attribution → accessible focus return end to end. |
-
-### Cross-storefront consent
-
-**Blocked on a merchant/legal decision; implementation planned.** Tracking validation and tag components exist, but no consent adapter propagates a consent decision across an external-storefront handoff. Consent state, tag load, browser event, install acceptance, Meta acceptance, attribution, and platform reporting must remain seven separately reportable facts. Checkout must stay usable when tracking is declined or unavailable.
-
----
-
-## 6. Inherited-Identity Cleanup
-
-Per ADR-002, remnants of the upstream multi-tenant engine and of previous merchants are to be **removed**, not preserved as compatibility boundaries.
-
-| # | Remnant | Where | Note |
-| --- | --- | --- | --- |
-| ~~C1~~ | ~~`CONTENT_PACK_IDS`~~ | — | **Done.** The constant, its type and its guard are gone; `tenant-contract.ts` now holds only `STOREFRONT_TEMPLATE_IDS`. |
-| ~~C2~~ | ~~`zanoby_click_ids` cookie~~ | — | **Done.** The cookie is `adsbook_click_ids`; the legacy name survives as a read-only fallback in `click-ids.ts` so an upgrading install keeps 90 days of in-flight attribution, and appears nowhere else. |
-| C3 | `Zanoby Purchase` conversion label | `src/pages/admin/ads/google.astro` | Operator-facing copy naming a conversion action configured in a **Google Ads account**. Editing the string does not rename the conversion action; coordinate with whoever owns that account. **The only row here still true.** |
-| ~~C4~~ | ~~`petanisejahtera.com` test fixture~~ | — | **Done.** Replaced with a neutral origin. |
-| ~~C5~~ | ~~`PUBLIC_TENANT_SLUG`~~ | — | **Withdrawn.** It is not in `src/env.d.ts` and it is not unused: it is a live fallback key in `tenant.ts`, between `stores.slug` and the product default. Deleting it, as this row instructed, would have removed working behaviour. |
-| ~~C6~~ | ~~`pnpm-lock.yaml` + `pnpm-workspace.yaml`~~ | — | **Done.** Neither file exists. |
-
----
-
-## 7. Operator-Gated Actions
+## 5. Operator-Gated Actions
 
 These are not engineering gaps. They require an explicit human decision and, where relevant, a rollback plan.
 
 | Action | Gate |
 | --- | --- |
-| Live Mengantar side effects — order creation, pickup address, pickup schedule, unpaid recovery | Exact side-effect approval. Recent order and shipping audits deliberately avoided provider, payment, pickup, publish, and order mutations. |
-| Live AutoLaris side effects — payment creation, callback replay | Exact side-effect approval. |
-| Meta test events | Operator-provided test code plus explicit outbound-call approval. |
-| Remote D1 migration (`npm run db:migrate:remote`) | Separate approval, independent of any deploy approval. |
-| Production release | **Not possible from this repository.** It is the product: `.github/workflows/ci.yml` runs `npm ci → npm run check → npm test → npm run build` and stops. There are no Cloudflare credentials and no deploy target here (ADR-012). Releasing means an install pulls this code into its own repository and deploys from there, where merging to `main` does reach live traffic with no staging and no approval step. |
-| Provisioning a second install in another Cloudflare account | Explicit approval. `/install` covers store setup, but creating the Worker, D1, KV and R2 and applying the schema is still a Wrangler procedure, and it has not been proven end to end against a second account. |
+| Live Mengantar side effects — order creation, pickup address, pickup schedule, unpaid recovery | Exact side-effect approval |
+| Live AutoLaris side effects — payment creation or payment-state mutation | Exact side-effect approval |
+| Meta test events | Operator-provided test code plus explicit outbound-call approval |
+| Remote D1 preflight (`npm run db:migrate:remote`) | Separate production-data approval; runtime auto-upgrade does not authorize it |
+| Install-repository deployment | Explicit production approval; this product repository itself has no deploy target or credentials |
+| Provisioning another Cloudflare account/install | Explicit infrastructure approval |
+| Scrubbing local or remote warehouse/provider identifiers | Explicit destructive-data approval |
 
 ---
 
-## 8. Merchant Input and Runtime Publication
+## 6. Execution Order
 
-Repository implementation for the content workbench is complete; publication is runtime work performed by the merchant or operator, not by a commit.
-
-1. Store a non-secret content instruction in the install's D1.
-2. Generate or save a draft through `/admin/content`.
-3. Review every factual claim, product reference, route, and media reference.
-4. Upload merchant-owned media to the install's R2 bucket.
-5. Publish each validated home and product record explicitly.
-6. Exercise the resulting storefront and its metadata in a browser.
-
-Neither surface fails closed today. `mergeStorefrontCatalog` omits an **inactive** product, but an *active* product with no published presentation is re-added with copy generated from its own row (`catalog-data.ts`). Home content behaves the same way: with no published row, `buildDefaultHomeContent` composes a shell from this store's identity, logged as `home-content-unpublished`. Both are gap **G5**.
-
-**Never seed production merchant instructions, credentials, claims, testimonials, ratings, or customer data into Git.**
+1. **AD3** define stable truthful out-of-stock feed behavior.
+2. **S1** complete the runtime store identity editor.
+3. **D1** remove obsolete runtime DDL now that schema readiness is enforced.
+4. **AD3** make product-level identifiers and out-of-stock availability truthful.
+5. **S1** complete runtime identity editing.
+6. **DOC1** rebuild the design-system record from the current tree.
+7. Resolve provider blockers only from canonical documentation or approved live evidence.
+8. Implement **H9** only after the consent contract is accepted.
 
 ---
 
-## 9. Execution Order
+## 7. Completion Rules
 
-1. **G5** make home content fail closed; a fresh install must not render a
-   generic storefront in place of a setup state (ADR-007, task A-12b).
-2. **H4, H6, H7, H8** complete the remaining Headless API product surface: key
-   scope and quota, order-status read, a published contract, and an executable
-   adapter.
-3. **G7** error reporting and alerting. Workers Logs and `/api/admin/health`
-   already exist; what is missing is anything that *pushes*.
-4. **G3** compare `schemaVersion` to the applied chain at boot.
-5. **G6** allow a template to be added without a rebuild.
-6. **O1, O2, P1** close inventory and payment-lifecycle corruption before adding order features.
-7. **I1, A1, A2, O3, P2, T1, D1** close the remaining audited security, abuse, concurrency, policy, signal, and schema gaps.
-8. **§4A** the unpaid-recovery operator surface, after an approved live capture.
-9. **§4B** re-verify the pickup contracts, then prove them live under approval.
-10. **§3** resolve tracking, wallet, and AutoLaris signature blockers only from canonical provider documentation.
-11. Complete the consent adapter once the installer product shape is settled.
+An entry is complete only when its contract, implementation, executable proof, failure behaviour, and owning canonical document are updated together.
 
----
-
-## 10. Completion Rules
-
-An entry is complete only when its contract, implementation, executable proof, failure behaviour, and owning canonical document are all updated together.
-
-- A green `npm run build` is not evidence the UI works. Open it.
+- A green build is not evidence a UI works; open it.
 - A local build is not live-provider evidence.
-- A Worker deployment is not D1 migration evidence.
+- Runtime migration success on local D1 is not remote-D1 approval.
 - A Custom Domain is not data isolation by itself.
 - A deleted Worker does not authorize deleting its D1, KV, R2, DNS, or secrets.
 - A documented prompt is not an executable adapter.
 
-Local verification, in the order CI runs it:
+Local gates, in CI order:
 
 ```bash
-npm test          # node --test over src/lib/*.test.ts
-npm run check     # astro check && tsc --noEmit
-npm run build     # astro build
+npm run check
+npm test
+npm run build
 ```

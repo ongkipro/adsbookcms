@@ -1,3 +1,4 @@
+import { getPublicProductValidationError } from "./catalog-data.ts";
 
 const MAX_VARIANTS = 200;
 export function createCatalogProductId() {
@@ -137,7 +138,7 @@ export function parseProductMutationPayload(
 
   const rawTitle = clean(body.title, 160);
   const title = capitalizeTitle(rawTitle);
-  const slug = normalizeSlug(clean(body.slug, 200)) || normalizeSlug(title);
+  const slug = normalizeSlug(clean(body.slug, 200));
   const category = clean(body.category, 120) || "Umum";
   const imageUrl = clean(body.image_url, 500);
   if (
@@ -206,8 +207,7 @@ export function parseProductMutationPayload(
         ? null
         : parseInteger(rawVariant.compare_price);
     const weightGrams = parseInteger(rawVariant.weight_grams) ?? 1000;
-    const rawStock = parseInteger(rawVariant.stock);
-    const stock = rawStock === null ? 1000 : rawStock < 0 ? 0 : rawStock;
+    const stock = parseInteger(rawVariant.stock);
 
     if (variantId !== undefined && (!variantId || variantId <= 0)) {
       return { error: "ID varian tidak valid." };
@@ -226,6 +226,9 @@ export function parseProductMutationPayload(
     }
     if (!weightGrams || weightGrams <= 0) {
       return { error: `Berat varian ${sku} harus integer positif.` };
+    }
+    if (stock === null || stock < 0) {
+      return { error: `Stok varian ${sku} harus integer nol atau lebih.` };
     }
     if (comparePrice !== null && comparePrice < 0) {
       return { error: `Harga coret varian ${sku} harus nol atau lebih.` };
@@ -248,17 +251,21 @@ export function parseProductMutationPayload(
     });
   }
 
-  return {
-    value: {
-      id: productId,
-      title,
-      slug,
-      category,
-      image_url: imageUrl || null,
-      is_active: isActive,
-      variants,
-    },
+  const value = {
+    id: productId,
+    title,
+    slug,
+    category,
+    image_url: imageUrl || null,
+    is_active: isActive,
+    variants,
   };
+  if (isActive) {
+    const publicationError = getPublicProductValidationError(value, variants);
+    if (publicationError) return { error: publicationError };
+  }
+
+  return { value };
 }
 
 export type ProductDeletionResult =
@@ -303,6 +310,13 @@ export async function deleteCatalogProduct(
       `,
       )
       .bind(productId, productId),
+    database
+      .prepare(
+        `DELETE FROM storefront_content
+         WHERE content_key = ?
+           AND NOT EXISTS (SELECT 1 FROM products WHERE id = ?)`,
+      )
+      .bind(`product:${productId}`, productId),
   ]);
   return Number(results[1]?.meta?.changes || 0) > 0
     ? { status: "deleted" }

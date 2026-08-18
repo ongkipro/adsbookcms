@@ -44,7 +44,15 @@ const mayManageAccess = Astro.locals.admin?.role === 'owner';
         if (!response.ok || !payload.success) {
           throw new Error(payload.message || payload.error || 'Pemeriksaan gagal.');
         }
-        setStatus(statusId, payload.message || 'Konfigurasi tersedia.', 'success');
+        setStatus(
+          statusId,
+          payload.message || 'Konfigurasi tersedia.',
+          payload.verification_supported === false
+            ? 'idle'
+            : payload.verified
+              ? 'success'
+              : 'error',
+        );
       } catch (error) {
         setStatus(
           statusId,

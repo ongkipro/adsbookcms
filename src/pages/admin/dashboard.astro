@@ -2,13 +2,10 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { AnalyticsDashboard } from '../../components/admin/AnalyticsDashboard';
 import OperationalHealth from '../../components/admin/OperationalHealth';
-import { getSchemaVersionStatus } from '../../lib/schema-version';
 import { canAccessAdminRoute } from '../../lib/auth';
 
 export const prerender = false;
 
-// One SELECT COUNT(*) per isolate, on this page only. A mismatch is shown, not
-// thrown: a schema drift must never take a working store offline.
 const adminRole = Astro.locals.admin?.role ?? 'customer_service';
 const mayViewHealth = canAccessAdminRoute(adminRole, '/api/admin/health');
 const mayManageOrders = canAccessAdminRoute(adminRole, '/admin/orders');
@@ -22,14 +19,6 @@ const primaryActions = mayManageOrders
       { href: '/admin/products', label: 'Kelola produk', primary: false },
       { href: '/admin/ads', label: 'Buka Ads', primary: true },
     ];
-const schema = mayViewHealth ? await getSchemaVersionStatus(Astro.locals) : { state: 'match' as const };
-const schemaNotice = schema.state === 'database-behind'
-  ? `Database toko masih di migrasi ke-${schema.applied}, sedangkan aplikasi ini dibangun untuk ke-${schema.expected}. Jalankan \`wrangler d1 migrations apply OMS_DB --remote\` sebelum memakai fitur baru — query yang belum punya kolomnya akan gagal.`
-  : schema.state === 'database-ahead'
-    ? `Database toko sudah di migrasi ke-${schema.applied}, lebih baru dari aplikasi ini (ke-${schema.expected}). Deploy build terbaru; versi ini kemungkinan tidak mengenal kolom yang sudah ada.`
-    : schema.state === 'unknown'
-      ? 'Versi skema database tidak bisa dibaca (tabel `d1_migrations` tidak ada atau tidak terbaca), jadi kecocokan aplikasi dengan database tidak bisa dipastikan.'
-      : '';
 ---
 
 <AdminLayout title="Dashboard" activeMenu="dashboard">
@@ -45,12 +34,6 @@ const schemaNotice = schema.state === 'database-behind'
         ))}
       </div>
     </header>
-    {schemaNotice && (
-      <div role="status" class="flex flex-col gap-1 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
-        <p class="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">Peringatan skema database</p>
-        <p class="text-sm leading-5">{schemaNotice}</p>
-      </div>
-    )}
     <AnalyticsDashboard client:only="react" showPaymentsLink={mayManagePayments} />
     {mayViewHealth && <OperationalHealth client:only="react" />}
   </div>

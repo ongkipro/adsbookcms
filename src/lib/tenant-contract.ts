@@ -3,10 +3,15 @@ export const STOREFRONT_TEMPLATE_IDS = [
   "wide-catalog",
 ] as const;
 
-export type StorefrontTemplateId = (typeof STOREFRONT_TEMPLATE_IDS)[number];
+/**
+ * Persisted definitions extend the built-in IDs at runtime. The identifier is
+ * deliberately only a constrained slug; existence and definition validity are
+ * checked against D1 by the storefront template resolver.
+ */
+export type StorefrontTemplateId = string;
 
 export function isStorefrontTemplateId(
   value: string,
 ): value is StorefrontTemplateId {
-  return STOREFRONT_TEMPLATE_IDS.some((candidate) => candidate === value);
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 40;
 }

@@ -17,7 +17,7 @@ import {
   Eye,
   Filter,
 } from "lucide-react";
-import { catalogItemGroupId } from "../../lib/catalog-feed";
+import { catalogProductId } from "../../lib/catalog-feed";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import {
@@ -72,10 +72,12 @@ export type Product = {
 type FormMode = "middle" | "full" | "hybrid";
 type EmbedConfig = {
   variants: Array<{
+    id: number | string;
     content_id: string;
     label: string;
   }>;
   selected_variant: {
+    id: number | string;
     content_id: string;
   };
 };
@@ -264,7 +266,7 @@ export function ProductCatalog({
         }
         const config = payload as EmbedConfig & { success: true };
         setEmbedConfig(config);
-        setEmbedVariantId(config.selected_variant.content_id);
+        setEmbedVariantId(String(config.selected_variant.id));
       })
       .catch((reason) => {
         if (!(reason instanceof Error && reason.name === "AbortError")) {
@@ -296,7 +298,7 @@ export function ProductCatalog({
     return products.filter((product) => {
       const matchesQuery =
         !normalized ||
-        [product.id, catalogItemGroupId(product.id), product.title, product.slug, product.category]
+        [product.id, catalogProductId(product.id), product.title, product.slug, product.category]
           .join(" ")
           .toLowerCase()
           .includes(normalized);
@@ -832,7 +834,7 @@ export function ProductCatalog({
                     <div>
                       <dt className="text-[10px] text-slate-500 uppercase font-semibold">Content ID</dt>
                       <dd className="mt-0.5 font-mono font-bold text-slate-900 text-[11px] truncate">
-                        {catalogItemGroupId(product.id)}
+                        {catalogProductId(product.id)}
                       </dd>
                     </div>
                     <div>
@@ -935,12 +937,12 @@ export function ProductCatalog({
                       <TableCell className="py-3.5 px-4">
                         <button
                           type="button"
-                          onClick={() => void copyText(catalogItemGroupId(product.id), "Item group ID")}
+                          onClick={() => void copyText(catalogProductId(product.id), "Product / Content ID")}
                           className="group inline-flex items-center gap-1.5 rounded-md px-2 py-1 hover:bg-slate-100 transition-colors text-left"
                           title="Klik untuk menyalin Content ID"
                         >
                           <span className="font-mono text-xs font-bold text-slate-700 group-hover:text-slate-950">
-                            {catalogItemGroupId(product.id)}
+                            {catalogProductId(product.id)}
                           </span>
                           <Copy className="size-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </button>
@@ -1096,8 +1098,8 @@ export function ProductCatalog({
                   >
                     {embedConfig.variants.map((variant) => (
                       <option
-                        key={variant.content_id}
-                        value={variant.content_id}
+                        key={String(variant.id)}
+                        value={String(variant.id)}
                       >
                         {variant.label}
                       </option>

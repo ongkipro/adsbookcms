@@ -60,7 +60,7 @@ export const adminNavGroups: AdminNavGroup[] = [
         icon: ShoppingBag,
         keywords: "orders pesanan transaksi pelanggan terbengkalai abandoned leads",
         children: [
-          { href: "/admin/orders?status=abandoned", label: "Pesanan Terbengkalai", icon: UserX },
+          { href: "/admin/orders/abandoned", label: "Pesanan tertinggal", icon: UserX },
         ],
       },
       {

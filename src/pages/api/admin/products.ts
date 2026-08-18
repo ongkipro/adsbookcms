@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { jsonError, jsonOk } from "../../../lib/api";
 import { getRuntimeEnv } from "../../../lib/env";
+import { getPublicProductValidationError } from "../../../lib/catalog-data";
 import {
   createCatalogProductId,
   deleteCatalogProduct,
@@ -268,6 +269,19 @@ export const PATCH: APIRoute = async ({ request, locals }) => {
 
     try {
       const db = database as D1Database;
+      const currentProducts = await loadProducts(db, statusToggle.value.id);
+      const currentProduct = currentProducts[0];
+      if (!currentProduct) {
+        return jsonError("Produk tidak ditemukan.", 404);
+      }
+      if (statusToggle.value.is_active) {
+        const publicationError = getPublicProductValidationError(
+          currentProduct,
+          currentProduct.variants,
+        );
+        if (publicationError) return jsonError(publicationError, 400);
+      }
+
       const wasUpdated = await updateProductActiveStatus(
         db,
         statusToggle.value,

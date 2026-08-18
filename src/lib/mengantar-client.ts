@@ -56,6 +56,206 @@ type MengantarApiResponse<T> = {
   message?: string;
 };
 
+export type MengantarTrackingHistory = {
+  desc?: string;
+  date?: string;
+  [key: string]: unknown;
+};
+
+export type MengantarOrderTracking = {
+  cnote_no?: string | null;
+  ORDER_ID?: string;
+  courier?: string;
+  status?: string;
+  history?: readonly MengantarTrackingHistory[];
+  [key: string]: unknown;
+};
+
+export type ProviderShippingStatus =
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "returned";
+
+export type MengantarStatusEvidence = {
+  shippingStatus: ProviderShippingStatus;
+  description: string | null;
+  occurredAt: string | null;
+};
+
+
+const normalizeProviderTimestamp = (value: string | null): string | null => {
+  if (!value) return null;
+  const jakarta = value
+    .trim()
+    .match(
+      /^(\d{2})-(\d{2})-(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2}))?(?:\s+Asia\/Jakarta)?$/,
+    );
+  if (jakarta) {
+    const [, day, month, year, hour, minute, second = "0"] = jakarta;
+    const calendar = new Date(
+      Date.UTC(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second),
+      ),
+    );
+    if (
+      calendar.getUTCFullYear() !== Number(year) ||
+      calendar.getUTCMonth() !== Number(month) - 1 ||
+      calendar.getUTCDate() !== Number(day) ||
+      calendar.getUTCHours() !== Number(hour) ||
+      calendar.getUTCMinutes() !== Number(minute)
+    ) {
+      return null;
+    }
+    return new Date(calendar.getTime() - 7 * 60 * 60 * 1000).toISOString();
+  }
+
+  const timestamp = new Date(value);
+  return Number.isNaN(timestamp.getTime()) ? null : timestamp.toISOString();
+};
+
+function latestTrackingHistory(
+  history: readonly MengantarTrackingHistory[],
+): { description: string | null; occurredAt: string | null } | null {
+  const events = history
+    .filter(
+      (event): event is MengantarTrackingHistory =>
+        Boolean(event) && typeof event === "object",
+    )
+    .map((event, index) => {
+      const description =
+        typeof event.desc === "string" && event.desc.trim()
+          ? event.desc.trim()
+          : null;
+      const date =
+        typeof event.date === "string" && event.date.trim()
+          ? event.date.trim()
+          : null;
+      return {
+        description,
+        occurredAt: normalizeProviderTimestamp(date),
+        index,
+      };
+    })
+    .filter((event) => event.description || event.occurredAt);
+  if (events.length === 0) return null;
+
+  const timestamped = events.filter((event) => event.occurredAt);
+  if (timestamped.length > 0) {
+    timestamped.sort((left, right) => {
+      const timeDifference =
+        Date.parse(right.occurredAt!) - Date.parse(left.occurredAt!);
+      return timeDifference || left.index - right.index;
+    });
+    return timestamped[0];
+  }
+  return events[0];
+}
+
+function activeMengantarStatusFlags(status: string | undefined): string[] {
+  if (!status) return [];
+  try {
+    const parsed = JSON.parse(status) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
+    return Object.entries(parsed)
+      .filter(([, active]) => active === true)
+      .map(([flag]) =>
+        flag
+          .normalize("NFKD")
+          .replace(/[^\p{L}\p{N}]+/gu, "_")
+          .toUpperCase(),
+      );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Converts only Mengantar's active status flags into the local lifecycle while
+ * retaining the latest raw history description and provider event time.
+ */
+export function mapMengantarStatusEvidence(
+  tracking: MengantarOrderTracking,
+): MengantarStatusEvidence {
+  const latest = latestTrackingHistory(
+    Array.isArray(tracking.history) ? tracking.history : [],
+  );
+  const flags = activeMengantarStatusFlags(tracking.status);
+  let shippingStatus: ProviderShippingStatus = "processing";
+  if (
+    flags.some(
+      (flag) =>
+        flag === "RTS" ||
+        flag === "RETURNED" ||
+        flag === "RETURN_TO_SENDER" ||
+        flag.startsWith("RTS_") ||
+        flag.startsWith("RETURNED_"),
+    )
+  ) {
+    shippingStatus = "returned";
+  } else if (
+    flags.some(
+      (flag) =>
+        flag === "DELIVERED" ||
+        flag === "DELIVERED_COMPLETE" ||
+        flag === "DELIVERY_COMPLETE",
+    )
+  ) {
+    shippingStatus = "delivered";
+  } else if (
+    flags.some((flag) =>
+      [
+        "PICKUP",
+        "PICKED_UP",
+        "PICKUP_COMPLETE",
+        "PICKUP_COMPLETED",
+        "COLLECTED",
+        "SHIPPED",
+        "IN_TRANSIT",
+        "TRANSIT",
+        "OUT_FOR_DELIVERY",
+        "MANIFESTED",
+      ].includes(flag),
+    )
+  ) {
+    shippingStatus = "shipped";
+  }
+
+  return {
+    shippingStatus,
+    description: latest?.description || null,
+    occurredAt: latest?.occurredAt || null,
+  };
+}
+
+const PROVIDER_STATUS_RANK: Record<ProviderShippingStatus | "pending", number> = {
+  pending: 0,
+  processing: 1,
+  shipped: 2,
+  delivered: 3,
+  returned: 3,
+};
+
+export function selectProviderShippingAdvance(
+  currentStatus: string,
+  evidenceStatus: ProviderShippingStatus,
+): ProviderShippingStatus | null {
+  if (["delivered", "returned", "cancelled"].includes(currentStatus)) return null;
+  const currentRank =
+    PROVIDER_STATUS_RANK[
+      currentStatus as keyof typeof PROVIDER_STATUS_RANK
+    ];
+  if (currentRank === undefined) return null;
+  return PROVIDER_STATUS_RANK[evidenceStatus] > currentRank
+    ? evidenceStatus
+    : null;
+}
+
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 export function redactMengantarApiKey(message: string, apiKey: string): string {
@@ -337,6 +537,27 @@ export class MengantarClient {
     const query = new URLSearchParams({ search: cleanPhone });
     const json = await this.requestJson<Record<string, unknown>>(`/getReceiverScoreByNumberUser?${query.toString()}`);
     return json.data && typeof json.data === 'object' ? json.data : {};
+  }
+
+  /**
+   * Look up one shipment and its tracking history by provider waybill.
+   */
+  async getOrderByTrackingId(
+    trackingId: string,
+  ): Promise<MengantarOrderTracking> {
+    const normalizedTrackingId = trackingId.trim();
+    if (!normalizedTrackingId) {
+      throw new Error("Nomor resi Mengantar wajib diisi.");
+    }
+    const query = new URLSearchParams({ tracking_id: normalizedTrackingId });
+    const json = await this.requestJson<MengantarOrderTracking[]>(
+      `/order?${query.toString()}`,
+    );
+    const tracking = Array.isArray(json.data) ? json.data[0] : null;
+    if (!tracking || typeof tracking !== "object") {
+      throw new Error("Data tracking Mengantar tidak ditemukan.");
+    }
+    return tracking;
   }
 
 

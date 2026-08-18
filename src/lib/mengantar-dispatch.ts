@@ -1,15 +1,15 @@
-import { getRuntimeEnv } from "./env";
-import { MengantarClient } from "./mengantar-client";
+import { getRuntimeEnv } from "./env.ts";
+import { MengantarClient } from "./mengantar-client.ts";
 import {
   buildMengantarOrderPayload,
   parseMengantarDispatchResponse,
   resolveAcceptedMengantarShipment,
-} from "./mengantar-order";
-import { getProviderConfig } from "./provider-config";
+} from "./mengantar-order.ts";
+import { getProviderConfig } from "./provider-config.ts";
 import {
   canDispatchOrderToMengantar,
   MENGANTAR_DISPATCH_CLAIM_TTL_MS,
-} from "./payment-dispatch-policy";
+} from "./payment-dispatch-policy.ts";
 
 export type MengantarDispatchOutcome = {
   status:
@@ -24,7 +24,6 @@ export type MengantarDispatchOutcome = {
   cnoteNo?: string;
   error?: string;
 };
-
 
 type DispatchOrderRow = {
   id: number;
@@ -296,7 +295,13 @@ export async function dispatchOrderToMengantar(
           provider_dispatched_at = ?, shipping_status = ?,
           confirmed_at = COALESCE(confirmed_at, ?)
         WHERE id = ? AND provider_order_id IS NULL
-          AND provider_dispatch_claimed_at = ?`,
+          AND provider_dispatch_claimed_at = ?
+          AND shipping_status = 'pending'
+          AND (payment_method = 'cod' OR payment_status IN ('paid', 'settled', 'success'))
+          AND payment_method = ? AND payment_status = ?
+          AND customer_name = ? AND customer_phone = ? AND address = ?
+          AND destination_area_id = ? AND courier_code = ?
+          AND total_amount = ?`,
       )
       .bind(
         accepted.providerOrderId,
@@ -308,29 +313,67 @@ export async function dispatchOrderToMengantar(
         acceptedAt,
         order.id,
         claimedAt,
+        order.payment_method,
+        order.payment_status,
+        order.customer_name,
+        order.customer_phone,
+        order.address,
+        destinationAreaId,
+        courierCode,
+        order.total_amount,
       )
       .run();
     if (!persistence.meta?.changes) {
-      await database
+      const conflictMessage =
+        "Mengantar menerima shipment, tetapi order berubah saat dispatch. Periksa shipment provider sebelum tindakan berikutnya.";
+      const conflict = await database
         .prepare(
           `UPDATE orders SET
             provider_order_id = ?, provider_batch_id = ?, cnote_no = ?,
             provider_dispatch_error = ?, provider_dispatch_claimed_at = NULL,
-            provider_dispatched_at = ?, shipping_status = ?,
-            confirmed_at = COALESCE(confirmed_at, ?)
-          WHERE id = ?`,
+            provider_dispatched_at = ?
+          WHERE id = ? AND provider_order_id IS NULL
+            AND provider_dispatch_claimed_at = ?`,
         )
         .bind(
           accepted.providerOrderId,
           accepted.providerBatchId,
           accepted.cnoteNo,
-          accepted.providerDispatchError,
+          conflictMessage,
           accepted.providerDispatchedAt,
-          accepted.shippingStatus,
-          acceptedAt,
           order.id,
+          claimedAt,
         )
         .run();
+      if (conflict.meta?.changes) {
+        return {
+          status: "failed",
+          providerOrderId: accepted.providerOrderId,
+          cnoteNo: accepted.cnoteNo || undefined,
+          error: conflictMessage,
+        };
+      }
+
+      const current = await database
+        .prepare(
+          `SELECT provider_order_id, cnote_no
+          FROM orders
+          WHERE id = ?
+          LIMIT 1`,
+        )
+        .bind(order.id)
+        .first<{ provider_order_id: string | null; cnote_no: string | null }>();
+      if (current?.provider_order_id) {
+        return {
+          status:
+            order.payment_method !== "cod" && !current.cnote_no
+              ? "unpaid"
+              : "already_dispatched",
+          providerOrderId: current.provider_order_id,
+          cnoteNo: current.cnote_no || undefined,
+        };
+      }
+      return { status: "failed", error: conflictMessage };
     }
     return {
       status: accepted.outcome,

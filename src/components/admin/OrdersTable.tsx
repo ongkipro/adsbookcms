@@ -190,7 +190,6 @@ const mapOrder = (row: OrderRow): OrderItem => ({
 });
 
 const shippingLabels: Record<string, string> = {
-  abandoned: "Terbengkalai",
   pending: "Menunggu",
   processing: "Diproses",
   shipped: "Dikirim",
@@ -200,7 +199,6 @@ const shippingLabels: Record<string, string> = {
 };
 
 const shippingStatusStyles: Record<string, string> = {
-  abandoned: "bg-rose-500",
   pending: "bg-amber-500",
   processing: "bg-sky-500",
   shipped: "bg-blue-600",
@@ -212,7 +210,6 @@ const shippingStatusStyles: Record<string, string> = {
 
 const quickStatusFilters = [
   { value: "all", label: "Semua" },
-  { value: "abandoned", label: "Terbengkalai" },
   { value: "pending", label: "Menunggu" },
   { value: "processing", label: "Diproses" },
   { value: "shipped", label: "Dikirim" },
@@ -544,7 +541,6 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
   const [bulkStatusTarget, setBulkStatusTarget] = useState("");
   const [statusCounts, setStatusCounts] = useState<StatusCounts>({
     all: 0,
-    abandoned: 0,
     pending: 0,
     processing: 0,
     shipped: 0,
@@ -608,7 +604,6 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
         });
         setStatusCounts({
           all: Number(payload.status_counts?.all) || 0,
-          abandoned: Number(payload.status_counts?.abandoned) || 0,
           pending: Number(payload.status_counts?.pending) || 0,
           processing: Number(payload.status_counts?.processing) || 0,
           shipped: Number(payload.status_counts?.shipped) || 0,
@@ -1258,7 +1253,6 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Semua status</SelectItem>
-                    <SelectItem value="abandoned">Terbengkalai</SelectItem>
                     <SelectItem value="pending">Menunggu</SelectItem>
                     <SelectItem value="processing">Diproses</SelectItem>
                     <SelectItem value="shipped">Dikirim</SelectItem>

@@ -1,14 +1,16 @@
 import type { APIRoute } from 'astro';
-import { getRuntimeEnv } from '../../lib/env';
-import { jsonError, jsonOk } from '../../lib/api';
-import { recordAbandonedOrder } from '../../lib/order-persistence';
-import { isValidWa62, normalizePhone } from '../../lib/validation';
+import { getRuntimeEnv } from '../../lib/env.ts';
+import { json, jsonError, jsonOk } from '../../lib/api.ts';
+import { recordAbandonedOrder } from '../../lib/order-persistence.ts';
+import {
+  checkRateLimit,
+  getClientIp,
+  rateLimitHeaders,
+} from '../../lib/rate-limit.ts';
+import { isValidWa62, normalizePhone } from '../../lib/validation.ts';
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  const database = getRuntimeEnv(locals)?.OMS_DB;
-  if (!database || typeof database !== 'object') {
-    return jsonError('Database order belum tersedia.', 503);
-  }
+  const runtime = getRuntimeEnv(locals);
 
   const body = await request.json().catch(() => null) as {
     customer_name?: string;
@@ -19,10 +21,43 @@ export const POST: APIRoute = async ({ request, locals }) => {
     address?: string;
     province?: string;
     total_amount?: number;
+    website?: unknown;
+    honeypot?: unknown;
   } | null;
 
   if (!body) {
     return jsonError('Payload tidak valid.', 400);
+  }
+
+  if (String(body.website || body.honeypot || '').trim()) {
+    return jsonError('Request tidak valid.', 400, {
+      code: 'HONEYPOT_TRIGGERED',
+    });
+  }
+
+  const clientIp = getClientIp(request.headers);
+  const sessions = runtime?.SESSION as KVNamespace | undefined;
+  const rateLimit = await checkRateLimit(
+    sessions,
+    `record-abandoned-order:${clientIp}`,
+    10,
+    60_000,
+  );
+  if (!rateLimit.allowed) {
+    return json(
+      {
+        success: false,
+        error: 'Terlalu banyak percobaan. Coba lagi sebentar.',
+        code: 'RATE_LIMITED',
+      },
+      429,
+      rateLimitHeaders(rateLimit.remaining, rateLimit.resetAt),
+    );
+  }
+
+  const database = runtime?.OMS_DB;
+  if (!database || typeof database !== 'object') {
+    return jsonError('Database order belum tersedia.', 503);
   }
 
   const customerName = String(body.customer_name || '').trim();
@@ -62,6 +97,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
     ) {
       return jsonError(error.message, 503);
     }
-    return jsonError('Gagal mencatat order terbengkalai.', 500);
+    return jsonError('Gagal mencatat pesanan tertinggal.', 500);
   }
 };

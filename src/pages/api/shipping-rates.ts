@@ -4,12 +4,25 @@ import {
   resolveEligibleShippingRates,
   ShippingQuoteError,
 } from "../../lib/shipping-quote";
+import { checkRateLimit, getClientIp, rateLimitHeaders } from "../../lib/rate-limit";
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ url, locals }) => {
+export const GET: APIRoute = async ({ request, url, locals }) => {
   try {
     const env = getRuntimeEnv(locals);
+    const rateLimit = await checkRateLimit(
+      env?.SESSION as KVNamespace | undefined,
+      `public-shipping-rate:${getClientIp(request.headers)}`,
+      60,
+      60_000,
+    );
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Terlalu banyak permintaan ongkir. Coba lagi sebentar." }),
+        { status: 429, headers: { "Content-Type": "application/json", ...rateLimitHeaders(rateLimit.remaining, rateLimit.resetAt) } },
+      );
+    }
     const database = env?.OMS_DB;
     if (!database || typeof database !== "object") {
       return new Response(
@@ -50,7 +63,6 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
     const { originId, rates: eligibleRates, fallbackUsed } =
       await resolveEligibleShippingRates(db, locals, {
-        originId: url.searchParams.get("origin_id") || undefined,
         destinationId,
         destinationCity: url.searchParams.get("city") || undefined,
         paymentMethod,

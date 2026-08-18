@@ -52,8 +52,9 @@ const middlewareHooks = registerHooks({
     return nextLoad(url, context);
   },
 });
-const { onRequest } = await import('../middleware.ts');
+const { createMiddleware } = await import('../middleware.ts');
 middlewareHooks.deregister();
+const onRequest = createMiddleware(async () => undefined);
 
 function encodeSegment(value: unknown) {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
@@ -378,6 +379,7 @@ test('every admin role is confined to the routes it owns', () => {
   // admin: explicit operational allowlist, excluding operator management.
   assert.equal(canAccessAdminRoute('admin', '/admin/settings'), true);
   assert.equal(canAccessAdminRoute('admin', '/api/admin/orders'), true);
+  assert.equal(canAccessAdminRoute('admin', '/api/admin/abandoned-orders'), true);
   assert.equal(canAccessAdminRoute('admin', '/admin/settings/access'), false);
   assert.equal(canAccessAdminRoute('admin', '/admin/settings/access/new'), false);
   assert.equal(canAccessAdminRoute('admin', '/api/admin/access'), false);
@@ -391,11 +393,14 @@ test('every admin role is confined to the routes it owns', () => {
   assert.equal(canAccessAdminRoute('advertiser', '/api/admin/landing-pages/12'), true);
   assert.equal(canAccessAdminRoute('advertiser', '/admin/orders'), false);
   assert.equal(canAccessAdminRoute('advertiser', '/api/admin/orders'), false);
+  assert.equal(canAccessAdminRoute('advertiser', '/api/admin/abandoned-orders'), false);
   assert.equal(canAccessAdminRoute('advertiser', '/admin/settings/access'), false);
   assert.equal(canAccessAdminRoute('advertiser', '/api/admin/access'), false);
 
   // customer_service: order handling only, never the catalogue or ads.
   assert.equal(canAccessAdminRoute('customer_service', '/admin/orders'), true);
+  assert.equal(canAccessAdminRoute('customer_service', '/admin/orders/abandoned'), true);
+  assert.equal(canAccessAdminRoute('customer_service', '/api/admin/abandoned-orders'), true);
   assert.equal(canAccessAdminRoute('customer_service', '/api/admin/shipping/label'), true);
   assert.equal(canAccessAdminRoute('customer_service', '/admin/products'), false);
   assert.equal(canAccessAdminRoute('customer_service', '/api/admin/products'), false);
@@ -515,6 +520,7 @@ function createSessionStore(value: string | null) {
 function createCredentialDatabase(row: CredentialRow) {
   return {
     prepare: () => ({
+      first: async () => ({ name: 'Test Store', slug: 'test-store' }),
       bind: () => ({ first: async () => row }),
     }),
   } as unknown as D1Database;

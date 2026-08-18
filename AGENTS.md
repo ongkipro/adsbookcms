@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A13 working tree
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -61,12 +61,13 @@ failure mode this section exists to prevent.
 - Checkout never dispatches to a courier. Orders land as `pending`; an operator releases them explicitly from `/admin/orders`.
 - Paid status changes dispatch *eligibility*, never dispatch itself.
 - Price, stock, weight, and identity come from D1. Browser state is never pricing authority.
-- Stock non-negativity is enforced by a database trigger, not application code. Do not work around it.
+- Stock non-negativity and exactly-once restoration are enforced through the shared order lifecycle. All single/bulk status changes and deletions must use `src/lib/order-lifecycle.ts`; never write order status or delete reserved items around it.
 
 **Config**
 - Binding names are fixed: `OMS_DB`, `SESSION`, `ASSET_BUCKET`, `AI`, `ASSETS`.
 - Provider credentials are D1-first, env-fallback. Never echo a stored credential back through a browser API.
 - Meta CAPI tokens are server-only. Browser and server Purchase share one per-order `event_id`.
+- Every Headless route is registered in `HEADLESS_OPERATIONS` with one minimum scope. API-key usage quotas and write audit events are D1-backed and part of the request boundary, not UI-only policy.
 
 **Content**
 - Product presentation does **not** fail closed, and that is deliberate: an active product with no published content still renders, described from its own title, category and variants. What must never happen is copy belonging to a different product or a different merchant reaching it — that is the invariant, not omission.
@@ -76,6 +77,7 @@ failure mode this section exists to prevent.
 - `src/db/migrations/` is the only description of the schema. There is no `schema.ts` and no generator.
 - Migrations are hand-authored.
 - Never edit an applied migration in place. Corrections are new forward migrations. The single documented exception is `0017`, which had to be edited because it aborted the chain on a fresh database — read its header before considering another.
+- The Worker applies the checked-in migration chain on the first database-backed request after a deploy. Claim rows in `d1_migrations` and their schema statements run in one D1 batch; do not split that atomic boundary.
 
 ---
 
@@ -125,8 +127,9 @@ Deliberate corner-cuts get a `// lazy:` comment naming the ceiling and the upgra
 
 Do not "fix" these silently or treat them as bugs to be surprised by — they are known, tracked, and have decisions attached:
 
-- Home content falls back to built-in copy instead of failing closed (`G5`, ADR-007). The fallback is composed from this store's own identity and logs `home-content-unpublished`; it is still not an honest setup state.
+- Missing published home content renders the explicit setup state. Do not restore generated or compiled merchant-facing fallback copy.
 - `theme_color`, `locale` and `admin_name` are stored per install but have no admin editor yet.
+- Storefront template definitions live in `storefront_templates`. Built-in `compact-market` and `wide-catalog` are seeded only as editable D1 definitions; adding a definition must not require a rebuild.
 - The admin session cookie is `adsbook_session`, declared once as `SESSION_COOKIE_NAME` in `src/lib/auth.ts`. Never write the literal string; a writer and reader that disagree is a silent lockout.
 - The click cookie is `adsbook_click_ids`. The former `zanoby_click_ids` is still **read** as a fallback so an upgrading install does not lose 90 days of in-flight attribution. Never write the legacy name; it ages out on its own.
 - Newly issued developer API keys carry `adsbook_live_`. Keys issued as `cmsads_live_` still validate — the stored value is a SHA-256 digest, so the prefix never took part in matching, and rewriting it would have broken them. The legacy prefix survives only in `maskApiKeySecret` so an old key still renders a coherent preview.

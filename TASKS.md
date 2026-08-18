@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
+> Last executed baseline: 2026-08-17 @ `5cb1d32` + A13.
 
 ## Provenance — read before citing any task
 
@@ -196,9 +196,9 @@ Historical rows are left exactly as they landed. Do not retro-fit them and do no
 
 ## Phase 20: Pending Provider-Integrated Operations
 
-- [ ] **T57** — Mengantar Shipment Creation and Sequential Queue.
+- [x] **T57** — Mengantar Shipment Creation and Sequential Queue.
       -> REQ: REQ-41 · deps: [T15, T31, T39] · Done when: a focused admin scenario explicitly releases multiple eligible orders without concurrent `/order` calls, persists each provider-accepted result independently, keeps failures in Order Management, returns per-order results, and never fabricates `cnote_no`.
-- [ ] **T58** — Provider-Synchronized Pickup Address and Schedule.
+- [x] **T58** — Provider-Synchronized Pickup Address and Schedule.
       -> REQ: REQ-42 · deps: [T15, T39, T57] · Done when: admin address/schedule mutations call verified Mengantar `/address` and `/time` contracts and only mark D1 state confirmed after provider success.
 - [ ] **T59** — Mengantar Unpaid Shipment Recovery.
       -> REQ: REQ-43 · deps: [T57] · Done when: a real non-COD insufficient-wallet response remains unpaid without a resi and the admin recovery action obtains and persists `cnote_no` after `/order/pay-unpaid` succeeds.
@@ -897,9 +897,9 @@ Implementation, contract tests, static checks, build, and focused authenticated 
 ## Phase 80: 5-Digit Minimum Product Content-ID Pattern Lock & Auto-Taxonomy Feed Synchronization
 
 - [x] **T294** — 5-Digit Minimum Product Content-ID Pattern Lock (`src/lib/meta-event-contract.ts`).
- -> REQ: TRK-4 · deps: [T293] · Done when: `PRODUCT_ID_PATTERN` enforces `/^[A-Za-z0-9_./-]{5,128}$/` minimum 5-character/digit product content IDs for Meta and Google tracking outbox validation.
+ -> Historical contract superseded by ADR-017 and A-115: the validator now accepts only safe decimal Product IDs with at least five digits.
 - [x] **T295** — Automated Product Content ID Normalization & Feed Synchronization (`src/lib/catalog-feed.ts`, `src/lib/catalog-feed.test.ts`).
- -> REQ: TRK-5 · deps: [T294] · Done when: `formatContentId(id)` normalizes numeric product IDs < 10000 to 5-digit strings (`10001`+), XML feeds (`google-catalog.xml`, `meta-catalog.xml`) emit 5-digit `<g:id>` and `<g:item_group_id>`, unit tests pass 194/194, 0 TypeScript/Astro check errors, git committed and deployed live to `https://permatamall.shop/` (commit `bd98145`).
+ -> Historical contract superseded by ADR-017 and A-115: no ID is padded or offset; both feeds publish the actual Product ID once per product and omit `item_group_id`.
 
 ---
 
@@ -972,9 +972,8 @@ A-50 install topology (blocked until A-10 removes the build-time constraint)
 
 - [~] **A-12a** — Stop inheriting marketing copy on missing home content (`src/lib/tenant-content.ts`). **Done 2026-08-16.**
  -> REQ: REQ-13 · gap: G5 · ADR-007 · Done when: the fallback carries only this store's own identity and generic section labels, never marketing claims; the unpublished path and the missing-binding path each log a distinct label so a degraded render is visible in logs. A D1 query failure was already logged separately as `storefront-home-content-load`.
-- [ ] **A-12b** — Render an explicit setup state instead of the structural shell.
- -> REQ: REQ-13 · gap: G5 · ADR-007 · deps: [A-12a] · Done when: an install with no published home row renders the setup state that already exists in `src/pages/index.astro`. `getTenantHomeContent` never returns `null`, so that branch is currently unreachable — the work is making the absence of a published row observable to the page, not deleting a symbol (`DEFAULT_HOME_CONTENT` is already gone; the fallback is `buildDefaultHomeContent`).
- · **Blocked on data, not code:** the reference install has no published `storefront_content` row, so flipping this today would replace a live storefront homepage with a setup notice. Publish home content from `/admin/content` first, then flip.
+- [x] **A-12b** — Render an explicit setup state instead of the structural shell. **Done 2026-08-17 by A-100.**
+ -> REQ: REQ-13 · gap: G5 · ADR-007 · deps: [A-12a] · Missing published home content now resolves to `setup-required`; the built-in route and Headless storefront response expose that state without rendering compiled merchant copy. Focused resolver/template tests and the isolated fresh-install browser smoke cover the path.
 - [x] **A-13** — Schema version check. **Done 2026-08-16.**
  -> REQ: REQ-8 · gap: G3 · Done when: the applied migration count is compared with `CMS_VERSION.schemaVersion` and a mismatch is surfaced to the operator instead of failing at the first broken query.
 - [x] **A-14** — Remove inert tenant machinery. **Done 2026-08-16.**
@@ -1188,7 +1187,7 @@ Worker, and by reading the emitted stylesheets rather than the source.
  -> deps: [A-58] · Everything in A-76, A-77 and A-78 is a cascade change reasoned from the built stylesheet, not from pixels. Not established: that the 44px floors do not break a compact row, that growing `dialog-close` to 44×44 under `absolute top-2 right-2` clears the header in `OrderDetail`'s `p-0` dialog, or that admin reads acceptably now that it renders in Inter rather than the platform's `system-ui`. Done when the admin has been opened at 320px, 390px and desktop.
 
 - [x] **A-81** — Catalog id, pixel `content_ids` and feed `<g:id>` were three different values. **Done 2026-08-17.**
- -> ADR-015 · The feed published `10000 + row id`, the admin showed that, the Pixel sent the raw row id. Advantage+ and DPA matched nothing, silently, while the merchant paid for the traffic. Now `p{product}-v{variant}` everywhere, derived from the AUTOINCREMENT keys rather than the editable SKU. Also fixed in the same pass: the first variant of a multi-variant product was published without `item_group_id` (group of one, orphan id colliding with the group id), and the group carried no variant attribute, which Google requires. Verified live against `wrangler dev`: feed, product page, checkout with an explicit variant, and `/api/form-config` all emit the same strings. Pinned by `catalog-identity.test.ts`, which checks the two halves against each other rather than against a fixture — a fixture is how three values passed CI.
+ -> Historical ADR-015 implementation, superseded by ADR-017/A-115 on 2026-08-18. The cross-surface regression test remains, but the accepted identity is now the numeric Product ID and feeds are product-grained.
 
 - [ ] **A-82** — Give `product_variants` a variant axis.
  -> deps: [A-81] · Every variant label ships to Google as `g:size` whatever it really is, because the row records one free-text label ("30ml", "Merah", "isi 2") and nothing that says which attribute it varies. Google treats size as free text, so this is imprecise rather than invalid. Done when a colour variant ships as `g:color` and a size variant as `g:size`, chosen from stored data rather than guessed from the string.
@@ -1233,3 +1232,108 @@ Worker, and by reading the emitted stylesheets rather than the source.
 - [x] **A-94** — Make sidebar typography quiet and dashboard hierarchy truthful. **Done 2026-08-17.**
  -> Primary requirements: REQ-67, REQ-69 · Constraints: REQ-61, REQ-68 · Dependencies: A-90, A-93 · Done when: desktop and mobile navigation use regular text with medium weight only for current state; analytics and KPIs precede secondary health diagnostics; period controls cannot request an API-invalid range; labels describe the values actually calculated; and payment actions remain hidden from roles without access.
  -> Sidebar labels are regular, current labels medium, and navigation remains motionless. The dashboard now leads with a 7-day WIB analytics overview, four unclipped KPIs, revenue trend, and payment mix; health follows as owner/admin diagnostics. The paid-order ratio is labelled `Pembayaran berhasil`, 90/180-day presets are omitted from this 31-day endpoint, custom range is capped at 31 inclusive days, and `Kelola payment` follows route authorization. Escape from mobile All Menu returns focus to its trigger. Focused tests, the full 310-test suite, 318-file check, production build, and isolated Chromium at 390/768/1280 px pass.
+
+## A10 — Permatamall-derived correctness and installer hardening
+
+- [x] **A-95** — Unify order lifecycle and stock restoration. **Done 2026-08-17.**
+ -> Primary requirements: REQ-30, REQ-31 · Done when: single and bulk mutations share one transition policy; cancellation/return and destructive deletion restore reserved stock exactly once; provider-dispatched orders cannot be deleted; focused lifecycle and retention tests pass.
+
+- [x] **A-96** — Make identifiers and abandoned-lead retention race-safe. **Done 2026-08-17.**
+ -> Primary requirements: REQ-20, REQ-30 · Done when: order numbers use one atomic counter across checkout and abandoned capture; abandoned capture has honeypot plus rate limiting; scheduled maintenance purges eligible rows through the same stock-safe deletion boundary; concurrency and retention tests pass.
+
+- [x] **A-97** — Close payment-policy and Purchase-signal divergence. **Done 2026-08-17.**
+ -> Primary requirements: REQ-36, REQ-37, REQ-50, REQ-53 · Done when: bank transfer has an operator verification transition; persisted payment master/channel policy is enforced at submit boundaries; Meta browser/server Purchase uses canonical order/product identity and paid-state eligibility.
+
+- [x] **A-98** — Remove fake AutoLaris runtime health. **Done 2026-08-17.**
+ -> Primary requirement: REQ-4 · Done when: runtime defaults contain no fabricated AutoLaris credential; missing credentials are reported as missing rather than healthy; the source and focused tests prove the absence.
+
+- [x] **A-99** — Remove the bundled merchant catalog and assets. **Done 2026-08-17.**
+ -> Primary requirements: REQ-9, REQ-11, REQ-12 · Done when: no product dataset, seed command, product asset directory, or hardcoded merchant catalog ships; fresh catalog state is empty and all storefront product facts come from D1.
+
+- [x] **A-100** — Fail closed when home content is unpublished. **Done 2026-08-17.**
+ -> Primary requirements: REQ-13 · Done when: the content resolver returns `setup-required`; built-in and Headless home responses expose an explicit setup state; compiled/generated merchant-facing fallback copy cannot render.
+
+- [x] **A-101** — Apply the bundled migration chain at runtime. **Done 2026-08-17.**
+ -> Primary requirements: REQ-2, REQ-8, REQ-81 · Done when: the Worker embeds the checked-in chain, atomically claims and applies a valid missing suffix before database-backed routes, handles concurrent first requests, and fails closed on invalid/unknown/ahead history.
+
+- [x] **A-102** — Make storefront definitions runtime-extensible. **Done 2026-08-17.**
+ -> Primary requirements: REQ-14 · Done when: D1 owns editable template definitions and composition; built-in templates are seeded as runtime data; an operator can add a definition without rebuilding the Worker.
+
+- [x] **A-103** — Enforce Headless scopes, quotas, audits, and status reads. **Done 2026-08-17.**
+ -> Primary requirements: REQ-73, REQ-74, REQ-75, REQ-76 · Done when: every operation has one minimum scope; per-key minute/daily quotas are atomic in D1; write audits contain no commerce payload; order status requires its public token and returns no customer PII.
+
+- [x] **A-104** — Send actionable per-install operational alerts. **Done 2026-08-17.**
+ -> Primary requirements: REQ-82, REQ-85 · Done when: scheduled schema/CAPI checks persist transition state in KV; firing and recovery webhook events deduplicate; failed notifications retry; disabled/missing state is explicit; payloads contain no commerce data.
+
+- [x] **A-105** — Reconcile canonical documents and executable evidence. **Done 2026-08-17.**
+ -> Dependencies: A-95..A-104 · Done when: PRD, architecture, decisions, status, install/release/integration/observability runbooks, remaining-work ledger, task ledger, and build log describe the implemented tree; focused tests, full check/test/build, fresh-install migration smoke, and real-browser login pass.
+ -> Canonical documents now describe A10's implemented contracts and retain only evidenced gaps. The 61-test focused regression passed, followed by 354/354 tests, a 335-file zero-diagnostic check, and a complete Cloudflare server build. An isolated local Worker applied all 40 migrations to an empty D1, redirected to `/install`, stored an operator-chosen owner credential, accepted that login in Chromium at 390 px, and rendered the unpublished fresh-store setup state with no product links or horizontal overflow.
+- [x] **A-106** — Publish executable Headless contract assets. **Done 2026-08-17.**
+ -> Primary requirements: REQ-73, REQ-74, REQ-75, REQ-76 · Dependencies: A-103 · Done when: an authenticated OpenAPI 3.1 document describes every `/api/v1` operation; a framework-neutral server adapter covers bootstrap, catalog, quote, checkout, token-scoped status, tracking submission, and accessible confirmation focus; and executable tests traverse the commerce handlers without exposing the developer key to browser code.
+ -> Evidence: the focused OpenAPI, adapter, and attribution contracts passed 11/11 tests; the full suite passed 356/356; `npm run check` inspected 335 files with zero diagnostics; and `npm run build` completed the Cloudflare server bundle.
+
+## A11 — Provider-backed shipping operations
+
+- [x] **A-107** — Synchronize and surface Mengantar shipment status. **Done 2026-08-17.**
+ -> Primary requirement: REQ-46 · Dependencies: T57, T58 · Done when: Shipping explicitly polls provider-created rows by stored waybill without concurrent provider calls; persists the latest raw provider description, event timestamp, and sync timestamp; advances only monotonic lifecycle states through the shared atomic policy; isolates per-order failures; and presents summary, filter, pickup, status-evidence, loading/error/empty, desktop-table, and mobile-card states without horizontal overflow.
+ -> Evidence: migration `0040_provider_shipping_status.sql` applied to the local D1; focused Mengantar, lifecycle, Shipping route, and provider-sync contracts passed 25/25; the full suite passed 356/356; `npm run check` inspected 336 files with zero diagnostics; `npm run build` bundled 41 migrations; Chromium exercised empty and populated local API states at 390, 768, and 1280 CSS px, including search/reset and sync feedback, without a live Mengantar call.
+
+## A12 — Fresh-install warehouse recovery
+
+- [x] **A-108** — Create the first warehouse from Admin settings. **Done 2026-08-17.**
+ -> Primary requirements: REQ-36, REQ-62 · Dependencies: T39, T212 · Done when: `/admin/settings/warehouse` treats an absent warehouse as an actionable setup state; the first valid save creates the single-row warehouse after provider-backed pickup-address resolution; later saves update that row; dynamic provider location labels render as text; and loading, error, saved, 390 px, 768 px, and 1280 px states remain accessible without horizontal overflow.
+ -> Evidence: focused create/update route contracts passed 2/2; the full suite passed 363/363; `npm run check` inspected 337 files with zero diagnostics; `npm run build` completed; and Chromium exercised real empty-D1 loading plus intercepted create, existing-row, provider-label, and failure states at 390, 768, and 1280 CSS px without a live provider request or database mutation.
+
+## A13 — Session-safe lead capture and four-queue Shipping
+
+- [x] **A-109** — Make abandoned capture session-idempotent. **Done 2026-08-17.**
+  -> Primary requirement: REQ-29 · Dependencies: A-96 · Done when: hybrid and middle forms store the successful fingerprints of normalized name, WhatsApp number, and product/variant selection in a v2 `sessionStorage` set that reads the legacy v1 value; any identical prior combination is suppressed after blur or reload in the same tab session; a changed qualified combination may capture; the fingerprint is added only after success, so failed requests and unavailable or quota-limited storage remain retryable without blocking capture; and focused browser-unit contracts cover identical, changed, failed, legacy, and unavailable-storage states.
+  -> Evidence: focused identity, changed-combination, retry, legacy, and unavailable-storage contracts passed 6/6; Chromium at 390, 768, and 1280 CSS px captured the initial and changed combinations, suppressed a repeated identical combination, retained the per-session set, and had zero root overflow. The 390 px reload also suppressed the prior identical combination.
+
+- [x] **A-110** — Prove submitted online checkouts remain orders. **Done 2026-08-17.**
+  -> Primary requirement: REQ-36 · Constraints: REQ-23, REQ-26, REQ-27 · Done when: focused checkout/persistence contracts prove bank-transfer and successfully-created VA/QRIS submissions remain real orders with `payment_status = 'pending'` and `shipping_status = 'pending'` before authenticated, idempotent payment confirmation; an explicit AutoLaris creation failure may set `payment_status = 'failed'` but keeps `shipping_status = 'pending'`; and no pending, failed, cancelled, or expired payment path reclassifies the row as abandoned or invokes Mengantar dispatch.
+  -> Evidence: the focused full-funnel contract kept non-COD payment and shipping pending before confirmation; the automatic-dispatch contract made zero provider requests for an unpaid online order; and the full repository suite passed 379/379.
+
+- [x] **A-111** — Expose the four Shipping queues. **Done 2026-08-17.**
+  -> Primary requirement: REQ-48 · Constraints: REQ-43, REQ-47 · Dependencies: A-95, A-107 · Done when: the authenticated Shipping read model classifies shipping-active orders deterministically into exactly **Semua Pengiriman**, **Perlu Dibuatkan Resi**, **Perlu Pickup**, and **Sampai Tujuan** without making a provider request; **Perlu Dibuatkan Resi** includes a provider-created unpaid draft only when `provider_order_id` exists and no cnote exists; and eligible pending orders not yet pushed to Mengantar remain in Order Management for retry rather than being represented as provider drafts.
+  -> Evidence: focused queue predicates passed 5/5, and the protected Shipping workspace exposed only the four accepted selectors against intercepted populated data without a live provider request.
+
+- [x] **A-112** — Refine the Shipping operator interface. **Done 2026-08-17.**
+  -> Primary requirement: REQ-48 · Constraints: REQ-42, REQ-43, REQ-45, REQ-46, REQ-69 · Dependencies: A-111 · Done when: `/admin/shipping` presents exactly four count-bearing accessible selectors labelled **Semua Pengiriman**, **Perlu Dibuatkan Resi**, **Perlu Pickup**, and **Sampai Tujuan**, each with a distinct icon; desktop and mobile order cards expose order number, customer, destination, amount, payment, courier, waybill/provider evidence, and pickup state only when relevant; actions are limited to inspect/open order, schedule pickup, and sync tracking according to row state; a provider unpaid draft is visible without a fabricated waybill or an unverified internal `/order/pay-unpaid` action; and no horizontal overflow occurs at 390, 768, or 1280 CSS px.
+  -> Evidence: Chromium exercised the four selectors, search/reset, state-valid sync feedback, cards/table, nested scrolling, and zero root horizontal overflow at 390, 768, and 1280 CSS px.
+
+- [x] **A-113** — Verify and reconcile the A13 contracts. **Done 2026-08-17.**
+  -> Primary requirements: REQ-29, REQ-36, REQ-47, REQ-48 · Dependencies: A-109..A-112, A-114 · Done when: focused lifecycle and queue tests, the full test suite, repository check, and production build pass; Chromium exercises identical/changed abandoned capture plus all four Shipping queues at 390, 768, and 1280 CSS px without live provider calls; and PRD, STATUS, TASKS, and BUILD-LOG match the executable result.
+  -> Evidence: focused lifecycle, payment, automatic-dispatch, and queue contracts passed 37/37; `npm test` passed 379/379; `npm run check` inspected 341 files with zero diagnostics; `npm run build` completed the Cloudflare server bundle; Chromium covered abandoned-capture and Shipping behavior at 390, 768, and 1280 CSS px; and the canonical ledgers were reconciled.
+
+- [x] **A-114** — Automatically dispatch eligible persisted orders. **Retired 2026-08-18; superseded by the explicit operator-release invariant.**
+  -> Primary requirement: REQ-47 · Constraints: REQ-25, REQ-26, REQ-36, REQ-42, REQ-43 · Dependencies: A-95 · Done when: one shared server-side function is called only after checkout persistence succeeds and after authenticated, idempotent non-COD payment confirmation; it applies the existing eligibility policy and requires valid provider configuration plus warehouse data; preserves sequential dispatch; suppresses a provider call when `provider_order_id` already exists; returns `dispatched`, `unpaid_provider_draft`, `skipped`, or `failed`; persists only accepted provider identifiers and a provider-supplied cnote; records a bounded provider error while leaving a failed order pending and retryable; and never rolls back the order or fabricates a waybill.
+  -> Superseding evidence: checkout and payment reconciliation now make zero Mengantar shipment calls; only authenticated single/bulk operator actions invoke the dispatcher, and concurrency tests prevent cancellation or buyer edits from being overwritten after provider latency.
+
+## A14 — Catalog identity and advertising signal precision
+
+- [x] **A-115** — Make Product ID the single advertising catalog identity. **Done 2026-08-18.**
+  -> Primary requirements: REQ-50, REQ-57, REQ-58 · Dependencies: T74, T77 · Done when: Product ID, API `content_id`, Meta `content_ids`, Google ecommerce `item_id`, and both feeds' `<g:id>` are the same safe decimal ID with at least five digits; each product creates one feed item; variants retain raw selectable IDs; and cross-surface tests reject short, prefixed, leading-zero, and unsafe identities.
+  -> The shared catalog helper now enforces the numeric Product ID contract. Google and Meta feeds emit one item per product with no duplicate group identity, hosted and Headless surfaces return the same content ID for product and variants, and embed selection uses the raw variant row ID.
+
+- [x] **A-116** — Repair Payment fee choices and remove the admin live-rate simulator. **Done 2026-08-18.**
+  -> Primary requirements: REQ-37, REQ-69 · Done when: Seller/Pembeli choices remain visibly labelled and keyboard-operable, selected state is exposed with `role=radio`/`aria-checked`, fee persistence remains explicit, and the isolated admin-only Mengantar rate simulator plus its orphan POST action are removed without changing public checkout quoting.
+
+- [x] **A-117** — Verify and reconcile the A14 runtime contract. **Done 2026-08-18.**
+  -> Primary requirements: REQ-50, REQ-57, REQ-58 · Dependencies: A-115, A-116 · Done when: focused identity tests, full test/check/build, and authenticated Chromium validation for Payments and Expeditions pass; canonical documents match the executable tree; and no live provider request or deployment occurs.
+  -> Evidence: focused identity contracts passed 28/28, the full suite passed 380/380, `npm run check` reported zero diagnostics across 342 files, and the Cloudflare server build completed. Isolated authenticated Chromium at 390 px proved four labelled Seller/Pembeli radios, a visible selected-state change, an enabled Save action, 66 px choice targets, and zero page overflow; Expeditions omitted the simulator with zero overflow at 390 and 1280 px. No relevant request failed.
+
+## A15 — Dedicated missed-order lead recovery
+
+- [x] **A-118** — Separate **Pesanan tertinggal** from operational orders. **Done 2026-08-18.**
+  -> Primary requirements: REQ-27, REQ-29 · Done when: abandoned lead rows never appear in the normal Order API, SSR initial list, summaries, status filters, bulk actions, or Shipping; a dedicated protected workspace exposes only abandoned leads with product, customer name, WhatsApp, and follow-up state.
+
+- [x] **A-119** — Convert a followed-up lead into one complete pending order. **Done 2026-08-18.**
+  -> Primary requirements: REQ-23, REQ-24, REQ-25, REQ-29 · Dependencies: A-118 · Done when: CS can edit a lead, select a valid D1 destination and courier, and explicitly convert it using current D1 product, price, weight, warehouse, and stock; conversion reserves stock exactly once, preserves the lead/order identity without duplication, lands in Order Management as pending, and makes zero Mengantar shipment calls.
+
+- [x] **A-120** — Repair the buyer and address editor on order invoices. **Done 2026-08-18.**
+  -> Primary requirements: REQ-25, REQ-47 · Done when: the shadcn Dialog opens only for editable orders, pre-fills and saves permitted buyer/address changes, requires a valid location/rate when shipping selection changes, retains input and focuses an inline error on failure, exposes courier choices with radio semantics, and clearly explains provider-locked orders.
+
+- [x] **A-121** — Verify and reconcile the missed-order recovery flow. **Done 2026-08-18.**
+  -> Primary requirements: REQ-23, REQ-24, REQ-25, REQ-27, REQ-29, REQ-47 · Dependencies: A-118..A-120 · Done when: focused lifecycle/API tests, the full test/check/build gates, and authenticated Chromium at 390, 768, and 1280 CSS px prove list separation, lead editing/conversion, order editing, dispatch eligibility, keyboard/focus behavior, and zero page overflow without a live provider call or deployment.
+  -> Evidence: focused lead, authorization, lifecycle, concurrency, and order-edit contracts passed; the full suite passed 401/401; `npm run check` reported zero diagnostics across 349 files; and the Cloudflare server build completed. Isolated authenticated Chromium at 390, 768, and 1280 CSS px proved the dedicated empty queue and invoice editor have zero root overflow. A controlled populated state proved product/customer/follow-up rendering, focused invalid conversion input, exact conversion payload, INV redirect, and a dirty-field-only buyer edit. No provider request, remote database mutation, deployment, commit, or push occurred.

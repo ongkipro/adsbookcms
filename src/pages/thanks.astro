@@ -476,7 +476,7 @@ const productCatalog = products.map((item) => ({
     );
     const productName = catalogProduct?.productName || rawProductName;
     const variantLabel = catalogVariant?.label || rawVariantLabel;
-    const productImage = pick('product_image', catalogProduct?.image || storeLogo);
+    const productImage = pick('product_image', catalogProduct?.image || '');
     const productHeadline = pick('product_headline', catalogProduct?.headline || '');
     const quantity = Math.max(1, pickNum('quantity', 1));
     const productPrice = pickNum('product_price', pickNum('value', catalogVariant?.price || 0));
@@ -514,8 +514,13 @@ const productCatalog = products.map((item) => ({
     const headlineEl = document.getElementById('product-headline');
     if (productHeadline) headlineEl.textContent = productHeadline;
     else headlineEl.hidden = true;
-    document.getElementById('product-image').src = productImage;
-    document.getElementById('product-image').alt = productName;
+    const productImageElement = document.getElementById('product-image');
+    if (productImage) {
+      productImageElement.setAttribute('src', productImage);
+      productImageElement.setAttribute('alt', productName);
+    } else {
+      productImageElement.hidden = true;
+    }
     const productDisplayTotal = comparePrice > productPrice ? comparePrice * quantity : productTotal;
     document.getElementById('product-price').textContent = fmt(productDisplayTotal);
     document.getElementById('product-subtotal').textContent = fmt(productTotal);

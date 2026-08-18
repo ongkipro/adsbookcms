@@ -8,8 +8,8 @@ export const prerender = false;
 export const OPTIONS = handleOptions;
 
 export const GET: APIRoute = async ({ request, url, locals }) => {
-  const validation = await validateHeadlessRequest(request, locals);
-  if (!validation.allowed && validation.errorResponse) {
+  const validation = await validateHeadlessRequest(request, locals, { operation: 'districtSearch' });
+  if (!validation.allowed) {
     return validation.errorResponse;
   }
 
@@ -18,14 +18,14 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
     const limit = Math.max(1, Math.min(100, parseInt(url.searchParams.get('limit') || '30', 10)));
 
     if (!query || query.length < 2) {
-      return headlessOk(
+      return validation.finalize(headlessOk(
         {
           query,
           districts: [],
         },
         200,
         validation.corsHeaders
-      );
+      ));
     }
 
     const matches = searchDistrictCatalog(query, limit);
@@ -39,7 +39,7 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
       };
     });
 
-    return headlessOk(
+    return validation.finalize(headlessOk(
       {
         query,
         count: districts.length,
@@ -47,11 +47,11 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
       },
       200,
       validation.corsHeaders
-    );
+    ));
   } catch (error) {
-    return headlessError('Gagal mencari lokasi kecamatan.', 500, {
+    return validation.finalize(headlessError('Gagal mencari lokasi kecamatan.', 500, {
       code: 'DISTRICT_SEARCH_ERROR',
       details: error instanceof Error ? error.message : String(error),
-    }, validation.corsHeaders);
+    }, validation.corsHeaders));
   }
 };

@@ -376,8 +376,27 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
     };
 
     const redirectToThanks = () => {
-      const nextState = { ...stored, payment_status: 'paid' };
-      sessionStorage.setItem('thanks_state', JSON.stringify(nextState));
+      currentStatus = 'paid';
+      stored = {
+        ...stored,
+        order_id: orderNumber,
+        payment_status: currentStatus,
+        payment_channel: payment.channel_code,
+        payment_fee_bearer: payment.fee_bearer,
+        payment_amount: payment.amount,
+        payment_admin_fee: payment.admin_fee,
+        total_payment: payment.total_amount,
+        payment_virtual_account: payment.virtual_account,
+        payment_qr_payload: payment.qr_payload,
+        payment_code: payment.payment_code,
+        payment_url: payment.payment_url,
+        payment_expires_at: payment.expires_at,
+      };
+      try {
+        sessionStorage.setItem('thanks_state', JSON.stringify(stored));
+      } catch {
+        // The confirmed server status still wins when browser storage is unavailable.
+      }
       window.location.replace('/thanks');
     };
 
@@ -655,8 +674,14 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         const data = await response.json() as StatusResponse;
         if (!response.ok || data.success === false) throw new Error(data.error || 'Status pembayaran tidak tersedia.');
         orderNumber = text(data.order_number || orderNumber);
-        currentStatus = text(data.payment_status || currentStatus).toLowerCase();
+        const orderPaymentStatus = text(data.payment_status || currentStatus).toLowerCase();
+        const transactionStatus = text(data.payment?.status).toLowerCase();
+        currentStatus = ['failed', 'expired'].includes(transactionStatus)
+          ? transactionStatus
+          : orderPaymentStatus;
         if (data.payment) payment = { ...payment, ...data.payment };
+        errorEl.hidden = true;
+        errorEl.textContent = '';
         render();
         if (data.is_paid) {
           redirectToThanks();

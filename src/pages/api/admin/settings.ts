@@ -1,19 +1,31 @@
 import type { APIRoute } from "astro";
-import { jsonError, jsonOk } from "../../../lib/api";
+import { jsonError, jsonOk } from "../../../lib/api.ts";
 import {
   defaultCrmTemplates,
   parseCrmTemplates,
-} from "../../../lib/crm-template";
+} from "../../../lib/crm-template.ts";
 import {
   parseEmbedAllowedOrigins,
   resolveEmbedAllowedOrigins,
-} from "../../../lib/embed-security";
-import { parseHeadlessAllowedOrigins } from "../../../lib/headless-api";
-import { getEnvValue, getRuntimeEnv, maskSecretValue } from "../../../lib/env";
-import { STOREFRONT_TEMPLATE_IDS } from "../../../lib/tenant-contract";
-import { AutoLarisClient } from "../../../lib/autolaris-client";
-import { MengantarClient } from "../../../lib/mengantar-client";
-import { getProviderConfig } from "../../../lib/provider-config";
+} from "../../../lib/embed-security.ts";
+import { parseHeadlessAllowedOrigins } from "../../../lib/headless-api.ts";
+import { getEnvValue, getRuntimeEnv, maskSecretValue } from "../../../lib/env.ts";
+import {
+  addStorefrontTemplate,
+  listStorefrontTemplates,
+  resolveStorefrontTemplate,
+  validateStorefrontTemplateDefinition,
+  type StorefrontTemplateDefinition,
+} from "../../../lib/storefront-template.ts";
+import {
+  AUTOLARIS_CHANNEL_OPTIONS,
+  AUTOLARIS_LOCKED_CHANNEL_REASONS,
+  AutoLarisClient,
+  autoLarisChannelLockReason,
+  resolveDisabledAutoLarisChannels,
+} from "../../../lib/autolaris-client.ts";
+import { MengantarClient } from "../../../lib/mengantar-client.ts";
+import { getProviderConfig } from "../../../lib/provider-config.ts";
 
 export const prerender = false;
 
@@ -24,6 +36,7 @@ const CRM_KEYS = ["welcome", "1", "2", "3", "4", "5", "6", "7"] as const;
 type SettingsPayload = {
   action?:
     | "save-store"
+    | "add-storefront-template"
     | "save-embed-origins"
     | "save-headless-origins"
     | "save-warehouse"
@@ -44,6 +57,7 @@ type SettingsPayload = {
   store_tagline?: string;
   store_logo?: string;
   storefront_template?: string;
+  storefront_template_definition?: unknown;
   support_whatsapp?: string;
   embed_allowed_origins?: unknown;
   headless_allowed_origins?: unknown;
@@ -73,6 +87,11 @@ type SettingsRow = {
   store_id: number;
   store_name: string;
   support_whatsapp: string | null;
+  site_url?: string | null;
+  description?: string | null;
+  tagline?: string | null;
+  logo?: string | null;
+  storefront_template?: string | null;
   payment_fee_bearer: string;
   cod_fee_bearer: string;
   is_cod_enabled?: number | null;
@@ -241,22 +260,33 @@ export const GET: APIRoute = async ({ locals }) => {
       getEnvValue("PUBLIC_EMBED_ALLOWED_ORIGINS", runtime),
     );
 
+    const templateList = await listStorefrontTemplates(
+      database as D1Database,
+      row.store_id,
+    );
     return jsonOk({
       data: {
         credentials: await credentialStatus(database as D1Database, locals),
         store: {
           name: row.store_name,
           support_whatsapp: row.support_whatsapp ?? "",
+          site_url: row.site_url ?? "",
+          description: row.description ?? "",
+          tagline: row.tagline ?? "",
+          logo: row.logo ?? "",
+          storefront_template: row.storefront_template ?? "compact-market",
+          storefront_templates: templateList.templates,
+          storefront_templates_available: templateList.state === "ready",
           payment_fee_bearer:
             row.payment_fee_bearer === "seller" ? "seller" : "buyer",
           cod_fee_bearer:
             row.cod_fee_bearer === "seller" ? "seller" : "buyer",
           is_cod_enabled: row.is_cod_enabled !== 0,
           is_autolaris_enabled: row.is_autolaris_enabled !== 0,
-          disabled_autolaris_channels: (row.disabled_autolaris_channels || "")
-            .split(",")
-            .map((c) => c.trim().toUpperCase())
-            .filter(Boolean),
+          disabled_autolaris_channels: resolveDisabledAutoLarisChannels(
+            row.disabled_autolaris_channels,
+          ),
+          locked_autolaris_channels: AUTOLARIS_LOCKED_CHANNEL_REASONS,
           embed_allowed_origins: embedOriginPolicy.valid
             ? embedOriginPolicy.origins
             : [],
@@ -300,6 +330,9 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 
   try {
     const db = database as D1Database;
+    if (body.action === "save-integrations" && locals.admin?.role !== "owner") {
+      return jsonError("Hanya owner yang dapat mengubah endpoint dan kredensial provider.", 403);
+    }
     const providerConfig = await getProviderConfig(db, locals);
     if (body.action === "test-mengantar") {
       const { apiKey, baseUrl } = providerConfig.mengantar;
@@ -354,23 +387,21 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       const { apiKey, baseUrl } = providerConfig.autolaris;
       if (!apiKey) {
         return jsonError("API Key AutoLaris belum dikonfigurasi.", 400, {
+          configured: false,
+          verified: false,
+          verification_supported: false,
           message: "API Key AutoLaris belum dikonfigurasi.",
-          verified: false,
         });
       }
-      const client = new AutoLarisClient(apiKey, baseUrl);
-      const health = await client.verifyCredentials();
-      if (!health.verified) {
-        return jsonError(health.message, 400, {
-          configured: true,
-          verified: false,
-          base_url: baseUrl,
-          message: health.message,
-        });
-      }
+
+      const health = await new AutoLarisClient(
+        apiKey,
+        baseUrl,
+      ).verifyCredentials();
       return jsonOk({
         configured: true,
-        verified: true,
+        verified: health.verified,
+        verification_supported: health.verificationSupported,
         base_url: baseUrl,
         message: health.message,
       });
@@ -447,17 +478,15 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       });
     }
     if (body.action === "save-payment-toggles") {
-      const isCodEnabled = body.is_cod_enabled === false ? 0 : 1;
-      const isAutoLarisEnabled = body.is_autolaris_enabled === false ? 0 : 1;
+      if (
+        typeof body.is_cod_enabled !== "boolean" ||
+        typeof body.is_autolaris_enabled !== "boolean"
+      ) {
+        return jsonError("Status metode pembayaran harus berupa boolean.", 400);
+      }
+      const isCodEnabled = body.is_cod_enabled ? 1 : 0;
+      const isAutoLarisEnabled = body.is_autolaris_enabled ? 1 : 0;
       
-      // Ensure columns exist on older fixtures without throwing
-      try {
-        await db.prepare("ALTER TABLE stores ADD is_cod_enabled INTEGER DEFAULT 1 NOT NULL").run();
-      } catch {}
-      try {
-        await db.prepare("ALTER TABLE stores ADD is_autolaris_enabled INTEGER DEFAULT 1 NOT NULL").run();
-      } catch {}
-
       await db
         .prepare(
           "UPDATE stores SET is_cod_enabled = ?, is_autolaris_enabled = ? WHERE id = ?",
@@ -474,16 +503,10 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       });
     }
     if (body.action === "save-autolaris-channels") {
-      const disabledList = Array.isArray(body.disabled_autolaris_channels)
-        ? body.disabled_autolaris_channels
-            .map((c) => String(c).trim().toUpperCase())
-            .filter(Boolean)
-        : [];
+      const disabledList = resolveDisabledAutoLarisChannels(
+        body.disabled_autolaris_channels,
+      );
       const disabledStr = disabledList.join(",");
-
-      try {
-        await db.prepare("ALTER TABLE stores ADD disabled_autolaris_channels TEXT DEFAULT '' NOT NULL").run();
-      } catch {}
 
       await db
         .prepare(
@@ -503,69 +526,66 @@ export const PUT: APIRoute = async ({ request, locals }) => {
     if (body.action === "test-autolaris-channels") {
       const { apiKey, baseUrl } = providerConfig.autolaris;
       const isAutoLarisMaster = current.is_autolaris_enabled !== 0;
-      const disabledList = (current.disabled_autolaris_channels || "")
-        .split(",")
-        .map((c) => c.trim().toUpperCase())
-        .filter(Boolean);
+      const disabledList = resolveDisabledAutoLarisChannels(
+        current.disabled_autolaris_channels,
+      );
 
       let isApiVerified = false;
+      let isVerificationSupported = false;
       let verificationMessage = "";
 
       if (apiKey) {
-        const client = new AutoLarisClient(apiKey, baseUrl);
-        const health = await client.verifyCredentials();
+        const health = await new AutoLarisClient(
+          apiKey,
+          baseUrl,
+        ).verifyCredentials();
         isApiVerified = health.verified;
+        isVerificationSupported = health.verificationSupported;
         verificationMessage = health.message;
       } else {
         verificationMessage = "API Key AutoLaris belum diisi.";
       }
 
-      const allChannels = [
-        { code: "QRIS", name: "QRIS All Bank & e-Wallet" },
-        { code: "VABCA", name: "Virtual Account BCA" },
-        { code: "VAMANDIRI", name: "Virtual Account Mandiri" },
-        { code: "VABNI", name: "Virtual Account BNI" },
-        { code: "VABRI", name: "Virtual Account BRI" },
-        { code: "VAPERMATA", name: "Virtual Account Permata" },
-        { code: "VABSI", name: "Virtual Account BSI" },
-        { code: "VACIMB", name: "Virtual Account CIMB Niaga" },
-        { code: "VADANAMON", name: "Virtual Account Danamon" },
-        { code: "DANA", name: "DANA E-Wallet" },
-      ];
-
-      const results = allChannels.map((ch) => {
-        const isStoreDisabled = disabledList.includes(ch.code) || !isAutoLarisMaster;
+      const results = AUTOLARIS_CHANNEL_OPTIONS.map((ch) => {
+        const lockReason = autoLarisChannelLockReason(ch.code);
+        const isStoreDisabled =
+          disabledList.includes(ch.code) || !isAutoLarisMaster;
         const isConfigured = Boolean(apiKey);
+        const isLocallyActive = isConfigured && !isStoreDisabled && !lockReason;
         let status = "ready";
         let message = "Channel aktif & siap digunakan di checkout.";
 
-        if (!isConfigured) {
+        if (lockReason) {
+          status = "locked_by_provider";
+          message = lockReason;
+        } else if (!isConfigured) {
           status = "unconfigured";
           message = "API Key AutoLaris belum diisi (Disembunyikan dari checkout).";
-        } else if (!isApiVerified) {
-          status = "unverified";
-          message = verificationMessage;
         } else if (isStoreDisabled) {
           status = "disabled_by_store";
           message = "Dinonaktifkan oleh toko (Disembunyikan dari checkout).";
+        } else if (!isApiVerified) {
+          status = "configured_unverified";
+          message = verificationMessage;
         }
 
         return {
           code: ch.code,
-          name: ch.name,
+          name: ch.label,
           status,
-          is_active: status === "ready",
+          is_active: isLocallyActive,
           message,
         };
       });
 
       return jsonOk({
         message: isApiVerified
-          ? `Pemeriksaan selesai: Kredensial terverifikasi aktif oleh server AutoLaris.`
-          : `Pemeriksaan selesai: ${verificationMessage}`,
+          ? "Pemeriksaan selesai: Kredensial terverifikasi aktif oleh server AutoLaris."
+          : `Pemeriksaan konfigurasi selesai: ${verificationMessage}`,
         data: {
           api_key_configured: Boolean(apiKey),
           api_key_verified: isApiVerified,
+          api_key_verification_supported: isVerificationSupported,
           master_enabled: isAutoLarisMaster,
           channels: results,
         },
@@ -614,6 +634,42 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       });
     }
 
+    if (body.action === "add-storefront-template") {
+      let definition: StorefrontTemplateDefinition;
+      try {
+        definition = validateStorefrontTemplateDefinition(
+          body.storefront_template_definition,
+        );
+      } catch {
+        return jsonError(
+          "Definisi template tidak valid. Periksa ID, nama, layout, dan bagian yang dipilih.",
+          400,
+        );
+      }
+      try {
+        await addStorefrontTemplate(db, current.store_id, definition);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          /unique constraint failed/i.test(error.message)
+        ) {
+          return jsonError("ID template sudah digunakan.", 409);
+        }
+        throw error;
+      }
+      const templateList = await listStorefrontTemplates(db, current.store_id);
+      if (templateList.state !== "ready") {
+        return jsonError(
+          "Template tersimpan, tetapi daftar template belum dapat dibaca.",
+          503,
+        );
+      }
+      return jsonOk({
+        message: "Template storefront berhasil ditambahkan.",
+        data: { storefront_templates: templateList.templates },
+      });
+    }
+
     if (body.action === "save-store") {
       const storeName = clean(body.store_name, 120);
       const supportWhatsapp = normalizePhone(body.support_whatsapp);
@@ -640,11 +696,16 @@ export const PUT: APIRoute = async ({ request, locals }) => {
         }
       }
 
-      const storefrontTemplate = clean(body.storefront_template, 40);
-      if (
-        storefrontTemplate &&
-        !(STOREFRONT_TEMPLATE_IDS as readonly string[]).includes(storefrontTemplate)
-      ) {
+      const storefrontTemplate =
+        clean(body.storefront_template, 40) || "compact-market";
+      const templateResolution = await resolveStorefrontTemplate(
+        db,
+        storefrontTemplate,
+      );
+      if (templateResolution.state === "unavailable") {
+        return jsonError("Konfigurasi template belum dapat dibaca.", 503);
+      }
+      if (templateResolution.state !== "ready") {
         return jsonError("Template storefront tidak dikenal.", 400);
       }
 
@@ -676,8 +737,6 @@ export const PUT: APIRoute = async ({ request, locals }) => {
     }
 
     if (body.action === "save-warehouse") {
-      if (!current.warehouse_id)
-        return jsonError("Gudang aktif belum tersedia.", 409);
       const warehouseName = clean(body.warehouse?.name, 120);
       const contactName = clean(body.warehouse?.contact_name, 120);
       const contactPhone = normalizePhone(body.warehouse?.contact_phone);
@@ -699,6 +758,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       }
       if (!PHONE_PATTERN.test(contactPhone))
         return jsonError("Telepon PIC harus berisi 9-15 digit.", 400);
+
       let resolvedPickupAddressId = pickupAddressId || "";
       if (providerConfig.mengantar.apiKey) {
         try {
@@ -724,32 +784,62 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           );
         }
       }
-      await db
-        .prepare(
-          `
-        UPDATE warehouses
-        SET name = ?, contact_name = ?, contact_phone = ?, origin_area_id = ?, origin_label = ?, pickup_address_id = ?, address = ?, city = ?, province = ?
-        WHERE id = ?
-      `,
-        )
-        .bind(
-          warehouseName,
-          contactName,
-          contactPhone,
-          originAreaId,
-          originLabel,
-          resolvedPickupAddressId,
-          address,
-          city,
-          province,
-          current.warehouse_id,
-        )
-        .run();
+
+      if (current.warehouse_id) {
+        await db
+          .prepare(
+            `
+          UPDATE warehouses
+          SET name = ?, contact_name = ?, contact_phone = ?, origin_area_id = ?, origin_label = ?, pickup_address_id = ?, address = ?, city = ?, province = ?
+          WHERE id = ?
+        `,
+          )
+          .bind(
+            warehouseName,
+            contactName,
+            contactPhone,
+            originAreaId,
+            originLabel,
+            resolvedPickupAddressId,
+            address,
+            city,
+            province,
+            current.warehouse_id,
+          )
+          .run();
+      } else {
+        await db
+          .prepare(
+            `
+          INSERT INTO warehouses (
+            store_id, name, contact_name, contact_phone, origin_area_id,
+            origin_label, pickup_address_id, address, city, province
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+          )
+          .bind(
+            current.store_id,
+            warehouseName,
+            contactName,
+            contactPhone,
+            originAreaId,
+            originLabel,
+            resolvedPickupAddressId,
+            address,
+            city,
+            province,
+          )
+          .run();
+      }
+
+      const created = !current.warehouse_id;
       return jsonOk({
         message:
-          resolvedPickupAddressId === pickupAddressId
-            ? "Konfigurasi gudang berhasil disimpan."
-            : "Alamat pickup dibuat atau dipulihkan di Mengantar dan konfigurasi gudang berhasil disimpan.",
+          resolvedPickupAddressId !== pickupAddressId
+            ? "Alamat pickup dibuat atau dipulihkan di Mengantar dan konfigurasi gudang berhasil disimpan."
+            : created
+              ? "Gudang berhasil dibuat."
+              : "Konfigurasi gudang berhasil disimpan.",
         data: { pickup_address_id: resolvedPickupAddressId },
       });
     }

@@ -1,6 +1,6 @@
 # Architecture Decision Record — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A9 working tree
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A10 working tree
 
 Append-only. One decision per entry. A decision is recorded here only when it constrains future work; implementation detail belongs in `ARCHITECTURE.md`, remaining work in `UNIMPLEMENTED_SPECS.md`.
 
@@ -56,6 +56,11 @@ Status values: **Accepted** · **Superseded by ADR-nnn** · **Proposed** (decide
 
 **Correction, 2026-08-17.** The implemented wizard collects store name, HTTPS site URL, optional tagline/support WhatsApp, admin username/password, and storefront template. It does not render locale or currency controls: locale currently enters the install plan as `id-ID`, while currency is not an installer field. The Decision sentence above records the original intent and must not be read as current UI evidence.
 
+**Correction, 2026-08-17.** A new Worker no longer requires a terminal migration
+step before the wizard. The first database-backed request applies the bundled
+checked-in migration chain and then evaluates install state. Invalid, unknown, or
+ahead migration history returns a labelled 503 rather than partially installing.
+
 ---
 
 ## ADR-005 — Raw SQL is the data layer; Drizzle is removed entirely
@@ -88,11 +93,11 @@ The audit that settled it also found the declared index layer was **fiction**: o
 
 ## ADR-007 — A fresh install fails closed, never inherits copy
 
-**Date:** 2026-08-16 · **Status:** Proposed — the copy no longer belongs to another merchant, but the setup state is still not built (G5, A-12b)
+**Date:** 2026-08-16 · **Status:** Accepted — implemented 2026-08-17 (G5)
 
-**Context.** Neither surface fails closed. An *inactive* product is omitted, but an active product with no published presentation is shown with copy generated from its own row; and with no published home row, `buildDefaultHomeContent` composes a shell from the store's identity. The earlier form of this ADR claimed product presentation already failed closed, which inverted the invariant stated in `PRD.md` REQ-13, `AGENTS.md` and `ARCHITECTURE.md` §8. It does not — and when the fallback was compiled marketing copy rather than a generated shell, that is how another merchant's copy reached a live storefront.
+**Context.** An active product without published presentation remains visible from its own catalog facts; that is the catalog contract, not a fallback. Home content is different: generated shell copy could make an unconfigured install look complete and previously allowed compiled merchant content to reach the wrong store.
 
-**Decision.** Missing published content renders an explicit setup state. Compiled copy is never a fallback for merchant-facing content.
+**Decision.** Missing published home content renders an explicit setup state. Compiled or generated copy is never a fallback for merchant-facing home content. `getTenantHomeContent` returns `setup-required`, which both the built-in home and Headless storefront descriptor preserve.
 
 ---
 
@@ -235,7 +240,7 @@ task **A-71**.
 
 ## ADR-015 — Catalog identity is `p{product}-v{variant}`, derived from keys that never change
 
-**Date:** 2026-08-17 · **Status:** Accepted
+**Date:** 2026-08-17 · **Status:** Superseded by ADR-017
 
 **Context.** One rule governs catalog advertising: the `id` a feed publishes must
 be exactly the string the Pixel and CAPI send as `content_ids`. Meta states it
@@ -339,3 +344,36 @@ not that the question is closed.
   a fresh install inheriting another merchant's marketing copy — is gone.
 - Anything relying on the demo catalogue for grounding is now unfounded, and
   `docs/GOOGLE_ADS_SETUP.md`'s taxonomy reasoning was rewritten accordingly.
+
+---
+
+## ADR-017 — Product ID is the single advertising catalog identity
+
+**Date:** 2026-08-18 · **Status:** Accepted
+
+**Context.** ADR-015 made feeds variant-grained, but the rest of the funnel did
+not consistently carry that identity. Hosted forms and confirmation could send
+the bare product row while browser ViewContent sent `p{product}-v{variant}`.
+This made otherwise valid Meta and Google events impossible to match reliably.
+The operator also needs the ID shown in Admin, the public API `content_id`, and
+the XML feed `<g:id>` to describe the same business object without translation.
+
+**Decision.** The immutable numeric Product ID is the one catalog identity.
+New products are allocated a decimal ID from 10000 through 99999. A canonical
+ID must contain at least five digits, have no leading zero, and fit within a
+JavaScript safe integer. Product ID, API `content_id`, Meta `content_ids`, Google
+ecommerce `item_id`, and both feeds' `<g:id>` are byte-identical.
+
+Each active product produces exactly one feed item. The first sellable variant
+supplies its price and optional SKU to that item. Other variants remain checkout
+choices addressed by their raw `variant_id` and may be reported separately as
+`item_variant`; they do not create another advertising identity. Feeds omit
+`item_group_id` because they no longer publish variant-grained items.
+
+**Consequences.** Existing external catalogs created from ADR-015 identifiers
+must be refreshed or recreated when this change is deployed; queued historical
+events are not rewritten. Legacy database rows with Product IDs below 10000
+fail closed and require an explicit catalog remap rather than silent padding,
+because padding would break the promise that external identity equals Product
+ID. Variant selectors and embed URLs must always use `variant.id`, never the
+shared `content_id`.

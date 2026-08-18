@@ -19,21 +19,37 @@
   // Globally unique within the Cloudflare account. Placeholder values below are
   // syntactically valid so tooling runs on a fresh clone — they are NOT a target.
   "name": "adsbookcms-your-store",
+  "main": "./src/worker.ts",
+
 
   "compatibility_date": "2026-08-01",
   "compatibility_flags": [
     "nodejs_compat"
   ],
 
-  // Runtime authentication cannot safely degrade to a placeholder. Declaring
-  // the required name lets Wrangler load only this secret from process.env in
-  // local development and validate that every deployed Worker defines it.
+  // Runtime credentials cannot safely degrade to placeholders. Declaring the
+  // required names lets Wrangler load only these secrets from process.env in
+  // local development and validate that every deployed Worker defines them.
   "secrets": {
-    "required": ["AUTH_SECRET"]
+    "required": [
+      "AUTH_SECRET",
+      "INSTALL_TOKEN",
+      "MENGANTAR_API_KEY",
+      "MENGANTAR_ORIGIN_AREA_ID",
+      "MENGANTAR_PICKUP_ADDRESS_ID",
+      "AUTOLARIS_API_KEY",
+      "AUTOLARIS_WEBHOOK_SECRET"
+    ]
   },
 
   // Keep false so an install never gets an unreviewed *.workers.dev endpoint.
   "workers_dev": false,
+  // Hourly evaluation catches a stalled conversion outbox even when no operator
+  // opens the dashboard. Alert transitions are deduplicated in the install's KV.
+  "triggers": {
+    "crons": ["7 * * * *"]
+  },
+
 
   "assets": {
     "binding": "ASSETS"

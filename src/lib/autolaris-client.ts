@@ -28,6 +28,32 @@ export const AUTOLARIS_CHECKOUT_CHANNELS = [
 export type AutoLarisCheckoutChannel =
   (typeof AUTOLARIS_CHECKOUT_CHANNELS)[number];
 
+export const AUTOLARIS_LOCKED_CHANNEL_REASONS = {
+  VABSI: "Tidak aktif di provider.",
+  VACIMB: "Tidak aktif di provider.",
+  VADANAMON: "Tidak aktif di provider.",
+} as const satisfies Partial<Record<AutoLarisCheckoutChannel, string>>;
+
+export function autoLarisChannelLockReason(code: string): string | undefined {
+  return AUTOLARIS_LOCKED_CHANNEL_REASONS[
+    code as keyof typeof AUTOLARIS_LOCKED_CHANNEL_REASONS
+  ];
+}
+
+export function resolveDisabledAutoLarisChannels(value: unknown): AutoLarisChannel[] {
+  const requested = new Set(
+    Array.isArray(value)
+      ? value.map((code) => String(code).trim().toUpperCase())
+      : String(value || "")
+          .split(",")
+          .map((code) => code.trim().toUpperCase()),
+  );
+
+  return AUTOLARIS_CHANNELS.filter(
+    (code) => requested.has(code) || Boolean(autoLarisChannelLockReason(code)),
+  );
+}
+
 export const AUTOLARIS_CHANNEL_OPTIONS: ReadonlyArray<{
   code: AutoLarisCheckoutChannel;
   label: string;
@@ -67,6 +93,12 @@ export type AutoLarisPayment = {
   admin: number;
   total: number;
 };
+export type AutoLarisCredentialVerification = {
+  verified: false;
+  verificationSupported: false;
+  message: string;
+};
+
 
 type AutoLarisResponse = {
   rc?: string;
@@ -149,6 +181,9 @@ export class AutoLarisClient {
   }
 
   async createPayment(input: AutoLarisPaymentInput): Promise<AutoLarisPayment> {
+    if (autoLarisChannelLockReason(input.channelCode)) {
+      throw new Error("Channel pembayaran tidak aktif di provider.");
+    }
     if (!Number.isSafeInteger(input.amount) || input.amount <= 0) {
       throw new Error(
         "Nominal pembayaran AutoLaris harus berupa bilangan bulat positif.",
@@ -206,65 +241,20 @@ export class AutoLarisClient {
       clearTimeout(timeoutId);
     }
   }
-  async verifyCredentials(): Promise<{ verified: boolean; message: string }> {
+  async verifyCredentials(): Promise<AutoLarisCredentialVerification> {
     if (!this.apiKey) {
-      return { verified: false, message: "API Key AutoLaris belum dikonfigurasi." };
-    }
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
-    try {
-      const response = await fetch(`${this.baseUrl}/api/h2h/create_payment`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ amount: "0", reff_id: "PING_TEST" }),
-        signal: controller.signal,
-      });
-
-      let payload: AutoLarisResponse | undefined;
-      try {
-        payload = (await response.json()) as AutoLarisResponse;
-      } catch {}
-
-      if (response.status === 401 || response.status === 403) {
-        return {
-          verified: false,
-          message: "API Key AutoLaris tidak valid atau ditolak oleh server AutoLaris.",
-        };
-      }
-
-      const messageStr = (payload?.ket || "").toLowerCase();
-      if (
-        messageStr.includes("unauthorized") ||
-        messageStr.includes("invalid key") ||
-        messageStr.includes("token tidak valid")
-      ) {
-        return {
-          verified: false,
-          message: "API Key AutoLaris tidak valid (Server AutoLaris menolak otentikasi).",
-        };
-      }
-
-      return {
-        verified: true,
-        message: "Kredensial API Key AutoLaris terverifikasi aktif & valid di server AutoLaris.",
-      };
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        return { verified: false, message: "Koneksi ke AutoLaris timeout." };
-      }
       return {
         verified: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Gagal terhubung ke server AutoLaris.",
+        verificationSupported: false,
+        message: "API Key AutoLaris belum dikonfigurasi.",
       };
-    } finally {
-      clearTimeout(timeoutId);
     }
+
+    return {
+      verified: false,
+      verificationSupported: false,
+      message:
+        "API Key AutoLaris tersimpan, tetapi tidak dapat diverifikasi otomatis karena kontrak yang tersedia tidak menyediakan endpoint baca-saja. Tidak ada permintaan ke AutoLaris yang dikirim.",
+    };
   }
 }

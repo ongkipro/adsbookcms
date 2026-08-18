@@ -106,6 +106,12 @@ export const prerender = false;
 
         <form id="install-form" novalidate>
           <label>
+            Token instalasi
+            <span class="hint">Secret satu kali dari konfigurasi Worker. Tidak disimpan di CMS.</span>
+            <input name="install_token" type="password" required autocomplete="one-time-code" />
+          </label>
+
+          <label>
             Nama toko
             <input name="store_name" required autocomplete="organization" maxlength="120" />
           </label>

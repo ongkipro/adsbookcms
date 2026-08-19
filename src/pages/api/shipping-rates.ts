@@ -99,6 +99,17 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
     );
   } catch (error) {
     const quoteError = error instanceof ShippingQuoteError ? error : null;
+    if (!quoteError) {
+      // The provider's own message is the only thing that says why a quote
+      // failed, and MengantarClient already redacts the key out of it. This
+      // catch used to drop it, so a store could stop quoting shipping with
+      // nothing whatsoever in Workers Logs. Expected ShippingQuoteError
+      // conditions stay unlogged; they are buyer-facing states, not faults.
+      console.error(
+        "shipping-rates",
+        error instanceof Error ? error.message : error,
+      );
+    }
     return new Response(
       JSON.stringify({
         success: false,

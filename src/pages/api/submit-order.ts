@@ -4,8 +4,10 @@ import type { ResolvedShippingRates } from "../../lib/shipping-quote";
 import type { APIRoute } from "astro";
 import { selectQuotedRate } from "../../lib/courier-rules";
 import { orderSubmitSchema } from "../../lib/order-schema";
-import { loadStoreCodDisabledProvinceCodes } from "../../lib/form-mode";
-import { isProvinceExcluded, normalizeProvinceCode } from "../../lib/province";
+import {
+  isCodBlockedForProvince,
+  loadStoreCodDisabledProvinceCodes,
+} from "../../lib/form-mode";
 import { getRuntimeEnv } from "../../lib/env";
 import {
   checkRateLimit,
@@ -111,11 +113,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
   const disabledProvinceCodes =
     await loadStoreCodDisabledProvinceCodes(database);
-  const provinceCode = normalizeProvinceCode(data.province);
   if (
-    data.payment_method === "cod" &&
-    (!provinceCode ||
-      isProvinceExcluded(provinceCode, disabledProvinceCodes))
+    isCodBlockedForProvince(
+      data.payment_method,
+      data.province,
+      disabledProvinceCodes,
+    )
   ) {
     return json(
       {

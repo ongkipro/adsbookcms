@@ -55,6 +55,28 @@ export function resolveFormModeFromProvince(
   return isProvinceExcluded(provinceCode, disabledList) ? 'full' : 'middle';
 }
 
+/**
+ * Whether a COD order must be refused for the address it is being placed to.
+ *
+ * The hybrid dispatch decides which form a visitor *sees* from their geo-IP
+ * province, but the address they type is what actually gets delivered, and the
+ * two need not agree — a buyer in Java can address an order to Papua from the
+ * middle form. This is the server's own answer, so a crafted request cannot
+ * place a COD order into an excluded province by skipping the browser.
+ *
+ * An unresolvable province is refused too. Failing open here would accept COD
+ * for exactly the addresses the policy could not classify.
+ */
+export function isCodBlockedForProvince(
+  paymentMethod: string,
+  province: string,
+  disabledCodes: readonly string[],
+): boolean {
+  if (paymentMethod !== 'cod') return false;
+  const provinceCode = normalizeProvinceCode(province);
+  return !provinceCode || isProvinceExcluded(provinceCode, disabledCodes);
+}
+
 export async function resolveFormModeContext(
   request: Request,
   disabledProvinces?: string | readonly string[] | null,

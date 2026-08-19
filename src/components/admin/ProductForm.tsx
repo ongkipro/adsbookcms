@@ -148,11 +148,13 @@ export function ProductForm({ productId }: { productId?: string }) {
   };
 
   const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
-  // The product detail image is laid out at 480 CSS px, so 1000 covers a 2x
-  // screen with room to spare. Catalogue images were arriving at 1254x1254 and
-  // rendering into a 182 px card - about 47x the pixels the page can show, and
-  // the single largest cost on the mobile storefront.
-  const MAX_IMAGE_EDGE = 1000;
+  // The product detail image is laid out at 480 CSS px. Lighthouse emulates a
+  // phone at DPR 2.625, so that column wants 1260 device pixels; 1000 undershot
+  // it and made new uploads softer than the 1254 px images already in R2.
+  // Catalogue images were arriving at 1254x1254 and rendering into a 182 px
+  // card - about 47x the pixels the page can show, and the single largest cost
+  // on the mobile storefront.
+  const MAX_IMAGE_EDGE = 1280;
   // The catalogue card is 182 CSS px, which is 478 device pixels on the phone
   // Lighthouse emulates. This derivative is what the grid actually loads.
   const CARD_IMAGE_EDGE = 480;

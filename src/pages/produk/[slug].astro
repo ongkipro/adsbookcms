@@ -6,7 +6,7 @@ import { getStorefrontProduct } from '../../lib/catalog';
 import Icon from '../../components/storefront/shared/Icon.astro';
 import RatingStars from '../../components/storefront/shared/RatingStars.astro';
 import GeoIpResolvedForm from '../../components/storefront/forms/GeoIpResolvedForm.astro';
-import ProductImageSlider from '../../components/storefront/ProductImageSlider';
+import ProductImageGallery from '../../components/storefront/ProductImageGallery.astro';
 import { resolveFormModeContext } from '../../lib/form-mode';
 import '../../styles/form-hybrid.css';
 import { defaultCatalogContentId } from '../../lib/catalog-feed';
@@ -150,8 +150,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     />
     <!-- Product Hero Gallery Component -->
     <div class="border-b border-[#E5E5E5] bg-[#F8F7F4] p-3 sm:p-4">
-      <ProductImageSlider
-        client:load
+      <ProductImageGallery
         images={productImages}
         productName={product.productName}
         badgeText={product.tag}

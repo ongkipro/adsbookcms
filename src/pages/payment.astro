@@ -162,7 +162,7 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
           </div>
         </div>
 
-        <p id="expiry" class="mt-4 text-center text-xs font-medium text-slate-500" hidden></p>
+        <p id="expiry" class="mt-4 text-center text-xs font-normal text-slate-500" hidden></p>
         <p id="payment-error" class="mt-4 rounded-none border border-red-200 bg-red-50 p-3.5 text-xs leading-6 text-red-800" hidden></p>
 
         <!-- Trust & Security Footer Badge -->
@@ -534,7 +534,7 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
               : 'Kode Pembayaran';
         accountVerification.textContent = 'Verifikasi Admin';
         accountVerification.className =
-          'rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800';
+          'rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-normal text-amber-800';
         accountValue.textContent = account;
         copyAccount.dataset.value = account;
         copyAccountLabel.textContent = manualTransfer ? 'Salin Rekening' : 'Salin VA';

@@ -147,7 +147,7 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
                     {formatPrice(product.price)}
                   </span>
                   {comparePrice > product.price && (
-                    <span class="text-[10.5px] font-medium text-[#77736C] line-through">
+                    <span class="text-[10.5px] font-normal text-[#77736C] line-through">
                       {formatPrice(comparePrice)}
                     </span>
                   )}
@@ -172,7 +172,7 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
     class="mt-8 flex flex-col items-center gap-3 border-t border-[#E5E5E5] pt-6"
     hidden={products.length === 0}
   >
-    <p id="catalog-status" class="text-[11px] font-medium text-[#555555]">
+    <p id="catalog-status" class="text-[11px] font-normal text-[#555555]">
       Menampilkan <span id="product-visible-count">{Math.min(10, products.length)}</span> dari <span id="product-total-count">{products.length}</span> produk
     </p>
     {

@@ -10,6 +10,11 @@ const relatedProducts = (await getStorefrontProducts(Astro.locals)).slice(0, 4).
   image: product.image,
   href: `/produk/${product.slug}`,
 }));
+
+// Reached through Astro.rewrite from the landing catch-all, which matches every
+// unknown single-segment path. Without an explicit status a rewrite renders
+// this page with 200, and a soft 404 is worse than the plain text it replaced.
+Astro.response.status = 404;
 ---
 
 <BaseLayout
@@ -27,7 +32,7 @@ const relatedProducts = (await getStorefrontProducts(Astro.locals)).slice(0, 4).
         </div>
 
         <span
-          class="mt-5 inline-flex bg-[#F8F7F4] px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[#111111]"
+          class="mt-5 inline-flex bg-[#F8F7F4] px-3 py-1 text-[11px] font-normal uppercase tracking-[0.12em] text-[#111111]"
         >
           Halaman hilang
         </span>
@@ -46,7 +51,7 @@ const relatedProducts = (await getStorefrontProducts(Astro.locals)).slice(0, 4).
         <a
           href="/"
           title={`Kembali ke beranda ${Astro.locals.tenant.name}`}
-          class="inline-flex items-center justify-center gap-2 bg-[#111111] px-5 py-3 text-[14px] font-medium text-white transition-colors hover:bg-[#333333]"
+          class="inline-flex items-center justify-center gap-2 bg-[#111111] px-5 py-3 text-[14px] font-normal text-white transition-colors hover:bg-[#333333]"
         >
           <Icon name="lucide:home" class="h-4 w-4" aria-hidden="true" />
           <span>Kembali ke beranda</span>
@@ -56,7 +61,7 @@ const relatedProducts = (await getStorefrontProducts(Astro.locals)).slice(0, 4).
       <section class="mt-10 border-t border-[#E5E7EB] pt-6" aria-labelledby="produk-terkait-title">
         <div class="flex items-end justify-between gap-4">
           <div>
-            <p class="text-[11px] font-medium uppercase tracking-[0.12em] text-[#8A704F]">Produk terkait</p>
+            <p class="text-[11px] font-normal uppercase tracking-[0.12em] text-[#8A704F]">Produk terkait</p>
             <h2 id="produk-terkait-title" class="mt-1 text-[20px] font-semibold tracking-[-0.02em] text-[#263238]">
               Mungkin ini yang Anda cari
             </h2>
@@ -64,7 +69,7 @@ const relatedProducts = (await getStorefrontProducts(Astro.locals)).slice(0, 4).
           <a
             href="/produk"
             title={`Lihat semua produk ${Astro.locals.tenant.name}`}
-            class="shrink-0 text-[12px] font-medium text-[#111111]"
+            class="shrink-0 text-[12px] font-normal text-[#111111]"
           >
             Semua →
           </a>

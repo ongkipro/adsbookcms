@@ -197,7 +197,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
           )
         }
         {hasAggregateRating && hasSoldCount && <span class="h-3 w-px bg-[#D8D6D0]" />}
-        {hasSoldCount && <span class="font-medium text-[#8A704F]">{soldLabel}</span>}
+        {hasSoldCount && <span class="font-normal text-[#8A704F]">{soldLabel}</span>}
       </div>
 
       <!-- Pricing Display -->
@@ -207,7 +207,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
         </span>
         {
           displayComparePrice > displayPrice && (
-            <span class="text-[13px] font-medium text-[#77736C] line-through">
+            <span class="text-[13px] font-normal text-[#77736C] line-through">
               Rp{Math.round(displayComparePrice).toLocaleString('id-ID')}
             </span>
           )
@@ -352,7 +352,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
             <div class="flex flex-wrap gap-x-3 gap-y-2">
               {
                 product.idealFor.map((item) => (
-                  <span class="inline-flex items-center gap-2 text-[12px] font-medium text-[#555555]">
+                  <span class="inline-flex items-center gap-2 text-[12px] font-normal text-[#555555]">
                     <span
                       class="h-px w-2 bg-[#C5A880]"
                       aria-hidden="true"

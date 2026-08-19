@@ -41,6 +41,7 @@ Exactly one document owns each subject. Do not restate another document's truth;
 | `TRACKING_SPECS.md` | Ad signal contract |
 | `PRD-ADMIN-LOGIN.md` | Admin login, first-run access, session |
 | `docs/GOOGLE_ADS_SETUP.md` | Google Ads / Merchant Center setup |
+| `docs/LANDING-PAGES.md` | Building a landing page, CMS or native Astro |
 
 Every document carries a `> Verified against disk: <date> @ <sha>` line, this one
 included. If you change what a document describes, update that line or the

@@ -35,7 +35,7 @@ const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
     <div class="mx-auto max-w-[800px] px-5 py-8 space-y-6">
       <!-- Section 1: Halaman Utama & Navigasi -->
       <div class="rounded-xl border border-[#EAEDED] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-        <h2 class="text-[16px] font-extrabold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
+        <h2 class="text-[16px] font-bold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
           <span class="h-2 w-2 rounded-full bg-[#FF9900]"></span>
           Navigasi Utama
         </h2>
@@ -56,7 +56,7 @@ const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
 
       <!-- Section 2: Produk & Landing Page -->
       <div class="rounded-xl border border-[#EAEDED] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-        <h2 class="text-[16px] font-extrabold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
+        <h2 class="text-[16px] font-bold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
           <span class="h-2 w-2 rounded-full bg-[#EC7211]"></span>
           Produk & Solusi Khusus
         </h2>
@@ -71,8 +71,8 @@ const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
                     href={`/produk/${product.slug}`}
                     class="block rounded-lg border border-[#EAEDED]/60 bg-[#FAFAFA] p-3 text-center hover:border-[#232F3E]/30 hover:bg-[#FFF5E5] transition-all"
                   >
-                    <p class="text-[14px] font-extrabold text-[#16191F]">{product.productName}</p>
-                    <p class="mt-0.5 text-[10px] font-medium text-[#545B64]">{product.variants[0]?.label || ''}</p>
+                    <p class="text-[14px] font-bold text-[#16191F]">{product.productName}</p>
+                    <p class="mt-0.5 text-[10px] font-normal text-[#545B64]">{product.variants[0]?.label || ''}</p>
                   </a>
                 ))
               }
@@ -102,7 +102,7 @@ const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
 
       <!-- Section 4: Halaman Legal & Informasi -->
       <div class="rounded-xl border border-[#EAEDED] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-        <h2 class="text-[15px] font-extrabold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
+        <h2 class="text-[15px] font-bold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
           <span class="h-2 w-2 rounded-full bg-slate-400"></span>
           Legal & Informasi Tambahan
         </h2>

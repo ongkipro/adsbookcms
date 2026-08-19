@@ -100,9 +100,10 @@ src/
   pages/           storefront, admin, /api/*, /api/v1/*, feeds, media
   components/      admin/ forms/ home/ seo/ shared/ storefront/ tracking/ ui/
   lib/             business logic and colocated tests
-  db/              42 hand-authored migrations — the only schema description
+  db/              44 hand-authored migrations — the only schema description
   layouts/         BaseLayout, AdminLayout, EmbedLayout
-  styles/           global.css (Tailwind v4 entry), form-hybrid.css (checkout)
+  styles/           foundation.css (shared) + one entry per surface:
+                    admin.css, storefront.css, form-hybrid.css (checkout)
   data/             reference data (Indonesian districts) + legal page templates
   middleware.ts     identity resolution, install gate, session, role policy, embed CSP
 scripts/            maintenance scripts

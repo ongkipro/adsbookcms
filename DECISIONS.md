@@ -413,3 +413,35 @@ install wizard and store settings offer one option.
 - The cost was named before it was accepted: this removes a shipped capability
   and the data migration is one way. It was taken as an explicit product
   decision, not inferred from the fact that no install happened to use it.
+
+---
+
+## ADR-019 — The public surface is monochrome
+
+**Date:** 2026-08-20 · **Status:** Accepted
+
+**Context.** The storefront shipped a warm neutral palette with a gold accent,
+`#C5A880`, across 48 usages. That reads as a brand — and this repository is not
+a brand. It is a CMS that installs for any merchant, and the merchant has their
+own. A house accent in twelve badge backgrounds is something every landing page
+and every custom product page then has to argue with.
+
+Measured while removing it: `#C5A880` is **2.26:1 on white**. It was failing
+WCAG AA as text the whole time it was used as text, in ten places.
+
+**Decision.** Ink on white, Dawn-clean. `#111111` ink, three neutral steps
+(`#FAFAFA` canvas, `#FFFFFF` column, `#F5F5F5` wells), `#E5E5E5` hairlines used
+sparingly, square corners, no decorative shadows. Product images are 1:1.
+Tokens live in `design-tokens.md` at the repository root.
+
+**Consequences.**
+- A landing page or a custom product page can introduce one colour and own it
+  completely. That is the point of the change, not a side effect.
+- The focus ring stays blue. It is the one colour left and it is deliberate:
+  monochrome cannot express focus against a monochrome page, and a focus
+  indicator needs 3:1.
+- `#999999`, used for footer text, was 2.85:1 and is now `#767676` at 4.54:1 —
+  the floor for body copy.
+- Card frames and small shadows are gone from the public surface. Borders
+  separate; they do not wrap a photo that already has edges.
+- The admin keeps its own palette. `admin.css` owns shadcn and is untouched.

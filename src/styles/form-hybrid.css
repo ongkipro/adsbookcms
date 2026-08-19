@@ -20,7 +20,7 @@
   pointer-events: none;
 }
 .flash-sale-banner {
-  border-bottom: 1px solid #C5A880;
+  border-bottom: 1px solid #111111;
 }
 .scroll-cue {
   display: grid;
@@ -111,7 +111,7 @@
   width: 0.48rem;
   height: 0.48rem;
   border-radius: 999px;
-  background: #C5A880;
+  background: #111111;
   flex: 0 0 auto;
   transform: translateY(0.02rem);
 }
@@ -170,17 +170,17 @@
 }
 .variant-option input:checked + .variant-copy {
   border-color: #111111;
-  background: #F8F7F4;
+  background: #F5F5F5;
   box-shadow: none;
 }
 .simple-variant-option input:checked + .simple-variant-copy {
   border-color: #111111;
-  background: #F8F7F4;
+  background: #F5F5F5;
   box-shadow: none;
 }
 .variant-option input:checked + .variant-copy .variant-radio {
   border-color: #111111;
-  background: radial-gradient(circle, #C5A880 0 45%, #ffffff 46% 100%);
+  background: radial-gradient(circle, #111111 0 45%, #ffffff 46% 100%);
 }
 .summary-row {
   display: flex;
@@ -400,8 +400,8 @@
 .field-grid textarea.field-valid,
 .form-field input.field-valid,
 .form-field textarea.field-valid {
-  border-color: #C5A880;
-  background: #F8F7F4 !important;
+  border-color: #111111;
+  background: #F5F5F5 !important;
   box-shadow: none !important;
 }
 .field-grid input.field-valid:focus,
@@ -446,9 +446,9 @@
 .shipping-address-summary {
   margin-top: 0.45rem;
   padding: 0.75rem;
-  border: 1px solid #C5A880;
+  border: 1px solid #111111;
   border-radius: 0.65rem;
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .shipping-address-summary[hidden] {
   display: none;
@@ -590,13 +590,13 @@
 }
 .district-item:hover,
 .district-item:focus-visible {
-  background: #F8F7F4;
-  border-left-color: #C5A880;
+  background: #F5F5F5;
+  border-left-color: #111111;
   outline: none;
 }
 .district-item:active {
   transform: scale(0.99);
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .district-empty {
   padding: 0.65rem 0.85rem;
@@ -723,17 +723,17 @@
 .payment-option:hover .payment-option-copy,
 .payment-option input:focus-visible + .payment-option-copy {
   border-color: #D8D6D0;
-  background: #F8F7F4;
+  background: #F5F5F5;
   box-shadow: none;
 }
 .payment-option input:checked + .payment-option-copy {
   border-color: #111111;
-  background: #F8F7F4;
+  background: #F5F5F5;
   box-shadow: none;
 }
 .payment-option input:checked + .payment-option-copy .payment-option-radio {
   border-color: #111111;
-  background: radial-gradient(circle, #C5A880 0 45%, #ffffff 46% 100%);
+  background: radial-gradient(circle, #111111 0 45%, #ffffff 46% 100%);
 }
 .payment-option input:checked + .payment-option-copy .payment-option-label {
   color: #111111;
@@ -746,7 +746,7 @@
 }
 .payment-group.is-selected {
   border-color: #111111;
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .payment-group-head {
   display: flex;
@@ -778,7 +778,7 @@
 }
 .payment-group.is-selected .payment-group-head .payment-option-radio {
   border-color: #111111;
-  background: radial-gradient(circle, #C5A880 0 45%, #ffffff 46% 100%);
+  background: radial-gradient(circle, #111111 0 45%, #ffffff 46% 100%);
 }
 .payment-group.is-selected .payment-group-head .payment-option-label {
   color: #111111;
@@ -806,11 +806,11 @@
   gap: 0.6rem;
 }
 .payment-group-body .payment-option:hover .payment-option-copy {
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .payment-group-body .payment-option input:checked + .payment-option-copy {
   border: 0;
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .payment-group-body .payment-option-label {
   font-size: 0.8125rem;
@@ -894,7 +894,7 @@
   gap: 0.85rem;
   padding: 0.85rem;
   border-top: 1px solid #E5E5E5;
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .total-box p {
   font-size: 0.8125rem;
@@ -925,9 +925,9 @@
   display: grid;
   gap: 0.2rem;
   padding: 0.88rem 0.95rem;
-  border: 1px solid #C5A880;
+  border: 1px solid #111111;
   border-radius: 0.68rem;
-  background: #F8F7F4;
+  background: #F5F5F5;
   color: #111111;
 }
 .info-box span {
@@ -961,8 +961,8 @@
   transition: all 0.15s ease;
 }
 .submit-main:hover {
-  border-color: #C5A880;
-  background: #C5A880 !important;
+  border-color: #111111;
+  background: #111111 !important;
   color: #111111 !important;
   box-shadow: 0 10px 20px -4px rgba(197, 168, 128, 0.35);
 }
@@ -994,8 +994,8 @@
   box-shadow: 0 8px 16px -4px rgba(17, 17, 17, 0.25);
 }
 .submit-main[data-state='ready']:hover {
-  border-color: #C5A880;
-  background: #C5A880 !important;
+  border-color: #111111;
+  background: #111111 !important;
   color: #111111 !important;
 }
 .submit-main[data-state='ready']:hover .submit-main-icon {

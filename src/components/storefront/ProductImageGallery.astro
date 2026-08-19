@@ -35,9 +35,9 @@ const hasMany = gallery.length > 1;
             aria-label={`Lihat foto ${idx + 1} dari ${gallery.length}`}
             aria-pressed={idx === 0 ? 'true' : 'false'}
             class:list={[
-              'group relative aspect-[3/4] w-full shrink-0 overflow-hidden rounded-none border transition-all duration-200 focus-visible:outline-none',
+              'group relative aspect-square w-full shrink-0 overflow-hidden rounded-none border transition-all duration-200 focus-visible:outline-none',
               idx === 0
-                ? 'border-[#C5A880] ring-1 ring-[#C5A880] opacity-100 shadow-sm'
+                ? 'border-[#111111] ring-1 ring-[#111111] opacity-100'
                 : 'border-[#E5E5E5] opacity-60 hover:opacity-100',
             ]}
           >
@@ -53,14 +53,14 @@ const hasMany = gallery.length > 1;
             />
             <span
               data-thumb-bar={idx}
-              class:list={['absolute inset-x-0 bottom-0 h-0.5 bg-[#C5A880]', idx === 0 ? '' : 'hidden']}
+              class:list={['absolute inset-x-0 bottom-0 h-0.5 bg-[#111111]', idx === 0 ? '' : 'hidden']}
             />
           </button>
         ))}
       </div>
     )}
 
-    <div class="group relative flex flex-1 aspect-[3/4] items-center justify-center overflow-hidden rounded-none border border-[#E5E5E5] bg-[#F8F7F4]">
+    <div class="group relative flex flex-1 aspect-square items-center justify-center overflow-hidden rounded-none bg-[#F5F5F5]">
       <div
         data-track
         class="no-scrollbar absolute inset-0 flex snap-x snap-mandatory overflow-x-auto scroll-smooth"
@@ -82,18 +82,18 @@ const hasMany = gallery.length > 1;
 
       <div class="absolute left-3 top-3 z-10 flex flex-wrap items-center gap-1.5 pointer-events-none">
         {badgeText && (
-          <span class="rounded-none bg-[#111111] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#F8F7F4] shadow-xs">
+          <span class="rounded-none bg-[#111111] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">
             {badgeText}
           </span>
         )}
         {discountPercentage > 0 && (
-          <span class="rounded-none bg-[#C5A880] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[#111111] shadow-xs">
+          <span class="rounded-none bg-[#111111] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
             -{discountPercentage}%
           </span>
         )}
       </div>
 
-      <div class="absolute bottom-3 right-3 z-10 pointer-events-none rounded-none border border-[#E5E5E5] bg-white/95 px-2 py-1 text-[10px] font-bold text-[#111111] shadow-xs backdrop-blur-xs">
+      <div class="absolute bottom-3 right-3 z-10 pointer-events-none rounded-none border border-[#E5E5E5] bg-white/95 px-2 py-1 text-[10px] font-bold text-[#111111] backdrop-blur-xs">
         <span data-counter>1</span> / {gallery.length}
       </div>
 
@@ -103,7 +103,7 @@ const hasMany = gallery.length > 1;
             type="button"
             data-prev
             aria-label="Foto Sebelumnya"
-            class="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-none border border-[#E5E5E5] bg-white/90 text-[#111111] shadow-xs transition hover:bg-[#111111] hover:text-[#F8F7F4] focus-visible:outline-none active:scale-95 z-20"
+            class="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-none border border-[#E5E5E5] bg-white/90 text-[#111111] transition hover:bg-[#111111] hover:text-white focus-visible:outline-none active:scale-95 z-20"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7" />
@@ -113,7 +113,7 @@ const hasMany = gallery.length > 1;
             type="button"
             data-next
             aria-label="Foto Berikutnya"
-            class="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-none border border-[#E5E5E5] bg-white/90 text-[#111111] shadow-xs transition hover:bg-[#111111] hover:text-[#F8F7F4] focus-visible:outline-none active:scale-95 z-20"
+            class="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-none border border-[#E5E5E5] bg-white/90 text-[#111111] transition hover:bg-[#111111] hover:text-white focus-visible:outline-none active:scale-95 z-20"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7" />
@@ -145,11 +145,11 @@ const hasMany = gallery.length > 1;
       thumbs.forEach((thumb, i) => {
         const active = i === next;
         thumb.setAttribute('aria-pressed', active ? 'true' : 'false');
-        thumb.classList.toggle('border-[#C5A880]', active);
+        thumb.classList.toggle('border-[#111111]', active);
         thumb.classList.toggle('ring-1', active);
-        thumb.classList.toggle('ring-[#C5A880]', active);
+        thumb.classList.toggle('ring-[#111111]', active);
         thumb.classList.toggle('opacity-100', active);
-        thumb.classList.toggle('shadow-sm', active);
+        thumb.classList.toggle('', active);
         thumb.classList.toggle('border-[#E5E5E5]', !active);
         thumb.classList.toggle('opacity-60', !active);
         thumb.classList.toggle('hover:opacity-100', !active);

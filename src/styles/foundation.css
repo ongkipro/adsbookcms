@@ -42,18 +42,15 @@
 
 @layer base {
   :root {
-    /* One neutral family. The storefront paints #F8F7F4 everywhere - badges,
-       frames, the product header - while the canvas underneath was #fafafa, a
-       chroma-0 grey. Mixing a warm and a neutral grey on one page is the thing
-       that reads as unfinished; the canvas joins the family the brand already
-       uses. The 480 px column still sits on white, so the page stays
-       white-first. */
-    --bg-canvas: #f8f7f4;
+        /* Dawn-clean monochrome: the column reads on white, the page behind it is
+       one step down. Neutral on purpose - a temperature is a brand decision and
+       this palette declines to make one for the merchant (design-tokens.md). */
+    --bg-canvas: #fafafa;
     --bg-surface: #ffffff;
     --text-main: #0f172a;
     --text-muted: #64748b;
     --focus-ring: #2563eb;
-    --focus-ring-offset: #f8f7f4;
+    --focus-ring-offset: #fafafa;
   }
 
   body {

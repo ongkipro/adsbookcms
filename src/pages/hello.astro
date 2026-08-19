@@ -170,7 +170,7 @@ if (database && !bootstrapAdminPassword) {
       <!-- Left Brand Panel (Desktop) -->
       <div class="admin-login-brand hidden lg:flex flex-col justify-between bg-slate-950 p-10 text-white xl:p-14">
         <div class="flex items-center gap-3">
-          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 shadow-sm">
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 text-white" aria-hidden="true"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M3 15h6"/><path d="M3 18h6"/><path d="M3 12h6"/></svg>
           </div>
           <span class="text-xl font-bold tracking-tight">AdsBookCMS</span>
@@ -189,7 +189,7 @@ if (database && !bootstrapAdminPassword) {
         <div class="admin-login-card m-auto w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-xl lg:my-auto lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
           <!-- Header -->
           <div class="admin-login-header pb-8">
-            <div class="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 shadow-sm lg:hidden">
+            <div class="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 lg:hidden">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-7 w-7 text-white" aria-hidden="true"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M3 15h6"/><path d="M3 18h6"/><path d="M3 12h6"/></svg>
             </div>
             <h1 id="loginTitle" class="text-2xl font-bold tracking-tight text-slate-950">
@@ -214,7 +214,7 @@ if (database && !bootstrapAdminPassword) {
         )}
 
         {showsDefaultCredential && (
-          <div id="defaultCredentialNotice" class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
+          <div id="defaultCredentialNotice" class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
             <div class="flex items-start gap-3">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" aria-hidden="true">
                 <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
@@ -241,7 +241,7 @@ if (database && !bootstrapAdminPassword) {
             </div>
           </div>
 
-          <button id="loginSubmit" type="submit" class="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:bg-slate-800 disabled:text-slate-300 disabled:opacity-90">
+          <button id="loginSubmit" type="submit" class="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:bg-slate-800 disabled:text-slate-300 disabled:opacity-90">
             Masuk Workspace
           </button>
           <p id="loginStatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>

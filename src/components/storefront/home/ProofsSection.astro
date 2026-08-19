@@ -21,7 +21,7 @@ const { proofs, heading } = Astro.props;
 
 {
   proofs.length > 0 && (
-    <section id="bukti" class="border-t border-[#E5E5E5] bg-[#F8F7F4] px-5 py-8">
+    <section id="bukti" class="border-t border-[#E5E5E5] bg-[#F5F5F5] px-5 py-8">
       <div class="mb-5 text-left">
         <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8A704F]">
           {heading.eyebrow}
@@ -32,10 +32,10 @@ const { proofs, heading } = Astro.props;
 
       <div class="mt-4 flex flex-col gap-3.5">
         {proofs.map((proof) => (
-          <article class="border border-[#E5E5E5] bg-white p-4 shadow-2xs">
+          <article class="border border-[#E5E5E5] bg-white p-4">
             <div class="flex items-start gap-3.5">
               <div
-                class="flex h-10 w-10 shrink-0 items-center justify-center border border-[#C5A880]/60 bg-[#111111] text-[13px] font-bold uppercase text-[#C5A880]"
+                class="flex h-10 w-10 shrink-0 items-center justify-center border border-[#111111] bg-[#111111] text-[13px] font-bold uppercase text-white"
                 style="font-family: 'Cinzel', serif;"
                 aria-hidden="true"
               >

@@ -1,6 +1,10 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-08-19 @ `09c1b0b`
+> Verified against disk: 2026-08-20 @ `519c255`
+>
+> **The public palette is monochrome (ADR-019).** Colour tokens below that
+> describe the retired gold accent are historical; `design-tokens.md` at the
+> repository root is the current source.
 
 This document describes the presentation layer **as it ships**, extracted from the code rather than from intent. Concrete values carry a file reference, and a line number where that line number is stable. Section 1.4 dropped its line numbers after they drifted through a refactor and left the document wrong about its own subject. Anything that could not be verified against the tree was left out — see `DECISIONS.md` ADR-010.
 

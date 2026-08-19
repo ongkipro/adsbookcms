@@ -1,4 +1,5 @@
 ---
+import { cardImageSrc } from '../lib/image-derivative';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Icon from '../components/storefront/shared/Icon.astro';
 import { getStorefrontProducts } from '../lib/catalog';
@@ -79,7 +80,7 @@ const relatedProducts = (await getStorefrontProducts(Astro.locals)).slice(0, 4).
                 style={`animation-delay: ${index * 70}ms`}
               >
                 <img
-                  src={product.image}
+                  src={cardImageSrc(product.image)}
                   alt={`Foto produk ${product.name} untuk solusi pertanian ${product.category}`}
                   title={`Produk ${product.name}`}
                   class="h-[58px] w-[58px] object-contain"

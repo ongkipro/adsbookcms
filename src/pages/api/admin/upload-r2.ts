@@ -36,6 +36,9 @@ function matchesSignature(type: string, bytes: Uint8Array) {
   return false;
 }
 
+const BASE_KEY =
+  /^uploads\/\d{4}-\d{2}-\d{2}\/[0-9a-f-]+\.(?:jpg|png|webp|gif|avif)$/i;
+
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const env = getRuntimeEnv(locals);
@@ -86,7 +89,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const extension = EXTENSION_BY_TYPE[file.type];
-    const fileName = `uploads/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
+    // A card-sized derivative is stored beside the image it belongs to, so the
+    // storefront can address it by name without a second column. The base key
+    // is echoed back by the caller rather than trusted freely: it must match
+    // the exact shape this route generates, and the suffix is appended here.
+    const derivativeOf = String(formData.get("derivative_of") || "").trim();
+    let fileName: string;
+    if (derivativeOf) {
+      if (!BASE_KEY.test(derivativeOf)) {
+        return jsonError("Kunci gambar induk tidak valid.", 400);
+      }
+      fileName = derivativeOf.replace(/(\.[a-z0-9]+)$/i, `-sm.${extension}`);
+    } else {
+      fileName = `uploads/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
+    }
     await bucket.put(fileName, bytes, {
       httpMetadata: {
         contentType: file.type,

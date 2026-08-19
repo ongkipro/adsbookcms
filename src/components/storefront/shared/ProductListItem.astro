@@ -1,4 +1,5 @@
 ---
+import { cardImageSrc } from '../../../lib/image-derivative';
 
 interface ProductVariant {
   id: string;
@@ -36,7 +37,7 @@ const discountPercentage = hasDiscount
   >
     <div class="relative aspect-[3/4] overflow-hidden border-b border-[#E5E5E5] bg-[#F8F7F4]">
       <img
-        src={product.heroImage}
+        src={cardImageSrc(product.heroImage)}
         alt={`Foto produk ${product.productName}`}
         width="320"
         height="426"

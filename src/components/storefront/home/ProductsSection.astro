@@ -1,4 +1,5 @@
 ---
+import { cardImageSrc } from '../../../lib/image-derivative';
 import Icon from '../shared/Icon.astro';
 
 interface Product {
@@ -99,12 +100,13 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
               class="relative block aspect-[3/4] w-full overflow-hidden border-b border-[#E5E5E5] bg-[#EEEAE2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
             >
               <img
-                src={product.image}
+                src={cardImageSrc(product.image)}
                 alt={product.name}
                 width="360"
                 height="480"
                 class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]"
                 loading={idx < 4 ? 'eager' : 'lazy'}
+                {...(idx === 0 ? { fetchpriority: 'high' } : {})}
                 decoding="async"
               />
               {discount > 0 && (

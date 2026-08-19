@@ -17,6 +17,12 @@ const shouldRenderPixel = /^\d{5,25}$/.test(String(pixelId || '').trim());
 
 {shouldRenderPixel && (
   <>
+    {/* fbevents.js and the pixel config together cost roughly 220 KB from a
+        third-party origin, and the connection is only opened once the inline
+        loader runs. Warming DNS, TCP and TLS here removes that round trip from
+        the critical path. Rendered only when a pixel is actually configured. */}
+    <link rel="preconnect" href="https://connect.facebook.net" crossorigin />
+    <link rel="dns-prefetch" href="https://connect.facebook.net" />
     <script is:inline define:vars={{ pixelId }}>
       (() => {
         if (typeof window === 'undefined') return;

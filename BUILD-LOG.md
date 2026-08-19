@@ -2837,3 +2837,77 @@ locked reconciliation rows, rejected blank manual confirmation with focused
 inline errors, and redirected an already-paid token-scoped `/payment` flow to
 `/thanks` with zero console errors. No live provider request, remote database
 mutation, deployment, commit, or push occurred.
+
+---
+
+## 2026-08-19 — Install-audit fixes, mobile page weight, and a real three-surface style split
+
+Found by auditing the three live installs rather than by reading this
+repository, then carried back here. Each defect was reproduced against a running
+store before it was fixed.
+
+**`/admin/ads/meta` could never save.** The page sent `POST /api/admin/ads` to a
+route exporting only `GET` and `PUT`, omitted the `action` field the handler
+branches on, and its test button posted to `/api/admin/ads/test-meta`, a route
+that does not exist. The middle failure was the dangerous one: correcting only
+the method would have fallen through both branches and returned `success: true`
+while writing nothing. `/admin/ads/google` already used `PUT` with an explicit
+action, which established the contract. This is why two installs had no Pixel ID
+while the first one did — it was configured before this page existed.
+
+**A stored provider credential could not be cleared.** An empty submission keeps
+the stored key so a base URL can be saved without retyping a secret; that also
+made a stored key permanent. Since the database value wins over the deployed
+Worker secret, one wrong Mengantar key kept a live store from quoting shipping
+with no way out of the admin. An explicit `null` now clears, through
+`resolveCredentialUpdate`.
+
+**A failing shipping quote left no trace.** `MengantarClient` throws the
+provider's own message with the API key already redacted, and the catch in
+`shipping-rates.ts` replaced it with a generic string and logged nothing.
+Diagnosing a live failure required deploying a log line first. Expected
+`ShippingQuoteError` states stay unlogged; they are buyer-facing, not faults.
+
+**The COD province refusal had no runnable check.**
+`COD_NOT_AVAILABLE_FOR_REGION` appeared in `submit-order.ts` and the browser
+script and in no test. The hybrid dispatch decides which form a visitor sees
+from their geo-IP province, while the address they type is what gets delivered —
+a buyer in Java can address an order to Papua from the middle form, and only the
+server catches it. Extracted as `isCodBlockedForProvince` and covered for
+excluded, non-excluded, unresolvable and non-COD inputs; behaviour unchanged,
+including failing closed on a province that cannot be normalised.
+
+**Mobile page weight.** Lighthouse mobile on a live install scored 66 with an
+8.1 s LCP. One global stylesheet blocked rendering for ~810 ms; the LCP element
+was the first product card image and nothing marked it; and catalogue images
+were 1254×1254 rendering into a 182 px card, about 47× the pixels the page can
+show. The upload path already re-encoded through a canvas but set the canvas to
+the source dimensions and returned any WebP under 2 MB untouched however large.
+A card-sized derivative now sits beside each original as `<name>-sm.<ext>`, and
+the asset route falls back to the full image when it is absent — so an install
+that has not backfilled keeps today's behaviour rather than broken tiles, and
+the backfill can run after the deploy rather than before. On that install the
+home page moved to 80–92 across three runs, LCP to 2.8–4.3 s, and total
+transferred bytes from 2,336 KiB to 789 KiB.
+
+**The three-surface style split was nominal.** `admin.css` and `storefront.css`
+both opened with `@import './global.css'`, and that file carried Tailwind,
+shadcn and tw-animate together, so every public page shipped the operator UI.
+Measured on a local build, `/` inlined 176 KB of CSS against `/admin/login`'s
+184 KB — the storefront was 8 KB lighter than the admin. `foundation.css` now
+holds what all three genuinely share; each entry declares its own `@source`
+roots with `source(none)`. `/` is 67.6 KB, `/full-form` 84.7 KB, `/admin/login`
+158.4 KB.
+
+Two traps, both caught by verifying rather than assuming. `source(none)` means
+every place a class name is *written* must be declared, and `lib/ui-variants.ts`
+holds cva variants both surfaces render with — omitting it dropped `py-7` from
+the product page. And moving shadcn's theme block to `admin.css` took the radius
+scale with it, so `rounded-md` fell to Tailwind's default and every corner on the
+storefront changed shape; the scale is shared in `foundation.css` again.
+
+Evidence: `npm test` 426/426, `npm run check` 356 files with zero diagnostics,
+the Cloudflare server build complete, all 44 migrations applying to an empty
+local D1, and full-page screenshots of the storefront, product list, checkout
+form and admin login at 390 CSS px before and after the split differing by zero
+pixels on all four. No production deployment happened from this repository.

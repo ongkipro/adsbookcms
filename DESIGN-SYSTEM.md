@@ -1,8 +1,8 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A10 working tree
+> Verified against disk: 2026-08-19 @ `09c1b0b`
 
-This document describes the presentation layer **as it ships**, extracted from the code rather than from intent. Every concrete value below carries a `file:line` reference. Anything that could not be verified against the tree was left out — see `DECISIONS.md` ADR-010.
+This document describes the presentation layer **as it ships**, extracted from the code rather than from intent. Concrete values carry a file reference, and a line number where that line number is stable. Section 1.4 dropped its line numbers after they drifted through a refactor and left the document wrong about its own subject. Anything that could not be verified against the tree was left out — see `DECISIONS.md` ADR-010.
 
 Scope note from `ARCHITECTURE.md`: the **admin shell is a canonical product surface** (every install gets the same operator UI), while **storefront presentation varies per install** via `PUBLIC_STOREFRONT_TEMPLATE`. The two therefore have separate, deliberately unrelated palettes. Do not unify them.
 
@@ -61,9 +61,25 @@ Admin colour **is** tokenised. `.admin-shell` redefines the shadcn variables in 
 
 ### 1.4 Base shadcn tokens
 
-`:root` oklch scale — `src/styles/global.css:195-228`. `.dark` overrides — `:230-262`. `--primary: oklch(0.546 0.245 262.881)` (`:202`) is a blue, matching `ADMIN_ACCENT`. `--radius: 0.625rem` (`:219`); `.admin-shell` raises it to `0.75rem` (`:294`).
+The `:root` oklch scale and its `.dark` overrides live in `src/styles/admin.css`,
+which is the only entry that imports shadcn. `--primary: oklch(0.546 0.245 262.881)`
+is a blue matching `ADMIN_ACCENT`; `.admin-shell` raises `--radius` from `0.625rem`
+to `0.75rem`.
 
-There is also a small legacy variable set at `src/styles/global.css:8-15` (`--bg-canvas: #fafafa`, `--text-main: #0f172a`, `--focus-ring: #2563eb`). `--focus-ring` is live (`:76`, `:106`); `--bg-canvas` sets `body` (`:18`) but every storefront template paints over it with its own background.
+The radius scale itself is **shared**, declared in `src/styles/foundation.css`.
+It reached every surface through shadcn's theme block until the three-way split;
+leaving it behind in `admin.css` silently reshaped every rounded corner on the
+storefront, because `rounded-md` fell back to Tailwind's `0.375rem`. `admin.css`
+also declares `--radius: 0.625rem` for shadcn's own `:root` block, and the two
+agree deliberately. Giving the storefront its own radius is a design decision,
+not something to arrive at by moving a file.
+
+The base variable set — `--bg-canvas: #fafafa`, `--text-main: #0f172a`,
+`--focus-ring: #2563eb` — is also in `foundation.css`. `--focus-ring` is live;
+`--bg-canvas` sets `body`, but every storefront template paints over it.
+
+Line numbers are deliberately absent here. This section cited them, they drifted
+with the split, and the document was wrong about its own subject.
 
 ---
 
@@ -73,10 +89,14 @@ There is also a small legacy variable set at `src/styles/global.css:8-15` (`--bg
 
 | Family | Weights imported | Import site | Applied where |
 | --- | --- | --- | --- |
-| Inter | 400, 600, 700 | `src/styles/global.css` | shared `body` and admin shell |
-| Cinzel | 700 | `src/styles/global.css` | brand type only, via inline `style` |
+| Inter | 400, 600, 700 | `src/styles/foundation.css` | shared `body` and admin shell |
+| Cinzel | 700 | `src/styles/foundation.css` | brand type only, via inline `style` |
 
-Font faces are owned by `global.css`, the stylesheet every layout loads. Plus Jakarta Sans is no longer imported; `EmbedLayout` intentionally inherits Inter.
+Font faces are owned by `foundation.css`, which all three surface entries import.
+They were in `BaseLayout` once, so the 26 admin routes asked for a family whose
+faces were declared nowhere they could see and rendered in `system-ui`; the
+foundation exists so that cannot recur. Plus Jakarta Sans is no longer imported;
+`EmbedLayout` intentionally inherits Inter.
 
 Cinzel is applied through three inline `style` attributes, not a class or token:
 
@@ -85,14 +105,14 @@ Cinzel is applied through three inline `style` attributes, not a class or token:
 - `src/components/storefront/home/ProofsSection.astro:74`
 - `src/pages/produk/[slug].astro:394`
 
-`AdminLayout.astro` imports no font files at all; admin inherits Inter from `global.css`.
+`AdminLayout.astro` imports no font files at all; admin inherits Inter from `foundation.css`.
 
 ### 2.2 Stack
 
 ```css
 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif
 ```
-`src/layouts/BaseLayout.astro:156` and `src/styles/global.css:20`. The admin variant adds `"Segoe UI"` and enables `font-feature-settings: "cv02","cv03","cv04","cv11"` (`src/styles/global.css:303-304`).
+`src/layouts/BaseLayout.astro` and the `body` rule in `src/styles/foundation.css`. The admin variant adds `"Segoe UI"` and enables `font-feature-settings: "cv02","cv03","cv04","cv11"` in `src/styles/admin.css`.
 
 ### 2.3 Storefront type treatment
 
@@ -105,7 +125,7 @@ The storefront voice is **small, uppercase, wide-tracked labels over large tight
 - Page `h1`: `text-[28px] font-extrabold leading-[1.18] tracking-[-0.02em]` — `src/components/storefront/shared/PageIntro.astro:26`
 - Footer links: `text-[10px] font-semibold tracking-widest uppercase` — `src/components/storefront/shared/SiteFooter.astro:23`
 
-Mobile input font-size is force-set to `1rem` to stop iOS zoom — `src/styles/global.css:89-96` (all viewports ≤639px) and again for admin at ≤1023px (`src/layouts/AdminLayout.astro:66-73`).
+Mobile input font-size is force-set to `1rem` to stop iOS zoom — `src/styles/foundation.css` (all viewports ≤639px, shared because every surface has inputs) and again for admin at ≤1023px (`src/layouts/AdminLayout.astro:66-73`).
 
 ---
 
@@ -133,7 +153,7 @@ Load-bearing examples:
 
 Borders carry the structure that radius and shadow would normally carry. Shadow is nearly absent from the storefront — `shadow-2xs` / `shadow-xs` only (`ProofsSection.astro:68`, `payment.astro:82`). The one real shadow is the compact-shell drop: `shadow-[0_0_40px_rgba(15,23,42,0.08)]` (`src/layouts/BaseLayout.astro:187`).
 
-**Exceptions that exist and are not errors:** the `wide-catalog` template is deliberately round (`rounded-full` CTAs at `WideCatalogHome.astro:51,57`, `rounded-2xl` hero image at `:70`), the admin shell is round (`0.875rem` cards, `src/styles/global.css:346`), and `form-hybrid.css` predates the square rule (§4).
+**Exceptions that exist and are not errors:** the `wide-catalog` template is deliberately round (`rounded-full` CTAs at `WideCatalogHome.astro:51,57`, `rounded-2xl` hero image at `:70`), the admin shell is round (`0.875rem` cards, `src/styles/admin.css`), and `form-hybrid.css` predates the square rule (§4).
 
 ---
 
@@ -315,29 +335,60 @@ same route policy grants access to their destination.
 
 Tailwind is configured CSS-first. **There is no `tailwind.config.*` file** — `components.json:7` sets `"config": ""`.
 
-Wiring:
+### 6.1 Three surfaces, one foundation
 
-- Vite plugin — `astro.config.mjs:4`, `:22` (`@tailwindcss/vite`).
-- Shared token entry — `src/styles/global.css`, imported by the isolated surface entries.
-- Surface entries — `src/styles/storefront.css` for `BaseLayout`, `src/styles/admin.css` for `AdminLayout`, and `global.css` for `EmbedLayout`.
-- Import chain at the top of `global.css`:
+The CMS admin, the public storefront and checkout are three separate style
+surfaces. They share exactly one file.
+
+| Entry | Imported by | Owns |
+| --- | --- | --- |
+| `src/styles/foundation.css` | the three entries below | Tailwind, the type ramp, base tokens, radius scale, reduced-motion, scrollbar, mobile input sizing |
+| `src/styles/admin.css` | `AdminLayout`, `/hello` | shadcn, tw-animate, `.admin-shell`, `.btn-*`, `.admin-input-flat` |
+| `src/styles/storefront.css` | `BaseLayout`, `EmbedLayout` | public-only rules |
+| `src/styles/form-hybrid.css` | the checkout routes, directly | the entire checkout layer, standalone — no Tailwind, no `@apply` |
+
+This replaced a `global.css` that carried Tailwind, shadcn and tw-animate
+together and was imported by both the admin and the storefront entries. The
+split was therefore nominal: measured on a local build, `/` inlined 176 KB of
+CSS against `/admin/login`'s 184 KB, and the public CSS contained 69 occurrences
+of `sidebar`, 16 shadcn `[data-slot=` selectors and the chart tokens. It is now
+67.6 KB for `/`, 84.7 KB for `/full-form` and 158.4 KB for `/admin/login`.
+
+**Each entry declares what it is built from.** `foundation.css` imports Tailwind
+with `source(none)`, so nothing is discovered automatically, and every surface
+lists its own `@source` roots. A utility a storefront page never writes is never
+generated into the storefront bundle.
+
+The consequence to remember: **class names written outside a template still have
+to be declared.** `src/lib/ui-variants.ts` holds the cva variants both surfaces
+render with, and leaving `../lib` out of the scan roots silently dropped `py-7`
+from the product page. Both entries scan `../lib` for that reason.
+
+### 6.2 Wiring
+
+- Vite plugin — `astro.config.mjs` (`@tailwindcss/vite`).
+- Import chain at the top of `foundation.css`:
   ```css
-  @import "tailwindcss";        /* :1 */
-  @import "tw-animate-css";     /* :2 */
-  @import "shadcn/tailwind.css";/* :3 */
+  @import "tailwindcss" source(none);
   @import "@fontsource/inter/400.css";
   @import "@fontsource/inter/600.css";
   @import "@fontsource/inter/700.css";
   @import "@fontsource/cinzel/700.css";
   @custom-variant dark (&:is(.dark *));
   ```
-- `form-hybrid.css` is deliberately absent from this shared chain. Checkout routes import it directly so admin/storefront pages do not receive the checkout bundle.
-- Token bridge — `@theme inline { … }` maps every shadcn variable to a Tailwind colour utility and derives the radius scale from `--radius` (`global.css:154-193`).
-- Values live in `:root` (`:195-228`) and `.dark` (`:230-262`), in **oklch**, per Tailwind v4 / shadcn convention.
+- `tw-animate-css` and `shadcn/tailwind.css` are imported by `admin.css` alone.
+  No public file imports a shadcn component; a census found `.btn-primary` at 6
+  admin references and 0 public, `.btn-blue` 8/0, `.btn-secondary` 11/0,
+  `.admin-input-flat` 11/0.
+- Token bridge — `@theme inline { … }` in `admin.css` maps every shadcn variable
+  to a Tailwind colour utility. The **radius** half of that bridge is in
+  `foundation.css` because all three surfaces share it (§1.4).
+- Values live in `:root` and `.dark` inside `admin.css`, in **oklch**, per
+  Tailwind v4 / shadcn convention.
 
 shadcn config (`components.json`): style `base-nova` (`:3`), `rsc: false` (`:4`), `tsx: true` (`:5`), `baseColor: neutral` (`:9`), `cssVariables: true` (`:10`), no prefix (`:11`), `iconLibrary: lucide` (`:13`), aliases `@/components`, `@/lib/utils`, `@/components/ui` (`:15-21`).
 
-**`shadcn` is a runtime `dependency`, not a devDependency** (`package.json:47`). That is required, not a mistake: `global.css:3` does `@import "shadcn/tailwind.css"`, so the package must resolve during `astro build`, not only during CLI scaffolding. `tw-animate-css` is in `dependencies` (`package.json:51`) for the same reason (`global.css:2`).
+**`shadcn` is a runtime `dependency`, not a devDependency** (`package.json:47`). That is required, not a mistake: `admin.css` does `@import "shadcn/tailwind.css"`, so the package must resolve during `astro build`, not only during CLI scaffolding. `tw-animate-css` is in `dependencies` (`package.json:51`) for the same reason.
 
 `cn()` is `twMerge(clsx(...))` — `src/lib/cn.ts:1-6`. `src/lib/utils.ts:1` is a one-line re-export so the shadcn `@/lib/utils` alias resolves; both names are live in the tree.
 
@@ -397,9 +448,9 @@ Current observations, not a second backlog. Any item selected for implementation
 
 **8.6 — RESOLVED 2026-08-16.** `form-hybrid.css` is imported six times. Globally at `global.css:4` — which already puts it on every page including admin — plus redundantly at `full-form.astro:8`, `geoipform.astro:8`, `middle-form.astro:8`, `hybrid-form.astro:14`, `embed/form.astro:7`. The five page-level imports are no-ops; the global import means 22KB of checkout CSS ships with the admin dashboard.
 
-**8.7 — RESOLVED.** Plus Jakarta Sans was loaded and never used. The imports were removed; `EmbedLayout` now intentionally inherits Inter from `global.css`.
+**8.7 — RESOLVED.** Plus Jakarta Sans was loaded and never used. The imports were removed; `EmbedLayout` now intentionally inherits Inter from `foundation.css`, through `storefront.css`.
 
-**8.8 Font weights are used that were never imported.** Inter faces are 400/600/700 in `global.css`, while some utilities request 500, 800, or 900 and resolve to the nearest available face. Cinzel now ships the 700 face used by the brand; earlier synthetic-Cinzel claims are resolved.
+**8.8 Font weights are used that were never imported.** Inter faces are 400/600/700 in `foundation.css`, while some utilities request 500, 800, or 900 and resolve to the nearest available face. Cinzel now ships the 700 face used by the brand; earlier synthetic-Cinzel claims are resolved.
 
 **8.9 Breadcrumb re-derives the width branch.** `Breadcrumb.astro:20` reads `Astro.locals.tenant.storefrontTemplate` directly instead of accepting the `contentWidth` its host layout already resolved (`BaseLayout.astro:51`). A page overriding `contentWidth` gets a breadcrumb of the other width.
 

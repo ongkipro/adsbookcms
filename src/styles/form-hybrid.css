@@ -460,7 +460,7 @@
   gap: 0.75rem;
 }
 .shipping-address-summary-head strong {
-  color: #8A704F;
+  color: #767676;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -934,7 +934,7 @@
   font-size: 0.75rem;
   line-height: 1.55;
   font-weight: 400;
-  color: #8A704F;
+  color: #767676;
 }
 .submit-panel {
   display: grid;

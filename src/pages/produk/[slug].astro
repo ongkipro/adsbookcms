@@ -160,7 +160,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     <!-- Main Header & Pricing Surface -->
     <section class="border-b border-[#E5E5E5] bg-white px-5 py-5">
       <div class="flex items-center justify-between gap-3">
-        <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#8A704F]">
+        <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#767676]">
           {product.category}
         </span>
         {
@@ -197,7 +197,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
           )
         }
         {hasAggregateRating && hasSoldCount && <span class="h-3 w-px bg-[#D8D6D0]" />}
-        {hasSoldCount && <span class="font-normal text-[#8A704F]">{soldLabel}</span>}
+        {hasSoldCount && <span class="font-normal text-[#767676]">{soldLabel}</span>}
       </div>
 
       <!-- Pricing Display -->
@@ -400,7 +400,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
                       <div class="flex items-center gap-1.5">
                         <p class="text-[12px] font-bold text-[#111111]">{review.name}</p>
                         {review.verified && (
-                          <span class="inline-flex items-center gap-0.5 border border-[#111111] bg-white px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-[#8A704F]">
+                          <span class="inline-flex items-center gap-0.5 border border-[#111111] bg-white px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wider text-[#767676]">
                             Terverifikasi
                           </span>
                         )}

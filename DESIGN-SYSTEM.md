@@ -457,7 +457,13 @@ Current observations, not a second backlog. Any item selected for implementation
 
 **8.7 — RESOLVED.** Plus Jakarta Sans was loaded and never used. The imports were removed; `EmbedLayout` now intentionally inherits Inter from `foundation.css`, through `storefront.css`.
 
-**8.8 Font weights are used that were never imported.** Inter faces are 400/600/700 in `foundation.css`, while some utilities request 500, 800, or 900 and resolve to the nearest available face. Cinzel now ships the 700 face used by the brand; earlier synthetic-Cinzel claims are resolved.
+**8.8 — RESOLVED 2026-08-20.** Inter ships 400/600/700 and the public surface
+wrote five weights. Measured in the browser rather than reasoned about: at 32 px
+the string renders 323.02 px at both 400 and 500, and 327.33 px at 700, 800 and
+900 — so `font-medium` was `font-normal` and `font-extrabold`/`font-black` were
+`font-bold`. 72 occurrences were rewritten to what they actually render as, and
+full-page screenshots of the home and catalogue pages are pixel-identical before
+and after. The public ramp is 400 / 600 / 700 and nothing else.
 
 **8.9 Breadcrumb re-derives the width branch.** `Breadcrumb.astro:20` reads `Astro.locals.tenant.storefrontTemplate` directly instead of accepting the `contentWidth` its host layout already resolved (`BaseLayout.astro:51`). A page overriding `contentWidth` gets a breadcrumb of the other width.
 

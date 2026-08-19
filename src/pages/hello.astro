@@ -179,7 +179,7 @@ if (database && !bootstrapAdminPassword) {
         <div class="max-w-md">
           <h2 class="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Operator Workspace</h2>
           <p class="mt-4 leading-relaxed text-slate-400">
-            Sistem manajemen konten dan operasional untuk mengelola <span class="font-medium text-slate-200">{Astro.locals.tenant.adminName}</span>.
+            Sistem manajemen konten dan operasional untuk mengelola <span class="font-normal text-slate-200">{Astro.locals.tenant.adminName}</span>.
           </p>
         </div>
       </div>
@@ -197,7 +197,7 @@ if (database && !bootstrapAdminPassword) {
               <span class="hidden lg:inline">Masuk ke sistem</span>
             </h1>
             <p class="mt-2 text-sm text-slate-500">
-              <span class="lg:hidden">Otentikasi akses operator untuk <span class="font-medium text-slate-900">{Astro.locals.tenant.adminName}</span>.</span>
+              <span class="lg:hidden">Otentikasi akses operator untuk <span class="font-normal text-slate-900">{Astro.locals.tenant.adminName}</span>.</span>
               <span class="hidden lg:inline">Masukkan kredensial operator Anda untuk melanjutkan.</span>
             </p>
           </div>
@@ -208,7 +208,7 @@ if (database && !bootstrapAdminPassword) {
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-600" aria-hidden="true">
                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
               </svg>
-              <p class="text-sm font-medium leading-relaxed text-rose-800">{errorMessage}</p>
+              <p class="text-sm font-normal leading-relaxed text-rose-800">{errorMessage}</p>
             </div>
           </div>
         )}
@@ -237,7 +237,7 @@ if (database && !bootstrapAdminPassword) {
             <label for="password" class="text-sm font-semibold text-slate-900">Password</label>
             <div class="relative flex items-center">
               <input id="password" type="password" name="password" required autocomplete="current-password" autofocus={focusPassword} class="admin-input-flat pr-20" />
-              <button id="togglePassword" type="button" class="absolute right-1 flex items-center justify-center rounded px-3 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1" aria-controls="password" aria-label="Tampilkan password" aria-pressed="false">Lihat</button>
+              <button id="togglePassword" type="button" class="absolute right-1 flex items-center justify-center rounded px-3 text-sm font-normal text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1" aria-controls="password" aria-label="Tampilkan password" aria-pressed="false">Lihat</button>
             </div>
           </div>
 

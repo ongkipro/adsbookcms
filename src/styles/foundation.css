@@ -42,12 +42,18 @@
 
 @layer base {
   :root {
-    --bg-canvas: #fafafa;
+    /* One neutral family. The storefront paints #F8F7F4 everywhere - badges,
+       frames, the product header - while the canvas underneath was #fafafa, a
+       chroma-0 grey. Mixing a warm and a neutral grey on one page is the thing
+       that reads as unfinished; the canvas joins the family the brand already
+       uses. The 480 px column still sits on white, so the page stays
+       white-first. */
+    --bg-canvas: #f8f7f4;
     --bg-surface: #ffffff;
     --text-main: #0f172a;
     --text-muted: #64748b;
     --focus-ring: #2563eb;
-    --focus-ring-offset: #fafafa;
+    --focus-ring-offset: #f8f7f4;
   }
 
   body {

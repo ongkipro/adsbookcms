@@ -19,7 +19,7 @@ if (!page) {
   const product = await getStorefrontProduct(Astro.locals, slug);
   if (product) return Astro.redirect(`/produk/${product.slug}`, 308);
 
-  return new Response('Not found', { status: 404 });
+  return Astro.rewrite('/404');
 }
 
 const previewRequested = Astro.url.searchParams.get('preview') === '1';
@@ -68,12 +68,12 @@ if (previewRequested) {
 }
 if (isPreview) Astro.response.headers.set('Cache-Control', 'no-store');
 if (!page.is_active && !isPreview) {
-  return new Response('Not found', { status: 404 });
+  return Astro.rewrite('/404');
 }
 
 const product = await getStorefrontProduct(Astro.locals, page.product_id);
 if (!product) {
-  return new Response('Not found', { status: 404 });
+  return Astro.rewrite('/404');
 }
 
 const csPhone = await getStoreSupportWhatsapp(Astro.locals);

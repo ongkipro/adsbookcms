@@ -30,7 +30,7 @@
   color: #111111;
 }
 .scroll-cue-text {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.2;
   color: #111111;
@@ -100,8 +100,8 @@
   align-items: center;
   gap: 0.45rem;
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 800;
+  font-size: 0.9375rem;
+  font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.01em;
   color: #111111;
@@ -118,8 +118,8 @@
 .section-lead {
   max-width: 32rem;
   margin: 0;
-  font-size: 0.72rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
   line-height: 1.45;
   color: #555555;
 }
@@ -204,8 +204,8 @@
   min-height: 1.25rem;
   padding: 0.15rem 0.5rem;
   border-radius: 0.35rem;
-  font-size: 0.62rem;
-  font-weight: 800;
+  font-size: 0.625rem;
+  font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -232,8 +232,8 @@
 }
 .variant-label {
   display: block;
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 0.8125rem;
+  font-weight: 700;
   line-height: 1.3;
   color: #111111;
 }
@@ -244,13 +244,13 @@
   gap: 0.45rem;
 }
 .variant-price {
-  font-size: 0.95rem;
-  font-weight: 800;
+  font-size: 0.9375rem;
+  font-weight: 700;
   color: #111111;
   line-height: 1.1;
 }
 .variant-compare {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: #77736C;
   text-decoration: line-through;
 }
@@ -287,7 +287,7 @@
   color: #111111;
   font: inherit;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.35;
   box-shadow: none;
   transition:
@@ -313,8 +313,8 @@
   top: 1rem;
   margin: 0;
   color: #555555;
-  font-size: 0.78rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
   line-height: 1;
   transform-origin: left top;
   pointer-events: none;
@@ -337,7 +337,7 @@
 .form-field textarea:not(:placeholder-shown) ~ span {
   top: 0.3rem;
   color: #111111;
-  font-size: 0.62rem;
+  font-size: 0.625rem;
   font-weight: 700;
 }
 .form-field input:focus,
@@ -355,15 +355,15 @@
   display: block;
   margin-top: 0.35rem;
   color: #555555;
-  font-weight: 500;
-  font-size: 0.72rem;
+  font-weight: 400;
+  font-size: 0.75rem;
 }
 .field-feedback {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
   margin-top: 0.4rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.45;
   color: #d92d20;
@@ -381,8 +381,8 @@
   border-radius: 999px;
   background: #fee4e2;
   color: #d92d20;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.6875rem;
+  font-weight: 700;
   flex: 0 0 auto;
 }
 .field-feedback[hidden] {
@@ -426,8 +426,8 @@
   display: block;
   margin-top: 0.1rem;
   color: #555555;
-  font-size: 0.72rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
   line-height: 1.45;
 }
 .district-help[data-tone='error'] {
@@ -461,15 +461,15 @@
 }
 .shipping-address-summary-head strong {
   color: #8A704F;
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: 0.75rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 #shipping-address-line {
   margin: 0.65rem 0 0;
   color: #111111;
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.45;
   overflow-wrap: anywhere;
@@ -477,8 +477,8 @@
 #district-picked-subtitle {
   margin: 0.2rem 0 0;
   color: #555555;
-  font-size: 0.74rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -488,7 +488,7 @@
   background: transparent;
   color: #111111;
   font: inherit;
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
   padding: 0;
@@ -573,7 +573,7 @@
   display: block;
   width: 100%;
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.01em;
@@ -583,8 +583,8 @@
   display: block;
   width: 100%;
   margin: 0;
-  font-size: 0.68rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 400;
   line-height: 1.25;
   color: #555555;
 }
@@ -601,8 +601,8 @@
 .district-empty {
   padding: 0.65rem 0.85rem;
   color: #555555;
-  font-size: 0.78rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
 }
 .inner-card {
   display: grid;
@@ -631,7 +631,7 @@
 .payment-block-anchor small {
   flex: 0 0 auto;
   margin: 0;
-  font-size: 0.62rem;
+  font-size: 0.625rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.08em;
@@ -691,7 +691,7 @@
   border-color: #111111;
   background: #111111;
   color: #fff;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   /* was 900: the only 900 in the tree, and no Inter 900 is loaded, so it already
      resolved to the 700 face. Declaring what ships (A-32). */
   font-weight: 700;
@@ -707,7 +707,7 @@
 }
 .payment-option-label {
   margin: 0;
-  font-size: 0.84rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.25;
   color: #111111;
@@ -715,8 +715,8 @@
 }
 .payment-option-desc {
   margin: 0;
-  font-size: 0.7rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 400;
   line-height: 1.4;
   color: #555555;
 }
@@ -813,10 +813,10 @@
   background: #F8F7F4;
 }
 .payment-group-body .payment-option-label {
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
 }
 .payment-group-body .payment-option-desc {
-  font-size: 0.66rem;
+  font-size: 0.6875rem;
 }
 .summary-block {
   gap: 1rem;
@@ -840,13 +840,13 @@
   border-bottom: 1px solid #E5E5E5;
 }
 .summary-card > .summary-row span {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.3;
   color: #555555;
 }
 .summary-card > .summary-row strong {
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.25;
   color: #111111;
@@ -860,13 +860,13 @@
   gap: 0.1rem;
 }
 .summary-product-name {
-  font-size: 0.82rem !important;
+  font-size: 0.8125rem !important;
   font-weight: 400 !important;
   color: #555555 !important;
   line-height: 1.25;
 }
 .summary-product-meta strong {
-  font-size: 0.82rem !important;
+  font-size: 0.8125rem !important;
   font-weight: 600 !important;
   color: #111111 !important;
   line-height: 1.25;
@@ -880,7 +880,7 @@
 .summary-row-discount strong,
 .summary-discount-chip {
   color: #b91c1c !important;
-  font-weight: 800;
+  font-weight: 700;
   background: #fef08a;
   padding: 0.04rem 0.28rem;
   border-radius: 0.2rem;
@@ -897,15 +897,15 @@
   background: #F8F7F4;
 }
 .total-box p {
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 0.8125rem;
+  font-weight: 700;
   line-height: 1.15;
   color: #111111;
 }
 .total-box small {
   display: block;
   margin-top: 0.1rem;
-  font-size: 0.68rem;
+  font-size: 0.6875rem;
   line-height: 1.2;
   color: #555555;
   font-weight: 600;
@@ -916,8 +916,8 @@
   gap: 0.25rem;
 }
 .total-box strong {
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: 1.125rem;
+  font-weight: 700;
   color: #111111;
   line-height: 1;
 }
@@ -931,9 +931,9 @@
   color: #111111;
 }
 .info-box span {
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   line-height: 1.55;
-  font-weight: 500;
+  font-weight: 400;
   color: #8A704F;
 }
 .submit-panel {
@@ -948,8 +948,8 @@
   padding: 0.72rem 1rem;
   background: #111111 !important;
   color: #ffffff !important;
-  font-size: 0.92rem;
-  font-weight: 800;
+  font-size: 0.9375rem;
+  font-weight: 700;
   border-radius: 0.65rem;
   letter-spacing: 0.01em;
   cursor: pointer;
@@ -1039,7 +1039,7 @@
   border-radius: 0.68rem;
   background: #fef3f2;
   color: #b42318;
-  font-size: 0.79rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.45;
 }
@@ -1076,8 +1076,8 @@
 }
 .trust-strip i {
   font-style: normal;
-  font-size: 0.62rem;
-  font-weight: 800;
+  font-size: 0.625rem;
+  font-weight: 700;
   line-height: 1.25;
   text-transform: uppercase;
   letter-spacing: 0.03em;

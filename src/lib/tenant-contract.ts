@@ -1,6 +1,5 @@
 export const STOREFRONT_TEMPLATE_IDS = [
   "compact-market",
-  "wide-catalog",
 ] as const;
 
 /**

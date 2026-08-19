@@ -2,11 +2,6 @@
 import { cn } from '../../../lib/cn';
 import { badgeVariants, introSectionClass, textVariants } from '../../../lib/ui-variants';
 import Breadcrumb from './Breadcrumb.astro';
-import {
-  RAIL_WIDTH_CLASS,
-  resolveContentWidth,
-  type ContentWidth,
-} from '../../../lib/storefront-width';
 
 interface BreadcrumbItem {
   label: string;
@@ -18,17 +13,13 @@ interface Props {
   title: string;
   description: string;
   breadcrumbs?: BreadcrumbItem[];
-  contentWidth?: ContentWidth;
 }
 
-const { badge, title, description, breadcrumbs = [], contentWidth } = Astro.props;
-const rail =
-  RAIL_WIDTH_CLASS[
-    resolveContentWidth(Astro.locals.tenant.storefrontTemplate, contentWidth)
-  ];
+const { badge, title, description, breadcrumbs = [] } = Astro.props;
+const rail = 'max-w-[480px]';
 ---
 
-{breadcrumbs.length > 0 && <Breadcrumb items={breadcrumbs} contentWidth={contentWidth} />}
+{breadcrumbs.length > 0 && <Breadcrumb items={breadcrumbs} />}
 <section class={introSectionClass}>
   <div class={cn('mx-auto', rail)}>
     <span class={badgeVariants()}>{badge}</span>

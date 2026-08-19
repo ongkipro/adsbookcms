@@ -9,7 +9,7 @@ const templateIdSchema = z
 
 const compositionSchema = z
   .object({
-    layout: z.enum(["compact", "wide"]),
+    layout: z.literal("compact"),
     sections: z
       .object({
         hero: z.boolean(),
@@ -18,16 +18,7 @@ const compositionSchema = z
       })
       .strict(),
   })
-  .strict()
-  .superRefine((composition, context) => {
-    if (composition.layout === "wide" && composition.sections.proofs) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["sections", "proofs"],
-        message: "The wide composition does not support the proofs section.",
-      });
-    }
-  });
+  .strict();
 
 export const storefrontTemplateDefinitionSchema = z
   .object({
@@ -50,25 +41,14 @@ const compactMarket = storefrontTemplateDefinitionSchema.parse({
   },
 });
 
-const wideCatalog = storefrontTemplateDefinitionSchema.parse({
-  id: "wide-catalog",
-  name: "Wide Catalog",
-  composition: {
-    layout: "wide",
-    sections: { hero: true, catalog: true, proofs: false },
-  },
-});
-
 export const BUILT_IN_STOREFRONT_TEMPLATES = Object.freeze([
   compactMarket,
-  wideCatalog,
 ] as const);
 
 const builtInById: Readonly<Record<string, StorefrontTemplateDefinition>> =
   Object.freeze({
     [compactMarket.id]: compactMarket,
-    [wideCatalog.id]: wideCatalog,
-  });
+    });
 
 function parseDefinition(value: unknown): StorefrontTemplateDefinition {
   const serialized = JSON.stringify(value);

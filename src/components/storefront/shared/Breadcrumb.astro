@@ -1,10 +1,5 @@
 ---
 import { cn } from '../../../lib/cn';
-import {
-  RAIL_WIDTH_CLASS,
-  resolveContentWidth,
-  type ContentWidth,
-} from '../../../lib/storefront-width';
 
 interface BreadcrumbItem {
   label: string;
@@ -13,15 +8,10 @@ interface BreadcrumbItem {
 
 interface Props {
   items: BreadcrumbItem[];
-  /** Follows the page, not the store template, so an overridden shell agrees. */
-  contentWidth?: ContentWidth;
 }
 
-const { items, contentWidth } = Astro.props;
-const rail =
-  RAIL_WIDTH_CLASS[
-    resolveContentWidth(Astro.locals.tenant.storefrontTemplate, contentWidth)
-  ];
+const { items } = Astro.props;
+const rail = 'max-w-[480px]';
 ---
 
 <nav aria-label="Breadcrumb" class="border-b border-[#E5E5E5] bg-[#F8F7F4] px-4 py-2">

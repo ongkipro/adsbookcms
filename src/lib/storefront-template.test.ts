@@ -149,10 +149,10 @@ test("invalid persisted definitions and D1 failures fail closed", async () => {
 });
 
 test("built-in templates remain resolvable without template persistence", async () => {
-  const selected = await resolveStorefrontTemplate(undefined, "wide-catalog");
+  const selected = await resolveStorefrontTemplate(undefined, "compact-market");
   assert.equal(selected.state, "ready");
   if (selected.state === "ready") {
     assert.equal(selected.source, "built-in");
-    assert.equal(selected.definition.composition.layout, "wide");
+    assert.equal(selected.definition.composition.layout, "compact");
   }
 });

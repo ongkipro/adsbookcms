@@ -82,15 +82,6 @@ export const adminNavGroups: AdminNavGroup[] = [
           { href: "/admin/landing-pages", label: "Landing Pages", icon: FilePenLine },
         ],
       },
-      {
-        id: "content",
-        href: "/admin/content",
-        label: "Konten Storefront",
-        shortLabel: "Konten",
-        description: "Copy dan aset toko",
-        icon: FilePenLine,
-        keywords: "content storefront ai draft publish media",
-      },
     ],
   },
   {

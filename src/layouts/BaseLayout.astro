@@ -1,5 +1,4 @@
 ---
-import { SHELL_WIDTH_CLASS, resolveContentWidth } from '../lib/storefront-width';
 import type { ComponentProps } from 'astro/types';
 import { SEO } from 'astro-seo';
 // Font faces are imported by the shared token layer consumed by storefront.css.
@@ -32,7 +31,6 @@ interface Props {
   product?: JsonLdProps['product'];
   faqs?: JsonLdProps['faqs'];
   itemList?: JsonLdProps['itemList'];
-  contentWidth?: 'compact' | 'wide';
   preloadImages?: PreloadImageItem | readonly PreloadImageItem[];
   shell?: string;
 }
@@ -49,7 +47,6 @@ const {
   product,
   faqs,
   itemList,
-  contentWidth,
   preloadImages,
 } = Astro.props;
 
@@ -67,10 +64,6 @@ const preloadImageUrls =
   typeof preloadImages === 'string' || (typeof preloadImages === 'object' && preloadImages !== null && !Array.isArray(preloadImages))
     ? [preloadImages as PreloadImageItem]
     : ((preloadImages as readonly PreloadImageItem[] | undefined) ?? []);
-const resolvedContentWidth = resolveContentWidth(
-  Astro.locals.tenant.storefrontTemplate,
-  contentWidth,
-);
 ---
 
 <!doctype html>
@@ -191,9 +184,7 @@ const resolvedContentWidth = resolveContentWidth(
       <div
         class:list={[
           'min-h-screen w-full bg-white',
-          resolvedContentWidth === 'compact'
-            ? `${SHELL_WIDTH_CLASS.compact} shadow-[0_0_40px_rgba(15,23,42,0.08)]`
-            : SHELL_WIDTH_CLASS.wide,
+          'max-w-[480px] shadow-[0_0_40px_rgba(15,23,42,0.08)]',
         ]}
       >
         {!hideHeader && <SiteHeader />}

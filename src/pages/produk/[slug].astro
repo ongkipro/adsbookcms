@@ -108,7 +108,6 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
   canonical={canonical}
   hideHeader={false}
   hideFooter={false}
-  contentWidth="compact"
   product={{
     name: product.productName,
     description: product.description,
@@ -141,7 +140,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
   <script is:inline type="application/ld+json" set:html={productSchemaJson} />
 
   <main class="mx-auto max-w-[480px] bg-white pb-20">
-    <Breadcrumb contentWidth="compact"
+    <Breadcrumb
       items={[
         { label: 'Katalog', href: '/produk' },
         { label: product.category, href: '/produk' },

@@ -26,7 +26,9 @@ test("scoped roles see their complete workspace without privileged settings", ()
   );
   assert.deepEqual(
     advertiserItems.map((item) => item.id),
-    ["dashboard", "products", "content", "ads"],
+    // "content" is deliberately absent: the storefront content editor is
+    // reachable at /admin/content and left out of the menu (ADR-018).
+    ["dashboard", "products", "ads"],
   );
   assert.equal(
     advertiserItems

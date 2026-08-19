@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CompactMarketHome from '../components/storefront/templates/CompactMarketHome.astro';
-import WideCatalogHome from '../components/storefront/templates/WideCatalogHome.astro';
 import { getStorefrontProducts } from '../lib/catalog';
 import { getRuntimeEnv } from '../lib/env';
 import { getTenantHomeContent } from '../lib/tenant-content';
@@ -36,7 +35,6 @@ const ready = homeResolution.state === 'ready' && templateResolution.state === '
 const unavailable = homeResolution.state === 'unavailable' || templateResolution.state !== 'ready';
 const content = homeResolution.state === 'ready' ? homeResolution.content : null;
 const template = templateResolution.state === 'ready' ? templateResolution.definition : null;
-const isWide = ready && template?.composition.layout === 'wide';
 if (unavailable) Astro.response.status = 503;
 const homepageTitle = ready
   ? `${Astro.locals.tenant.name} — ${Astro.locals.tenant.tagline || Astro.locals.tenant.description}`
@@ -57,9 +55,6 @@ const itemList = {
   title={homepageTitle}
   description={Astro.locals.tenant.description}
   image={content?.heroSlides[0]?.image ?? Astro.locals.tenant.logo}
-  hideHeader={isWide}
-  hideFooter={isWide}
-  contentWidth={isWide ? 'wide' : 'compact'}
   itemList={ready ? itemList : undefined}
 >
   {
@@ -89,15 +84,6 @@ const itemList = {
           </a>
         </div>
       </section>
-    ) : isWide ? (
-      <WideCatalogHome
-        content={content}
-        products={products}
-        tenantName={Astro.locals.tenant.name}
-        logo={Astro.locals.tenant.logo}
-        accent={Astro.locals.tenant.themeColor}
-        sections={template.composition.sections}
-      />
     ) : (
       <CompactMarketHome content={content} products={products} sections={template.composition.sections} />
     )

@@ -377,3 +377,39 @@ fail closed and require an explicit catalog remap rather than silent padding,
 because padding would break the promise that external identity equals Product
 ID. Variant selectors and embed URLs must always use `variant.id`, never the
 shared `content_id`.
+
+---
+
+## ADR-018 — The storefront ships one layout
+
+**Date:** 2026-08-20 · **Status:** Accepted
+
+**Context.** Two storefront templates shipped: `compact-market`, a 480 px column,
+and `wide-catalog`, an unconstrained shell. `wide` was not merely one built-in —
+it was a value in the composition schema, so any runtime definition in
+`storefront_templates` could declare it. That put the width branch in three
+places (`BaseLayout`, `Breadcrumb`, `PageIntro`) and they drifted: two product
+pages force `compact`, so on a `wide-catalog` store they rendered a 480 px shell
+around a `max-w-6xl` breadcrumb until it was repaired.
+
+All three live installs render compact. None selected the wide template.
+
+**Decision.** The public storefront is compact only. `wide-catalog` and the
+`wide` layout value are removed: `WideCatalogHome.astro` is deleted, the
+composition schema takes `z.literal("compact")`, and the template pickers in the
+install wizard and store settings offer one option.
+
+**Consequences.**
+- The width contract added for the drift is deleted with it. One width needs no
+  resolver, no class map and no `contentWidth` prop — that abstraction existed
+  only to keep two answers in step.
+- Migration `0044` moves any store still pointing at `wide-catalog` to
+  `compact-market` and deletes runtime definitions declaring `layout: "wide"`.
+  Without it such a store would fail validation on the next request and take its
+  home page to the unavailable state. It is idempotent and matches nothing on a
+  store that was already compact.
+- A second layout can return, but as a deliberate design with its own renderer
+  rather than a branch inherited from the engine this repository forked.
+- The cost was named before it was accepted: this removes a shipped capability
+  and the data migration is one way. It was taken as an explicit product
+  decision, not inferred from the fact that no install happened to use it.

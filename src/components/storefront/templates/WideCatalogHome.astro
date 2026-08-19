@@ -1,4 +1,5 @@
 ---
+import { cardImageSrc } from '../../../lib/image-derivative';
 import type { TenantHomeContent } from '../../../lib/tenant-content';
 
 interface ProductCard {
@@ -132,7 +133,7 @@ const featuredProduct = products[0];
             <article class="group flex flex-col transition-all duration-300">
               <a href={product.href} class="relative block aspect-[3/4] w-full overflow-hidden rounded-2xl bg-zinc-100/80">
                 <img
-                  src={product.image}
+                  src={cardImageSrc(product.image)}
                   alt={product.name}
                   class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"

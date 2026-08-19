@@ -146,7 +146,7 @@ Load-bearing examples:
 | Home product card | `src/components/storefront/home/ProductsSection.astro:78` |
 | Primary CTA | `src/components/storefront/home/ProductsSection.astro:164` |
 | Proof card | `src/components/storefront/home/ProofsSection.astro:68` |
-| PDP gallery frame + thumbs | `src/components/storefront/ProductImageSlider.tsx:78`, `:105` |
+| PDP gallery frame + thumbs | `src/components/storefront/ProductImageGallery.astro` |
 | Load-more button | `src/pages/produk/index.astro:49` |
 | Payment page (19 occurrences) | `src/pages/payment.astro:17` onward |
 | Thanks page | `src/pages/thanks.astro:43`, `:131` |
@@ -409,17 +409,24 @@ The nine current shared Astro components are `Breadcrumb.astro`, `Icon.astro`, `
 ### 7.3 Other storefront directories
 
 - `src/components/storefront/home/` — `HeroSection.astro`, `ProductsSection.astro`, `ProofsSection.astro`. All three are consumed by `CompactMarketHome.astro:2-4` only.
-- `src/components/storefront/` — `ProductImageSlider.tsx` (the only storefront React island) and `templates/`.
+- `src/components/storefront/` — `ProductImageGallery.astro` and `templates/`. **There is no React on the public surface.** The gallery was the only island; it shipped 183 KB of React runtime to drive 4 KB of component code, measured on a live install.
 - `src/components/storefront/forms/` — `FormHybridContent.astro` (259 lines), `FormMiddleContent.astro` (218), `GeoIpResolvedForm.astro` (175).
 
 ### 7.4 PDP gallery layout
 
-`ProductImageSlider.tsx` is a left vertical thumbnail rail beside the main image, not a carousel with dots:
+`ProductImageGallery.astro` is a left vertical thumbnail rail beside the main image, not a carousel with dots:
 
-- Row container `flex flex-row gap-2.5 sm:gap-3` — `:64`
-- Thumb rail `w-14 shrink-0 flex-col overflow-y-auto max-h-[420px] sm:w-16 sm:max-h-[500px]`, rendered only when `gallery.length > 1` — `:66-67`
-- Thumbs `aspect-[3/4] rounded-none`, active = `border-[#C5A880] ring-1 ring-[#C5A880]`, inactive = `border-[#E5E5E5] opacity-60` — `:78-82`
-- Main frame `flex-1 aspect-[3/4] rounded-none border border-[#E5E5E5] bg-[#F8F7F4] touch-pan-y` with touch-swipe handlers — `:105-107`
+- Row container `flex flex-row gap-2.5 sm:gap-3`
+- Thumb rail `w-14 shrink-0 flex-col overflow-y-auto max-h-[420px] sm:w-16 sm:max-h-[500px]`, rendered only when the gallery holds more than one photo
+- Thumbs `aspect-[3/4] rounded-none`, active = `border-[#C5A880] ring-1 ring-[#C5A880]`, inactive = `border-[#E5E5E5] opacity-60`
+- Main frame `flex-1 aspect-[3/4] rounded-none border border-[#E5E5E5] bg-[#F8F7F4]`, with the photos on a `snap-x snap-mandatory` track filling it through `absolute inset-0`
+
+Swiping is the browser's, not ours — the track is a scroll container, so there
+are no touch handlers. Arrows, the counter and the thumbnail highlight are the
+only things that need script, and the script returns immediately when there is
+one photo. `catalog-data.ts` currently builds exactly one image per product, so
+that early return is the normal path; the rail exists for when real galleries
+return.
 
 ### 7.5 Catalog pagination
 

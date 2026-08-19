@@ -1,0 +1,124 @@
+/* Foundation — the only stylesheet all three surfaces share.
+ *
+ * It carries what every surface genuinely needs and nothing else: Tailwind,
+ * the type ramp, the base tokens and the platform-level rules. shadcn and
+ * tw-animate live in admin.css because no public file imports a shadcn
+ * component; they were in the shared entry, so every storefront page shipped
+ * the operator UI's sidebar and chart tokens.
+ */
+/* `source(none)` turns off automatic file discovery. Each surface entry then
+   declares the files it is built from, so a utility a storefront page never
+   writes is never generated into the storefront bundle. Without this the
+   public CSS carried 1,307 class rules, including shadcn variants like
+   `in-data-[slot=button-group]:rounded-lg` from components no public file
+   imports. */
+@import "tailwindcss" source(none);
+
+/* The font faces live here, not in a layout, because this file is the one
+   stylesheet every route loads and the `body` rule below names Inter.
+
+   They used to be imported by BaseLayout alone, which put all 23 @font-face
+   rules into BaseLayout's own emitted stylesheet. The 26 admin routes, the
+   login screen and the embedded checkout load this file and never that one —
+   so they asked for a family whose faces were declared nowhere they could see,
+   and silently rendered in system-ui. The entire operator UI, plus the
+   checkout merchants iframe onto their own pages.
+
+   The ramp stays 400/600/700 (A-32): 500 and 800 resolve to the nearest face
+   by CSS Fonts 4 weight matching, which flattens the ladder rather than
+   smearing it, and widening the ramp is a type decision rather than this fix.
+   Cinzel ships 700, the weight SiteBrand actually declares. */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/cinzel/700.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ./form-hybrid.css is deliberately NOT imported here. It is checkout-only
+   (~22KB) and this file is the entry for all three layouts, so importing it
+   shipped it to every admin page. Each route that renders the order form
+   imports it directly instead. See A-31. */
+
+@layer base {
+  :root {
+    --bg-canvas: #fafafa;
+    --bg-surface: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --focus-ring: #2563eb;
+    --focus-ring-offset: #fafafa;
+  }
+
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Mobile browsers zoom a form when an input renders below 16 px. Every surface
+   has inputs, so this belongs to the foundation rather than to checkout. */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 1rem !important;
+    line-height: 1.5rem;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Custom Minimalist Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+/* Hide number input spin buttons universally */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* The radius scale. It used to reach every surface through shadcn's theme
+   block, so moving that block to admin.css silently reshaped every rounded
+   corner on the storefront - `rounded-md` fell back to Tailwind's 0.375rem
+   from 0.6rem. This split is structural, not a restyle, so the scale stays
+   shared. Giving the storefront its own radius is a design decision, not a
+   side effect of moving a file. */
+@theme inline {
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}

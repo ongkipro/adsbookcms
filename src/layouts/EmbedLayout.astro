@@ -1,9 +1,9 @@
 ---
-// No @fontsource import here on purpose. global.css declares Inter for `body`; no
+// No @fontsource import here on purpose. foundation.css declares Inter for `body`; no
 // rule anywhere in the tree ever named Plus Jakarta Sans, so its five weights only
 // ever cost this frame a 25KB render-blocking stylesheet of @font-face rules that
 // matched nothing (unicode-range meant the woff2 were never fetched). See A-32.
-import '../styles/global.css';
+import '../styles/storefront.css';
 
 interface Props {
   title: string;

@@ -1,6 +1,45 @@
+/* Public storefront surface. Keep visual rules public-only so the CMS can evolve
+ * independently; checkout owns its separate form-hybrid.css layer.
+ */
+@import './foundation.css';
+
+@source "../components/storefront";
+/* Class names are also written in plain TypeScript - `lib/ui-variants.ts`
+   holds the cva variants both surfaces render with. With `source(none)` every
+   place a class name is *written* has to be declared, not just the templates. */
+@source "../lib";
+@source "../layouts/BaseLayout.astro";
+@source "../layouts/EmbedLayout.astro";
+@source "../pages";
+@source not "../pages/admin";
+@source not "../pages/api";
+
+/* No src file references these. They are kept on the public side rather than
+   deleted because merchant-authored landing HTML lives in D1, where grep
+   cannot see it, and that content renders here. */
+/* High-Trust Unified Blue & Slate Highlights */
+.text-highlight-blue {
+  background-color: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  display: inline-block;
+}
+
+.text-highlight-violet,
+.text-highlight-amber,
+.text-highlight-sky,
+.text-highlight-rose {
+  background-color: rgba(241, 245, 249, 0.9);
+  color: #0f172a;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  display: inline-block;
+}
+
 /* Public storefront entry. Keep visual rules public-only so the CMS can evolve
  * independently; checkout owns its separate form-hybrid.css layer. */
-@import './global.css';
+
 
 .nav-line-hover { position: relative; transition: color 0.15s ease; }
 .nav-line-hover:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  isCodBlockedForProvince,
   getCodDisabledProvinceCodes,
   resolveFormModeContext,
   resolveFormModeFromProvince,
@@ -81,4 +82,24 @@ test('province policy validation rejects unknown ISO suffix codes', () => {
     success: false,
     invalidCodes: ['XX'],
   });
+});
+
+test('a COD order is refused for an excluded or unresolvable province', () => {
+  const disabledCodes = ['PA', 'MA', 'AC'];
+
+  // The address decides, not the form the visitor happened to be shown.
+  assert.equal(isCodBlockedForProvince('cod', 'Papua', disabledCodes), true);
+  assert.equal(isCodBlockedForProvince('cod', 'PA', disabledCodes), true);
+  assert.equal(isCodBlockedForProvince('cod', 'Aceh', disabledCodes), true);
+
+  assert.equal(isCodBlockedForProvince('cod', 'Jawa Timur', disabledCodes), false);
+  assert.equal(isCodBlockedForProvince('cod', 'JI', disabledCodes), false);
+
+  // Fails closed: a province the policy cannot classify never gets COD.
+  assert.equal(isCodBlockedForProvince('cod', '', disabledCodes), true);
+  assert.equal(isCodBlockedForProvince('cod', 'Atlantis', disabledCodes), true);
+
+  // Non-COD is never blocked by this rule, whatever the province.
+  assert.equal(isCodBlockedForProvince('bank_transfer', 'Papua', disabledCodes), false);
+  assert.equal(isCodBlockedForProvince('qris', '', disabledCodes), false);
 });

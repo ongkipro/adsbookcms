@@ -396,9 +396,10 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
 
       try {
         const res = await fetch('/api/admin/ads', {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            action: 'save-meta',
             meta_pixel_id: pixelInput.value.trim(),
             meta_capi_token: tokenInput.value.trim() || undefined,
           }),
@@ -425,10 +426,15 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
       testButton.textContent = 'Mengirim...';
 
       try {
-        const res = await fetch('/api/admin/ads/test-meta', {
-          method: 'POST',
+        const res = await fetch('/api/admin/ads', {
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ test_code: code }),
+          body: JSON.stringify({
+            action: 'test-capi',
+            meta_pixel_id: pixelInput.value.trim(),
+            meta_capi_token: tokenInput.value.trim() || undefined,
+            meta_test_event_code: code,
+          }),
         });
         const payload = await res.json().catch(() => ({}));
         if (!res.ok || !payload.success) throw new Error(payload.error || 'Test event ditolak oleh Meta API.');

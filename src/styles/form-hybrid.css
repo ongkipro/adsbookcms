@@ -155,15 +155,15 @@
 }
 /* The last row closed the outlined stack. Nothing is outlined now. */
 .variant-option input:checked + .variant-copy {
-  /* The ink border is the selection signal again. The filled radio and the
-     heavier label stay as backup, so the choice reads even at a glance. */
+  /* Ink border plus a thin grey fill: the chosen row is the only one that is
+     not white, so it reads before the border does. */
   border-color: #111111;
-  background: #ffffff;
+  background: #F5F5F5;
   box-shadow: none;
 }
 .simple-variant-option input:checked + .simple-variant-copy {
   border-color: #111111;
-  background: #ffffff;
+  background: #F5F5F5;
   box-shadow: none;
 }
 .variant-option input:checked + .variant-copy .variant-label {
@@ -816,9 +816,7 @@
   overflow: hidden;
   border: 1px solid #E5E5E5;
   border-radius: 0.75rem;
-  /* The live tally sits on a thin grey, like the fields do. It reads as the
-     panel the numbers move in rather than more page. */
-  background: #F5F5F5;
+  background: #ffffff;
   box-shadow: none;
   padding-top: 0.25rem;
 }
@@ -829,6 +827,9 @@
   gap: 0.75rem;
   padding: 0.55rem 0.85rem;
   color: #555555;
+  /* Dashed rather than solid: it divides the rows without adding another solid
+     rule beside the card frame. */
+  border-bottom: 1px dashed #E5E5E5;
 }
 .summary-card > .summary-row span {
   font-size: 0.75rem;
@@ -895,9 +896,9 @@
   gap: 0.85rem;
   margin-top: 0.35rem;
   padding: 0.9rem 0.85rem;
-  /* Inverted against the grey card: the total is the one figure the buyer
-     acts on, so it gets the lightest surface and the most room. */
-  background: #ffffff;
+  /* The one row that is filled. On a white list the grey lands on the figure
+     the buyer acts on instead of on everything. */
+  background: #F5F5F5;
 }
 .total-box p {
   font-size: 0.8125rem;

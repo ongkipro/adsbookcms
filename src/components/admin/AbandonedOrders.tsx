@@ -24,14 +24,7 @@ import { formatIdr } from "@/lib/format-idr";
 import { groupLocationResults } from "@/lib/location-search";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -628,17 +621,18 @@ export function AbandonedOrders() {
   };
 
   if (loading) return (
-    <div className="space-y-3" aria-label="Memuat pesanan tertinggal" aria-busy="true">
+    <Card size="sm" className="py-0" aria-label="Memuat pesanan tertinggal" aria-busy="true">
+      <CardContent className="divide-y divide-border p-0">
       {Array.from({ length: 4 }).map((_, index) => (
-        <Card key={index} size="sm">
-          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
-            <div className="space-y-2"><Skeleton className="h-4 w-2/3" /><Skeleton className="h-3 w-1/2" /></div>
-            <div className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-3 w-2/3" /></div>
-            <Skeleton className="h-11 w-full sm:w-40" />
-          </CardContent>
-        </Card>
+        <div key={index} className="grid grid-cols-1 gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_11rem_12rem_auto] lg:items-center lg:gap-4">
+          <div className="space-y-2"><Skeleton className="h-4 w-2/3" /><Skeleton className="h-3 w-1/2" /></div>
+          <div className="space-y-2"><Skeleton className="h-4 w-2/3" /><Skeleton className="h-3 w-1/2" /></div>
+          <div className="space-y-2"><Skeleton className="h-5 w-28" /><Skeleton className="h-3 w-2/3" /></div>
+          <Skeleton className="h-9 w-full lg:w-56" />
+        </div>
       ))}
-    </div>
+      </CardContent>
+    </Card>
   );
 
   if (error) return (
@@ -654,11 +648,9 @@ export function AbandonedOrders() {
 
   return (
     <div className="space-y-4">
+      {/* No card title here: the page header above already names this screen and
+          describes it, so a second heading only cost vertical space. */}
       <Card size="sm">
-        <CardHeader>
-          <CardTitle as="h2">Cari & saring lead</CardTitle>
-          <CardDescription>Temukan calon pembeli berdasarkan identitas atau tahap follow-up.</CardDescription>
-        </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <label className="flex-1 space-y-1.5 text-sm font-medium" htmlFor="abandoned-search">
             <span>Cari lead</span>
@@ -670,7 +662,11 @@ export function AbandonedOrders() {
           <div className="w-full space-y-1.5 sm:w-52">
             <label htmlFor="follow-up-filter" className="text-sm font-medium">Status follow-up</label>
             <Select value={status} onValueChange={(value) => { setStatus((value || "all") as FollowUpStatus | "all"); setPage(1); }}>
-              <SelectTrigger id="follow-up-filter"><SelectValue /></SelectTrigger>
+              <SelectTrigger id="follow-up-filter">
+                {/* Base UI renders the raw value when Value has no children,
+                    so the trigger read "all" instead of "Semua status". */}
+                <SelectValue>{status === "all" ? "Semua status" : followUpLabels[status]}</SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua status</SelectItem>
                 {Object.entries(followUpLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
@@ -696,44 +692,58 @@ export function AbandonedOrders() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-3">
-          {leads.map((lead) => {
-            const phone = lead.customerPhone.replace(/\D/g, "").replace(/^0/, "62");
-            const message = `Halo Kak ${lead.customerName || "Pelanggan"}, kami ingin membantu melanjutkan pesanan ${lead.productName || "produk pilihan Kakak"}. Apakah ada yang bisa kami bantu?`;
-            const FollowUpIcon = followUpIcons[lead.followUpStatus];
-            return (
-              <Card key={lead.id} role="article" aria-labelledby={`lead-${lead.id}-title`} size="sm">
-                <CardHeader>
-                  <CardTitle as="h3" id={`lead-${lead.id}-title`} className="truncate">{lead.productName || "Produk belum dipilih"}</CardTitle>
-                  <CardDescription className="truncate">{lead.variantName || "Varian belum dipilih"} · {lead.orderNumber}</CardDescription>
-                  {!lead.variantId && (
-                    <div className="pt-1"><Badge variant="destructive"><AlertCircle aria-hidden="true" />Pilih produk sebelum konversi</Badge></div>
-                  )}
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        /* One divided list rather than a card per lead. This is a work queue: at
+           a card each, seven leads ran 2097px in an 832px viewport - roughly
+           240px per lead, most of it padding and a footer holding two buttons.
+           The row keeps every field and both actions, and stacks on small
+           screens. */
+        <Card size="sm" className="py-0">
+          <CardContent className="divide-y divide-border p-0">
+            {leads.map((lead) => {
+              const phone = lead.customerPhone.replace(/\D/g, "").replace(/^0/, "62");
+              const message = `Halo Kak ${lead.customerName || "Pelanggan"}, kami ingin membantu melanjutkan pesanan ${lead.productName || "produk pilihan Kakak"}. Apakah ada yang bisa kami bantu?`;
+              const FollowUpIcon = followUpIcons[lead.followUpStatus];
+              return (
+                <div
+                  key={lead.id}
+                  role="article"
+                  aria-labelledby={`lead-${lead.id}-title`}
+                  className="grid grid-cols-1 gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_11rem_12rem_auto] lg:items-center lg:gap-4"
+                >
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Calon pembeli</p>
-                    <p className="mt-1 truncate font-medium">{lead.customerName}</p>
-                    <p className="mt-1 font-mono text-sm text-muted-foreground">{lead.customerPhone}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Masuk {formatDate(lead.createdAt)}</p>
+                    <h3 id={`lead-${lead.id}-title`} className="truncate font-medium">{lead.productName || "Produk belum dipilih"}</h3>
+                    <p className="truncate text-xs text-muted-foreground">{lead.variantName || "Varian belum dipilih"} · {lead.orderNumber}</p>
+                    {!lead.variantId && (
+                      <Badge variant="destructive" className="mt-1"><AlertCircle aria-hidden="true" />Pilih produk sebelum konversi</Badge>
+                    )}
                   </div>
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium text-muted-foreground">Follow-up</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{lead.customerName}</p>
+                    <p className="truncate font-mono text-xs text-muted-foreground">{lead.customerPhone}</p>
+                  </div>
+                  <div className="min-w-0">
                     <Badge variant={followUpVariants[lead.followUpStatus]}><FollowUpIcon aria-hidden="true" />{followUpLabels[lead.followUpStatus]}</Badge>
-                    <p className="mt-2 text-xs text-muted-foreground">{lead.followedUpAt ? `Dicatat ${formatDate(lead.followedUpAt)}${lead.followedUpBy ? ` oleh ${lead.followedUpBy}` : ""}` : "Belum ada follow-up tercatat"}</p>
+                    {/* Only when there is something to report. "Belum ada follow-up
+                        tercatat" repeated on every untouched lead, restating the
+                        badge beside it. */}
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      {lead.followedUpAt
+                        ? `Dicatat ${formatDate(lead.followedUpAt)}${lead.followedUpBy ? ` oleh ${lead.followedUpBy}` : ""}`
+                        : `Masuk ${formatDate(lead.createdAt)}`}
+                    </p>
                   </div>
-                </CardContent>
-                <CardFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
-                  <Button type="button" variant="outline" size="xl" className="w-full sm:w-auto" disabled={updatingId === lead.id} onClick={() => {
-                    window.open(buildWaUrl(phone, message), "_blank", "noopener,noreferrer");
-                    void followUp(lead);
-                  }}><ExternalLink />{updatingId === lead.id ? "Mencatat…" : "Follow up WA"}</Button>
-                  <Button type="button" size="xl" className="w-full sm:w-auto" onClick={() => setSelectedLead(lead)}><UserRoundPlus />Edit & jadikan order</Button>
-                </CardFooter>
-              </Card>
-            );
-          })}
-        </div>
+                  <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
+                    <Button type="button" variant="outline" size="lg" className="min-h-11 w-full sm:w-auto lg:min-h-9" disabled={updatingId === lead.id} onClick={() => {
+                      window.open(buildWaUrl(phone, message), "_blank", "noopener,noreferrer");
+                      void followUp(lead);
+                    }}><ExternalLink />{updatingId === lead.id ? "Mencatat…" : "Follow up WA"}</Button>
+                    <Button type="button" size="lg" className="min-h-11 w-full sm:w-auto lg:min-h-9" onClick={() => setSelectedLead(lead)}><UserRoundPlus />Jadikan order</Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
       )}
       {pagination.totalPages > 1 && (
         <Pagination aria-label="Halaman pesanan tertinggal" className="justify-between">

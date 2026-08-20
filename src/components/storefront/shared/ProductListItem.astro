@@ -1,10 +1,12 @@
 ---
 import { cardImageSrc } from '../../../lib/image-derivative';
 
+/** The card only counts these. Requiring the full variant shape made every
+ *  caller carry fields the card never reads. */
 interface ProductVariant {
-  id: string;
-  label: string;
-  price: number;
+  id?: string;
+  label?: string;
+  price?: number;
   comparePrice?: number;
 }
 
@@ -40,7 +42,7 @@ const discountPercentage = hasDiscount
         src={cardImageSrc(product.heroImage)}
         alt={`Foto produk ${product.productName}`}
         width="320"
-        height="426"
+        height="320"
         class="h-full w-full rounded-none object-cover transition-transform duration-300 group-hover:scale-[1.02]"
         loading="lazy"
         decoding="async"

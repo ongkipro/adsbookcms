@@ -2,13 +2,17 @@
 import SiteBrand from './SiteBrand.astro';
 
 const footerLegal = [
+  // Four policies plus one way into the catalogue. Meta and Google both want a
+  // reachable contact, privacy policy, terms, and a shipping/returns policy
+  // before they will run a store's ads; the rest was footer weight. /tentang,
+  // /disclaimer, /testimoni and the others still render, still sit in
+  // sitemap.xml and can still be linked from anywhere - they just no longer
+  // ride along on every page.
   { label: 'Produk', href: '/produk' },
-  { label: 'Tentang Kami', href: '/tentang' },
+  { label: 'Kontak', href: '/kontak' },
   { label: 'Kebijakan Privasi', href: '/kebijakan-privasi' },
   { label: 'Syarat & Ketentuan', href: '/syarat-ketentuan' },
   { label: 'Pengiriman & Retur', href: '/pengiriman' },
-  { label: 'Kontak', href: '/kontak' },
-  { label: 'Disclaimer', href: '/disclaimer' },
 ];
 ---
 

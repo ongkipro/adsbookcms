@@ -123,7 +123,8 @@
     // Drives <html lang> and the Open Graph locale.
     "PUBLIC_SITE_LOCALE": "id-ID",
 
-    // compact-market | wide-catalog. An unknown value makes every route 500.
+    // compact-market. wide-catalog was retired in ADR-018 and migration 0044;
+    // an unknown value takes the home page to its unavailable state (503).
     "PUBLIC_STOREFRONT_TEMPLATE": "compact-market",
 
     // Provinces excluded from cash on delivery, comma separated, lowercase.

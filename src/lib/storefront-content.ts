@@ -42,7 +42,11 @@ export const homeContentSchema = z
           })
           .strict(),
       )
-      .min(1)
+      // Optional on purpose. An operator who has not made hero art gets the
+      // catalogue instead - CompactMarketHome borrows product photos and
+      // rotates them daily. Requiring a slide here made that fallback
+      // unreachable for any store whose content was published at all.
+      .min(0)
       .max(10),
     solutions: z
       .array(

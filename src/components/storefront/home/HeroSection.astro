@@ -38,8 +38,8 @@ const { slides } = Astro.props;
               alt={`${slide.alt} - ${Astro.locals.tenant.name}`}
               title={slide.badge}
               width="600"
-              height="750"
-              class="aspect-[4/5] w-full object-cover object-center"
+              height="600"
+              class="aspect-square w-full object-cover object-center"
               loading={index === 0 ? 'eager' : 'lazy'}
               decoding={index === 0 ? 'sync' : 'async'}
               fetchpriority={index === 0 ? 'high' : undefined}

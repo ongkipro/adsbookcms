@@ -57,3 +57,10 @@
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .nav-line-hover:hover::after, .nav-line-hover.active-line::after { transform: scaleX(1); transform-origin: bottom left; }
+
+/* Paduka asked the public surface to be clean white. The shared canvas token is
+   #fafafa, which admin keeps; the storefront overrides it here rather than
+   changing foundation.css, so the two surfaces stay independent. */
+:root {
+  --bg-canvas: #ffffff;
+}

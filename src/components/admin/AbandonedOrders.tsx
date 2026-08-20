@@ -652,17 +652,29 @@ export function AbandonedOrders() {
           describes it, so a second heading only cost vertical space. */}
       <Card size="sm">
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="flex-1 space-y-1.5 text-sm font-medium" htmlFor="abandoned-search">
-            <span>Cari lead</span>
+          {/* Both controls are the same shape now - a div wrapping a label and
+              the field. The search used to be a <label> with flex-1, which
+              stretched it to 871px on a 1440px screen and sat its baseline 6px
+              below the select despite items-end. */}
+          <div className="flex w-full flex-col gap-1.5 sm:w-72">
+            <label htmlFor="abandoned-search" className="text-sm font-medium">Cari lead</label>
             <span className="relative block">
-              <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" aria-hidden="true" />
-              <Input id="abandoned-search" className="pl-9" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Produk, nama, WhatsApp, atau ABN" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              {/* sm:h-9 matches the select trigger. Below sm, admin.css gives
+                  every input a 3rem floor, so the trigger is raised to match it
+                  rather than the input being shrunk under a touch target. */}
+              <Input id="abandoned-search" className="pl-9 sm:h-9" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Produk, nama, WhatsApp, atau ABN" />
             </span>
-          </label>
-          <div className="w-full space-y-1.5 sm:w-52">
+          </div>
+          {/* gap, not space-y. Tailwind v4 puts space-y's margin on
+              :not(:last-child), and Base UI's Select renders a hidden input as
+              the last child - so the trigger picked up a 6px bottom margin that
+              nothing occupied and sat 6px above the search field's baseline.
+              gap ignores the out-of-flow input. */}
+          <div className="flex w-full flex-col gap-1.5 sm:w-52">
             <label htmlFor="follow-up-filter" className="text-sm font-medium">Status follow-up</label>
             <Select value={status} onValueChange={(value) => { setStatus((value || "all") as FollowUpStatus | "all"); setPage(1); }}>
-              <SelectTrigger id="follow-up-filter">
+              <SelectTrigger id="follow-up-filter" className="w-full sm:h-9 sm:min-h-9">
                 {/* Base UI renders the raw value when Value has no children,
                     so the trigger read "all" instead of "Semua status". */}
                 <SelectValue>{status === "all" ? "Semua status" : followUpLabels[status]}</SelectValue>
@@ -673,11 +685,13 @@ export function AbandonedOrders() {
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
-      </Card>
-      <p className="text-xs font-medium text-muted-foreground" role="status" aria-live="polite">
-        {refreshing ? "Memperbarui pesanan tertinggal…" : `${pagination.totalItems} pesanan tertinggal`}
-      </p>
+            {/* The count used to float under the card. On the row's trailing
+                edge it fills space that was simply blank. */}
+            <p className="text-xs font-medium text-muted-foreground sm:ml-auto sm:pb-2.5" role="status" aria-live="polite">
+              {refreshing ? "Memperbarui pesanan tertinggal…" : `${pagination.totalItems} pesanan tertinggal`}
+            </p>
+          </CardContent>
+        </Card>
       {notice && (
         <Card size="sm" role="status" aria-live="polite" className="bg-muted/40">
           <CardContent className="text-muted-foreground">{notice}</CardContent>

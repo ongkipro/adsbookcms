@@ -180,10 +180,10 @@ const formId = embedded ? `${instanceId}-form` : 'checkout-form';
           <div class="summary-card">
             <div class="summary-row">
               <span>Produk</span>
-              <div class="summary-product-meta">
-                <span class="summary-product-name">{product.productName}</span>
-                <strong id="summary-label">{defaultVariant.label}</strong>
-              </div>
+              <strong class="summary-product-name">{product.productName}</strong>
+            </div>
+            <div class="summary-row">
+              <span>Varian</span><strong id="summary-label">{defaultVariant.label}</strong>
             </div>
             <div id="summary-compare-row" class="summary-row" hidden={!defaultHasDiscount}>
               <span>Harga Normal</span><strong id="summary-compare">{formatIdr(defaultComparePrice)}</strong>

@@ -207,6 +207,28 @@ export function createMiddleware(
     return applySecurityHeaders(response, true);
   }
 
+  // Canonical host first. This used to sit below the installer redirects, which
+  // are relative - so `www` reached `/install` and the wizard was served on the
+  // non-canonical host, and an installed store took two hops to get home. It is
+  // also a host-level decision that needs no store row, so answering it here
+  // spares a D1 read on every `www` request.
+  const siteUrl = getEnvValue('PUBLIC_SITE_URL', runtime);
+  if (siteUrl && url.hostname.startsWith('www.')) {
+    try {
+      const canonical = new URL(siteUrl);
+      if (url.hostname.slice(4) === canonical.hostname) {
+        const targetUrl = new URL(url);
+        targetUrl.hostname = canonical.hostname;
+        targetUrl.protocol = canonical.protocol;
+        targetUrl.port = canonical.port;
+        return applySecurityHeaders(
+          context.redirect(targetUrl.toString(), 301),
+          false,
+        );
+      }
+    } catch {}
+  }
+
   // Store identity is resolved once per request and handed to every consumer
   // through locals. Doing it here rather than per page keeps consumers
   // synchronous — 125 call sites cannot each be an opportunity to forget an
@@ -234,22 +256,6 @@ export function createMiddleware(
   // must not linger as a re-runnable surface.
   if (identity.state === 'installed' && isInstallerRoute(url.pathname)) {
     return applySecurityHeaders(context.redirect('/hello'), true);
-  }
-  const siteUrl = getEnvValue('PUBLIC_SITE_URL', runtime);
-  if (siteUrl && url.hostname.startsWith('www.')) {
-    try {
-      const canonical = new URL(siteUrl);
-      if (url.hostname.slice(4) === canonical.hostname) {
-        const targetUrl = new URL(url);
-        targetUrl.hostname = canonical.hostname;
-        targetUrl.protocol = canonical.protocol;
-        targetUrl.port = canonical.port;
-        return applySecurityHeaders(
-          context.redirect(targetUrl.toString(), 301),
-          false,
-        );
-      }
-    } catch {}
   }
   const isEmbedForm =
     url.pathname === '/embed/form' || url.pathname === '/embed/form/';

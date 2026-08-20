@@ -255,6 +255,17 @@ export function initMiddleOrderForm(
     });
     if (!abandonedCapture.shouldStart(fingerprint)) return;
 
+    // The capture used to send product_id and product_title and no variant. The
+    // endpoint reads neither of those - only variant_id - so every lead from
+    // this form landed with no order_items at all, and the operator saw "Produk
+    // belum dipilih" on a lead that was filled in on a product page. The full
+    // form always sent it; this one did not.
+    const selectedVariant = formRoot?.querySelector<HTMLInputElement>(
+      'input[name="variant"]:checked',
+    );
+    const abandonedVariantId = Number(selectedVariant?.value);
+    const abandonedPrice = Number(selectedVariant?.dataset.price || 0);
+
     window.clearTimeout(abandonedTimer);
     abandonedTimer = window.setTimeout(() => {
       if (!abandonedCapture.start(fingerprint)) return;
@@ -271,6 +282,11 @@ export function initMiddleOrderForm(
           customer_phone: customerPhone,
           product_id: productId,
           product_title: productName,
+          variant_id:
+            Number.isInteger(abandonedVariantId) && abandonedVariantId > 0
+              ? abandonedVariantId
+              : undefined,
+          total_amount: abandonedPrice > 0 ? abandonedPrice : undefined,
           address: addressInput ? addressInput.value.trim() : "",
           province,
         }),

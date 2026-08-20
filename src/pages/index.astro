@@ -16,6 +16,7 @@ const [catalog, homeResolution, templateResolution] = await Promise.all([
   ),
 ]);
 const products = catalog.map((product) => ({
+  slug: product.slug,
   name: product.productName,
   category: product.category,
   description: product.subheadline || product.description,
@@ -23,9 +24,6 @@ const products = catalog.map((product) => ({
   image: product.image,
   price: product.price,
   comparePrice: product.comparePrice,
-  ratingValue: product.ratingValue,
-  reviewCount: product.reviewCount,
-  soldCount: product.soldCount,
   variants: product.variants.map((variant) => ({
     label: variant.label,
     price: variant.price,

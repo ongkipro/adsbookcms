@@ -45,7 +45,7 @@ const productCatalog = products.map((item) => ({
       window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
     }
   </script>
-  <main id="thanks-shell" hidden class="min-h-screen bg-[#F5F5F5] font-sans text-[14px] text-slate-800 antialiased py-4 sm:py-8">
+  <main id="thanks-shell" hidden class="min-h-screen bg-white font-sans text-[14px] text-slate-800 antialiased py-4 sm:py-8">
     <MetaThanksTracker tenantName={Astro.locals.tenant.name} tenantSlug={Astro.locals.tenant.slug} />
     <div class="mx-auto w-full max-w-[480px] overflow-hidden rounded-none border border-slate-200 bg-white">
       <header

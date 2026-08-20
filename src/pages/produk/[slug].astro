@@ -148,7 +148,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
       ]}
     />
     <!-- Product Hero Gallery Component -->
-    <div class="border-b border-[#E5E5E5] bg-[#F5F5F5] p-3 sm:p-4">
+    <div class="border-b border-[#E5E5E5] bg-white p-3 sm:p-4">
       <ProductImageGallery
         images={productImages}
         productName={product.productName}
@@ -207,7 +207,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
         </span>
         {
           displayComparePrice > displayPrice && (
-            <span class="text-[13px] font-normal text-[#77736C] line-through">
+            <span class="text-[13px] font-normal text-[#767676] line-through">
               Rp{Math.round(displayComparePrice).toLocaleString('id-ID')}
             </span>
           )
@@ -216,7 +216,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     </section>
 
     <!-- Variant Offer Matrix -->
-    <section class="border-b border-[#E5E5E5] bg-[#F5F5F5] px-5 py-6">
+    <section class="border-b border-[#E5E5E5] bg-white px-5 py-6">
       <h2 class="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#111111]">
         Pilihan Varian ({product.variants.length})
       </h2>
@@ -238,7 +238,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
                   Rp{Math.round(v.price).toLocaleString('id-ID')}
                 </p>
                 {v.comparePrice && (
-                  <p class="mt-1 text-[11px] leading-none text-[#77736C] line-through">
+                  <p class="mt-1 text-[11px] leading-none text-[#767676] line-through">
                     Rp{Math.round(v.comparePrice).toLocaleString('id-ID')}
                   </p>
                 )}
@@ -370,7 +370,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     <!-- Product Reviews -->
     {
       (hasAggregateRating || product.reviews.length > 0) && (
-        <section class="border-b border-[#E5E5E5] bg-[#F5F5F5] px-5 py-6">
+        <section class="border-b border-[#E5E5E5] bg-white px-5 py-6">
           <div class="border-b border-[#E5E5E5] pb-3.5">
             <div class="flex items-center gap-2">
               <RatingStars max={1} starClass="h-[17px] w-[17px]" label="Penilaian produk" />
@@ -405,7 +405,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
                           </span>
                         )}
                       </div>
-                      <p class="mt-0.5 flex items-center gap-2 text-[11px] text-[#77736C]"><span>{review.location}</span><span class="h-3 w-px bg-[#E5E5E5]" aria-hidden="true" /><span>{review.date}</span></p>
+                      <p class="mt-0.5 flex items-center gap-2 text-[11px] text-[#767676]"><span>{review.location}</span><span class="h-3 w-px bg-[#E5E5E5]" aria-hidden="true" /><span>{review.date}</span></p>
                     </div>
                   </div>
                   <RatingStars rating={review.rating} class="mt-2" starClass="h-2.5 w-2.5" />
@@ -419,7 +419,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     }
 
     <!-- Shipping Information Notice Card -->
-    <section class="border-b border-[#E5E5E5] bg-[#F5F5F5] px-5 py-5">
+    <section class="border-b border-[#E5E5E5] bg-white px-5 py-5">
       <div class="flex items-start gap-3.5 text-[12px] leading-relaxed text-[#555555]">
         <Icon name="lucide:truck" class="mt-0.5 h-5 w-5 shrink-0" style={`color: ${productAccent}`} aria-hidden="true" />
         <div>
@@ -442,7 +442,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
       </div>
       <a
         href="#form-pemesanan"
-        class="inline-flex min-h-11 items-center justify-center rounded-none border border-[#111111] bg-[#111111] px-6 text-[10px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-[#2A2A2A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] active:scale-[0.98]"
+        class="inline-flex min-h-11 items-center justify-center rounded-none border border-[#111111] bg-[#111111] px-6 text-[10px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-[#000000] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] active:scale-[0.98]"
       >
         Pesan Sekarang (COD)
       </a>

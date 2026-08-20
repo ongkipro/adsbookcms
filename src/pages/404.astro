@@ -22,7 +22,7 @@ Astro.response.status = 404;
   description={`Maaf, halaman ${Astro.locals.tenant.name} yang Anda cari tidak ditemukan. Kembali ke beranda atau katalog produk.`}
   noindex={true}
 >
-  <main id="konten-utama" class="not-found-page min-h-screen bg-[#FAFAFA] px-5 py-12 text-[#263238]">
+  <main id="konten-utama" class="not-found-page min-h-screen bg-[#FAFAFA] px-5 py-12 text-[#111111]">
     <section class="mx-auto max-w-[480px] py-6">
       <div class="text-center">
         <div
@@ -37,11 +37,11 @@ Astro.response.status = 404;
           Halaman hilang
         </span>
 
-        <h1 class="mt-4 text-[30px] font-semibold leading-[1.15] tracking-[-0.03em] text-[#263238]">
+        <h1 class="mt-4 text-[30px] font-semibold leading-[1.15] tracking-[-0.03em] text-[#111111]">
           Sepertinya jalurnya belum tepat
         </h1>
 
-        <p class="mx-auto mt-3 max-w-[350px] text-[14px] leading-6 text-[#616161]">
+        <p class="mx-auto mt-3 max-w-[350px] text-[14px] leading-6 text-[#555555]">
           Link yang Anda buka mungkin sudah dipindahkan. Anda bisa kembali ke beranda atau melihat katalog produk yang
           tersedia.
         </p>
@@ -51,18 +51,18 @@ Astro.response.status = 404;
         <a
           href="/"
           title={`Kembali ke beranda ${Astro.locals.tenant.name}`}
-          class="inline-flex items-center justify-center gap-2 bg-[#111111] px-5 py-3 text-[14px] font-normal text-white transition-colors hover:bg-[#333333]"
+          class="inline-flex items-center justify-center gap-2 bg-[#111111] px-5 py-3 text-[14px] font-normal text-white transition-colors hover:bg-[#000000]"
         >
           <Icon name="lucide:home" class="h-4 w-4" aria-hidden="true" />
           <span>Kembali ke beranda</span>
         </a>
       </div>
 
-      <section class="mt-10 border-t border-[#E5E7EB] pt-6" aria-labelledby="produk-terkait-title">
+      <section class="mt-10 border-t border-[#E5E5E5] pt-6" aria-labelledby="produk-terkait-title">
         <div class="flex items-end justify-between gap-4">
           <div>
             <p class="text-[11px] font-normal uppercase tracking-[0.12em] text-[#767676]">Produk terkait</p>
-            <h2 id="produk-terkait-title" class="mt-1 text-[20px] font-semibold tracking-[-0.02em] text-[#263238]">
+            <h2 id="produk-terkait-title" class="mt-1 text-[20px] font-semibold tracking-[-0.02em] text-[#111111]">
               Mungkin ini yang Anda cari
             </h2>
           </div>
@@ -75,7 +75,7 @@ Astro.response.status = 404;
           </a>
         </div>
 
-        <div class="mt-4 divide-y divide-[#E5E7EB]">
+        <div class="mt-4 divide-y divide-[#E5E5E5]">
           {
             relatedProducts.map((product, index) => (
               <a
@@ -95,8 +95,8 @@ Astro.response.status = 404;
                   decoding="async"
                 />
                 <div class="min-w-0">
-                  <p class="truncate text-[14px] font-semibold text-[#263238]">{product.name}</p>
-                  <p class="mt-1 line-clamp-1 text-[12px] leading-5 text-[#616161]">{product.category}</p>
+                  <p class="truncate text-[14px] font-semibold text-[#111111]">{product.name}</p>
+                  <p class="mt-1 line-clamp-1 text-[12px] leading-5 text-[#555555]">{product.category}</p>
                 </div>
                 <Icon
                   name="lucide:arrow-right"
@@ -113,14 +113,15 @@ Astro.response.status = 404;
 
   <style>
     .not-found-page {
-      background:
-        radial-gradient(circle at 50% 0%, rgba(67, 160, 71, 0.1), transparent 32%),
-        linear-gradient(180deg, #ffffff 0%, #fafafa 48%, #f7faf7 100%);
+      /* Was a green radial tint over a three-stop gradient - the last colour
+         cast on the public surface, and the gradient collapsed to white on
+         white once the neutrals were unified. */
+      background: #ffffff;
     }
 
     .not-found-mark {
       animation: float-soft 4.8s ease-in-out infinite;
-      box-shadow: inset 0 0 0 1px rgba(229, 231, 235, 0.9);
+      box-shadow: inset 0 0 0 1px #E5E5E5;
     }
 
     .not-found-mark::before,

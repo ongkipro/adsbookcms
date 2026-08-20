@@ -63,4 +63,7 @@
    changing foundation.css, so the two surfaces stay independent. */
 :root {
   --bg-canvas: #ffffff;
+  /* foundation sets body colour to slate-900 for both surfaces. The storefront
+     ink is #111111; admin keeps its slate. */
+  --text-main: #111111;
 }

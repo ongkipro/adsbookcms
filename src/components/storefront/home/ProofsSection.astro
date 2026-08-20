@@ -21,7 +21,7 @@ const { proofs, heading } = Astro.props;
 
 {
   proofs.length > 0 && (
-    <section id="bukti" class="border-t border-[#E5E5E5] bg-[#F5F5F5] px-5 py-8">
+    <section id="bukti" class="border-t border-[#E5E5E5] bg-white px-5 py-8">
       <div class="mb-5 text-left">
         <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#767676]">
           {heading.eyebrow}
@@ -44,7 +44,7 @@ const { proofs, heading } = Astro.props;
 
               <div class="min-w-0 flex-1">
                 <h3 class="truncate text-xs font-bold text-[#111111]">{proof.name}</h3>
-                <p class="mt-0.5 text-[10px] font-normal text-[#77736C]">{proof.location}</p>
+                <p class="mt-0.5 text-[10px] font-normal text-[#767676]">{proof.location}</p>
                 <p class="mt-2 text-xs leading-relaxed text-[#555555]">"{proof.story}"</p>
               </div>
             </div>

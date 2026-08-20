@@ -266,6 +266,11 @@
   .admin-shell .admin-main [data-slot="card-header"].p-5 { padding: 1rem; }
   .admin-shell [data-slot="card"], .admin-shell section.bg-white, .admin-shell article.bg-white { border-radius: 1rem; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035); }
   .admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { min-height: 3rem; }
+  /* A Base UI select trigger is a <button>, so it took the 2.75rem button floor
+     while the input beside it took 3rem - every admin filter row had two
+     controls 4px apart on a phone. A trigger is a form control that reads as an
+     input, so it joins the input floor. Plain buttons keep 2.75rem. */
+  .admin-shell .admin-main [data-slot="select-trigger"] { min-height: 3rem; }
   .admin-shell .admin-main :where(button:not([data-slot="checkbox"]):not([data-slot="radio-group-item"]):not([data-slot="switch"]), a.btn-primary, a.btn-blue, a.btn-secondary),
   .admin-shell .admin-main a[data-slot="pagination-link"] { min-height: 2.75rem; }
   .admin-shell .admin-main a[data-slot="pagination-link"] { min-width: 2.75rem; }

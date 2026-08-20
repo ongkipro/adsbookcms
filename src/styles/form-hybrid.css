@@ -847,24 +847,13 @@
      ones line the thousands up. */
   font-variant-numeric: tabular-nums;
 }
-.summary-product-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-  gap: 0.1rem;
-}
 .summary-product-name {
-  font-size: 0.8125rem !important;
-  font-weight: 400 !important;
-  color: #555555 !important;
-  line-height: 1.25;
-}
-.summary-product-meta strong {
-  font-size: 0.8125rem !important;
-  font-weight: 600 !important;
-  color: #111111 !important;
-  line-height: 1.25;
+  /* The name and the variant used to stack inside one row, which made it the
+     only row whose value ran to two lines - and it muted the name while
+     bolding the variant. They are two rows now, so the name is just a value
+     like every other. */
+  max-width: 72%;
+  text-wrap: balance;
 }
 /* The discount row used to carry a white band as a highlight. On a grey card
    that becomes a stripe, and the ink chip beside it already does the work. */

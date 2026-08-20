@@ -1,5 +1,6 @@
 ---
 import HeroSection from '../home/HeroSection.astro';
+import { dailySeed, pickDaily } from '../../../lib/daily-rotation';
 import ProductsSection from '../home/ProductsSection.astro';
 import ProofsSection from '../home/ProofsSection.astro';
 import type { TenantHomeContent } from '../../../lib/tenant-content';
@@ -30,10 +31,14 @@ interface Props {
 
 const { content, products, sections } = Astro.props;
 
+// No slides of the operator's own means the hero borrows from the catalogue.
+// The pick rotates daily rather than per request: a per-request shuffle would
+// change the LCP image on every load, so no visitor could reuse bytes another
+// had already cached.
 const heroSlides =
   content.heroSlides.length > 0
     ? content.heroSlides
-    : products.slice(0, 3).map((product) => ({
+    : pickDaily(products, 3, dailySeed(new Date())).map((product) => ({
         image: product.image,
         alt: product.name,
         badge: product.category,

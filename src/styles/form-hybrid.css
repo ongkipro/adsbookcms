@@ -169,13 +169,15 @@
   border-bottom: 1px solid #E5E5E5;
 }
 .variant-option input:checked + .variant-copy {
+  /* Selection is the ink border alone. A grey fill here would make a chosen
+     variant look like an empty input. */
   border-color: #111111;
-  background: #F5F5F5;
+  background: #ffffff;
   box-shadow: none;
 }
 .simple-variant-option input:checked + .simple-variant-copy {
   border-color: #111111;
-  background: #F5F5F5;
+  background: #ffffff;
   box-shadow: none;
 }
 .variant-option input:checked + .variant-copy .variant-radio {
@@ -219,8 +221,10 @@
   color: #fff !important;
 }
 .simple-variant-badge-save {
-  background: #fef08a !important;
-  color: #b91c1c !important;
+  /* Decorative emphasis, not a status. It matches the -31% badge on the
+     product cards now instead of introducing yellow and red of its own. */
+  background: #111111 !important;
+  color: #ffffff !important;
 }
 .simple-variant-dot {
   width: 0.28rem;
@@ -283,7 +287,10 @@
   padding: 0.96rem 0.75rem 0.2rem;
   border: 1px solid #E5E5E5;
   border-radius: 0.5rem;
-  background: #ffffff;
+  /* A field is where you type, so it carries a fill. The note below and the
+     variant rows do not, which is what tells the three apart at a glance
+     without adding a second colour. */
+  background: #F5F5F5;
   color: #111111;
   font: inherit;
   font-size: 1rem;
@@ -345,7 +352,7 @@
   outline: none;
   border-color: #111111;
   background: #ffffff;
-  box-shadow: 0 0 0 2px rgba(197, 168, 128, 0.3) !important;
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.12) !important;
 }
 .form-field input.field-invalid ~ label,
 .form-field textarea.field-invalid ~ label {
@@ -410,7 +417,7 @@
 .form-field textarea.field-valid:focus {
   border-color: #111111 !important;
   background: #ffffff !important;
-  box-shadow: 0 0 0 2px rgba(197, 168, 128, 0.3) !important;
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.12) !important;
 }
 @keyframes fieldFeedbackIn {
   from {
@@ -879,9 +886,9 @@
 }
 .summary-row-discount strong,
 .summary-discount-chip {
-  color: #b91c1c !important;
+  color: #ffffff !important;
   font-weight: 700;
-  background: #fef08a;
+  background: #111111;
   padding: 0.04rem 0.28rem;
   border-radius: 0.2rem;
   line-height: 1.1;
@@ -925,9 +932,11 @@
   display: grid;
   gap: 0.2rem;
   padding: 0.88rem 0.95rem;
-  border: 1px solid #111111;
+  /* A passive note, not a callout. It had a full-strength ink border and a
+     grey fill, which read louder than the fields it sits under. */
+  border: 1px solid #E5E5E5;
   border-radius: 0.68rem;
-  background: #F5F5F5;
+  background: #ffffff;
   color: #111111;
 }
 .info-box span {
@@ -964,7 +973,7 @@
   border-color: #111111;
   background: #111111 !important;
   color: #111111 !important;
-  box-shadow: 0 10px 20px -4px rgba(197, 168, 128, 0.35);
+  box-shadow: 0 10px 20px -4px rgba(17, 17, 17, 0.18);
 }
 .submit-main:active {
   transform: scale(0.98);

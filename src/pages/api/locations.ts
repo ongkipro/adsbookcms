@@ -8,9 +8,23 @@ import {
   resolveProviderDestinations,
   sortLocationResults,
 } from '../../lib/location-search';
+import {
+  buildResolveCacheKey,
+  buildSearchCacheKey,
+  cacheResolvedLocation,
+  cacheSearchResult,
+  getCachedLocation,
+} from '../../lib/location-cache';
 import { MengantarClient, type MengantarAddressSearchResult } from '../../lib/mengantar-client';
 import { getProviderConfig } from '../../lib/provider-config';
 import { checkRateLimit, getClientIp, rateLimitHeaders } from '../../lib/rate-limit';
+
+type LocationsPayload = {
+  success: true;
+  items: unknown[];
+  locations: unknown[];
+  alternatives: unknown[];
+};
 
 export const prerender = false;
 
@@ -38,6 +52,32 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
       );
     }
 
+    // Typing suggestions never need the provider: the local catalogue is
+    // instant, needs no network, and stays usable if Mengantar is slow or
+    // down. `level=resolve` (fired on selection, not on keystroke) is the
+    // only call that has to reach the provider for a real destination id.
+    if (level === 'district') {
+      const items = searchDistrictCatalog(search).map(createDistrictDiscoveryLocation);
+      return new Response(
+        JSON.stringify({ success: true, items, locations: items }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const sessions = runtimeEnv?.SESSION as KVNamespace | undefined;
+    const province = (url.searchParams.get('province') || '').trim();
+    const city = (url.searchParams.get('city') || '').trim();
+    const cacheKey = level === 'resolve' && city
+      ? buildResolveCacheKey(search, city, province)
+      : buildSearchCacheKey(search);
+    const cached = await getCachedLocation<LocationsPayload>(sessions, cacheKey);
+    if (cached) {
+      return new Response(JSON.stringify(cached), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const database = runtimeEnv?.OMS_DB;
     if (!database || typeof database !== "object") {
       const items = searchDistrictCatalog(search).map(createDistrictDiscoveryLocation);
@@ -55,8 +95,6 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
       );
     }
     const client = new MengantarClient(config.apiKey, config.baseUrl);
-    const province = (url.searchParams.get('province') || '').trim();
-    const city = (url.searchParams.get('city') || '').trim();
     const providerSearches = level === 'resolve' && city
       ? buildProviderDestinationSearches(search, city, province)
       : [search];
@@ -131,14 +169,20 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
     alternatives = Array.from(
       new Map(alternatives.map((item) => [item.id, item])).values(),
     ).slice(0, 50);
-    return new Response(
-      JSON.stringify({
-        success: true,
-        items,
-        locations: items,
-        alternatives: items.length === 0 ? alternatives : [],
-      }),
-    );
+    const payload: LocationsPayload = {
+      success: true,
+      items,
+      locations: items,
+      alternatives: items.length === 0 ? alternatives : [],
+    };
+    // Only a resolved destination is worth caching for a day; a raw
+    // provider search can drift as Mengantar's own catalogue changes.
+    if (level === 'resolve' && city) {
+      await cacheResolvedLocation(sessions, cacheKey, payload);
+    } else {
+      await cacheSearchResult(sessions, cacheKey, payload);
+    }
+    return new Response(JSON.stringify(payload));
   } catch (error) {
     return new Response(
       JSON.stringify({ success: false, error: 'Gagal mencari lokasi' }),

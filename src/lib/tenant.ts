@@ -106,14 +106,13 @@ function locale(value: string): string {
 }
 
 /**
- * An unknown template used to throw at module load, which in a Worker means
- * every route returns 500. Now that the value can come from a database an
- * operator edits, a single bad row must not take a storefront offline — so it
- * degrades to the default and says so in the logs.
+ * Runtime template IDs are validated against D1 by the page resolver. Identity
+ * resolution only rejects malformed identifiers here so a persisted runtime
+ * template can survive middleware without being compiled into the bundle.
  */
 function storefrontTemplate(value: string): StorefrontTemplateId {
   if (isStorefrontTemplateId(value)) return value;
-  console.error("tenant-unknown-storefront-template", value);
+  console.error("tenant-malformed-storefront-template", value);
   return defaults.storefrontTemplate;
 }
 

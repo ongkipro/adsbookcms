@@ -5,7 +5,7 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-[#111111] text-white hover:bg-[#C5A880] hover:text-[#111111]',
+        primary: 'bg-[#111111] text-white hover:bg-[#333333]',
         secondary: 'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50',
         dark: 'bg-slate-900 text-white shadow-xs hover:bg-slate-800',
         ghost: 'bg-transparent text-slate-700 hover:bg-slate-100',
@@ -27,7 +27,7 @@ export const buttonVariants = cva(
 export const badgeVariants = cva('inline-flex items-center font-bold leading-none', {
   variants: {
     variant: {
-      green: 'bg-[#F8F7F4] text-[#8A704F] ring-1 ring-[#E5E5E5]',
+      green: 'bg-[#F5F5F5] text-[#111111] ring-1 ring-[#E5E5E5]',
       neutral: 'bg-slate-100 text-slate-700',
       yellow: 'bg-amber-50 text-amber-800 ring-1 ring-amber-200/60',
     },
@@ -76,7 +76,7 @@ export const textVariants = cva('', {
     tone: {
       heading: 'text-slate-900',
       brand: 'text-[#111111]',
-      accent: 'text-[#C5A880]',
+      accent: 'text-[#111111]',
       muted: 'text-slate-500',
       soft: 'text-slate-600',
       body: 'text-slate-600',

@@ -2,9 +2,13 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
 export const prerender = false;
-const mayManageIntegrations = Astro.locals.admin?.role === 'owner'
-  || Astro.locals.admin?.role === 'admin';
-const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Profil Akun';
+const mustChangePassword = Astro.locals.admin?.mustChangePassword ?? false;
+const mayManageIntegrations = !mustChangePassword && (
+  Astro.locals.admin?.role === 'owner' || Astro.locals.admin?.role === 'admin'
+);
+const pageTitle = mustChangePassword
+  ? 'Amankan akun admin'
+  : mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Profil Akun';
 ---
 
 <AdminLayout title={pageTitle} activeMenu="profile">
@@ -12,7 +16,9 @@ const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Prof
     <AdminPageHeader
       eyebrow="Account & security"
       title={pageTitle}
-      description={mayManageIntegrations
+      description={mustChangePassword
+        ? "Ganti password bawaan untuk membuka workspace operasional. Semua sesi akan diakhiri setelah perubahan tersimpan."
+        : mayManageIntegrations
         ? "Kelola kredensial admin, domain provider, serta API Mengantar dan AutoLaris."
         : "Kelola username dan password akun Anda."}
     />
@@ -81,6 +87,7 @@ const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Prof
           <label class="mt-6 block text-xs font-black text-slate-700" for="mengantarKey">API key baru</label>
           <div class="relative mt-2"><input id="mengantarKey" name="mengantar_api_key" type="password" autocomplete="new-password" class="admin-input-flat min-h-11 pr-24 font-mono text-base sm:text-sm" /><button id="toggleMengantarKey" type="button" class="absolute inset-y-1 right-1 min-w-20 rounded-lg bg-white px-2 text-[11px] font-black text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300" aria-controls="mengantarKey" aria-label="Tampilkan API key Mengantar" aria-pressed="false">Lihat</button></div>
           <p id="mengantarKeyHint" class="mt-1 text-[11px] text-slate-500">Kosongkan untuk mempertahankan key saat ini.</p>
+          <label class="mt-2 flex items-center gap-2 text-[11px] font-black text-slate-600"><input type="checkbox" name="mengantar_clear_key" class="size-4 rounded border-slate-300" />Hapus key tersimpan dan pakai fallback server</label>
           <label class="mt-4 block text-xs font-black text-slate-700" for="mengantarUrl">Base URL</label>
           <input id="mengantarUrl" name="mengantar_base_url" type="url" required class="admin-input-flat mt-2 min-h-11 font-mono text-base sm:text-sm" />
         </fieldset>
@@ -93,6 +100,7 @@ const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Prof
           <label class="mt-6 block text-xs font-black text-slate-700" for="autolarisKey">API key baru</label>
           <div class="relative mt-2"><input id="autolarisKey" name="autolaris_api_key" type="password" autocomplete="new-password" class="admin-input-flat min-h-11 pr-24 font-mono text-base sm:text-sm" /><button id="toggleAutolarisKey" type="button" class="absolute inset-y-1 right-1 min-w-20 rounded-lg bg-white px-2 text-[11px] font-black text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300" aria-controls="autolarisKey" aria-label="Tampilkan API key AutoLaris" aria-pressed="false">Lihat</button></div>
           <p id="autolarisKeyHint" class="mt-1 text-[11px] text-slate-500">Kosongkan untuk mempertahankan key saat ini.</p>
+          <label class="mt-2 flex items-center gap-2 text-[11px] font-black text-slate-600"><input type="checkbox" name="autolaris_clear_key" class="size-4 rounded border-slate-300" />Hapus key tersimpan dan pakai fallback server</label>
           <label class="mt-4 block text-xs font-black text-slate-700" for="autolarisUrl">Base URL</label>
           <input id="autolarisUrl" name="autolaris_base_url" type="url" required class="admin-input-flat mt-2 min-h-11 font-mono text-base sm:text-sm" />
           <p class="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-800">Webhook secret tetap dikelola sebagai server secret dan tidak pernah ditampilkan atau disimpan lewat dashboard.</p>
@@ -233,10 +241,7 @@ const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Prof
     };
 
     loadProfile().then((mustChangePassword) => {
-      if (mustChangePassword) {
-        showIntegrationsError(new Error('Ganti password default terlebih dahulu untuk membuka pengaturan integrasi API.'));
-        return;
-      }
+      if (mustChangePassword) return;
       if (byId('integrationsForm')) loadIntegrations().catch(showIntegrationsError);
     }).catch((error) => {
       byId('profileLoading')?.setAttribute('aria-busy', 'false');
@@ -246,7 +251,7 @@ const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Prof
         node.textContent = error instanceof Error ? error.message : 'Gagal memuat profil admin.';
         node.classList.remove('hidden');
       }
-      showIntegrationsError(error);
+      if (byId('integrationsForm')) showIntegrationsError(error);
     });
 
     byId<HTMLFormElement>('profileForm')?.addEventListener('submit', async (event) => {
@@ -296,9 +301,9 @@ const pageTitle = mayManageIntegrations ? 'Profil Admin & Integrasi API' : 'Prof
           body: JSON.stringify({
             action: 'save-integrations',
             integrations: {
-              mengantar_api_key: values.get('mengantar_api_key'),
+              mengantar_api_key: values.get('mengantar_clear_key') ? null : values.get('mengantar_api_key'),
               mengantar_base_url: values.get('mengantar_base_url'),
-              autolaris_api_key: values.get('autolaris_api_key'),
+              autolaris_api_key: values.get('autolaris_clear_key') ? null : values.get('autolaris_api_key'),
               autolaris_base_url: values.get('autolaris_base_url'),
             },
           }),

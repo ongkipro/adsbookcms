@@ -8,6 +8,7 @@ import {
   getDefaultAdminRoute,
   getSessionCookie,
   isAdminRole,
+  shouldSecureSessionCookie,
   signJwt,
   verifyJwt,
 } from './auth.ts';
@@ -15,6 +16,11 @@ import type { AdminRole, AdminSession } from './auth.ts';
 
 const AUTH_SECRET = 'unit-test-auth-secret-0123456789abcdef';
 const OTHER_SECRET = 'unit-test-auth-secret-fedcba9876543210';
+
+test('session cookie security follows the request transport, not build mode', () => {
+  assert.equal(shouldSecureSessionCookie(new URL('https://store.example/hello')), true);
+  assert.equal(shouldSecureSessionCookie(new URL('http://100.127.67.86:8790/hello')), false);
+});
 
 // The admin gate that consumes these tokens lives in `src/middleware.ts`, which
 // imports the virtual `astro:middleware` module and extensionless specifiers.
@@ -46,8 +52,9 @@ const middlewareHooks = registerHooks({
     return nextLoad(url, context);
   },
 });
-const { onRequest } = await import('../middleware.ts');
+const { createMiddleware } = await import('../middleware.ts');
 middlewareHooks.deregister();
+const onRequest = createMiddleware(async () => undefined);
 
 function encodeSegment(value: unknown) {
   return Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');
@@ -372,6 +379,8 @@ test('every admin role is confined to the routes it owns', () => {
   // admin: explicit operational allowlist, excluding operator management.
   assert.equal(canAccessAdminRoute('admin', '/admin/settings'), true);
   assert.equal(canAccessAdminRoute('admin', '/api/admin/orders'), true);
+  assert.equal(canAccessAdminRoute('admin', '/api/admin/abandoned-orders'), true);
+  assert.equal(canAccessAdminRoute('admin', '/api/admin/payment-reconciliation'), true);
   assert.equal(canAccessAdminRoute('admin', '/admin/settings/access'), false);
   assert.equal(canAccessAdminRoute('admin', '/admin/settings/access/new'), false);
   assert.equal(canAccessAdminRoute('admin', '/api/admin/access'), false);
@@ -385,11 +394,16 @@ test('every admin role is confined to the routes it owns', () => {
   assert.equal(canAccessAdminRoute('advertiser', '/api/admin/landing-pages/12'), true);
   assert.equal(canAccessAdminRoute('advertiser', '/admin/orders'), false);
   assert.equal(canAccessAdminRoute('advertiser', '/api/admin/orders'), false);
+  assert.equal(canAccessAdminRoute('advertiser', '/api/admin/abandoned-orders'), false);
+  assert.equal(canAccessAdminRoute('advertiser', '/api/admin/payment-reconciliation'), false);
   assert.equal(canAccessAdminRoute('advertiser', '/admin/settings/access'), false);
   assert.equal(canAccessAdminRoute('advertiser', '/api/admin/access'), false);
 
   // customer_service: order handling only, never the catalogue or ads.
   assert.equal(canAccessAdminRoute('customer_service', '/admin/orders'), true);
+  assert.equal(canAccessAdminRoute('customer_service', '/admin/orders/abandoned'), true);
+  assert.equal(canAccessAdminRoute('customer_service', '/api/admin/abandoned-orders'), true);
+  assert.equal(canAccessAdminRoute('customer_service', '/api/admin/payment-reconciliation'), false);
   assert.equal(canAccessAdminRoute('customer_service', '/api/admin/shipping/label'), true);
   assert.equal(canAccessAdminRoute('customer_service', '/admin/products'), false);
   assert.equal(canAccessAdminRoute('customer_service', '/api/admin/products'), false);
@@ -401,6 +415,7 @@ test('every admin role is confined to the routes it owns', () => {
     assert.equal(canAccessAdminRoute(role, '/admin/profile'), true);
     assert.equal(canAccessAdminRoute(role, '/api/admin/profile'), true);
     assert.equal(canAccessAdminRoute(role, '/api/admin/logout'), true);
+    assert.equal(canAccessAdminRoute(role, '/api/admin/health'), false);
   }
 });
 
@@ -508,6 +523,7 @@ function createSessionStore(value: string | null) {
 function createCredentialDatabase(row: CredentialRow) {
   return {
     prepare: () => ({
+      first: async () => ({ name: 'Test Store', slug: 'test-store' }),
       bind: () => ({ first: async () => row }),
     }),
   } as unknown as D1Database;

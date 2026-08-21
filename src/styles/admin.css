@@ -1,0 +1,305 @@
+/* CMS admin surface. Owns shadcn, tw-animate and every operator-only class.
+ *
+ * `.btn-primary`, `.btn-blue`, `.btn-secondary` and `.admin-input-flat` were in
+ * the shared entry; a usage census found 11, 8, 6 and 11 references inside
+ * admin and zero anywhere public, so they belong here.
+ */
+@import './foundation.css';
+@source "../components/admin";
+/* Class names are also written in plain TypeScript - `lib/ui-variants.ts`
+   holds the cva variants both surfaces render with. With `source(none)` every
+   place a class name is *written* has to be declared, not just the templates. */
+@source "../lib";
+@source "../components/ui";
+@source "../pages/admin";
+@source "../pages/hello.astro";
+@source "../layouts/AdminLayout.astro";
+
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Shadcn Button UI/UX System */
+.btn-primary, .btn-blue, .btn-secondary {
+  @apply inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300 disabled:pointer-events-none disabled:opacity-50;
+}
+
+.btn-primary {
+  @apply bg-slate-900 text-slate-50 hover:bg-slate-900/90 shadow-sm;
+}
+
+.btn-blue {
+  @apply bg-blue-600 text-white hover:bg-blue-600/90 shadow-sm;
+}
+
+.btn-secondary {
+  @apply border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 shadow-sm;
+}
+
+/* Flat Admin Section Utilities */
+.admin-flat-section {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+  margin-bottom: 1.5rem;
+}
+
+.admin-input-flat {
+  @apply flex min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100 md:text-sm;
+}
+
+.btn-primary:focus-visible,
+.btn-blue:focus-visible,
+.btn-secondary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.btn-primary:disabled,
+.btn-blue:disabled,
+.btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@theme inline {
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.546 0.245 262.881);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.546 0.245 262.881);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* CMS-only surface. This entry imports the shared token layer, then scopes all
+ * operator presentation to .admin-shell so storefront work cannot inherit it. */
+
+
+.admin-shell {
+  --background: oklch(0.982 0.004 255);
+  --foreground: oklch(0.18 0.025 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.025 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.025 255);
+  --primary: var(--admin-accent);
+  --primary-foreground: #fff;
+  --secondary: oklch(0.965 0.006 255);
+  --secondary-foreground: oklch(0.25 0.025 255);
+  --muted: oklch(0.965 0.006 255);
+  --muted-foreground: oklch(0.52 0.025 255);
+  --accent: oklch(0.96 0.009 255);
+  --accent-foreground: oklch(0.22 0.025 255);
+  --border: oklch(0.91 0.009 255);
+  --input: oklch(0.89 0.012 255);
+  --ring: oklch(0.58 0.12 255);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.985 0.003 255);
+  --sidebar-foreground: oklch(0.19 0.024 255);
+  --sidebar-accent: oklch(0.95 0.008 255);
+  --sidebar-accent-foreground: oklch(0.19 0.024 255);
+  --sidebar-border: oklch(0.91 0.009 255);
+  background:
+    radial-gradient(circle at 82% -10%, color-mix(in srgb, var(--admin-accent) 5%, transparent) 0, transparent 28rem),
+    #f6f7f9;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.admin-shell .btn-blue { background-color: var(--admin-accent); color: #fff; }
+.admin-shell .btn-blue:hover { background-color: color-mix(in srgb, var(--admin-accent) 86%, #000); }
+.admin-shell .admin-main { scrollbar-gutter: stable; }
+.admin-shell :where(button, a, input, textarea, select) { -webkit-tap-highlight-color: transparent; }
+.admin-shell :where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--admin-accent) 64%, white);
+  outline-offset: 2px;
+}
+.admin-shell [data-slot="command-input"]:focus-visible { outline: none; }
+.admin-shell [data-slot="sidebar-container"] { border-color: rgba(226, 232, 240, 0.82); box-shadow: 1px 0 0 rgba(15, 23, 42, 0.015); }
+.admin-shell [data-slot="sidebar-menu-button"] { letter-spacing: -0.01em; }
+
+/* Navigation is deliberately immediate: this is an operator tool, not a
+ * decorative surface. Keep feedback motion on actual mutations only. */
+.admin-shell :where(
+  [data-slot="sidebar"], [data-slot="sidebar"] *,
+  [data-slot="collapsible-content"], [data-slot="collapsible-content"] *,
+  [data-slot="tooltip-content"], [data-slot="tooltip-content"] *,
+  [data-slot="sheet-overlay"], [data-slot="sheet-content"], [data-slot="sheet-content"] *,
+  .admin-bottom-nav, .admin-bottom-nav *
+) { animation: none !important; transition: none !important; }
+
+.admin-shell [data-slot="card"],
+.admin-shell section.bg-white,
+.admin-shell article.bg-white { border-color: rgba(203, 213, 225, 0.72); border-radius: 0.875rem; box-shadow: none; }
+.admin-shell [data-slot="card-header"] { border-color: rgba(226, 232, 240, 0.82); }
+.admin-shell section.relative > [aria-hidden="true"].absolute { display: none; }
+.admin-shell .admin-main :where(h2, h3) { letter-spacing: -0.025em; }
+.admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border-color: #dbe1e8;
+  background-color: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+}
+.admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: color-mix(in srgb, var(--admin-accent) 48%, #cbd5e1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-accent) 10%, transparent);
+}
+.admin-shell .admin-main :where(table) { font-variant-numeric: tabular-nums; }
+.admin-shell .admin-main :where(thead), .admin-shell .admin-main :where(tbody tr:hover) { background: #f8fafc; }
+.admin-shell .admin-main :where(th) { color: #64748b; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.055em; text-transform: uppercase; }
+.admin-shell .admin-main :where(tbody tr) { transition: background-color 120ms ease; }
+.admin-shell .admin-main :where([role="alert"]) { border-radius: 0.875rem; }
+.admin-shell .admin-main :where(.animate-pulse) { background-image: linear-gradient(90deg, #f1f5f9, #f8fafc, #f1f5f9); }
+.admin-shell .animate-pulse { animation: none; }
+.admin-shell [data-slot='select-content'] { animation: none !important; transition: none !important; }
+
+@media (max-width: 1023px) {
+  .admin-shell input, .admin-shell select, .admin-shell textarea { font-size: 1rem !important; line-height: 1.5rem; }
+}
+
+@media (max-width: 767px) {
+  .admin-shell { background: #f5f6f8; }
+  .admin-shell .admin-topbar { padding-top: env(safe-area-inset-top); height: calc(60px + env(safe-area-inset-top)); }
+  .admin-shell .admin-main { scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom)); }
+  .admin-shell .admin-main .space-y-6 > :not(:last-child), .admin-shell .admin-main .space-y-5 > :not(:last-child) { margin-bottom: 1rem; }
+  .admin-shell .admin-main :where(section, article, form, fieldset).p-5,
+  .admin-shell .admin-main :where(section, article, form, fieldset).p-6,
+  .admin-shell .admin-main [data-slot="card-content"].p-5,
+  .admin-shell .admin-main [data-slot="card-header"].p-5 { padding: 1rem; }
+  .admin-shell [data-slot="card"], .admin-shell section.bg-white, .admin-shell article.bg-white { border-radius: 1rem; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035); }
+  .admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { min-height: 3rem; }
+  /* A Base UI select trigger is a <button>, so it took the 2.75rem button floor
+     while the input beside it took 3rem - every admin filter row had two
+     controls 4px apart on a phone. A trigger is a form control that reads as an
+     input, so it joins the input floor. Plain buttons keep 2.75rem. */
+  .admin-shell .admin-main [data-slot="select-trigger"] { min-height: 3rem; }
+  .admin-shell .admin-main :where(button:not([data-slot="checkbox"]):not([data-slot="radio-group-item"]):not([data-slot="switch"]), a.btn-primary, a.btn-blue, a.btn-secondary),
+  .admin-shell .admin-main a[data-slot="pagination-link"] { min-height: 2.75rem; }
+  .admin-shell .admin-main a[data-slot="pagination-link"] { min-width: 2.75rem; }
+  .admin-shell .admin-main :where(section, article) { scroll-margin-top: calc(4.5rem + env(safe-area-inset-top)); }
+  .admin-shell [data-slot="dialog-content"] :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
+  .admin-shell [data-slot="sheet-content"] :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { min-height: 2.75rem; font-size: 1rem; }
+  .admin-shell [data-slot="dialog-content"] :where(button:not([data-slot="checkbox"]):not([data-slot="radio-group-item"]):not([data-slot="switch"])),
+  .admin-shell [data-slot="sheet-content"] :where(a, button:not([data-slot="checkbox"]):not([data-slot="radio-group-item"]):not([data-slot="switch"])),
+  .admin-shell [data-slot="dialog-content"] [data-slot="dialog-close"] { min-height: 2.75rem; }
+  .admin-shell [data-slot="dialog-content"] [data-slot="dialog-close"] { min-width: 2.75rem; }
+  .admin-shell [data-slot="dialog-content"] a:not([data-slot="dialog-close"]) { min-height: 2.75rem; display: inline-flex; align-items: center; }
+  .admin-shell :where([data-slot="select-item"], [data-slot="dropdown-menu-item"], [data-slot="command-item"]) { min-height: 2.75rem; font-size: 1rem; }
+  .admin-shell .admin-bottom-nav { padding-left: max(0px, env(safe-area-inset-left)); padding-right: max(0px, env(safe-area-inset-right)); }
+}
+
+@media (min-width: 1280px) { .admin-shell .admin-main { padding-top: 1.75rem; } }
+
+.admin-login-page { min-height: 100dvh; overflow-x: hidden; background-color: var(--bg-canvas); }
+.admin-login-stage { min-height: 100dvh; width: 100%; }
+.admin-login-brand { padding: max(3.5rem, env(safe-area-inset-top)) max(3.5rem, env(safe-area-inset-right)) max(3.5rem, env(safe-area-inset-bottom)) max(3.5rem, env(safe-area-inset-left)); }
+.admin-login-form-wrapper { padding: max(3rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(3rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
+.admin-login-card :where(input, select, textarea, button) { min-height: 44px; }
+.admin-login-card :where(button) { min-width: 44px; }
+.admin-login-card :where(input, select, textarea) { font-size: 1rem; line-height: 1.5rem; }
+
+@media (min-width: 1024px) { .admin-login-stage { display: grid; grid-template-columns: minmax(400px, 1fr) minmax(400px, 1fr); } }
+@media (min-width: 1280px) { .admin-login-stage { grid-template-columns: minmax(480px, 1.25fr) minmax(480px, 1fr); } }
+@media (max-width: 1023px) { .admin-login-form-wrapper { min-height: 100dvh; } }
+@media (max-height: 640px) and (max-width: 1023px) {
+  .admin-login-form-wrapper { padding-top: max(1.5rem, env(safe-area-inset-top)); padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
+  .admin-login-card { margin-top: 0; margin-bottom: 0; }
+}

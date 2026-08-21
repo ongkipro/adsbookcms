@@ -243,15 +243,47 @@ Executed inside `MetaThanksTracker.astro` after order verification. The same raw
 | Meta `ph` / `external_id` | E.164 **digits only** | `6281234567890` |
 | Google `sha256_phone_number` | E.164 **including the leading `+`** | `+6281234567890` |
 
-Never share one hash between the two. Normalization: strip all non-digits, then replace a leading `0` with `62`.
+Never share one hash between the two.
 
-Google `user_data` fields sent:
+Phone normalization is **one implementation**, `src/lib/meta-identity.ts`:
+strip every non-digit, drop a `00` international prefix, then map `620…`, `0…`
+and a bare `8…` onto `62…`, and reject anything outside 8–15 digits. The server
+CAPI leg imports it, `form-hybrid.ts` and `form-middle.ts` import it, and the
+inline thanks tracker carries a copy that `meta-identity.test.ts` fails on if it
+drifts. Until 2026-08-19 the two hosted forms hashed the raw `08…` digits and
+the thanks tracker converted only a leading zero, so `8…` and `+62…` input
+produced a browser hash the server leg never produced — two people, one buyer,
+and a hash that looks correct either way.
 
-- `sha256_phone_number` — SHA-256 of `` `+${normalizedPhone}` ``;
-- `sha256_first_name` — SHA-256 of the first whitespace-delimited token of the name;
-- `sha256_last_name` — SHA-256 of the remaining tokens joined by a space.
+The two platforms also normalize **names** differently, so they do not share a
+value:
 
-Names are trimmed, lowercased and split before hashing (`MetaThanksTracker.astro:41`), which is what Meta's normalization requires. Email is not part of the browser Enhanced Conversions payload today.
+| Consumer | Rule | `Siti Nur Aisyah` becomes |
+| --- | --- | --- |
+| Meta `fn` / `ln` | lowercase, strip every non-alphanumeric | `siti` / `nuraisyah` |
+| Google `sha256_first_name` / `sha256_last_name` | trim and lowercase only | `siti` / `nur aisyah` |
+
+Google `user_data` fields sent, in the shape gtag actually reads:
+
+```js
+user_data: {
+  sha256_phone_number,          // SHA-256 of `+62…`
+  address: {
+    sha256_first_name,
+    sha256_last_name,
+    city, region, postal_code,  // unhashed
+    country: 'id',
+  },
+}
+```
+
+The name hashes sit inside `address` because that is where gtag looks for them;
+sent at the top level, as they were until 2026-08-19, they are ignored and match
+nobody. Google treats first name, last name, postal code and country as one
+address match key, so the unhashed fields travel with them. Email is not part of
+the browser Enhanced Conversions payload today: the only address the funnel holds
+for a non-COD order is synthesized from the phone number, and a synthetic address
+cannot match a Google account.
 
 ### Consent Mode v2 — region-scoped, two calls
 

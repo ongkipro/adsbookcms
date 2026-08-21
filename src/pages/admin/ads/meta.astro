@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+import { META_GRAPH_API_VERSION } from '../../../lib/meta-capi';
 export const prerender = false;
 
 // Same defect as the Google page: these instructions named the reference
@@ -275,7 +276,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
     <!-- TAB 4: SIGNAL & PAYLOAD INSPECTOR -->
     <div id="tabSpecs" class="tab-content hidden space-y-6">
       <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 class="text-sm font-black text-slate-900">Struktur Payload Meta Conversions API (CAPI v20.0)</h3>
+        <h3 class="text-sm font-black text-slate-900">Struktur Payload Meta Conversions API (CAPI {META_GRAPH_API_VERSION})</h3>
         <p class="mt-1 text-xs text-slate-500">Contoh data server-authoritative Purchase event yang dikirimkan oleh {storeName} ke <code>graph.facebook.com</code>:</p>
 
         <div class="mt-4 overflow-x-auto rounded-lg bg-slate-900 p-4 font-mono text-xs text-emerald-400">
@@ -396,9 +397,10 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
 
       try {
         const res = await fetch('/api/admin/ads', {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            action: 'save-meta',
             meta_pixel_id: pixelInput.value.trim(),
             meta_capi_token: tokenInput.value.trim() || undefined,
           }),
@@ -425,10 +427,15 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
       testButton.textContent = 'Mengirim...';
 
       try {
-        const res = await fetch('/api/admin/ads/test-meta', {
-          method: 'POST',
+        const res = await fetch('/api/admin/ads', {
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ test_code: code }),
+          body: JSON.stringify({
+            action: 'test-capi',
+            meta_pixel_id: pixelInput.value.trim(),
+            meta_capi_token: tokenInput.value.trim() || undefined,
+            meta_test_event_code: code,
+          }),
         });
         const payload = await res.json().catch(() => ({}));
         if (!res.ok || !payload.success) throw new Error(payload.error || 'Test event ditolak oleh Meta API.');

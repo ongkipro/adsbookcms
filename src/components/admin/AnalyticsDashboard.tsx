@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "../ui/card";
 import { Button } from "../ui/button";
+import { Skeleton } from "../ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../ui/chart';
 import {
   Select,
@@ -26,7 +27,8 @@ import {
 import {
   BadgeDollarSign,
   CalendarDays,
-  MousePointerClick,
+  CircleCheckBig,
+  CreditCard,
   PackageCheck,
   RefreshCw,
   RotateCcw,
@@ -48,10 +50,31 @@ type AnalyticsData = {
   cod_percentage: number;
   transfer_percentage: number;
   qris_percentage: number;
+  payment_methods: {
+    total: number;
+    cod: PaymentMethodBucket;
+    manual_transfer: PaymentMethodBucket;
+    virtual_account: PaymentMethodBucket;
+    qris: PaymentMethodBucket;
+    unknown_count: number;
+  };
+  period: {
+    start_date: string | null;
+    end_date: string | null;
+    timezone: string;
+    basis: string;
+    interval: "hour" | "day";
+  };
   trends: Array<{ date: string; revenue: number; orders: number }>;
 };
 
-const currency = (value: number) => `IDR ${value.toLocaleString("id-ID")}`;
+type PaymentMethodBucket = { count: number; percentage: number };
+
+const currency = new Intl.NumberFormat("id-ID", {
+  style: "currency",
+  currency: "IDR",
+  maximumFractionDigits: 0,
+}).format;
 const percentage = (value: number) =>
   `${value.toLocaleString("id-ID", { maximumFractionDigits: 1 })}%`;
 
@@ -64,18 +87,15 @@ function LoadingState() {
     >
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div
-            key={index}
-            className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-white p-4"
-          />
+          <Skeleton key={index} className="h-32 rounded-2xl" />
         ))}
       </div>
-      <div className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+      <Skeleton className="h-72 rounded-2xl" />
     </div>
   );
 }
 
-export function AnalyticsDashboard() {
+export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsLink?: boolean }) {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -83,9 +103,10 @@ export function AnalyticsDashboard() {
   const [dateFilter, setDateFilter] = useState("7d");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const requestSequence = useRef(0);
   const today = formatJakartaDate(new Date());
   const customEndMax = customStart
-    ? [shiftAdminDate(customStart, 180), today].sort()[0]
+    ? [shiftAdminDate(customStart, 30), today].sort()[0]
     : today;
 
   const loadAnalytics = useCallback(
@@ -94,6 +115,7 @@ export function AnalyticsDashboard() {
       showLoading = false,
       customRange?: { start: string; end: string },
     ) => {
+      const sequence = ++requestSequence.current;
       if (showLoading) setLoading(true);
       else setRefreshing(true);
       setError("");
@@ -127,7 +149,16 @@ export function AnalyticsDashboard() {
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success)
           throw new Error(payload.error || "Ringkasan analitik gagal dimuat.");
+        if (sequence !== requestSequence.current) return;
         const source = payload.data ?? {};
+        const sourcePayments = source.payment_methods ?? {};
+        const bucket = (value: unknown): PaymentMethodBucket => {
+          const item = value && typeof value === "object" ? value as Record<string, unknown> : {};
+          return {
+            count: Number(item.count) || 0,
+            percentage: Number(item.percentage) || 0,
+          };
+        };
         setData({
           total_revenue: Number(source.total_revenue) || 0,
           total_orders: Number(source.total_orders) || 0,
@@ -136,15 +167,32 @@ export function AnalyticsDashboard() {
           cod_percentage: Number(source.cod_percentage) || 0,
           transfer_percentage: Number(source.transfer_percentage) || 0,
           qris_percentage: Number(source.qris_percentage) || 0,
+          payment_methods: {
+            total: Number(sourcePayments.total) || 0,
+            cod: bucket(sourcePayments.cod),
+            manual_transfer: bucket(sourcePayments.manual_transfer),
+            virtual_account: bucket(sourcePayments.virtual_account),
+            qris: bucket(sourcePayments.qris),
+            unknown_count: Number(sourcePayments.unknown_count) || 0,
+          },
+          period: {
+            start_date: typeof source.period?.start_date === "string" ? source.period.start_date : null,
+            end_date: typeof source.period?.end_date === "string" ? source.period.end_date : null,
+            timezone: String(source.period?.timezone || "Asia/Jakarta"),
+            basis: String(source.period?.basis || "order_created_at"),
+            interval: source.period?.interval === "hour" ? "hour" : "day",
+          },
           trends: Array.isArray(source.trends) ? source.trends : [],
         });
       } catch (reason) {
+        if (sequence !== requestSequence.current) return;
         setError(
           reason instanceof Error
             ? reason.message
             : "Ringkasan analitik gagal dimuat.",
         );
       } finally {
+        if (sequence !== requestSequence.current) return;
         if (showLoading) setLoading(false);
         else setRefreshing(false);
       }
@@ -185,7 +233,7 @@ export function AnalyticsDashboard() {
       note: "Pendapatan pada periode aktif",
       icon: BadgeDollarSign,
       tone: "text-emerald-700",
-      iconTone: "bg-emerald-50 text-emerald-700",
+      iconTone: "bg-blue-50 text-blue-700",
     },
     {
       label: "Pesanan",
@@ -196,12 +244,12 @@ export function AnalyticsDashboard() {
       iconTone: "bg-blue-50 text-blue-700",
     },
     {
-      label: "Konversi Ads",
+      label: "Pembayaran berhasil",
       value: percentage(data.conversion_rate),
-      note: "Pixel & CAPI ter-dedup",
-      icon: MousePointerClick,
+      note: "Order dengan status pembayaran berhasil",
+      icon: CircleCheckBig,
       tone: "text-slate-950",
-      iconTone: "bg-violet-50 text-violet-700",
+      iconTone: "bg-blue-50 text-blue-700",
     },
     {
       label: "Return to Sender",
@@ -212,43 +260,59 @@ export function AnalyticsDashboard() {
       iconTone:
         data.rts_rate > 10
           ? "bg-rose-50 text-rose-700"
-          : "bg-amber-50 text-amber-700",
+          : "bg-slate-100 text-slate-600",
     },
   ];
 
   const payments = [
     {
       name: "COD",
-      value: data.cod_percentage,
-      bar: "bg-emerald-600",
-      countLabel: "Bayar saat barang diterima",
+      ...data.payment_methods.cod,
+      bar: "bg-blue-600",
+      detail: "Bayar saat barang diterima",
     },
     {
-      name: "Transfer Bank",
-      value: data.transfer_percentage,
-      bar: "bg-blue-600",
-      countLabel: "Virtual Account AutoLaris",
+      name: "Transfer bank manual",
+      ...data.payment_methods.manual_transfer,
+      bar: "bg-emerald-600",
+      detail: "Langsung ke rekening seller · tanpa rekonsiliasi AutoLaris",
+    },
+    {
+      name: "Virtual Account",
+      ...data.payment_methods.virtual_account,
+      bar: "bg-violet-600",
+      detail: "Pembayaran dan rekonsiliasi AutoLaris",
     },
     {
       name: "QRIS",
-      value: data.qris_percentage,
-      bar: "bg-violet-600",
-      countLabel: "QR dan e-wallet",
+      ...data.payment_methods.qris,
+      bar: "bg-slate-500",
+      detail: "Pembayaran dan rekonsiliasi AutoLaris",
     },
   ];
+
+  const customRangeValid = Boolean(
+    customStart &&
+    customEnd &&
+    customStart <= customEnd &&
+    customEnd <= customEndMax,
+  );
+  const periodLabel = data.period.start_date && data.period.end_date
+    ? `${data.period.start_date.split("-").reverse().join("/")}–${data.period.end_date.split("-").reverse().join("/")} · WIB`
+    : "Semua pesanan checkout · WIB";
 
 
   return (
     <div className="space-y-4 md:space-y-5">
-      <section className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-4">
+      <section className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
         <div className="flex items-center gap-2.5">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
             <CalendarDays className="size-[18px]" aria-hidden="true" />
           </span>
           <div>
-            <p className="text-xs font-bold text-slate-900">Periode laporan</p>
+            <p className="text-xs font-medium text-slate-900">Periode laporan</p>
             <p className="text-[11px] text-slate-500">
-              Semua metrik mengikuti periode ini; default seluruh riwayat.
+              Semua metrik mengikuti periode ini; default 7 hari terakhir (WIB).
             </p>
           </div>
         </div>
@@ -266,7 +330,7 @@ export function AnalyticsDashboard() {
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {ADMIN_DATE_FILTER_OPTIONS.map((option) => (
+              {ADMIN_DATE_FILTER_OPTIONS.filter((option) => option.value !== "90d" && option.value !== "180d").map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -286,7 +350,7 @@ export function AnalyticsDashboard() {
                   : undefined,
               )
             }
-            disabled={refreshing}
+            disabled={refreshing || (dateFilter === "custom" && !customRangeValid)}
             aria-label="Perbarui data dashboard"
             aria-busy={refreshing}
             className="size-11 shrink-0 border border-slate-200 bg-white shadow-none"
@@ -300,7 +364,7 @@ export function AnalyticsDashboard() {
       </section>
 
       {dateFilter === "custom" && (
-        <section className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <section className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="grid-cols-1 grid gap-1.5">
             <span className="text-xs font-bold text-slate-700">
               Tanggal mulai
@@ -334,10 +398,7 @@ export function AnalyticsDashboard() {
               })
             }
             disabled={
-              !customStart ||
-              !customEnd ||
-              customStart > customEnd ||
-              customEnd > customEndMax ||
+              !customRangeValid ||
               loading ||
               refreshing
             }
@@ -357,26 +418,26 @@ export function AnalyticsDashboard() {
           className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800"
           role="alert"
         >
-          {error}
+          {error}{data ? " Data periode terakhir yang berhasil dimuat tetap ditampilkan." : ""}
         </div>
       )}
 
       <section
-        className="grid grid-cols-2 gap-3 xl:grid-cols-4"
+        className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4"
         aria-label="Ringkasan performa toko"
       >
         {metrics.map((metric) => (
-          <Card key={metric.label} className="overflow-hidden border-slate-200 shadow-sm">
+          <Card key={metric.label} className="overflow-hidden border-slate-200 shadow-none">
             <CardContent className="p-3.5 sm:p-5">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 sm:text-[11px]">
+                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-slate-500 sm:text-[11px]">
                   {metric.label}
                 </p>
                 <span className={`hidden size-8 shrink-0 place-items-center rounded-xl sm:grid ${metric.iconTone}`}>
                   <metric.icon className="size-4" aria-hidden="true" />
                 </span>
               </div>
-              <p className={`mt-3 truncate text-xl font-extrabold tracking-[-0.035em] sm:text-2xl ${metric.tone}`}>
+              <p className={`mt-3 text-lg font-semibold tabular-nums tracking-[-0.035em] sm:text-2xl ${metric.tone}`}>
                 {metric.value}
               </p>
               <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-slate-500 sm:text-[11px]">
@@ -388,9 +449,9 @@ export function AnalyticsDashboard() {
       </section>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.75fr)]">
-        <Card aria-labelledby="trend-heading" className="min-w-0 border-slate-200 shadow-sm">
+        <Card aria-labelledby="trend-heading" className="min-w-0 border-slate-200 shadow-none">
           <CardHeader className="border-b border-slate-100 pb-4">
-            <CardTitle as="h3" id="trend-heading" className="text-sm font-bold text-slate-950 md:text-base">
+            <CardTitle as="h3" id="trend-heading" className="text-sm font-semibold text-slate-950 md:text-base">
               Tren omset
             </CardTitle>
             <CardDescription className="text-xs">
@@ -402,7 +463,7 @@ export function AnalyticsDashboard() {
               <div className="grid h-[280px] place-items-center rounded-xl bg-slate-50 text-center">
                 <div>
                   <PackageCheck className="mx-auto size-6 text-slate-300" aria-hidden="true" />
-                  <p className="mt-2 text-sm font-bold text-slate-700">
+                  <p className="mt-2 text-sm font-medium text-slate-700">
                     Belum ada data periode ini
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
@@ -411,7 +472,7 @@ export function AnalyticsDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="h-[280px] w-full">
+              <div className="h-[240px] w-full sm:h-[280px]">
                 <ChartContainer
                   config={{
                     revenue: {
@@ -435,8 +496,8 @@ export function AnalyticsDashboard() {
                         tickFormatter={(value) => {
                           if (value.includes(":"))
                             return value.split(" ")[1].substring(0, 5);
-                          const date = new Date(value);
-                          return `${date.getDate()}/${date.getMonth() + 1}`;
+                          const [year, month, day] = String(value).slice(0, 10).split("-");
+                          return year && month && day ? `${Number(day)}/${Number(month)}` : value;
                         }}
                         tickLine={false}
                         axisLine={false}
@@ -469,45 +530,57 @@ export function AnalyticsDashboard() {
           </CardContent>
         </Card>
 
-        <Card aria-labelledby="payment-mix-heading" className="border-slate-200 shadow-sm">
+        <Card aria-labelledby="payment-mix-heading" className="border-slate-200 shadow-none">
           <CardHeader className="border-b border-slate-100 pb-4">
-            <CardTitle as="h3" id="payment-mix-heading" className="text-sm font-bold text-slate-950 md:text-base">
+            <CardTitle as="h3" id="payment-mix-heading" className="text-sm font-semibold text-slate-950 md:text-base">
               Metode pembayaran
             </CardTitle>
             <CardDescription className="text-xs">
-              Komposisi transaksi pada periode aktif.
+              Pesanan dibuat, {periodLabel}.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5 p-5">
-            {payments.map((item) => (
+            {data.payment_methods.total === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center">
+                <CreditCard className="mx-auto size-5 text-slate-400" aria-hidden="true" />
+                <p className="mt-2 text-xs font-semibold text-slate-800">Belum ada pesanan selesai checkout pada periode ini.</p>
+              </div>
+            ) : payments.map((item) => (
               <div key={item.name}>
                 <div className="flex items-end justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-xs font-bold text-slate-800">
+                    <p className="truncate text-xs font-medium text-slate-800">
                       {item.name}
                     </p>
-                    <p className="mt-0.5 truncate text-[10px] text-slate-500">
-                      {item.countLabel}
+                    <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                      {item.detail}
                     </p>
                   </div>
-                  <span className="shrink-0 text-sm font-extrabold text-slate-950">
-                    {percentage(item.value)}
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-950">
+                    {item.count.toLocaleString("id-ID")} pesanan · {percentage(item.percentage)}
                   </span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
                   <div
                     className={`h-full rounded-full ${item.bar}`}
                     style={{
-                      width: `${Math.max(0, Math.min(100, item.value))}%`,
+                      width: `${Math.max(0, Math.min(100, item.percentage))}%`,
                     }}
                     aria-hidden="true"
                   />
                 </div>
               </div>
             ))}
-            <a href="/admin/payments" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-50">
-              Kelola payment
-            </a>
+            {data.payment_methods.unknown_count > 0 && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">
+                {data.payment_methods.unknown_count.toLocaleString("id-ID")} pesanan memakai metode pembayaran legacy yang belum dipetakan.
+              </p>
+            )}
+            {showPaymentsLink && (
+              <a href="/admin/payments" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                Kelola payment
+              </a>
+            )}
           </CardContent>
         </Card>
       </div>

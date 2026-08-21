@@ -1,7 +1,11 @@
 import type { APIRoute } from 'astro';
 import { jsonError, jsonOk } from '../../../lib/api';
-import { getRuntimeEnv } from '../../../lib/env';
+import { getEnvValue, getRuntimeEnv } from '../../../lib/env';
 import { collectOperationalHealth } from '../../../lib/operational-health';
+import {
+  alertsFromOperationalHealth,
+  evaluateOperationalAlerts,
+} from '../../../lib/operational-alerts';
 
 export const prerender = false;
 
@@ -22,7 +26,16 @@ export const GET: APIRoute = async ({ locals }) => {
   }
 
   try {
-    return jsonOk({ health: await collectOperationalHealth(database, locals) });
+    const health = await collectOperationalHealth(database, locals);
+    const runtime = getRuntimeEnv(locals);
+    const alerts = await evaluateOperationalAlerts(
+      alertsFromOperationalHealth(health),
+      {
+        store: runtime?.SESSION as KVNamespace | undefined,
+        webhookUrl: getEnvValue('OPS_ALERT_WEBHOOK_URL', runtime),
+      },
+    );
+    return jsonOk({ health, alerts });
   } catch (error) {
     console.error('admin-health-get', error);
     return jsonError('Gagal membaca status operasional.', 502);

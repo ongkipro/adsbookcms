@@ -3,9 +3,11 @@ import test from "node:test";
 import {
   extractMengantarPickupAddressId,
   getActualMengantarRatePrice,
+  mapMengantarStatusEvidence,
   MengantarClient,
   redactMengantarApiKey,
   selectMengantarPickupAddress,
+  selectProviderShippingAdvance,
 } from "./mengantar-client.ts";
 
 test("uses the public courier price instead of Mengantar's discounted price", () => {
@@ -133,4 +135,111 @@ test("injects x-client-source header and calls payUnpaidOrder API", async () => 
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("looks up one Mengantar order using the documented tracking_id query", async () => {
+  const originalFetch = globalThis.fetch;
+  let capturedUrl = "";
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    capturedUrl = String(input);
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: [
+          {
+            ORDER_ID: "MGT-100",
+            cnote_no: "JNE/100 20",
+            status: "{\"CREATED\":true}",
+            history: [
+              {
+                date: "17-08-2026 09:00 Asia/Jakarta",
+                desc: "Order created",
+              },
+            ],
+          },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  }) as typeof fetch;
+
+  try {
+    const client = new MengantarClient("test-key", "https://provider.invalid");
+    const tracking = await client.getOrderByTrackingId(" JNE/100 20 ");
+    assert.equal(tracking.ORDER_ID, "MGT-100");
+    assert.equal(tracking.history?.[0]?.desc, "Order created");
+    assert.equal(
+      capturedUrl,
+      "https://provider.invalid/api/public/test-key/order?tracking_id=JNE%2F100+20",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("maps Mengantar status flags while preserving latest raw history", () => {
+  const cases = [
+    {
+      tracking: {
+        status: "{\"CREATED\":true}",
+        history: [{ date: "17-08-2026 08:00 Asia/Jakarta", desc: "Order created" }],
+      },
+      expected: "processing",
+    },
+    {
+      tracking: {
+        status: "{\"PICKED_UP\":true}",
+        history: [
+          {
+            date: "17-08-2026 09:00 Asia/Jakarta",
+            desc: "Paket telah dijemput kurir",
+          },
+          {
+            date: "17-08-2026 08:00 Asia/Jakarta",
+            desc: "Order created",
+          },
+        ],
+      },
+      expected: "shipped",
+    },
+    {
+      tracking: {
+        status: "{\"DELIVERED_COMPLETE\":true}",
+        history: [{ date: "17-08-2026 10:00 Asia/Jakarta", desc: "Delivered" }],
+      },
+      expected: "delivered",
+    },
+    {
+      tracking: {
+        status: "{\"RTS\":true}",
+        history: [{ date: "17-08-2026 10:00 Asia/Jakarta", desc: "Return to sender" }],
+      },
+      expected: "returned",
+    },
+    {
+      tracking: {
+        status: "{\"DELIVERED_PENDING\":true}",
+        history: [{ date: "17-08-2026 10:00 Asia/Jakarta", desc: "Need attention" }],
+      },
+      expected: "processing",
+    },
+  ] as const;
+
+  for (const { tracking, expected } of cases) {
+    assert.equal(mapMengantarStatusEvidence(tracking).shippingStatus, expected);
+  }
+  assert.deepEqual(mapMengantarStatusEvidence(cases[1].tracking), {
+    shippingStatus: "shipped",
+    description: "Paket telah dijemput kurir",
+    occurredAt: "2026-08-17T02:00:00.000Z",
+  });
+});
+
+test("selects only monotonic provider lifecycle advances", () => {
+  assert.equal(selectProviderShippingAdvance("pending", "processing"), "processing");
+  assert.equal(selectProviderShippingAdvance("processing", "shipped"), "shipped");
+  assert.equal(selectProviderShippingAdvance("shipped", "processing"), null);
+  assert.equal(selectProviderShippingAdvance("delivered", "returned"), null);
+  assert.equal(selectProviderShippingAdvance("returned", "delivered"), null);
+  assert.equal(selectProviderShippingAdvance("cancelled", "delivered"), null);
 });

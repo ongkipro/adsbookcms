@@ -2,6 +2,10 @@
 /// <reference types="@astrojs/cloudflare" />
 type KVNamespace = import("@cloudflare/workers-types/index.ts").KVNamespace;
 type D1Database = import("@cloudflare/workers-types/index.ts").D1Database;
+type D1PreparedStatement =
+  import("@cloudflare/workers-types/index.ts").D1PreparedStatement;
+type D1Result<T = unknown> =
+  import("@cloudflare/workers-types/index.ts").D1Result<T>;
 type R2Bucket = import("@cloudflare/workers-types/index.ts").R2Bucket;
 type Ai = import("@cloudflare/workers-types/index.ts").Ai;
 
@@ -20,12 +24,14 @@ interface SharedEnvVars {
   PUBLIC_HEADLESS_ALLOWED_ORIGINS?: string;
   MENGANTAR_API_KEY?: string;
   AUTH_SECRET?: string;
+  INSTALL_TOKEN?: string;
+  /** Optional per-install HTTPS endpoint for redacted operational alerts. */
+  OPS_ALERT_WEBHOOK_URL?: string;
   BOOTSTRAP_ADMIN_PASSWORD?: string;
   MENGANTAR_ORIGIN_AREA_ID?: string;
   MENGANTAR_PICKUP_ADDRESS_ID?: string;
   AUTOLARIS_API_KEY?: string;
   AUTOLARIS_BASE_URL?: string;
-  AUTOLARIS_WEBHOOK_SECRET?: string;
   META_PIXEL_ID?: string;
   META_CAPI_ACCESS_TOKEN?: string;
   META_CAPI_TOKEN?: string;
@@ -67,6 +73,7 @@ declare namespace App {
     admin?: {
       username: string;
       role: import("./lib/auth").AdminRole;
+      mustChangePassword: boolean;
     };
   }
 }

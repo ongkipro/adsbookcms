@@ -445,7 +445,12 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
   transaction_id: 'ORD-2026-88192',
   user_data: &#123;
     sha256_phone_number: '...',
-    sha256_first_name: '...'
+    address: &#123;
+      sha256_first_name: '...',
+      sha256_last_name: '...',
+      postal_code: '40114',
+      country: 'id'
+    &#125;
   &#125;
 &#125;);</code></pre>
           </div>

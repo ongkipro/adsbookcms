@@ -14,6 +14,97 @@ const LEGACY_API_KEY_PREFIXES = ["cmsads_live_"];
 const API_KEY_RANDOM_BYTES = 32;
 const API_KEY_HASH_LENGTH = 64;
 
+export const HEADLESS_API_SCOPES = [
+  "storefront:read",
+  "catalog:read",
+  "shipping:read",
+  "checkout:write",
+  "orders:read",
+  "tracking:write",
+] as const;
+
+export type HeadlessApiScope = (typeof HEADLESS_API_SCOPES)[number];
+
+export const DEFAULT_HEADLESS_API_SCOPES: readonly HeadlessApiScope[] = HEADLESS_API_SCOPES;
+export const DEFAULT_API_KEY_RATE_LIMIT = 120;
+export const DEFAULT_API_KEY_DAILY_QUOTA = 10_000;
+export const MIN_API_KEY_RATE_LIMIT = 1;
+export const MAX_API_KEY_RATE_LIMIT = 600;
+export const MIN_API_KEY_DAILY_QUOTA = 1;
+export const MAX_API_KEY_DAILY_QUOTA = 100_000;
+const HEADLESS_API_SCOPE_SET: Record<HeadlessApiScope, true> = {
+  "storefront:read": true,
+  "catalog:read": true,
+  "shipping:read": true,
+  "checkout:write": true,
+  "orders:read": true,
+  "tracking:write": true,
+};
+
+export type DeveloperApiKeyPolicy = {
+  scopes: HeadlessApiScope[];
+  rateLimitPerMinute: number;
+  dailyQuota: number;
+};
+
+function parseIntegerWithin(value: unknown, minimum: number, maximum: number): number | null {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null;
+}
+
+export function parseStoredApiKeyScopes(value: unknown): HeadlessApiScope[] {
+  if (value === null || value === undefined || value === "") {
+    return [...DEFAULT_HEADLESS_API_SCOPES];
+  }
+  const candidates = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(",")
+      : [];
+  const scopes = candidates
+    .map((scope) => (typeof scope === "string" ? scope.trim() : ""))
+    .filter((scope): scope is HeadlessApiScope => scope in HEADLESS_API_SCOPE_SET);
+  if (scopes.length !== candidates.length) return [];
+  return [...new Set(scopes)];
+}
+
+export function normalizeApiKeyPolicy(input: {
+  scopes?: unknown;
+  rate_limit_per_minute?: unknown;
+  daily_quota?: unknown;
+}): { valid: true; policy: DeveloperApiKeyPolicy } | { valid: false; error: string } {
+  const scopes = parseStoredApiKeyScopes(input.scopes);
+  if (scopes.length === 0) {
+    return { valid: false, error: "Pilih minimal satu scope API yang valid." };
+  }
+  const rateLimitPerMinute = parseIntegerWithin(
+    input.rate_limit_per_minute ?? DEFAULT_API_KEY_RATE_LIMIT,
+    MIN_API_KEY_RATE_LIMIT,
+    MAX_API_KEY_RATE_LIMIT,
+  );
+  if (rateLimitPerMinute === null) {
+    return {
+      valid: false,
+      error: `Batas request per menit harus ${MIN_API_KEY_RATE_LIMIT}–${MAX_API_KEY_RATE_LIMIT}.`,
+    };
+  }
+  const dailyQuota = parseIntegerWithin(
+    input.daily_quota ?? DEFAULT_API_KEY_DAILY_QUOTA,
+    MIN_API_KEY_DAILY_QUOTA,
+    MAX_API_KEY_DAILY_QUOTA,
+  );
+  if (dailyQuota === null) {
+    return {
+      valid: false,
+      error: `Kuota harian harus ${MIN_API_KEY_DAILY_QUOTA}–${MAX_API_KEY_DAILY_QUOTA}.`,
+    };
+  }
+  return {
+    valid: true,
+    policy: { scopes, rateLimitPerMinute, dailyQuota },
+  };
+}
+
 function encodeBase64Url(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);

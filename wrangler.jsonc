@@ -19,14 +19,36 @@
   // Globally unique within the Cloudflare account. Placeholder values below are
   // syntactically valid so tooling runs on a fresh clone — they are NOT a target.
   "name": "adsbookcms-your-store",
+  "main": "./src/worker.ts",
+
 
   "compatibility_date": "2026-08-01",
   "compatibility_flags": [
     "nodejs_compat"
   ],
 
+  // Runtime credentials cannot safely degrade to placeholders. Declaring the
+  // required names lets Wrangler load only these secrets from process.env in
+  // local development and validate that every deployed Worker defines them.
+  "secrets": {
+    "required": [
+      "AUTH_SECRET",
+      "INSTALL_TOKEN",
+      "MENGANTAR_API_KEY",
+      "MENGANTAR_ORIGIN_AREA_ID",
+      "MENGANTAR_PICKUP_ADDRESS_ID",
+      "AUTOLARIS_API_KEY"
+    ]
+  },
+
   // Keep false so an install never gets an unreviewed *.workers.dev endpoint.
   "workers_dev": false,
+  // Hourly evaluation catches a stalled conversion outbox even when no operator
+  // opens the dashboard. Alert transitions are deduplicated in the install's KV.
+  "triggers": {
+    "crons": ["7 * * * *"]
+  },
+
 
   "assets": {
     "binding": "ASSETS"
@@ -101,7 +123,8 @@
     // Drives <html lang> and the Open Graph locale.
     "PUBLIC_SITE_LOCALE": "id-ID",
 
-    // compact-market | wide-catalog. An unknown value makes every route 500.
+    // compact-market. wide-catalog was retired in ADR-018 and migration 0044;
+    // an unknown value takes the home page to its unavailable state (503).
     "PUBLIC_STOREFRONT_TEMPLATE": "compact-market",
 
     // Provinces excluded from cash on delivery, comma separated, lowercase.

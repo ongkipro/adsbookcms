@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { handleOptions, headlessError, headlessOk, validateHeadlessRequest } from '../../../../lib/headless-api';
 import { getStorefrontProducts } from '../../../../lib/catalog';
-import { catalogItemGroupId, catalogItemId } from "../../../../lib/catalog-feed";
+import { catalogProductId } from "../../../../lib/catalog-feed";
 
 export const prerender = false;
 
@@ -13,8 +13,8 @@ const CLIENT_CACHE_CONTROL = 'private, max-age=60, stale-while-revalidate=600';
 export const OPTIONS = handleOptions;
 
 export const GET: APIRoute = async ({ request, locals }) => {
-  const validation = await validateHeadlessRequest(request, locals);
-  if (!validation.allowed && validation.errorResponse) {
+  const validation = await validateHeadlessRequest(request, locals, { operation: 'catalogList' });
+  if (!validation.allowed) {
     return validation.errorResponse;
   }
 
@@ -43,7 +43,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
     const total = products.length;
     const paginated = products.slice(offset, offset + limit);
 
-    return headlessOk(
+    return validation.finalize(headlessOk(
       {
         total,
         limit,
@@ -51,7 +51,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
         has_more: offset + limit < total,
         products: paginated.map((product) => ({
           id: product.catalogId,
-          content_id: catalogItemGroupId(product.productId),
+          content_id: catalogProductId(product.productId),
           slug: product.slug,
           name: product.productName,
           category: product.category,
@@ -66,7 +66,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
           sold_count: product.soldCount,
           variants: product.variants.map((v) => ({
             id: v.catalogId,
-            content_id: catalogItemId(product.productId, v.id),
+            content_id: catalogProductId(product.productId),
             label: v.label,
             price: v.price,
             compare_price: v.comparePrice ?? v.price,
@@ -83,11 +83,11 @@ export const GET: APIRoute = async ({ request, locals }) => {
         ...validation.corsHeaders,
         'cache-control': CLIENT_CACHE_CONTROL,
       }
-    );
+    ));
   } catch (error) {
-    return headlessError('Gagal memuat katalog produk.', 500, {
+    return validation.finalize(headlessError('Gagal memuat katalog produk.', 500, {
       code: 'PRODUCTS_LOAD_ERROR',
       details: error instanceof Error ? error.message : String(error),
-    }, validation.corsHeaders);
+    }, validation.corsHeaders));
   }
 };

@@ -2,6 +2,15 @@
 export const SESSION_COOKIE_NAME = 'adsbook_session';
 const JWT_ALGORITHM = { name: 'HMAC', hash: 'SHA-256' } as const;
 
+/**
+ * Cookie security follows the transport the browser is actually using.
+ * `wrangler dev` serves a production build over plain HTTP, so build mode is
+ * not a transport signal and would make the browser discard the session.
+ */
+export function shouldSecureSessionCookie(url: URL) {
+  return url.protocol === 'https:';
+}
+
 export const ADMIN_ROLES = [
   'owner',
   'admin',
@@ -40,6 +49,7 @@ const ADMIN_PAGE_ROUTES = [
 
 const ADMIN_API_ROUTES = [
   '/api/admin/analytics',
+  '/api/admin/abandoned-orders',
   '/api/admin/health',
   '/api/admin/orders',
   '/api/admin/products',
@@ -55,6 +65,7 @@ const ADMIN_API_ROUTES = [
   '/api/admin/media',
   '/api/admin/upload-r2',
   '/api/admin/seller-bank-accounts',
+  '/api/admin/payment-reconciliation',
   '/api/admin/profile',
   '/api/admin/logout',
 ] as const;
@@ -91,6 +102,7 @@ const ROLE_API_ROUTES: Record<Exclude<AdminRole, 'owner' | 'admin'>, readonly st
   ],
   customer_service: [
     '/api/admin/analytics',
+    '/api/admin/abandoned-orders',
     '/api/admin/orders',
     '/api/admin/shipping',
     '/api/admin/check',

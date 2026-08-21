@@ -1,0 +1,70 @@
+---
+import {
+  buildBreadcrumbJsonLd,
+  buildFaqJsonLd,
+  buildItemListJsonLd,
+  buildProductJsonLd,
+  buildStorefrontJsonLd,
+  type BreadcrumbJsonLdInput,
+  type FaqJsonLdInput,
+  type ItemListItemInput,
+  type OrganizationJsonLdInput,
+  type ProductJsonLdInput,
+  type WebsiteJsonLdInput,
+} from '../../../lib/json-ld';
+
+interface Props {
+  siteUrl: string;
+  organization: OrganizationJsonLdInput;
+  website: WebsiteJsonLdInput;
+  product?: ProductJsonLdInput;
+  breadcrumbs?: readonly BreadcrumbJsonLdInput[];
+  faqs?: readonly FaqJsonLdInput[];
+  itemList?: { name: string; items: readonly ItemListItemInput[] };
+}
+
+const {
+  siteUrl,
+  organization,
+  website,
+  product,
+  breadcrumbs = [],
+  faqs = [],
+  itemList,
+} = Astro.props;
+
+const schemas: object[] = [
+  buildStorefrontJsonLd({ siteUrl, organization, website }),
+];
+
+if (product) {
+  schemas.push(buildProductJsonLd({ siteUrl, organization, product }));
+}
+
+if (breadcrumbs.length) {
+  schemas.push(buildBreadcrumbJsonLd({ siteUrl, breadcrumbs }));
+}
+
+const visibleFaqs = faqs.filter(
+  (faq) => faq.question.trim().length > 0 && faq.answer.trim().length > 0,
+);
+if (visibleFaqs.length) {
+  schemas.push(buildFaqJsonLd({ faqs: visibleFaqs }));
+}
+if (itemList && itemList.items.length > 0) {
+  schemas.push(buildItemListJsonLd({ siteUrl, name: itemList.name, items: itemList.items }));
+}
+
+const serializedSchemas = schemas.map((schema) =>
+  JSON.stringify(schema)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029'),
+);
+---
+
+{
+  serializedSchemas.map((jsonLd) => (
+    <script type="application/ld+json" is:inline set:html={jsonLd} />
+  ))
+}

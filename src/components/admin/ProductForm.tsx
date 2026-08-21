@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { Input } from "../ui/input";
-import { catalogItemGroupId } from "../../lib/catalog-feed";
+import { catalogProductId } from "../../lib/catalog-feed";
 type Variant = {
   key: string;
   id?: number | string;
@@ -148,22 +148,49 @@ export function ProductForm({ productId }: { productId?: string }) {
   };
 
   const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+  // The product detail image is laid out at 480 CSS px. Lighthouse emulates a
+  // phone at DPR 2.625, so that column wants 1260 device pixels; 1000 undershot
+  // it and made new uploads softer than the 1254 px images already in R2.
+  // Catalogue images were arriving at 1254x1254 and rendering into a 182 px
+  // card - about 47x the pixels the page can show, and the single largest cost
+  // on the mobile storefront.
+  const MAX_IMAGE_EDGE = 1280;
+  // The catalogue card is 182 CSS px, which is 478 device pixels on the phone
+  // Lighthouse emulates. This derivative is what the grid actually loads.
+  const CARD_IMAGE_EDGE = 480;
 
-  const convertImageToWebP = (file: File): Promise<File> => {
+  const convertImageToWebP = (
+    file: File,
+    maxEdge: number = MAX_IMAGE_EDGE,
+  ): Promise<File> => {
     return new Promise((resolve, reject) => {
-      if (file.type === "image/webp" && file.size <= MAX_IMAGE_SIZE) {
-        return resolve(file);
-      }
       const img = new Image();
       const url = URL.createObjectURL(file);
       img.onload = () => {
         URL.revokeObjectURL(url);
+        const sourceWidth = img.naturalWidth || img.width;
+        const sourceHeight = img.naturalHeight || img.height;
+        // An already-small WebP is passed through untouched; re-encoding it
+        // would only lose quality. Anything larger is scaled whatever its
+        // format - the old pass-through trusted file size alone, which is how
+        // full-resolution WebP got in.
+        if (
+          file.type === "image/webp" &&
+          file.size <= MAX_IMAGE_SIZE &&
+          Math.max(sourceWidth, sourceHeight) <= maxEdge
+        ) {
+          return resolve(file);
+        }
+        const scale = Math.min(
+          1,
+          maxEdge / Math.max(sourceWidth, sourceHeight || 1),
+        );
         const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
+        canvas.width = Math.round(sourceWidth * scale);
+        canvas.height = Math.round(sourceHeight * scale);
         const ctx = canvas.getContext("2d");
         if (!ctx) return reject(new Error("Gagal mengolah canvas gambar."));
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         canvas.toBlob(
           (blob) => {
             if (!blob) return reject(new Error("Gagal konversi gambar ke WebP."));
@@ -211,6 +238,21 @@ export function ProductForm({ productId }: { productId?: string }) {
         throw new Error(result.error || "Gambar gagal diunggah.");
       }
       setImageUrl(String(result.url));
+
+      // The card-sized sibling. Its absence is not an error: the asset route
+      // falls back to the full image, so a failure here costs bytes on the
+      // catalogue grid rather than a broken tile, and must not lose an upload
+      // the operator already completed.
+      try {
+        const cardFile = await convertImageToWebP(webpFile, CARD_IMAGE_EDGE);
+        const cardForm = new FormData();
+        cardForm.set("file", cardFile);
+        cardForm.set("derivative_of", String(result.fileName || ""));
+        await fetch("/api/admin/upload-r2", { method: "POST", body: cardForm });
+      } catch {
+        // deliberately ignored - see above
+      }
+
       setStatusTone("success");
       setStatus("Gambar berhasil diunggah dalam format WebP.");
     } catch (reason) {
@@ -593,9 +635,9 @@ export function ProductForm({ productId }: { productId?: string }) {
             </div>
             <dl className="mt-5 grid grid-cols-2 gap-3 text-xs">
               <div className="rounded-lg bg-slate-50 p-3">
-                <dt className="text-slate-500">Item group ID</dt>
+                <dt className="text-slate-500">Product / Content ID</dt>
                 <dd className="mt-1 font-mono font-black text-slate-900">
-                  {productId ? catalogItemGroupId(productId) : "Otomatis"}
+                  {productId ? catalogProductId(productId) : "Otomatis"}
                 </dd>
               </div>
               <div className="rounded-lg bg-slate-50 p-3">

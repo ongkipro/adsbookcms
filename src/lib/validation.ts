@@ -66,9 +66,21 @@ export function isValidWa62(value: string) {
   return INDONESIAN_WA_REGEX.test(value);
 }
 
+/**
+ * The one Indonesian phone normaliser for input, validation, and persistence.
+ * `meta-identity.ts` keeps a separate `toE164Digits` on purpose: this one must
+ * tolerate a half-typed number so a live input event does not erase what the
+ * buyer is still typing, while that one must return nothing rather than hash a
+ * number it cannot vouch for.
+ */
 export function normalizePhone(value: string) {
-  const digits = value.replace(/\D/g, '');
+  let digits = value.replace(/\D/g, '');
   if (!digits) return '';
+  // `0062…` is how a phone keyboard writes the international prefix. Without
+  // this the leading zero was treated as the local trunk prefix and the number
+  // became `620062…`, which the submit schema then rejected — a real customer,
+  // typing a real number, told it was invalid.
+  if (digits.startsWith('00')) digits = digits.slice(2);
   if (digits.startsWith('620')) return `62${digits.slice(3)}`;
   if (digits.startsWith('0')) return `62${digits.slice(1)}`;
   if (digits.startsWith('8')) return `62${digits}`;

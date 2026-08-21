@@ -1,13 +1,11 @@
 import type { APIRoute } from 'astro';
 import { z } from 'zod';
-import { jsonError, jsonOk } from '../../../lib/api';
-import { getEnvValue, getRuntimeEnv } from '../../../lib/env';
-import { MengantarClient } from '../../../lib/mengantar-client';
-import { getProviderConfig } from '../../../lib/provider-config';
+import { jsonError, jsonOk } from '../../../lib/api.ts';
+import { getRuntimeEnv } from '../../../lib/env.ts';
 import {
   parseProvinceCodeList,
   validateProvinceCodeList,
-} from '../../../lib/province';
+} from '../../../lib/province.ts';
 
 export const prerender = false;
 
@@ -42,30 +40,6 @@ const expeditionMutationSchema = z.union([
     })
     .strict(),
 ]);
-
-const testRateSchema = z
-  .object({
-    action: z.literal('test-rate').optional(),
-    destinationAreaId: z.string().trim().min(1).max(200),
-    weightGrams: z.number().int().positive().max(1_000_000).default(1_000),
-  })
-  .strict();
-
-
-const COURIER_NAMES: Record<string, string> = {
-  jne: 'JNE Express',
-  sicepat: 'SiCepat Ekspres',
-  jt: 'J&T Express',
-  sap: 'SAP Express',
-  ninja: 'Ninja Xpress',
-  anteraja: 'Anteraja',
-  lion: 'Lion Parcel',
-  idexpress: 'ID Express',
-  paxel: 'Paxel',
-  pos: 'Pos Indonesia',
-};
-
-
 
 const getDatabase = (locals: App.Locals) => {
   const database = getRuntimeEnv(locals)?.OMS_DB;
@@ -201,104 +175,5 @@ export const PATCH: APIRoute = async ({ locals, request }) => {
   } catch (error) {
     console.error('expeditions-update', error);
     return jsonError('Gagal memperbarui pengaturan ekspedisi.', 500);
-  }
-};
-
-export const POST: APIRoute = async ({ locals, request }) => {
-  const database = getDatabase(locals);
-  if (!database) return jsonError('Database ekspedisi belum tersedia.', 500);
-
-  const parsed = testRateSchema.safeParse(
-    await request.json().catch(() => null),
-  );
-  if (!parsed.success) {
-    return jsonError(
-      'Tujuan harus dipilih dan berat harus berupa bilangan bulat antara 1 dan 1.000.000 gram.',
-      400,
-    );
-  }
-
-  const { destinationAreaId, weightGrams } = parsed.data;
-
-  try {
-    const [providerConfig, originWarehouse, courierResult] = await Promise.all([
-      getProviderConfig(database, locals),
-      getOriginWarehouse(database),
-      listCourierRules(database),
-    ]);
-    const { apiKey, baseUrl } = providerConfig.mengantar;
-    if (!apiKey) {
-      return jsonError(
-        'Mengantar API belum dikonfigurasi. Tambahkan API Key di pengaturan integrasi.',
-        400,
-      );
-    }
-
-    const originAreaId =
-      originWarehouse?.originAreaId?.trim() ||
-      getEnvValue('MENGANTAR_ORIGIN_AREA_ID', getRuntimeEnv(locals));
-    if (!originAreaId) {
-      return jsonError(
-        'Area asal gudang belum dikonfigurasi. Lengkapi data gudang terlebih dahulu.',
-        400,
-      );
-    }
-
-    const providerRates = await new MengantarClient(
-      apiKey,
-      baseUrl,
-    ).estimateRates({
-      originId: originAreaId,
-      destinationId: destinationAreaId,
-      weight: weightGrams / 1_000,
-      courier: 'all',
-    });
-    const courierRules = courierResult.results ?? [];
-    const rates = providerRates.map((rate) => {
-      const courierKey = rate.courier_code
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '');
-      const rule = courierRules.find(
-        (candidate) =>
-          candidate.courierCode
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '') === courierKey,
-      );
-      const isEnabled = rule?.isEnabled === 1;
-      const isCodEnabled = rule?.isCodEnabled === 1;
-
-      return {
-        courierCode: rate.courier_code,
-        courierName:
-          COURIER_NAMES[courierKey] || rate.courier_code,
-        serviceName: rate.courier_service || rate.courier_code,
-        price: rate.price,
-        estimatedDays: rate.estimated_days,
-        isEnabled,
-        isCodEnabled,
-        codAvailable:
-          isEnabled && isCodEnabled && !rate.unsupported_cod,
-        codFee: rate.cod_fee,
-      };
-    });
-
-    return jsonOk({
-      message: rates.length
-        ? 'Estimasi ongkir live berhasil dimuat.'
-        : 'Mengantar tidak menemukan layanan untuk rute ini.',
-      data: {
-        destinationAreaId,
-        weightGrams,
-        originWarehouse: originWarehouse ?? undefined,
-        rates,
-      },
-    });
-  } catch (error) {
-    console.error('expeditions-test-rate', error);
-    const message =
-      error instanceof Error && /timeout/i.test(error.message)
-        ? 'Mengantar tidak merespons tepat waktu. Silakan coba lagi.'
-        : 'Gagal mengambil estimasi ongkir live dari Mengantar.';
-    return jsonError(message, 500);
   }
 };

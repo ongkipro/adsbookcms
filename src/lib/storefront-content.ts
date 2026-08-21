@@ -42,7 +42,11 @@ export const homeContentSchema = z
           })
           .strict(),
       )
-      .min(1)
+      // Optional on purpose. An operator who has not made hero art gets the
+      // catalogue instead - CompactMarketHome borrows product photos and
+      // rotates them daily. Requiring a slide here made that fallback
+      // unreachable for any store whose content was published at all.
+      .min(0)
       .max(10),
     solutions: z
       .array(
@@ -56,7 +60,10 @@ export const homeContentSchema = z
           })
           .strict(),
       )
-      .min(1)
+      // A store with no landing pages is a valid store. This used to demand one,
+      // which is why a fresh install could not hold valid home content at all and
+      // had to be walked through a setup screen first.
+      .min(0)
       .max(12),
     proofs: z
       .array(
@@ -165,20 +172,36 @@ export function parsePublishedContent(
   }
 }
 
-export async function loadPublishedHomeContent(database: D1Database) {
+export type PublishedHomeContentRead =
+  | { state: "published"; content: HomeContent }
+  | { state: "unpublished" }
+  | { state: "unavailable" };
+
+export async function loadPublishedHomeContent(
+  database: D1Database,
+): Promise<PublishedHomeContentRead> {
   try {
     const row = await database
       .prepare(
         "SELECT published_json FROM storefront_content WHERE content_key = 'home' LIMIT 1",
       )
       .first<{ published_json: string | null }>();
-    return parsePublishedContent(
-      "home",
-      row?.published_json,
-    ) as HomeContent | null;
+    if (!row?.published_json) return { state: "unpublished" };
+    try {
+      return {
+        state: "published",
+        content: validateContent(
+          "home",
+          JSON.parse(row.published_json),
+        ) as HomeContent,
+      };
+    } catch (error) {
+      console.error("storefront-home-content-invalid", error);
+      return { state: "unavailable" };
+    }
   } catch (error) {
     console.error("storefront-home-content-load", error);
-    return null;
+    return { state: "unavailable" };
   }
 }
 

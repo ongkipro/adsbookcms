@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
-import { jsonError, jsonOk } from '../../../lib/api';
-import { getRuntimeEnv } from '../../../lib/env';
+import { jsonError, jsonOk } from '../../../lib/api.ts';
+import { getRuntimeEnv } from '../../../lib/env.ts';
 
 export const prerender = false;
 
@@ -10,8 +10,10 @@ type AnalyticsRow = {
   returned_orders: number | string | null;
   paid_orders: number | string | null;
   cod_orders: number | string | null;
-  transfer_orders: number | string | null;
+  manual_transfer_orders: number | string | null;
+  virtual_account_orders: number | string | null;
   qris_orders: number | string | null;
+  unknown_payment_orders: number | string | null;
 };
 
 type TrendRow = {
@@ -49,21 +51,27 @@ export const GET: APIRoute = async ({ locals, url }) => {
       return jsonError('Rentang tanggal maksimal 31 hari.', 400);
     }
   }
-  const interval = url.searchParams.get('interval') === 'hour' ? 'hour' : 'day';
-  
-  let dateFilter = "";
+  const interval =
+    url.searchParams.get('interval') === 'hour' &&
+    Boolean(startParam) &&
+    startParam === endParam
+      ? 'hour'
+      : 'day';
+
+  const conditions = ["shipping_status <> 'abandoned'"];
   const params: string[] = [];
-  
+
   if (startParam && endParam) {
-    dateFilter = "WHERE date(created_at, '+7 hours') BETWEEN ? AND ?";
+    conditions.push("date(created_at, '+7 hours') BETWEEN ? AND ?");
     params.push(startParam, endParam);
   } else if (startParam) {
-    dateFilter = "WHERE date(created_at, '+7 hours') >= ?";
+    conditions.push("date(created_at, '+7 hours') >= ?");
     params.push(startParam);
   } else if (endParam) {
-    dateFilter = "WHERE date(created_at, '+7 hours') <= ?";
+    conditions.push("date(created_at, '+7 hours') <= ?");
     params.push(endParam);
   }
+  const dateFilter = `WHERE ${conditions.join(' AND ')}`;
 
   try {
     const row = await (database as D1Database).prepare(`
@@ -73,8 +81,10 @@ export const GET: APIRoute = async ({ locals, url }) => {
         COALESCE(SUM(CASE WHEN shipping_status = 'returned' THEN 1 ELSE 0 END), 0) AS returned_orders,
         COALESCE(SUM(CASE WHEN payment_status IN ('paid', 'settled', 'success') THEN 1 ELSE 0 END), 0) AS paid_orders,
         COALESCE(SUM(CASE WHEN payment_method = 'cod' THEN 1 ELSE 0 END), 0) AS cod_orders,
-        COALESCE(SUM(CASE WHEN payment_method = 'bank_transfer' THEN 1 ELSE 0 END), 0) AS transfer_orders,
-        COALESCE(SUM(CASE WHEN payment_method = 'qris' THEN 1 ELSE 0 END), 0) AS qris_orders
+        COALESCE(SUM(CASE WHEN payment_method = 'manual_transfer' THEN 1 ELSE 0 END), 0) AS manual_transfer_orders,
+        COALESCE(SUM(CASE WHEN payment_method = 'bank_transfer' THEN 1 ELSE 0 END), 0) AS virtual_account_orders,
+        COALESCE(SUM(CASE WHEN payment_method = 'qris' THEN 1 ELSE 0 END), 0) AS qris_orders,
+        COALESCE(SUM(CASE WHEN payment_method NOT IN ('cod', 'manual_transfer', 'bank_transfer', 'qris') THEN 1 ELSE 0 END), 0) AS unknown_payment_orders
       FROM orders
       ${dateFilter}
     `).bind(...params).first() as AnalyticsRow | null;
@@ -84,8 +94,10 @@ export const GET: APIRoute = async ({ locals, url }) => {
     const returnedOrders = Number(row?.returned_orders ?? 0);
     const paidOrders = Number(row?.paid_orders ?? 0);
     const codOrders = Number(row?.cod_orders ?? 0);
-    const transferOrders = Number(row?.transfer_orders ?? 0);
+    const manualTransferOrders = Number(row?.manual_transfer_orders ?? 0);
+    const virtualAccountOrders = Number(row?.virtual_account_orders ?? 0);
     const qrisOrders = Number(row?.qris_orders ?? 0);
+    const unknownPaymentOrders = Number(row?.unknown_payment_orders ?? 0);
     const ratio = (value: number) => (totalOrders > 0 ? Number(((value / totalOrders) * 100).toFixed(2)) : 0);
 
     const groupBy = interval === 'hour' ? "STRFTIME('%Y-%m-%d %H:00:00', created_at, '+7 hours')" : "DATE(created_at, '+7 hours')";
@@ -95,7 +107,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
         COALESCE(SUM(total_amount), 0) as revenue,
         COUNT(*) as orders
       FROM orders
-      ${dateFilter ? dateFilter : "WHERE 1=1"}
+      ${dateFilter}
       GROUP BY ${groupBy}
       ORDER BY date ASC
     `).bind(...params).all<TrendRow>();
@@ -153,8 +165,29 @@ export const GET: APIRoute = async ({ locals, url }) => {
         conversion_rate: ratio(paidOrders),
         rts_rate: ratio(returnedOrders),
         cod_percentage: ratio(codOrders),
-        transfer_percentage: ratio(transferOrders),
+        transfer_percentage: ratio(virtualAccountOrders),
         qris_percentage: ratio(qrisOrders),
+        payment_methods: {
+          total: totalOrders,
+          cod: { count: codOrders, percentage: ratio(codOrders) },
+          manual_transfer: {
+            count: manualTransferOrders,
+            percentage: ratio(manualTransferOrders),
+          },
+          virtual_account: {
+            count: virtualAccountOrders,
+            percentage: ratio(virtualAccountOrders),
+          },
+          qris: { count: qrisOrders, percentage: ratio(qrisOrders) },
+          unknown_count: unknownPaymentOrders,
+        },
+        period: {
+          start_date: startParam || null,
+          end_date: endParam || null,
+          timezone: 'Asia/Jakarta',
+          basis: 'order_created_at',
+          interval,
+        },
         trends
       },
       message: totalOrders > 0 ? 'Analytics dihitung dari data order D1 saat ini.' : 'Belum ada order untuk dihitung.',

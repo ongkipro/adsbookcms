@@ -1,4 +1,4 @@
-import { getEnvValue, getRuntimeEnv } from "./env";
+import { getEnvValue, getRuntimeEnv } from "./env.ts";
 
 export const DEFAULT_MENGANTAR_BASE_URL = "https://api-public.mengantar.com";
 export const DEFAULT_AUTOLARIS_BASE_URL = "https://api-h2h.autolaris.com";
@@ -24,6 +24,24 @@ export type ProviderConfig = {
 };
 
 const clean = (value: string | null | undefined) => value?.trim() || "";
+
+/**
+ * How a submitted provider credential should change the stored value.
+ *
+ * An empty submission keeps whatever is stored, so an operator can save the
+ * base URL without retyping a secret. That made a stored credential permanent:
+ * `/admin/profile` could overwrite it but never remove it, and because the
+ * database value wins over the deployed Worker secret, one wrong key kept a
+ * live store from quoting shipping with no way out of the admin. An explicit
+ * `null` now means clear, which is what falls the install back to its secret.
+ */
+export function resolveCredentialUpdate(raw: unknown): {
+  clear: boolean;
+  value: string;
+} {
+  if (raw === null) return { clear: true, value: "" };
+  return { clear: false, value: typeof raw === "string" ? raw.trim() : "" };
+}
 
 export async function getProviderConfig(
   database: D1Database,

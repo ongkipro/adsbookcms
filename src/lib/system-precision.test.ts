@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import test from "node:test";
 import {
   ADMIN_ROLES,
@@ -26,53 +25,13 @@ import {
   updateProductActiveStatus,
 } from "./product-mutation.ts";
 
-// Astro route imports omit file extensions, so register Node's test-only resolver
-// before dynamically loading the production bulk-status helpers.
-const extensionResolver = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    try {
-      return nextResolve(specifier, context);
-    } catch (error) {
-      const isRelativeWithoutExtension =
-        specifier.startsWith(".") && !/\.[a-z0-9]+$/i.test(specifier);
-      if (!isRelativeWithoutExtension) throw error;
-      return nextResolve(`${specifier}.ts`, context);
-    }
-  },
-});
 
-const { bulkUpdateOrderStatus, parseBulkStatusUpdate } = await import(
-  "../pages/api/admin/orders/index.ts"
-);
-extensionResolver.deregister();
-
-function createStatusDatabase<Status extends number | string>(
-  table: "orders" | "products",
-  state: Map<number, Status>,
-): D1Database {
+function createProductStatusDatabase(state: Map<number, number>): D1Database {
   return {
-    async batch(statements: any[]) {
-      const results = [];
-      for (const stmt of statements) {
-        results.push(await stmt.run());
-      }
-      return results;
-    },
     prepare(sql: string) {
-      if (sql.includes("UPDATE product_variants") || sql.includes("stock_restored_at")) {
-        return {
-          bind() {
-            return {
-              async run() {
-                return { success: true, meta: { changes: 1 }, results: [] };
-              },
-            };
-          },
-        };
-      }
-      assert.match(sql, new RegExp(`UPDATE ${table}`));
+      assert.match(sql, /UPDATE products/);
       return {
-        bind(status: Status, ...rawIds: unknown[]) {
+        bind(status: number, ...rawIds: unknown[]) {
           return {
             async run() {
               let changes = 0;
@@ -118,7 +77,7 @@ test("product inline active toggle parses strict payloads and mutates status", a
     [42001, 1],
     [42002, 1],
   ]);
-  const database = createStatusDatabase("products", productState);
+  const database = createProductStatusDatabase(productState);
   assert.equal(
     await updateProductActiveStatus(database, parsed.value),
     true,
@@ -213,44 +172,6 @@ test("landing duplication generates a copy slug and independently clones section
   );
 });
 
-test("bulk order status updates normalize payloads and transition only selected orders", async () => {
-  const update = parseBulkStatusUpdate({
-    order_ids: ["17", "9", "17"],
-    status: " SHIPPED ",
-  });
-  assert.deepEqual(update, { orderIds: [17, 9], status: "shipped" });
-  assert.throws(
-    () => parseBulkStatusUpdate({ order_ids: ["17"], status: "unknown" }),
-    /Status pengiriman tidak valid/,
-  );
-  assert.throws(
-    () => parseBulkStatusUpdate({ order_ids: [17], status: "pending" }),
-    /ID order harus berupa string angka/,
-  );
-  assert.throws(
-    () => parseBulkStatusUpdate({ order_ids: [], status: "pending" }),
-    /Pilih 1 sampai 100 order/,
-  );
-
-  const orderState = new Map<number, string>([
-    [9, "pending"],
-    [17, "processing"],
-    [99, "delivered"],
-  ]);
-  const database = createStatusDatabase("orders", orderState);
-  assert.equal(await bulkUpdateOrderStatus(database, update), 2);
-  assert.equal(orderState.get(9), "shipped");
-  assert.equal(orderState.get(17), "shipped");
-  assert.equal(orderState.get(99), "delivered");
-
-  const cancellation = parseBulkStatusUpdate({
-    order_ids: ["9"],
-    status: "cancelled",
-  });
-  assert.equal(await bulkUpdateOrderStatus(database, cancellation), 1);
-  assert.equal(orderState.get(9), "cancelled");
-  assert.equal(orderState.get(17), "shipped");
-});
 
 test("API keys are generated, hashed, verified, masked, and revoked safely", async () => {
   assert.equal(normalizeApiKeyName("  Storefront   Production  "), "Storefront Production");

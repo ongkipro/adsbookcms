@@ -1,5 +1,9 @@
 import type { APIRoute } from "astro";
-import { AUTOLARIS_CHANNEL_OPTIONS } from "../../lib/autolaris-client";
+import {
+  AUTOLARIS_CHANNEL_OPTIONS,
+  autoLarisChannelLockReason,
+  resolveDisabledAutoLarisChannels,
+} from "../../lib/autolaris-client";
 import { getRuntimeEnv } from "../../lib/env";
 import { getProviderConfig } from "../../lib/provider-config";
 import {
@@ -77,10 +81,9 @@ export const GET: APIRoute = async ({ locals }) => {
         isCodEnabled = store?.is_cod_enabled !== 0;
         isAutoLarisMasterEnabled = store?.is_autolaris_enabled !== 0;
         autoLarisConfigured = Boolean(autolarisApiKey) && isAutoLarisMasterEnabled;
-        disabledAutoLarisChannels = (store?.disabled_autolaris_channels || "")
-          .split(",")
-          .map((c) => c.trim().toUpperCase())
-          .filter(Boolean);
+        disabledAutoLarisChannels = resolveDisabledAutoLarisChannels(
+          store?.disabled_autolaris_channels,
+        );
         paymentFeeBearer = normalizePaymentFeeBearer(store?.payment_fee_bearer);
         codFeeBearer = normalizePaymentFeeBearer(store?.cod_fee_bearer);
         sellerBankAccounts = bankAccounts.results || [];
@@ -113,8 +116,10 @@ export const GET: APIRoute = async ({ locals }) => {
           is_active: isCodEnabled,
         },
         ...AUTOLARIS_CHANNEL_OPTIONS.map((channel) => {
+          const lockReason = autoLarisChannelLockReason(channel.code);
           const isChannelDisabled = disabledAutoLarisChannels.includes(channel.code);
-          const isChannelActive = autoLarisConfigured && !isChannelDisabled;
+          const isChannelActive =
+            autoLarisConfigured && !isChannelDisabled && !lockReason;
           return {
             code: channel.code,
             payment_method: channel.paymentMethod,
@@ -131,13 +136,15 @@ export const GET: APIRoute = async ({ locals }) => {
             fee_basis: "transaction_amount",
             fee_description: paymentFeeDescription(channel.code),
             is_active: isChannelActive,
-            reason: !isAutoLarisMasterEnabled
-              ? "AutoLaris dinonaktifkan oleh toko."
-              : !autolarisApiKey
-                ? "AutoLaris belum dikonfigurasi."
-                : isChannelDisabled
-                  ? "Channel dinonaktifkan oleh toko."
-                  : undefined,
+            reason:
+              lockReason ||
+              (!isAutoLarisMasterEnabled
+                ? "AutoLaris dinonaktifkan oleh toko."
+                : !autolarisApiKey
+                  ? "AutoLaris belum dikonfigurasi."
+                  : isChannelDisabled
+                    ? "Channel dinonaktifkan oleh toko."
+                    : undefined),
           };
         }),
         ...sellerBankAccounts.map((account) => ({

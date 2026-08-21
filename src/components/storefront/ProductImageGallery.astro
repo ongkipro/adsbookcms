@@ -1,0 +1,189 @@
+---
+/**
+ * The product gallery, without React.
+ *
+ * This was a 168-line React island. Measured on a live install, the public
+ * product page downloaded 183 KB of React runtime — `client.js` plus the react
+ * chunk — to drive 4 KB of component code, and it was the only React on the
+ * entire public surface. A horizontal scroll-snap track gives the same gallery:
+ * swiping is native, so the touch handling disappears, and the arrows,
+ * thumbnails and counter are the only things that still need script.
+ *
+ * Without JavaScript the track is still swipeable and every photo is reachable.
+ * The arrows and the counter are the enhancement, not the mechanism.
+ */
+interface Props {
+  images: string[];
+  productName: string;
+  badgeText?: string;
+  discountPercentage?: number;
+}
+
+const { images, productName, badgeText, discountPercentage = 0 } = Astro.props;
+const gallery = images.filter((image) => image.trim());
+const hasMany = gallery.length > 1;
+---
+
+{gallery.length > 0 && (
+  <div class="relative flex w-full select-none flex-row gap-2.5 sm:gap-3" data-gallery>
+    {hasMany && (
+      <div class="no-scrollbar flex w-14 shrink-0 flex-col gap-2 overflow-y-auto max-h-[420px] sm:w-16 sm:max-h-[500px]">
+        {gallery.map((imgUrl, idx) => (
+          <button
+            type="button"
+            data-thumb={idx}
+            aria-label={`Lihat foto ${idx + 1} dari ${gallery.length}`}
+            aria-pressed={idx === 0 ? 'true' : 'false'}
+            class:list={[
+              'group relative aspect-square w-full shrink-0 overflow-hidden rounded-none border transition-all duration-200 focus-visible:outline-none',
+              idx === 0
+                ? 'border-[#111111] ring-1 ring-[#111111] opacity-100'
+                : 'border-[#E5E5E5] opacity-60 hover:opacity-100',
+            ]}
+          >
+            <img
+              src={imgUrl}
+              alt={`${productName} thumbnail ${idx + 1}`}
+              width={64}
+              height={85}
+              sizes="(max-width: 480px) 64px, 80px"
+              class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading={idx < 3 ? 'eager' : 'lazy'}
+              decoding="async"
+            />
+            <span
+              data-thumb-bar={idx}
+              class:list={['absolute inset-x-0 bottom-0 h-0.5 bg-[#111111]', idx === 0 ? '' : 'hidden']}
+            />
+          </button>
+        ))}
+      </div>
+    )}
+
+    <div class="group relative flex flex-1 aspect-square items-center justify-center overflow-hidden rounded-none bg-[#F5F5F5]">
+      <div
+        data-track
+        class="no-scrollbar absolute inset-0 flex snap-x snap-mandatory overflow-x-auto scroll-smooth"
+        style="scrollbar-width: none;"
+      >
+        {gallery.map((imgUrl, idx) => (
+          <img
+            src={imgUrl}
+            alt={`${productName} foto ${idx + 1}`}
+            width={480}
+            height={640}
+            class="h-full w-full shrink-0 snap-start object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+            loading={idx === 0 ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchpriority={idx === 0 ? 'high' : undefined}
+          />
+        ))}
+      </div>
+
+      <div class="absolute left-3 top-3 z-10 flex flex-wrap items-center gap-1.5 pointer-events-none">
+        {badgeText && (
+          <span class="rounded-none bg-[#111111] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">
+            {badgeText}
+          </span>
+        )}
+        {discountPercentage > 0 && (
+          <span class="rounded-none bg-[#111111] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+            -{discountPercentage}%
+          </span>
+        )}
+      </div>
+
+      <div class="absolute bottom-3 right-3 z-10 pointer-events-none rounded-none border border-[#E5E5E5] bg-white/95 px-2 py-1 text-[10px] font-bold text-[#111111] backdrop-blur-xs">
+        <span data-counter>1</span> / {gallery.length}
+      </div>
+
+      {hasMany && (
+        <>
+          <button
+            type="button"
+            data-prev
+            aria-label="Foto Sebelumnya"
+            class="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-none border border-[#E5E5E5] bg-white/90 text-[#111111] transition hover:bg-[#111111] hover:text-white focus-visible:outline-none active:scale-95 z-20"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            data-next
+            aria-label="Foto Berikutnya"
+            class="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-none border border-[#E5E5E5] bg-white/90 text-[#111111] transition hover:bg-[#111111] hover:text-white focus-visible:outline-none active:scale-95 z-20"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </>
+      )}
+    </div>
+  </div>
+)}
+
+<script>
+  (() => {
+    const root = document.querySelector<HTMLElement>('[data-gallery]');
+    if (!root) return;
+    const track = root.querySelector<HTMLElement>('[data-track]');
+    if (!track) return;
+    const slides = Array.from(track.children) as HTMLElement[];
+    if (slides.length < 2) return;
+
+    const counter = root.querySelector<HTMLElement>('[data-counter]');
+    const thumbs = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-thumb]'));
+    const bars = Array.from(root.querySelectorAll<HTMLElement>('[data-thumb-bar]'));
+    let index = 0;
+
+    const paint = (next: number) => {
+      index = next;
+      if (counter) counter.textContent = String(next + 1);
+      thumbs.forEach((thumb, i) => {
+        const active = i === next;
+        thumb.setAttribute('aria-pressed', active ? 'true' : 'false');
+        thumb.classList.toggle('border-[#111111]', active);
+        thumb.classList.toggle('ring-1', active);
+        thumb.classList.toggle('ring-[#111111]', active);
+        thumb.classList.toggle('opacity-100', active);
+        thumb.classList.toggle('', active);
+        thumb.classList.toggle('border-[#E5E5E5]', !active);
+        thumb.classList.toggle('opacity-60', !active);
+        thumb.classList.toggle('hover:opacity-100', !active);
+        bars[i]?.classList.toggle('hidden', !active);
+      });
+      // The thumbnail column scrolls independently of the track.
+      thumbs[next]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    const go = (next: number) => {
+      const wrapped = (next + slides.length) % slides.length;
+      track.scrollTo({ left: slides[wrapped].offsetLeft - track.offsetLeft, behavior: 'smooth' });
+      paint(wrapped);
+    };
+
+    thumbs.forEach((thumb, i) => thumb.addEventListener('click', () => go(i)));
+    root.querySelector('[data-prev]')?.addEventListener('click', () => go(index - 1));
+    root.querySelector('[data-next]')?.addEventListener('click', () => go(index + 1));
+
+    // A swipe moves the track without going through `go`, so the visible slide
+    // is the source of truth rather than the last button that was pressed.
+    if ('IntersectionObserver' in window) {
+      const seen = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+              const i = slides.indexOf(entry.target as HTMLElement);
+              if (i >= 0 && i !== index) paint(i);
+            }
+          }
+        },
+        { root: track, threshold: [0.6] },
+      );
+      slides.forEach((slide) => seen.observe(slide));
+    }
+  })();
+</script>

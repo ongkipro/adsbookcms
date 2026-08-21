@@ -1,5 +1,5 @@
 ---
-import '../styles/global.css';
+import '../styles/admin.css';
 import { AdminShell } from '../components/admin/AdminShell.tsx';
 import { ADMIN_ACCENT } from '../components/admin/admin-navigation';
 
@@ -11,6 +11,8 @@ interface Props {
 const { title, activeMenu } = Astro.props;
 const currentPath = (Astro.url.pathname + Astro.url.search).replace(/\/$/, '') || '/';
 const adminRole = Astro.locals.admin?.role ?? 'customer_service';
+const mustChangePassword = Astro.locals.admin?.mustChangePassword ?? false;
+const sidebarDefaultOpen = Astro.cookies.get('sidebar_state')?.value !== 'false';
 
 ---
 
@@ -48,31 +50,11 @@ const adminRole = Astro.locals.admin?.role ?? 'customer_service';
       currentPath={currentPath}
       siteUrl={Astro.locals.tenant.siteUrl}
       adminRole={adminRole}
+      mustChangePassword={mustChangePassword}
+      sidebarDefaultOpen={sidebarDefaultOpen}
     >
       <slot />
     </AdminShell>
-    <style is:global>
-      /* Admin loading placeholders stay static; only action feedback may spin. */
-      .admin-shell .animate-pulse {
-        animation: none;
-      }
-
-      .admin-shell [data-slot='select-content'] {
-        animation: none !important;
-        transition: none !important;
-      }
-
-      @media (max-width: 1023px) {
-        .admin-shell input,
-        .admin-shell select,
-        .admin-shell textarea {
-          font-size: 1rem !important;
-          line-height: 1.5rem;
-        }
-      }
-
-    </style>
-
     <!-- Vanilla JS for the admin drawer, global search, and logout enhancement. -->
     <script>
       // Delegate submit for dynamically rendered logout forms

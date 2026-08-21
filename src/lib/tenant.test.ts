@@ -63,7 +63,7 @@ test("an invalid stored value degrades instead of taking the storefront down", (
     site_url: "http://not-https.example/with/path",
     theme_color: "rebeccapurple",
     locale: "not a locale",
-    storefront_template: "does-not-exist",
+    storefront_template: "Not a valid template ID",
   });
 
   assert.equal(tenant.siteUrl, "https://example.com", "non-https URL rejected");
@@ -72,8 +72,15 @@ test("an invalid stored value degrades instead of taking the storefront down", (
   assert.equal(
     tenant.storefrontTemplate,
     "compact-market",
-    "unknown template degrades to the default rather than throwing",
+    "malformed template ID degrades to the default rather than throwing",
   );
+});
+
+test("a runtime template slug survives identity resolution for D1 validation", () => {
+  const tenant = resolveTenantConfig({
+    storefront_template: "merchant-runtime-template",
+  });
+  assert.equal(tenant.storefrontTemplate, "merchant-runtime-template");
 });
 
 test("an unknown storefront template no longer throws", () => {

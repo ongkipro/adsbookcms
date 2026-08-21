@@ -5,7 +5,183 @@ import {
   parseAutoLarisPaymentResponse,
 } from "./autolaris-client.ts";
 import { summarizePaymentBuckets } from "./autolaris-balance.ts";
-import { reconcileAutoLarisPaidPayment } from "./autolaris-reconciliation.ts";
+import { createAutoLarisPaymentForOrder } from "./autolaris-payment.ts";
+
+function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
+  const state = {
+    transaction: null as null | Record<string, unknown>,
+  };
+  const order = {
+    id: 41,
+    order_number: "INV-10041",
+    customer_name: "Buyer",
+    customer_phone: "081331000000",
+    customer_email: "buyer@example.test",
+    total_amount: 118_400,
+    payment_method: "qris",
+    payment_fee_bearer: "seller",
+  };
+
+  const database = {
+    prepare(sql: string) {
+      const statement = {
+        args: [] as unknown[],
+        bind(...args: unknown[]) {
+          statement.args = args;
+          return statement;
+        },
+        async first() {
+          if (sql.includes("FROM payment_transactions pt")) {
+            return state.transaction;
+          }
+          if (sql.includes("SELECT o.id, o.order_number")) return order;
+          if (sql.includes("SELECT mengantar_api_key")) {
+            return {
+              mengantar_api_key: null,
+              mengantar_base_url: null,
+              autolaris_api_key: autoLarisApiKey,
+              autolaris_base_url: "https://autolaris.example.test",
+            };
+          }
+          throw new Error(`Unexpected first query: ${sql}`);
+        },
+        async run() {
+          if (sql.includes("INSERT INTO payment_transactions")) {
+            state.transaction = {
+              id: 91,
+              order_id: order.id,
+              order_number: order.order_number,
+              public_token: statement.args[2],
+              channel_code: statement.args[3],
+              fee_bearer: statement.args[4],
+              status: "pending",
+              amount: statement.args[5],
+              admin_fee: statement.args[6],
+              total_amount: statement.args[7],
+              virtual_account: null,
+              qr_payload: null,
+              payment_code: null,
+              provider_payment_url: null,
+              expires_at: statement.args[8],
+              failed_reason: null,
+            };
+          } else if (sql.includes("provider_transaction_id = ?")) {
+            Object.assign(state.transaction!, {
+              amount: statement.args[1],
+              admin_fee: statement.args[2],
+              total_amount: statement.args[3],
+              virtual_account: statement.args[4],
+              qr_payload: statement.args[5],
+              payment_code: statement.args[6],
+              provider_payment_url: statement.args[7],
+              failed_reason: null,
+            });
+          } else if (sql.includes("SET status = 'failed'")) {
+            Object.assign(state.transaction!, {
+              status: "failed",
+              failed_reason: statement.args[0],
+            });
+          } else {
+            throw new Error(`Unexpected run query: ${sql}`);
+          }
+          return { success: true, meta: { changes: 1 }, results: [] };
+        },
+      };
+      return statement;
+    },
+  } as unknown as D1Database;
+
+  return { database, state };
+}
+
+const QA_LOCALS = {
+  tenant: { siteUrl: "https://store.example.test" },
+} as App.Locals;
+
+test("payment orchestration sends only payment identity to AutoLaris", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const { database } = createAutoLarisOrderDatabase("qa-key");
+  let requestedUrl = "";
+  let requestedBody: Record<string, unknown> | undefined;
+  globalThis.fetch = async (input, init) => {
+    requestedUrl = String(input);
+    requestedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      rc: "00",
+      data: {
+        trx_id: "TRX-PAY-41",
+        virtual_account: "",
+        qr: "QR-PAYLOAD",
+        payment_code: "",
+        url: "",
+        amount: 117_576,
+        admin: 824,
+        total: 118_400,
+      },
+    });
+  };
+
+  const payment = await createAutoLarisPaymentForOrder(database, QA_LOCALS, {
+    orderId: 41,
+    channelCode: "QRIS",
+  });
+
+  assert.equal(
+    requestedUrl,
+    "https://autolaris.example.test/api/h2h/create_payment",
+  );
+  // `INV-10041` is not a legal provider reference; the digits are.
+  assert.equal(requestedBody?.reff_id, "10041");
+  assert.equal(requestedBody?.customer_id, "41");
+  assert.equal(requestedBody?.customer_name, "Buyer");
+  assert.equal(requestedBody?.customer_email, "buyer@example.test");
+  assert.equal(
+    requestedBody?.callback_url,
+    "https://store.example.test/api/webhooks/autolaris",
+  );
+  // The seller bears the QRIS fee here, so the provider is asked for the net
+  // amount and bills the buyer the order total (`payment-fee-policy.ts`).
+  assert.equal(requestedBody?.amount, "117576");
+  // The buyer's address, courier and parcel never leave for the gateway.
+  for (const shippingField of [
+    "origin",
+    "destination",
+    "courir_id",
+    "weight",
+    "receiver_address",
+    "order_details",
+  ]) {
+    assert.equal(shippingField in (requestedBody || {}), false, shippingField);
+  }
+  assert.equal(payment.qrPayload, "QR-PAYLOAD");
+  assert.equal(payment.adminFee, 824);
+  assert.equal(payment.totalAmount, 118_400);
+});
+
+test("payment orchestration records failure without a provider call when AutoLaris is unconfigured", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const { database } = createAutoLarisOrderDatabase(null);
+  let providerCalls = 0;
+  globalThis.fetch = async () => {
+    providerCalls += 1;
+    return new Response(null, { status: 500 });
+  };
+
+  const payment = await createAutoLarisPaymentForOrder(database, QA_LOCALS, {
+    orderId: 41,
+    channelCode: "QRIS",
+  });
+
+  assert.equal(providerCalls, 0);
+  assert.equal(payment.status, "failed");
+  assert.match(payment.failedReason || "", /belum dikonfigurasi/i);
+});
 
 test("AutoLaris response parsing preserves provider instructions and billed total", () => {
   const payment = parseAutoLarisPaymentResponse({
@@ -61,77 +237,3 @@ test("recorded balance separates paid funds, pending bills, fees, and failures",
     failedCount: 3,
   });
 });
-
-test("paid reconciliation is idempotent and preserves the first paid timestamp", async () => {
-  const state = {
-    transactionStatus: "pending",
-    paymentStatus: "pending",
-    paidAt: null as string | null,
-    shippingStatus: "pending",
-  };
-  type MockStatement = {
-    sql: string;
-    args: unknown[];
-    bind: (...args: unknown[]) => MockStatement;
-    first: () => Promise<unknown>;
-  };
-  const database = {
-    prepare(sql: string) {
-      const statement: MockStatement = {
-        sql,
-        args: [],
-        bind(...args: unknown[]) {
-          statement.args = args;
-          return statement;
-        },
-        async first() {
-          return {
-            transaction_id: 10,
-            order_id: 20,
-            order_number: "INV-20260810-TEST",
-            provider_transaction_id: "TRX-TEST",
-            reference_id: "INV-20260810-TEST",
-            status: state.transactionStatus,
-            shipping_status: state.shippingStatus,
-            warehouse_id: 1,
-            destination_area_id: "destination-1",
-            courier_code: "JNE",
-            address: "Jalan Pengujian Nomor 10",
-          };
-        },
-      };
-      return statement;
-    },
-    async batch(statements: MockStatement[]) {
-      const paidAt = String(statements[0]?.args[0] || "");
-      const transitioned = state.transactionStatus !== "paid";
-      if (transitioned) {
-        state.transactionStatus = "paid";
-        state.paymentStatus = "paid";
-        state.paidAt = paidAt;
-      }
-      return [
-        { success: true, meta: { changes: transitioned ? 1 : 0 }, results: [] },
-        { success: true, meta: { changes: 1 }, results: [] },
-      ];
-    },
-  } as unknown as D1Database;
-
-  const first = await reconcileAutoLarisPaidPayment(database, {
-    providerTransactionId: "TRX-TEST",
-    referenceId: "INV-20260810-TEST",
-  });
-  const originalPaidAt = state.paidAt;
-  const duplicate = await reconcileAutoLarisPaidPayment(database, {
-    providerTransactionId: "TRX-TEST",
-    referenceId: "INV-20260810-TEST",
-  });
-
-  assert.equal(first.transitioned, true);
-  assert.equal(duplicate.transitioned, false);
-  assert.equal(first.shippingQueued, false);
-  assert.equal(state.paymentStatus, "paid");
-  assert.equal(state.shippingStatus, "pending");
-  assert.equal(state.paidAt, originalPaidAt);
-});
-

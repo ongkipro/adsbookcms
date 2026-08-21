@@ -1,0 +1,65 @@
+---
+interface Props {
+  href?: string;
+  class?: string;
+  tone?: 'light' | 'dark' | 'glossy';
+  showTagline?: boolean;
+}
+
+const { href = '/', class: className = '', tone = 'dark', showTagline = false } = Astro.props;
+const isLight = tone === 'light';
+const textClass = isLight ? 'text-white' : 'text-[#111111]';
+const goldClass = 'text-[#111111]';
+
+// The wordmark used to be the reference store's name spelled out, with a
+// hardcoded monogram and tagline, while the aria-label beside
+// it resolved correctly from the tenant. So the accessible name said one store
+// and every sighted visitor read another — and every install shipped wearing
+// the reference store's brand. Same defect as LOGIN-10 and LOGIN-18, one
+// surface over.
+//
+// The two-tone treatment survives by splitting the store's own name: the first
+// word carries the weight, the remainder takes the gold. A single-word name
+// simply renders in one tone, which is the correct degradation rather than a
+// second layout.
+const storeName = Astro.locals.tenant.name.trim();
+const [leadWord = '', ...restWords] = storeName.split(/\s+/);
+const trailingWords = restWords.join(' ');
+const tagline = Astro.locals.tenant.tagline?.trim() ?? '';
+const monogram = (leadWord[0] ?? 'A').toUpperCase();
+---
+
+<a
+  href={href}
+  class={`group inline-flex min-h-11 items-center gap-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#111111] ${className}`}
+  aria-label={Astro.locals.tenant.name}
+  title={`${Astro.locals.tenant.name} - ${Astro.locals.tenant.tagline}`}
+>
+  <!-- Elegant Monogram Luxury Emblem Icon without border -->
+  <span
+    aria-hidden="true"
+    class={`flex h-7 w-7 items-center justify-center bg-transparent text-[14px] font-bold tracking-widest ${goldClass} transition-colors group-hover:text-[#111111]`}
+    style="font-family: 'Cinzel', serif;"
+  >
+    {monogram}
+  </span>
+
+  <span class="flex flex-col justify-center">
+    <span
+      class={`whitespace-nowrap text-[15px] font-bold uppercase tracking-[0.2em] leading-none ${textClass}`}
+      style="font-family: 'Cinzel', 'Playfair Display', Georgia, serif;"
+    >
+      {leadWord}{trailingWords && <span class={`ml-1.5 font-normal ${goldClass}`}>{trailingWords}</span>}
+    </span>
+    {
+      showTagline && tagline && (
+        <span
+          class="mt-1 text-[8px] font-semibold uppercase tracking-[0.25em] text-[#767676]"
+          style="font-family: Inter, sans-serif;"
+        >
+          {tagline}
+        </span>
+      )
+    }
+  </span>
+</a>

@@ -1,11 +1,11 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import MetaThanksTracker from '../components/tracking/MetaThanksTracker.astro';
+import MetaThanksTracker from '../components/storefront/tracking/MetaThanksTracker.astro';
 import { getStorefrontProducts } from '../lib/catalog';
 import { getStoreSupportWhatsapp } from '../lib/public-store';
 import { cn } from '../lib/cn';
 import { badgeVariants, buttonVariants } from '../lib/ui-variants';
-import Icon from '../components/shared/Icon.astro';
+import Icon from '../components/storefront/shared/Icon.astro';
 
 if (
   Astro.url.searchParams.has('order_id') ||
@@ -45,9 +45,9 @@ const productCatalog = products.map((item) => ({
       window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
     }
   </script>
-  <main id="thanks-shell" hidden class="min-h-screen bg-[#F8F7F4] font-sans text-[14px] text-slate-800 antialiased py-4 sm:py-8">
+  <main id="thanks-shell" hidden class="min-h-screen bg-white font-sans text-[14px] text-slate-800 antialiased py-4 sm:py-8">
     <MetaThanksTracker tenantName={Astro.locals.tenant.name} tenantSlug={Astro.locals.tenant.slug} />
-    <div class="mx-auto w-full max-w-[480px] overflow-hidden rounded-none border border-slate-200 bg-white shadow-xs">
+    <div class="mx-auto w-full max-w-[480px] overflow-hidden rounded-none border border-slate-200 bg-white">
       <header
         class="relative z-30 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4"
       >
@@ -72,7 +72,7 @@ const productCatalog = products.map((item) => ({
     </section>
 
     <section class="border-y border-slate-100 bg-slate-50 px-5 py-5 text-center" data-motion="summary">
-      <p id="payment-title" class="text-[11px] font-medium uppercase tracking-[0.1em] text-slate-500">
+      <p id="payment-title" class="text-[11px] font-normal uppercase tracking-[0.1em] text-slate-500">
         Bayar saat paket tiba
       </p>
       <p id="total-payment-hero" class="mt-1 text-[32px] font-bold leading-none tracking-[-0.04em] text-slate-950">
@@ -91,7 +91,7 @@ const productCatalog = products.map((item) => ({
         <h2 class="text-[15px] font-semibold tracking-[-0.02em] text-slate-950">Produk dipesan</h2>
         <span
           id="quantity-badge"
-          class="rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-500 ring-1 ring-slate-100"
+          class="rounded-full bg-slate-50 px-2.5 py-1 text-xs font-normal text-slate-500 ring-1 ring-slate-100"
           >Qty 1</span
         >
       </div>
@@ -113,7 +113,7 @@ const productCatalog = products.map((item) => ({
           >
             —
           </h3>
-          <p id="variant-label" class="mt-1 text-[14px] font-medium leading-5 text-emerald-700">—</p>
+          <p id="variant-label" class="mt-1 text-[14px] font-normal leading-5 text-emerald-700">—</p>
           <p id="product-headline" class="mt-1 line-clamp-2 text-[12px] leading-5 text-slate-500"></p>
         </div>
       </div>
@@ -123,12 +123,12 @@ const productCatalog = products.map((item) => ({
       <h2 class="mb-3 text-[15px] font-semibold tracking-[-0.02em] text-slate-950">Ringkasan pembayaran</h2>
       <div class="divide-y divide-slate-100 overflow-hidden rounded-none border border-slate-200">
         <div class="flex justify-between gap-3 px-4 py-3 text-[13px]">
-          <span class="text-slate-500">Harga produk</span><span id="product-price" class="font-medium text-slate-900"
+          <span class="text-slate-500">Harga produk</span><span id="product-price" class="font-normal text-slate-900"
             >—</span
           >
         </div>
         <div id="discount-row" class="flex justify-between gap-3 px-4 py-3 text-[13px]">
-          <span class="text-slate-500">Diskon promo</span><span id="discount-display" class="font-medium text-red-600"
+          <span class="text-slate-500">Diskon promo</span><span id="discount-display" class="font-normal text-red-600"
             >—</span
           >
         </div>
@@ -136,13 +136,13 @@ const productCatalog = products.map((item) => ({
           <span>Subtotal produk</span><span id="product-subtotal">—</span>
         </div>
         <div class="flex justify-between gap-3 px-4 py-3 text-[13px]">
-          <span class="text-slate-500">Ongkos kirim</span><span id="shipping-cost" class="font-medium text-slate-900"
+          <span class="text-slate-500">Ongkos kirim</span><span id="shipping-cost" class="font-normal text-slate-900"
             >—</span
           >
         </div>
-        <div class="flex items-center justify-between gap-3 bg-[#F8F7F4] px-4 py-4">
+        <div class="flex items-center justify-between gap-3 bg-[#F5F5F5] px-4 py-4">
           <div>
-            <p id="total-label" class="text-[13px] font-medium text-slate-900">Total COD</p>
+            <p id="total-label" class="text-[13px] font-normal text-slate-900">Total COD</p>
             <p id="total-note" class="mt-0.5 text-[10px] uppercase tracking-wide text-amber-600">
               Siapkan uang pas saat kurir tiba
             </p>
@@ -162,18 +162,18 @@ const productCatalog = products.map((item) => ({
         <div class="grid grid-cols-[112px_1fr] gap-3 py-3">
           <span class="text-slate-500">No. Pesanan</span><span
             id="order-id"
-            class="text-right font-medium text-slate-900">—</span
+            class="text-right font-normal text-slate-900">—</span
           >
         </div>
         <div class="grid grid-cols-[112px_1fr] gap-3 py-3">
-          <span class="text-slate-500">Nama</span><span id="customer-name" class="text-right font-medium text-slate-900"
+          <span class="text-slate-500">Nama</span><span id="customer-name" class="text-right font-normal text-slate-900"
             >—</span
           >
         </div>
         <div class="grid grid-cols-[112px_1fr] gap-3 py-3">
           <span class="text-slate-500">WhatsApp</span><span
             id="customer-phone"
-            class="text-right font-medium text-slate-900">—</span
+            class="text-right font-normal text-slate-900">—</span
           >
         </div>
         <div class="grid grid-cols-[112px_1fr] gap-3 py-3">
@@ -182,7 +182,7 @@ const productCatalog = products.map((item) => ({
           >
         </div>
         <div id="area-row" class="grid grid-cols-[112px_1fr] gap-3 py-3">
-          <span class="text-slate-500">Area</span><span id="area-display" class="text-right font-medium text-slate-900"
+          <span class="text-slate-500">Area</span><span id="area-display" class="text-right font-normal text-slate-900"
             >—</span
           >
         </div>
@@ -195,7 +195,7 @@ const productCatalog = products.map((item) => ({
         <div class="grid grid-cols-[18px_1fr] gap-3">
           <span class="mt-0.5 size-4 rounded-full bg-emerald-600 ring-4 ring-emerald-100"></span>
           <div>
-            <p id="step-one-title" class="text-[13px] font-medium text-slate-950">Pesanan diterima</p><p
+            <p id="step-one-title" class="text-[13px] font-normal text-slate-950">Pesanan diterima</p><p
               id="step-one-copy"
               class="mt-0.5 text-xs text-slate-500"
             >
@@ -207,7 +207,7 @@ const productCatalog = products.map((item) => ({
           <span class="mt-1 size-3 rounded-full bg-white ring-2 ring-emerald-600 ring-offset-2 ring-offset-slate-50"
           ></span>
           <div>
-            <p id="step-two-title" class="text-[13px] font-medium text-slate-950">Verifikasi admin</p><p
+            <p id="step-two-title" class="text-[13px] font-normal text-slate-950">Verifikasi admin</p><p
               id="step-two-copy"
               class="mt-0.5 text-xs text-slate-500"
             >
@@ -218,7 +218,7 @@ const productCatalog = products.map((item) => ({
         <div class="grid grid-cols-[18px_1fr] gap-3 opacity-60">
           <span class="mt-0.5 size-4 rounded-full bg-slate-200 ring-1 ring-slate-200"></span>
           <div>
-            <p id="step-three-title" class="text-[13px] font-medium text-slate-950">Packing & pengiriman</p><p
+            <p id="step-three-title" class="text-[13px] font-normal text-slate-950">Packing & pengiriman</p><p
               id="step-three-copy"
               class="mt-0.5 text-xs text-slate-500"
             >
@@ -274,7 +274,7 @@ const productCatalog = products.map((item) => ({
           </div>
           <div class="grid grid-cols-[18px_1fr] gap-2.5">
             <span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>
-              Pastikan nomor WhatsApp <span id="note-phone" class="font-medium text-slate-950">—</span> tetap
+              Pastikan nomor WhatsApp <span id="note-phone" class="font-normal text-slate-950">—</span> tetap
               aktif untuk konfirmasi admin atau kurir.
             </p>
           </div>
@@ -288,7 +288,7 @@ const productCatalog = products.map((item) => ({
     </section>
 
     <section id="whatsapp-section" class="px-5 py-6 text-center" data-motion="cta">
-      <p class="text-[11px] font-medium uppercase tracking-[0.12em] text-emerald-700">Langkah berikutnya</p>
+      <p class="text-[11px] font-normal uppercase tracking-[0.12em] text-emerald-700">Langkah berikutnya</p>
       <h2 id="cta-title" class="mt-1 text-[20px] font-semibold tracking-[-0.03em] text-slate-950">
         Konfirmasi ke admin
       </h2>
@@ -476,7 +476,7 @@ const productCatalog = products.map((item) => ({
     );
     const productName = catalogProduct?.productName || rawProductName;
     const variantLabel = catalogVariant?.label || rawVariantLabel;
-    const productImage = pick('product_image', catalogProduct?.image || storeLogo);
+    const productImage = pick('product_image', catalogProduct?.image || '');
     const productHeadline = pick('product_headline', catalogProduct?.headline || '');
     const quantity = Math.max(1, pickNum('quantity', 1));
     const productPrice = pickNum('product_price', pickNum('value', catalogVariant?.price || 0));
@@ -514,8 +514,13 @@ const productCatalog = products.map((item) => ({
     const headlineEl = document.getElementById('product-headline');
     if (productHeadline) headlineEl.textContent = productHeadline;
     else headlineEl.hidden = true;
-    document.getElementById('product-image').src = productImage;
-    document.getElementById('product-image').alt = productName;
+    const productImageElement = document.getElementById('product-image');
+    if (productImage) {
+      productImageElement.setAttribute('src', productImage);
+      productImageElement.setAttribute('alt', productName);
+    } else {
+      productImageElement.hidden = true;
+    }
     const productDisplayTotal = comparePrice > productPrice ? comparePrice * quantity : productTotal;
     document.getElementById('product-price').textContent = fmt(productDisplayTotal);
     document.getElementById('product-subtotal').textContent = fmt(productTotal);
@@ -554,7 +559,7 @@ const productCatalog = products.map((item) => ({
       document.getElementById('note-title').textContent = 'Catatan konfirmasi COD';
       document.getElementById('note-list').innerHTML = `
         <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>Nominal saat ini hanya estimasi harga produk: <span class="font-bold text-slate-950">${fmt(productTotal || productPrice || 0)}</span>.</p></div>
-        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>Biaya admin, ongkir, dan total akhir dikonfirmasi Customer Service melalui WhatsApp <span class="font-medium text-slate-950">${escapeHtml(phone)}</span>.</p></div>
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>Biaya admin, ongkir, dan total akhir dikonfirmasi Customer Service melalui WhatsApp <span class="font-normal text-slate-950">${escapeHtml(phone)}</span>.</p></div>
         <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-amber-500"></span><p>Pastikan nomor aktif agar pesanan COD bisa segera diproses.</p></div>`;
       document.getElementById('cta-title').textContent = 'Hubungi admin';
       document.getElementById('cta-copy').textContent =

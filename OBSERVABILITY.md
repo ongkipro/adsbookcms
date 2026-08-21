@@ -1,37 +1,41 @@
 # Observability — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-17 @ `5cb1d32` + current A11 working tree
 
-This document describes what can and cannot currently be observed about a running install. It is deliberately blunt about the gaps, because for an installable product the inability to diagnose someone else's install is a product defect, not a nice-to-have.
+This document describes what an operator can observe and what AdsBookCMS now alerts on for one running install. Cross-install aggregation and an external uptime probe remain separate decisions.
 
 ---
 
-## 1. Current state: logs yes, alerting no
+## 1. Current state: retained logs plus actionable per-install alerts
 
-**`wrangler.jsonc` carries an `observability` block**, enabled at
-`head_sampling_rate: 1`. Cloudflare Workers Logs are on, so the labelled error
-calls below are retained and queryable after the fact — "what happened on this
-install at 14:20 yesterday" is answerable.
+`wrangler.jsonc` enables Workers Logs at full sampling, so labelled application
+errors and scheduled-maintenance events are retained and queryable after the fact.
+The Worker also owns one scheduled maintenance trigger (`*/5 * * * *`). It checks
+schema history and CAPI outbox age, persists signal transition state under
+`adsbookcms:operational-alert:v1:*` in the `SESSION` KV binding, and sends
+deduplicated firing/recovery events to `OPS_ALERT_WEBHOOK_URL` when that
+HTTPS URL is configured. Missing notification configuration is explicit
+`notification: "disabled"` state, never simulated success.
 
-> Until 2026-08-17 this section said the opposite: that the block was absent and
-> logs were off. It also handed the reader the exact JSON to paste, which was
-> byte-identical to what the file already contained. An operator diagnosing a
-> dead install would have concluded there were no logs and stopped looking.
+External uptime monitoring and a fleet-wide view are not implemented.
 
 What exists:
 
 | Capability | Status |
 | --- | --- |
-| Workers Logs / Logpush | **Configured** — `observability.enabled: true`, full sampling |
-| Error reporting (Sentry or equivalent) | **None** |
-| Uptime / synthetic checks | **None** |
-| Structured logging | **Partial** — 98 `console.error` calls with stable string labels |
-| Request tracing / correlation id | **None** |
-| Business metrics | Live D1 query in `/admin/dashboard`, plus `/api/admin/health` |
-| Alerting | **None** |
+| Workers Logs / Logpush | **Configured** in `wrangler.jsonc` |
+| Request logs | **On**, with invocation logs retained |
+| Structured application errors | **Implemented** for labelled server and provider failures |
+| Per-install schema alert | **Implemented**; scheduled every five minutes |
+| Per-install CAPI outbox alert | **Implemented**; fires when failed/dead events exist or oldest pending age is at least 15 minutes |
+| Deduplication and recovery | **Implemented** through KV transition state |
+| Notification transport | **Implemented** for an operator-configured HTTPS URL |
+| External uptime check | **Absent** |
+| Cross-install monitor | **Absent** |
+| Alert dashboard/history | **Absent** beyond KV state and retained logs |
 
-`npx wrangler tail` still gives the live view; the difference is that it is no
-longer the only view.
+`npx wrangler tail` remains the live view; retained logs and KV alert state provide
+the after-the-fact view.
 
 ---
 
@@ -43,13 +47,13 @@ Error logging follows a consistent convention worth preserving: a stable kebab-c
 console.error("storefront-support-whatsapp-load", error);
 ```
 
-Roughly 85 distinct labels are in use, named after the surface that produced them — `admin-products-patch`, `autolaris-webhook`, `mengantar-dispatch-lease-release`, `shipping-pickup`, `settings-put`, `google-catalog-xml-error`, and so on. These are already greppable and would become queryable the moment Workers Logs is enabled. **Keep this convention.** A new log line without a stable label is a log line nobody will ever find.
+Roughly 85 distinct labels are in use, named after the surface that produced them — `admin-products-patch`, `manual-payment-reconciliation`, `mengantar-dispatch-lease-release`, `shipping-pickup`, `settings-put`, `google-catalog-xml-error`, and so on. Workers Logs is enabled, so these labels are queryable during the configured retention window. **Keep this convention.** A new log line without a stable label is a log line nobody will ever find.
 
 Three `console.log` calls exist and should be reviewed — informational logging in a Worker costs money at scale and usually indicates leftover debugging.
 
 ---
 
-## 3. Failure modes that are currently silent
+## 3. Current degradation gaps and resolved signals
 
 These are the paths where the system degrades without telling anyone. Each is a real behaviour in the current tree, not a hypothetical.
 
@@ -59,7 +63,8 @@ These are the paths where the system degrades without telling anyone. Each is a 
 | D1 error while reading embed origins | Middleware fails closed to an empty allowlist | Correct security behaviour, but embeds break with no signal |
 | Meta CAPI delivery failure | Retried through `capi_event_outbox` with attempt counting | Good design — but nothing surfaces an outbox that has stopped draining |
 | Mengantar dispatch failure | Order stays `pending` and remains retryable | Correct, but an operator must notice manually |
-| AutoLaris webhook signature mismatch | Rejected | No counter distinguishes "provider changed contract" from "nobody paid today" |
+| Mengantar tracking poll failure | The affected row fails independently, remains at its prior lifecycle state, and returns an operator-visible error in the Shipping workspace | Correct interactive behavior; no automatic retry or alert is claimed |
+| AutoLaris paid transaction with no operator confirmation yet | Order remains pending/unpaid until an owner/admin confirms the exact billed amount and provider reference from the provider dashboard | Correct current contract, but there is no automatic provider-side inquiry yet |
 | Stock trigger rejection | `INSUFFICIENT_STOCK` raised by D1 | Surfaces to the caller, but is not counted |
 | Landing pages fail to load on the homepage | `catch {}` swallowed it; the solutions grid silently loses every CMS landing page | Now logged as `home-landing-pages-load` |
 | Support WhatsApp lookup finds no store row | returned `""`, identical to "number simply not saved" | Now logged as `storefront-support-whatsapp-no-store-row`, which distinguishes an unseeded database from an unconfigured one |
@@ -73,46 +78,58 @@ The pattern across all of them: the system is **correctly defensive** and **comp
 
 Ordered by value per unit of effort.
 
-1. **Log the outbox depth.** A single periodic count of `capi_event_outbox` rows in `status != 'delivered'` distinguishes a healthy pipeline from a stalled one. This is the metric most likely to silently cost money, because a stalled outbox means unattributed ad spend.
-
-2. **Distinguish degradation from success.** Where the code falls back — home
-   content, support WhatsApp, embed origins — log a labelled warning on the
-   fallback path. Partly done: `tenant-content.ts` logs
-   `home-content-unpublished`, and the identity resolver logs
-   `tenant-identity-unmigrated`. Others are still silent.
+1. **Alert on outbox health.** Implemented by the scheduled CAPI outbox signal.
+2. **Distinguish degradation from success.** Most critical degradation paths
+   carry labels; the remaining silent fallbacks are tracked in
+   `UNIMPLEMENTED_SPECS.md`, not treated as alert success.
 
 3. **Uptime check on `/` and `/produk`.** External, per install.
 
-4. **Alerting.** Nothing watches anything; every item above is pull, not push.
+4. **Cross-install view.** Logs and alert state remain per Worker. Aggregation
+   would ship telemetry off an install and therefore requires an explicit privacy
+   and operating-model decision.
 
-**Done since this list was written:** provider health in `/admin`.
-`operational-health.ts` classifies Mengantar, AutoLaris and the CAPI outbox,
-`/api/admin/health` serves it, and `OperationalHealth.tsx` renders it on the
-dashboard — that route's header comment cites this very list as its spec.
+**Done since this list was written:** provider health in `/admin` and scheduled
+schema/CAPI outbox alerting. `operational-health.ts` classifies Mengantar,
+AutoLaris, and the CAPI outbox; `operational-alerts.ts` owns transition state and
+notification delivery.
 
 ---
 
-## 5. Per-install consideration for AdsBookCMS
+## 5. Alert state and notification contract
 
-Once there is more than one install, observability stops being a single-site concern:
+The scheduled handler evaluates:
 
-- Logs are **per Worker**. There is no aggregate view across installs unless one is built, and building one means shipping telemetry off the install, which is a decision with privacy consequences that must be made deliberately (see `DECISIONS.md`).
-- **Order and customer data must never leave the install** as part of any telemetry. Counts, durations, and error labels are safe; payloads are not.
-- Each install carries its own `src/lib/version.ts`. `/api/admin/health` reports
-  version and applied schema version, because "which version is this customer
-  actually running" is otherwise unanswerable without shell access. What remains
-  missing is the aggregate view, not the per-install signal.
+- `schema`: firing on schema-history mismatch or read failure; healthy on an exact match.
+- `capi-outbox`: firing when failed/dead rows are present or the oldest pending event is at least 15 minutes old; healthy otherwise.
+
+`unknown` does not overwrite a previously known state. A healthy→firing transition
+persists before notification. A failed notification remains `pending` so the next
+scheduled run retries; a successful notification becomes `sent`. A
+firing→healthy recovery emits once and returns to healthy state.
+
+Webhook JSON is bounded and payload-free: `event_id`, `id`, `state`, `reason`,
+`transition`, and `transition_at`. It never includes order, customer, payment,
+credential, or request payloads.
+
+Logs and alert state remain per Worker. There is no aggregate view across installs.
+Building one means shipping telemetry off the install, so order and customer data
+must never leave the install; only counts, durations, version, and error labels are
+eligible for any future design.
 
 ---
 
 ## 6. Diagnosing a live install today
 
-Until the above lands, the available tools are:
-
+The available operator tools are:
 ```bash
-npx wrangler tail                                    # live log stream, nothing retained
+npx wrangler tail                                      # live stream
 npx wrangler d1 execute OMS_DB --remote --command "…" # read-only inspection (approval required)
 curl -s -o /dev/null -w '%{http_code} %{time_total}' https://<domain>/
 ```
 
-`/admin/dashboard` gives live business state (revenue, orders, conversion, payment mix, RTS indicators) computed directly from D1 on each load. It is a dashboard, not a monitor: it shows the present, keeps no history, and alerts on nothing.
+`/admin/dashboard` gives live business state computed directly from D1. It is not
+an alert console: it shows the present and keeps no alert history.
+For alert delivery failures, query Workers Logs for
+`operational-alert-notification-failed`; for transitions, use
+`operational-alert-triggered` and `operational-alert-recovered`.

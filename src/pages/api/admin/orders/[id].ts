@@ -8,7 +8,11 @@ import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from '../../../..
 import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch';
 import { getReceiverPerformance, scheduleReceiverPerformanceRefresh } from '../../../../lib/rts-scoring';
 import type { ReceiverPerformance } from '../../../../lib/receiver-performance';
-import { releasesReservedStock, restoreReservedStock } from '../../../../lib/stock-restore';
+import {
+  applyOrderLifecycleMutation,
+  deleteOrdersRestoringStock,
+  OrderLifecycleError,
+} from '../../../../lib/order-lifecycle';
 import {
   resolveEligibleShippingRates,
   ShippingQuoteError,
@@ -19,7 +23,6 @@ export const prerender = false;
 const PAYMENT_STATUSES = ['unpaid', 'pending', 'paid', 'settled', 'success', 'failed', 'refunded', 'cancelled'] as const;
 const SHIPPING_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'returned', 'cancelled'] as const;
 const PAID_STATUSES = new Set(['paid', 'settled', 'success']);
-const SHIPPED_LIKE_STATUSES = new Set(['shipped', 'delivered', 'returned']);
 
 type OrderUpdatePayload = {
   action?: 'dispatch-order' | 'refresh-scoring';
@@ -72,6 +75,7 @@ type OrderRow = {
   receiver_risk_label: string | null;
   receiver_performance_json: string | null;
   receiver_performance_checked_at: string | null;
+  stock_restored_at: string | null;
   ad_click_ids: string | null;
   created_at: string;
   warehouse_name: string | null;
@@ -157,6 +161,7 @@ async function loadOrder(database: D1Database, rawOrderKey: string) {
       o.receiver_performance_json,
       o.receiver_performance_checked_at,
       o.ad_click_ids,
+      o.stock_restored_at,
       o.created_at,
       w.name AS warehouse_name,
       w.pickup_address_id,
@@ -165,11 +170,14 @@ async function loadOrder(database: D1Database, rawOrderKey: string) {
     FROM orders o
     LEFT JOIN warehouses w ON w.id = o.warehouse_id
     LEFT JOIN pickup_schedules ps ON ps.id = o.pickup_schedule_id
-    WHERE o.order_number = ?
-       OR LOWER(o.order_number) = LOWER(?)
-       OR o.public_status_token = ?
-       OR CAST(o.id AS TEXT) = ?
-       OR (? IS NOT NULL AND o.id = ?)
+    WHERE o.shipping_status <> 'abandoned'
+      AND (
+        o.order_number = ?
+        OR LOWER(o.order_number) = LOWER(?)
+        OR o.public_status_token = ?
+        OR CAST(o.id AS TEXT) = ?
+        OR (? IS NOT NULL AND o.id = ?)
+      )
     ORDER BY o.id DESC
     LIMIT 1
   `,
@@ -404,7 +412,11 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
       nextPostalCode,
       nextDestinationAreaId,
     ].some((value) => value !== undefined);
+    const destinationChanged =
+      nextDestinationAreaId !== undefined &&
+      (nextDestinationAreaId || null) !== current.destination_area_id;
     const hasShippingSelection =
+      destinationChanged ||
       nextCourierCode !== undefined ||
       (body.courier_service_id !== undefined &&
         !isNaN(Number(body.courier_service_id)) &&
@@ -426,15 +438,6 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     }
     if (nextShippingStatus !== undefined && !SHIPPING_STATUSES.includes(nextShippingStatus as (typeof SHIPPING_STATUSES)[number])) {
       return jsonError('Status pengiriman tidak valid.', 400);
-    }
-    if (nextPaymentStatus === 'paid' && current.payment_method !== 'cod') {
-      return jsonError('Pembayaran online hanya boleh ditandai paid oleh rekonsiliasi AutoLaris.', 409);
-    }
-    if (nextShippingStatus === 'processing' && current.shipping_status === 'pending') {
-      return jsonError('Gunakan aksi Push/Arrange Shipping ke Mengantar.', 409);
-    }
-    if (nextShippingStatus === 'pending' && current.shipping_status !== 'pending') {
-      return jsonError('Order yang sudah masuk pengiriman tidak dapat dikembalikan ke status menunggu.', 409);
     }
     if (current.provider_order_id && (hasCustomerChanges || hasShippingSelection)) {
       return jsonError('Data tujuan tidak dapat diubah setelah shipment Mengantar dibuat.', 409);
@@ -472,6 +475,14 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     };
     if (nextCustomerName !== undefined) addAssignment('customer_name', nextCustomerName);
     if (nextCustomerPhone !== undefined) addAssignment('customer_phone', nextCustomerPhone);
+    const customerPhoneChanged =
+      nextCustomerPhone !== undefined && nextCustomerPhone !== current.customer_phone;
+    if (customerPhoneChanged) {
+      addAssignment('receiver_rts_score', null);
+      addAssignment('rts_risk_label', null);
+      addAssignment('receiver_performance_json', null);
+      addAssignment('receiver_performance_checked_at', null);
+    }
     if (nextAddress !== undefined) addAssignment('address', nextAddress);
     if (nextDistrict !== undefined) addAssignment('district', nextDistrict);
     if (nextCity !== undefined) addAssignment('city', nextCity);
@@ -558,7 +569,6 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
 
     const resolvedPaymentStatus = nextPaymentStatus ?? current.payment_status;
     const resolvedShippingStatus = nextShippingStatus ?? current.shipping_status;
-    const resolvedCnoteNo = nextCnoteNo !== undefined ? nextCnoteNo || null : current.cnote_no;
 
     if (action === 'dispatch-order') {
       const resolvedCustomerName = nextCustomerName ?? current.customer_name;
@@ -570,9 +580,6 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
       if (current.provider_order_id) {
         return jsonError('Shipment Mengantar untuk order ini sudah dibuat.', 409);
       }
-    if (nextCustomerPhone && nextCustomerPhone !== current.customer_phone) {
-      scheduleReceiverPerformanceRefresh(db, current.order_number, nextCustomerPhone, locals);
-    }
       if (current.shipping_status !== 'pending') {
         return jsonError('Hanya order menunggu yang dapat disiapkan untuk dispatch.', 409);
       }
@@ -600,30 +607,56 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     }
 
 
-    const finalShippingStatus = resolvedShippingStatus;
-    if (SHIPPED_LIKE_STATUSES.has(finalShippingStatus) && (!resolvedCourierCode || !resolvedCnoteNo)) {
-      return jsonError('Order yang sudah dikirim harus memiliki kurir dan nomor resi.', 400);
-    }
-    if (finalShippingStatus === 'delivered' && current.payment_method !== 'cod' && !PAID_STATUSES.has(resolvedPaymentStatus)) {
-      return jsonError('Order non-COD tidak boleh diselesaikan sebelum berstatus paid.', 409);
-    }
     if (assignments.length === 0 && action !== 'dispatch-order') {
       return jsonError('Tidak ada perubahan yang dikirim.', 400);
     }
 
     if (assignments.length > 0) {
-      const result = await db.prepare(`
+      const destinationEditGuard =
+        hasCustomerChanges || hasShippingSelection
+          ? `
+        AND provider_order_id IS NULL
+        AND provider_dispatch_claimed_at IS NULL
+        AND shipping_status = 'pending'`
+          : '';
+      const mutation = db.prepare(`
         UPDATE orders
         SET ${assignments.join(', ')}
         WHERE id = ?
-      `).bind(...values, current.id).run();
-      if (!result.meta?.changes) {
-        return jsonError('Order tidak ditemukan.', 404);
+        ${destinationEditGuard}
+      `).bind(...values, current.id);
+      const hasLifecycleChange =
+        action !== 'dispatch-order' &&
+        (nextPaymentStatus !== undefined || nextShippingStatus !== undefined);
+      const updated = hasLifecycleChange
+        ? (
+            await applyOrderLifecycleMutation(
+              db,
+              current,
+              {
+                paymentStatus: nextPaymentStatus,
+                shippingStatus: nextShippingStatus,
+              },
+              mutation,
+            )
+          ).updated
+        : Boolean((await mutation.run()).meta?.changes);
+      if (!updated) {
+        return destinationEditGuard
+          ? jsonError(
+              'Data tujuan tidak dapat diubah karena order sedang atau sudah diproses ke Mengantar.',
+              409,
+            )
+          : jsonError('Order tidak ditemukan.', 404);
       }
-    }
-
-    if (releasesReservedStock(resolvedPaymentStatus, finalShippingStatus)) {
-      await restoreReservedStock(db, current.id);
+      if (customerPhoneChanged && nextCustomerPhone) {
+        scheduleReceiverPerformanceRefresh(
+          db,
+          current.order_number,
+          nextCustomerPhone,
+          locals,
+        );
+      }
     }
 
     let dispatchOutcome: Awaited<ReturnType<typeof dispatchOrderToMengantar>> | undefined;
@@ -661,6 +694,10 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
         warehouse_name: updated.warehouse_name,
         total_amount: updated.total_amount,
         shipping_cost: updated.shipping_cost,
+        discount_amount: updated.discount_amount,
+        cod_service_fee: updated.cod_service_fee,
+        cod_service_fee_vat: updated.cod_service_fee_vat,
+        cod_fee_bearer: updated.cod_fee_bearer,
         payment_status: updated.payment_status,
         shipping_status: updated.shipping_status,
         confirmed_at: updated.confirmed_at,
@@ -669,9 +706,19 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
         cnote_no: updated.cnote_no,
         provider_order_id: updated.provider_order_id,
         provider_dispatch_error: updated.provider_dispatch_error,
+        receiver_delivery_rate: updated.receiver_delivery_rate,
+        receiver_risk_label: updated.receiver_risk_label,
+        receiver_performance: (() => {
+          if (!updated.receiver_performance_json) return null;
+          try { return JSON.parse(updated.receiver_performance_json) as unknown; } catch { return null; }
+        })(),
+        receiver_performance_checked_at: updated.receiver_performance_checked_at,
       },
     });
   } catch (error) {
+    if (error instanceof OrderLifecycleError) {
+      return jsonError(error.message, error.status);
+    }
     if (error instanceof ShippingQuoteError) {
       return jsonError(error.message, error.status);
     }
@@ -694,14 +741,16 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
     const order = await loadOrder(db, orderKey);
     if (!order) return jsonError('Order tidak ditemukan', 404);
 
-    await db.batch([
-      db.prepare('DELETE FROM order_items WHERE order_id = ?').bind(order.id),
-      db.prepare('DELETE FROM payment_transactions WHERE order_id = ? OR reference_id = ?').bind(order.id, order.order_number),
-      db.prepare('DELETE FROM orders WHERE id = ?').bind(order.id),
-    ]);
+    const deleted = await deleteOrdersRestoringStock(db, [order.id]);
+    if (deleted.length === 0) {
+      return jsonError('Order tidak ditemukan', 404);
+    }
 
     return jsonOk({ success: true, message: `Pesanan ${order.order_number} berhasil dihapus`, deleted_id: order.id });
   } catch (error) {
+    if (error instanceof OrderLifecycleError) {
+      return jsonError(error.message, error.status);
+    }
     console.error('DELETE admin/orders/[id] error:', error);
     return jsonError('Gagal menghapus pesanan.', 500);
   }

@@ -14,7 +14,7 @@ import {
 } from "../../lib/form-mode";
 import { getRuntimeEnv } from "../../lib/env";
 import { getStorefrontProduct } from "../../lib/catalog";
-import { catalogItemGroupId, catalogItemId } from "../../lib/catalog-feed";
+import { catalogProductId } from "../../lib/catalog-feed";
 
 export const prerender = false;
 
@@ -108,7 +108,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
     {
       product: {
         id: product.catalogId,
-        content_id: catalogItemGroupId(product.productId),
+        content_id: catalogProductId(product.productId),
         slug: product.slug,
         name: product.productName,
         image: product.image,
@@ -117,14 +117,14 @@ export const GET: APIRoute = async ({ request, locals }) => {
       },
       variants: product.variants.map((variant) => ({
         id: variant.catalogId,
-        content_id: catalogItemId(product.productId, variant.id),
+        content_id: catalogProductId(product.productId),
         label: variant.label,
         price: variant.price,
         compare_price: variant.comparePrice ?? variant.price,
       })),
       selected_variant: {
         id: selectedVariant.catalogId,
-        content_id: catalogItemId(product.productId, selectedVariant.id),
+        content_id: catalogProductId(product.productId),
         label: selectedVariant.label,
         price: selectedVariant.price,
         compare_price: selectedVariant.comparePrice ?? selectedVariant.price,

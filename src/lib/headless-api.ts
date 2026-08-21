@@ -1,16 +1,62 @@
 import type { APIRoute } from 'astro';
 import { getRuntimeEnv } from './env.ts';
-import { verifyApiKeySecret } from './developer-api-keys.ts';
+import {
+  DEFAULT_API_KEY_DAILY_QUOTA,
+  DEFAULT_API_KEY_RATE_LIMIT,
+  hashApiKeySecret,
+  parseStoredApiKeyScopes,
+  type HeadlessApiScope,
+} from './developer-api-keys.ts';
+
+export const HEADLESS_OPERATIONS = {
+  storefrontRead: { scope: 'storefront:read', method: 'GET', path: '/api/v1/storefront' },
+  catalogList: { scope: 'catalog:read', method: 'GET', path: '/api/v1/products' },
+  catalogDetail: { scope: 'catalog:read', method: 'GET', path: '/api/v1/products/{slug}' },
+  districtSearch: { scope: 'shipping:read', method: 'GET', path: '/api/v1/geo/districts' },
+  shippingQuote: { scope: 'shipping:read', method: 'POST', path: '/api/v1/geo/shipping-rates' },
+  checkoutCreate: { scope: 'checkout:write', method: 'POST', path: '/api/v1/checkout' },
+  orderStatusRead: { scope: 'orders:read', method: 'POST', path: '/api/v1/orders/status' },
+  trackingCreate: { scope: 'tracking:write', method: 'POST', path: '/api/v1/tracking/events' },
+  openApiRead: { scope: 'storefront:read', method: 'GET', path: '/api/v1/openapi.json' },
+} as const satisfies Record<string, {
+  scope: HeadlessApiScope;
+  method: 'GET' | 'POST';
+  path: string;
+}>;
+
+export type HeadlessOperation = keyof typeof HEADLESS_OPERATIONS;
+
 export const DEFAULT_CORS_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, X-Tenant-Slug, X-App-Key',
+  'Access-Control-Expose-Headers': 'X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-DailyQuota-Limit, X-DailyQuota-Remaining',
   'Access-Control-Max-Age': '86400',
 };
 
 type DeveloperApiKeyRow = {
   id: number;
   key_hash: string;
+  scopes?: string | null;
+  rate_limit_per_minute?: number | null;
+  daily_quota?: number | null;
 };
+
+type ApiKeyPolicyHeaders = Record<string, string>;
+
+type AuthenticatedApiKey = {
+  id: number;
+  corsHeaders: ApiKeyPolicyHeaders;
+  database: D1Database;
+  rateLimit: number;
+  dailyQuota: number;
+};
+
+type HeadlessAuditOutcome =
+  | 'allowed'
+  | 'scope_denied'
+  | 'rate_limited'
+  | 'quota_exhausted'
+  | 'origin_denied';
 
 function getApiKeySecret(request: Request) {
   const appKey = request.headers.get('x-app-key')?.trim();
@@ -23,30 +69,78 @@ function getApiKeySecret(request: Request) {
   if (authorization.toLowerCase().startsWith('bearer ')) {
     return authorization.slice(7).trim();
   }
-
   return '';
+}
+
+function headlessAuthError(
+  message: string,
+  code: string,
+  status: number,
+  headers: Record<string, string>,
+) {
+  return headlessJson(
+    {
+      success: false,
+      timestamp: new Date().toISOString(),
+      error: { message, code },
+    },
+    status,
+    { ...headers, 'cache-control': 'no-store' },
+  );
+}
+
+async function recordHeadlessApiAudit(
+  database: D1Database,
+  apiKeyId: number,
+  operation: HeadlessOperation,
+  outcome: HeadlessAuditOutcome,
+  statusCode: number,
+  createdAt: string,
+) {
+  await database.prepare(`
+    INSERT INTO headless_api_audit_events (
+      api_key_id, operation, outcome, status_code, created_at
+    ) VALUES (?, ?, ?, ?, ?)
+  `).bind(apiKeyId, operation, outcome, statusCode, createdAt).run();
+}
+
+async function consumeUsageBucket(
+  database: D1Database,
+  apiKeyId: number,
+  bucketKind: 'minute' | 'day',
+  bucketStart: string,
+  limit: number,
+): Promise<number | null> {
+  const row = await database.prepare(`
+    INSERT INTO developer_api_key_usage (
+      api_key_id, bucket_kind, bucket_start, request_count
+    ) VALUES (?, ?, ?, 1)
+    ON CONFLICT(api_key_id, bucket_kind, bucket_start)
+    DO UPDATE SET request_count = request_count + 1
+    WHERE request_count < ?
+    RETURNING request_count
+  `).bind(apiKeyId, bucketKind, bucketStart, limit).first<{ request_count: number }>();
+  return row ? Number(row.request_count) : null;
 }
 
 async function validateHeadlessApiKey(
   request: Request,
   locals: App.Locals | undefined,
-  corsHeaders: Record<string, string>
-) {
+  corsHeaders: Record<string, string>,
+  operation: HeadlessOperation,
+): Promise<
+  | { allowed: true; key: AuthenticatedApiKey }
+  | { allowed: false; errorResponse: Response }
+> {
   const secret = getApiKeySecret(request);
   if (!secret) {
     return {
       allowed: false,
-      errorResponse: headlessJson(
-        {
-          success: false,
-          timestamp: new Date().toISOString(),
-          error: {
-            message: 'API key headless wajib dikirim lewat X-App-Key atau Authorization Bearer.',
-            code: 'API_KEY_REQUIRED',
-          },
-        },
+      errorResponse: headlessAuthError(
+        'API key headless wajib dikirim lewat X-App-Key atau Authorization Bearer.',
+        'API_KEY_REQUIRED',
         401,
-        { ...corsHeaders, 'cache-control': 'no-store' }
+        corsHeaders,
       ),
     };
   }
@@ -55,59 +149,155 @@ async function validateHeadlessApiKey(
   if (!database?.prepare) {
     return {
       allowed: false,
-      errorResponse: headlessJson(
-        {
-          success: false,
-          timestamp: new Date().toISOString(),
-          error: {
-            message: 'Database API key headless belum dikonfigurasi.',
-            code: 'API_KEY_STORE_UNAVAILABLE',
-          },
-        },
+      errorResponse: headlessAuthError(
+        'Database API key headless belum dikonfigurasi.',
+        'API_KEY_STORE_UNAVAILABLE',
         503,
-        { ...corsHeaders, 'cache-control': 'no-store' }
+        corsHeaders,
       ),
     };
   }
 
-  const hashedSecret = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
-  const candidateHash = Array.from(
-    new Uint8Array(hashedSecret),
-    (byte) => byte.toString(16).padStart(2, '0')
-  ).join('');
-  const record = await database.prepare(`
-    SELECT id, key_hash
-    FROM developer_api_keys
-    WHERE key_hash = ? AND revoked_at IS NULL
-    LIMIT 1
-  `).bind(candidateHash).first<DeveloperApiKeyRow>();
-  const verified = record ? await verifyApiKeySecret(secret, record.key_hash) : false;
+  try {
+    const candidateHash = await hashApiKeySecret(secret);
+    const record = await database.prepare(`
+      SELECT *
+      FROM developer_api_keys
+      WHERE key_hash = ? AND revoked_at IS NULL
+      LIMIT 1
+    `).bind(candidateHash).first<DeveloperApiKeyRow>();
+    if (!record || record.key_hash !== candidateHash) {
+      return {
+        allowed: false,
+        errorResponse: headlessAuthError(
+          'API key headless tidak valid atau sudah dicabut.',
+          'API_KEY_INVALID',
+          401,
+          corsHeaders,
+        ),
+      };
+    }
 
-  if (!record || !verified) {
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const scopes = parseStoredApiKeyScopes(record.scopes);
+    const operationPolicy = HEADLESS_OPERATIONS[operation];
+    const rateLimit = Number.isInteger(record.rate_limit_per_minute)
+      ? Number(record.rate_limit_per_minute)
+      : DEFAULT_API_KEY_RATE_LIMIT;
+    const dailyQuota = Number.isInteger(record.daily_quota)
+      ? Number(record.daily_quota)
+      : DEFAULT_API_KEY_DAILY_QUOTA;
+    const policyHeaders = {
+      ...corsHeaders,
+      'X-RateLimit-Limit': String(rateLimit),
+      'X-DailyQuota-Limit': String(dailyQuota),
+    };
+
+    if (!scopes.includes(operationPolicy.scope)) {
+      await recordHeadlessApiAudit(database, record.id, operation, 'scope_denied', 403, nowIso);
+      return {
+        allowed: false,
+        errorResponse: headlessAuthError(
+          'API key tidak memiliki scope yang diperlukan untuk operasi ini.',
+          'API_SCOPE_FORBIDDEN',
+          403,
+          policyHeaders,
+        ),
+      };
+    }
+
+    return {
+      allowed: true,
+      key: {
+        id: record.id,
+        corsHeaders: policyHeaders,
+        database,
+        rateLimit,
+        dailyQuota,
+      },
+    };
+  } catch {
     return {
       allowed: false,
-      errorResponse: headlessJson(
-        {
-          success: false,
-          timestamp: new Date().toISOString(),
-          error: {
-            message: 'API key headless tidak valid atau sudah dicabut.',
-            code: 'API_KEY_INVALID',
-          },
-        },
-        401,
-        { ...corsHeaders, 'cache-control': 'no-store' }
+      errorResponse: headlessAuthError(
+        'Kebijakan API key tidak dapat diverifikasi.',
+        'API_KEY_POLICY_UNAVAILABLE',
+        503,
+        corsHeaders,
+      ),
+    };
+  }
+}
+
+async function enforceHeadlessUsageLimits(
+  key: AuthenticatedApiKey,
+  operation: HeadlessOperation,
+): Promise<
+  | { allowed: true; corsHeaders: Record<string, string> }
+  | { allowed: false; errorResponse: Response }
+> {
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const minuteBucket = `${nowIso.slice(0, 16)}:00.000Z`;
+  const minuteCount = await consumeUsageBucket(
+    key.database,
+    key.id,
+    'minute',
+    minuteBucket,
+    key.rateLimit,
+  );
+  const nextMinute = new Date(Math.floor(now.getTime() / 60_000) * 60_000 + 60_000);
+  const minuteHeaders = {
+    ...key.corsHeaders,
+    'X-RateLimit-Remaining': String(Math.max(0, key.rateLimit - (minuteCount ?? key.rateLimit))),
+    'X-RateLimit-Reset': nextMinute.toISOString(),
+  };
+  if (minuteCount === null) {
+    await recordHeadlessApiAudit(key.database, key.id, operation, 'rate_limited', 429, nowIso);
+    return {
+      allowed: false,
+      errorResponse: headlessAuthError(
+        'Batas request API key per menit telah tercapai.',
+        'API_RATE_LIMITED',
+        429,
+        minuteHeaders,
       ),
     };
   }
 
-  await database.prepare(`
+  const dayBucket = nowIso.slice(0, 10);
+  const dailyCount = await consumeUsageBucket(
+    key.database,
+    key.id,
+    'day',
+    dayBucket,
+    key.dailyQuota,
+  );
+  const usageHeaders = {
+    ...minuteHeaders,
+    'X-DailyQuota-Remaining': String(Math.max(0, key.dailyQuota - (dailyCount ?? key.dailyQuota))),
+  };
+  if (dailyCount === null) {
+    await recordHeadlessApiAudit(key.database, key.id, operation, 'quota_exhausted', 429, nowIso);
+    return {
+      allowed: false,
+      errorResponse: headlessAuthError(
+        'Kuota harian API key telah habis.',
+        'API_QUOTA_EXHAUSTED',
+        429,
+        usageHeaders,
+      ),
+    };
+  }
+
+  await key.database.prepare(`
     UPDATE developer_api_keys
     SET last_used_at = ?
     WHERE id = ?
-  `).bind(new Date().toISOString(), record.id).run();
+  `).bind(nowIso, key.id).run();
 
-  return { allowed: true };
+  return { allowed: true, corsHeaders: usageHeaders };
 }
 
 /**
@@ -381,33 +571,69 @@ export function buildCorsHeaders(requestOrigin: string | null): Record<string, s
  */
 export async function validateHeadlessRequest(
   request: Request,
-  locals?: App.Locals,
-  extraAllowed?: string | string[] | null
-): Promise<{
-  allowed: boolean;
-  origin: string | null;
-  corsHeaders: Record<string, string>;
-  errorResponse?: Response;
-}> {
+  locals: App.Locals | undefined,
+  options: {
+    operation: HeadlessOperation;
+    extraAllowed?: string | string[] | null;
+  },
+): Promise<
+  | {
+      allowed: false;
+      origin: string | null;
+      corsHeaders: Record<string, string>;
+      apiKeyId?: number;
+      errorResponse: Response;
+    }
+  | {
+      allowed: true;
+      origin: string | null;
+      corsHeaders: Record<string, string>;
+      apiKeyId: number;
+      finalize: (response: Response) => Promise<Response>;
+    }
+> {
   const origin = getRequestOrigin(request);
   const allowedPatterns = resolveAllowedOrigins(locals, [
-    extraAllowed,
+    options.extraAllowed,
     await loadStoredHeadlessAllowedOrigins(locals),
   ]);
-  const corsHeaders = buildCorsHeaders(origin);
+  const initialCorsHeaders = buildCorsHeaders(origin);
 
-  const auth = await validateHeadlessApiKey(request, locals, corsHeaders);
+  const auth = await validateHeadlessApiKey(request, locals, initialCorsHeaders, options.operation);
   if (!auth.allowed) {
     return {
       allowed: false,
       origin,
-      corsHeaders,
+      corsHeaders: initialCorsHeaders,
       errorResponse: auth.errorResponse,
     };
   }
 
+  const corsHeaders = auth.key.corsHeaders;
   const allowed = isOriginAllowed(origin, allowedPatterns);
   if (!allowed && origin) {
+    try {
+      await recordHeadlessApiAudit(
+        auth.key.database,
+        auth.key.id,
+        options.operation,
+        'origin_denied',
+        403,
+        new Date().toISOString(),
+      );
+    } catch {
+      return {
+        allowed: false,
+        origin,
+        corsHeaders,
+        errorResponse: headlessAuthError(
+          'Audit penggunaan API tidak dapat disimpan.',
+          'API_AUDIT_UNAVAILABLE',
+          503,
+          corsHeaders,
+        ),
+      };
+    }
     const errorResponse = headlessJson(
       {
         success: false,
@@ -420,21 +646,72 @@ export async function validateHeadlessRequest(
         },
       },
       403,
-      corsHeaders
+      corsHeaders,
     );
-
     return {
       allowed: false,
       origin,
       corsHeaders,
+      apiKeyId: auth.key.id,
       errorResponse,
     };
   }
 
+  let usage;
+  try {
+    usage = await enforceHeadlessUsageLimits(auth.key, options.operation);
+  } catch {
+    return {
+      allowed: false,
+      origin,
+      corsHeaders,
+      errorResponse: headlessAuthError(
+        'Kebijakan penggunaan API tidak dapat diterapkan.',
+        'API_KEY_POLICY_UNAVAILABLE',
+        503,
+        corsHeaders,
+      ),
+    };
+  }
+  if (!usage.allowed) {
+    return {
+      allowed: false,
+      origin,
+      corsHeaders,
+      apiKeyId: auth.key.id,
+      errorResponse: usage.errorResponse,
+    };
+  }
+
+  let finalized = false;
+  const finalize = async (response: Response) => {
+    if (finalized) return response;
+    finalized = true;
+    try {
+      await recordHeadlessApiAudit(
+        auth.key.database,
+        auth.key.id,
+        options.operation,
+        'allowed',
+        response.status,
+        new Date().toISOString(),
+      );
+    } catch (error) {
+      console.error('headless-api-audit-write-failed', {
+        operation: options.operation,
+        statusCode: response.status,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return response;
+  };
+
   return {
     allowed: true,
     origin,
-    corsHeaders,
+    corsHeaders: usage.corsHeaders,
+    apiKeyId: auth.key.id,
+    finalize,
   };
 }
 

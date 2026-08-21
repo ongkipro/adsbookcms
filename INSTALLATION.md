@@ -1,6 +1,6 @@
 # Installing AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-19 @ `3666a1d` + the working tree on `feat/admin-access-dashboard`
 
 This document describes how an install is actually stood up today, and where that process is still rougher than the product intends to be. It contains no commands that do not exist. Where a step is manual because the tooling has not been built yet, it says so and points at the gap.
 
@@ -30,7 +30,7 @@ Binding **names** are fixed across every install — `OMS_DB`, `SESSION`, `ASSET
 - Wrangler authenticated to **that** account — confirm with `npx wrangler whoami` before creating anything
 - A domain on that Cloudflare account
 
-A repository copy grants no access to another account's resources. The ids committed in `wrangler.jsonc` belong to the reference install and must be replaced, not reused.
+A repository copy grants no access to another account's resources. The ids committed in `wrangler.jsonc` are all-zero placeholders and must be replaced with resources owned by the target install.
 
 ---
 
@@ -122,25 +122,37 @@ Set as Worker secrets, never in `wrangler.jsonc`:
 
 ```bash
 npx wrangler secret put AUTH_SECRET
+npx wrangler secret put INSTALL_TOKEN
 npx wrangler secret put BOOTSTRAP_ADMIN_PASSWORD
 ```
 
 Provider credentials — `MENGANTAR_API_KEY`, `AUTOLARIS_API_KEY`, `META_CAPI_ACCESS_TOKEN`, and their base URLs — can be set either as secrets or, preferably, saved later from `/admin/profile` and `/admin/ads`. The database value wins over the deployed secret, and `/admin` reports which source is active.
 
+`INSTALL_TOKEN` is the one-time capability requested by the fresh-install wizard;
+use a unique random value of at least 16 characters. It is never stored in D1.
+
 For local development the same keys go in `.dev.vars`, which is never committed.
 
 ---
 
-## 7. Apply the schema
+## 7. Verify the schema path
+
+The Worker bundles all 44 checked-in migrations (`0000`–`0043`) and applies a valid missing suffix
+automatically before serving a database-backed request. No terminal migration step
+is required for first run. Invalid, unknown, or ahead migration history returns a
+labelled 503 instead of running the application against an indeterminate schema.
+
+An operator may still preflight the same chain explicitly:
 
 ```bash
-npm run db:migrate:local     # verify locally first
-npm run db:migrate:remote    # then the real database
+npm run db:migrate:local
+npm run db:migrate:remote    # live D1; separate approval required
 ```
 
-Migration `0007` seeds a bootstrap `admin` credential with `must_change_password = 1`. The hash is identical in every copy of this repository, so **rotating it at first login is mandatory, not advisory** — until it is rotated, anyone with the source can attempt the default.
-
-Migration `0034` removes the foreign sample row introduced by `0017` when it is still untouched and unreferenced. A fresh schema therefore contains no product data at all, and none is seeded: no dataset ships (ADR-016). The storefront renders an explicit "Katalog sedang disiapkan" state until the operator adds products from `/admin`.
+Migration `0007` contains a legacy bootstrap credential for databases provisioned
+outside the wizard. The first-run installer replaces it atomically with the
+operator's chosen credential. Migration `0034` removes the inherited foreign
+sample row when safe; no catalog dataset ships.
 
 ---
 
@@ -164,8 +176,8 @@ Pushing to `main` in **this** repository deploys nothing — CI runs check, test
 
 ## 9. First run
 
-1. Open the domain. With a migrated database and no store row, every route
-   redirects to **`/install`**.
+1. Open the domain. The first database-backed request applies the bundled
+   migration chain. With no store row, every normal route redirects to **`/install`**.
 2. Fill the form once: store name, address (`https:`), optional tagline and
    support WhatsApp, the admin username and password **you choose**, and the
    storefront template. Submitting writes the store and your credential in a
@@ -183,13 +195,17 @@ Pushing to `main` in **this** repository deploys nothing — CI runs check, test
    - `/admin/settings/store` — store name and support WhatsApp (the support number feeds the public `/kontak` page)
    - `/admin/settings/warehouse` — pickup origin and Mengantar origin ids; shipping quotes fail without this
    - `/admin/profile` — provider API keys and base URLs
-   - `/admin/expeditions` — which couriers and which COD services are offered
+   - `/admin/expeditions` — which couriers and which COD services are offered; a fresh install starts with the neutral ten-courier catalogue, and the operator may narrow it here
    - `/admin/ads/meta` and `/admin/ads/google` — pixel, CAPI token, GTM, conversion ids
    - `/admin/settings/crm` — WhatsApp follow-up templates
    - `/admin/products` — the real catalog
-   - `/admin/content` — publish home content
 
-**Publish home content before announcing the store.** Until a home row exists, the storefront falls back to copy compiled into the bundle rather than showing a setup state. That is gap **G5** and it is how another merchant's marketing copy once reached a live storefront.
+The storefront does not wait for home content. With no published home row it
+renders a neutral automatic catalogue of the store's own active products, so an
+install is usable the moment products exist. The JSON/AI content workbench is
+off the main navigation (ADR-018), but `/admin/content` itself stays reachable
+and unchanged; the bounded banner, slider, and supporting-copy editor that
+replaces it is **A-134** in `TASKS.md`.
 
 ---
 
@@ -226,17 +242,18 @@ A-10 has landed, so the revisit is now due (**A-50**). Whatever is chosen, mixin
 
 ## 11. What is still manual
 
-This procedure is a developer runbook, not a product install. The intended experience — point a domain at the Worker, open it, fill in a form — needs:
+The WordPress-like path now begins after Cloudflare resources exist. Sections 1–6
+still require a terminal and Cloudflare credentials: create the Worker, D1, KV,
+and R2 resources; attach the domain; configure bindings and secrets. The Worker
+then applies its bundled schema automatically, redirects to `/install`, stores
+runtime identity plus the operator credential, renders an explicit content setup
+state, and supports runtime storefront definitions without a rebuild.
 
-Sections 1–8 still need a terminal and Cloudflare credentials: creating the
-Worker, the D1 database, the KV namespace and the R2 bucket, setting secrets, and
-applying the schema. Everything from §9 onward is now the product experience.
-
-| Gap | Blocking what |
-| --- | --- |
-| **G3** no schema auto-upgrade | upgrading an install is a manual migration run |
-| **G5** home content does not fail closed | a fresh install shows a generic storefront rather than a setup state |
-| **G6** template set is compile-time | adding a template needs a rebuild; switching between the shipped two does not |
-| **G7** no alerting | a broken customer install is diagnosable through Workers Logs, but nothing tells you it broke |
-
-Tracked in `ARCHITECTURE.md` §10. The decisions behind the target design are ADR-003 and ADR-004 in `DECISIONS.md`.
+Infrastructure provisioning itself is not automated, and it is the whole of what
+stands between this and a WordPress-style install. The claim gap this section
+used to name — an exposed uninstalled Worker being taken by the first direct
+`/api/install` caller — is closed: `src/pages/api/install.ts` requires the
+`INSTALL_TOKEN` secret, refuses anything shorter than 16 characters, and compares
+it in constant time. The open decisions are **A-50** (how a second install is
+created), **A-51** (how an install learns it is behind) and **A-52** (whether the
+product ships as a versioned artifact) in `TASKS.md`.

@@ -4,8 +4,10 @@ import type { ResolvedShippingRates } from "../../lib/shipping-quote";
 import type { APIRoute } from "astro";
 import { selectQuotedRate } from "../../lib/courier-rules";
 import { orderSubmitSchema } from "../../lib/order-schema";
-import { loadStoreCodDisabledProvinceCodes } from "../../lib/form-mode";
-import { isProvinceExcluded, normalizeProvinceCode } from "../../lib/province";
+import {
+  isCodBlockedForProvince,
+  loadStoreCodDisabledProvinceCodes,
+} from "../../lib/form-mode";
 import { getRuntimeEnv } from "../../lib/env";
 import {
   checkRateLimit,
@@ -111,11 +113,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
   const disabledProvinceCodes =
     await loadStoreCodDisabledProvinceCodes(database);
-  const provinceCode = normalizeProvinceCode(data.province);
   if (
-    data.payment_method === "cod" &&
-    (!provinceCode ||
-      isProvinceExcluded(provinceCode, disabledProvinceCodes))
+    isCodBlockedForProvince(
+      data.payment_method,
+      data.province,
+      disabledProvinceCodes,
+    )
   ) {
     return json(
       {
@@ -226,9 +229,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
         409,
       );
     }
-    trustedShippingCost =
-      selectedRate.price +
-      (data.payment_method === "cod" ? Number(selectedRate.cod_fee || 0) : 0);
+    // See the COD fee note in `shipping-quote.ts`. `cod_service_fee` is added
+    // by `persistOrder`, so folding the provider figure in here would double it.
+    trustedShippingCost = selectedRate.price;
     if (trustedShippingCost !== submittedShippingCost) {
       return json(
         {
@@ -295,7 +298,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
         payment = await createAutoLarisPaymentForOrder(database, locals, {
           orderId: order.id,
           channelCode: data.payment_channel!,
-          callbackUrl: new URL("/api/webhooks/autolaris", request.url).toString(),
         });
         if (payment.status === "failed") {
           await database

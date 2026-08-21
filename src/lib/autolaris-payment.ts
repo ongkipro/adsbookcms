@@ -2,14 +2,14 @@ import {
   AutoLarisClient,
   type AutoLarisCheckoutChannel,
   type AutoLarisPayment,
-} from "./autolaris-client";
+} from "./autolaris-client.ts";
 import {
   calculateAutoLarisRequestAmount,
   calculatePaymentAdminFee,
   normalizePaymentFeeBearer,
   type PaymentFeeBearer,
-} from "./payment-fee-policy";
-import { getProviderConfig } from "./provider-config";
+} from "./payment-fee-policy.ts";
+import { getProviderConfig } from "./provider-config.ts";
 
 export type AutoLarisPaymentRecord = {
   id: number;
@@ -62,6 +62,35 @@ type PaymentTransactionRow = {
 
 const cleanOptional = (value: string | null) => value?.trim() || undefined;
 
+/**
+ * AutoLaris rejects any `reff_id` that is not digits, so the store's own
+ * `INV-10001` cannot be sent verbatim. The numeric part is the store-wide
+ * order sequence, which is already unique and never reused, and it keeps the
+ * provider reference readable against the order number during reconciliation.
+ */
+export function autoLarisReferenceId(orderNumber: string) {
+  const digits = orderNumber.replace(/\D/g, "");
+  if (!digits) {
+    throw new Error("Nomor order tidak dapat dijadikan referensi AutoLaris.");
+  }
+  return digits.slice(0, 30);
+}
+
+/**
+ * A buyer email is mandatory at the provider. COD checkouts do not collect one,
+ * so an order converted to an online payment later still needs a deliverable-
+ * looking address that belongs to this store rather than to a stranger.
+ */
+export function buyerEmail(
+  storedEmail: string | null,
+  customerPhone: string,
+  siteUrl: string,
+) {
+  const stored = storedEmail?.trim();
+  if (stored) return stored;
+  return `${customerPhone.replace(/\D/g, "")}@${new URL(siteUrl).hostname}`;
+}
+
 function mapPaymentRecord(row: PaymentTransactionRow): AutoLarisPaymentRecord {
   return {
     id: row.id,
@@ -108,7 +137,6 @@ export async function createAutoLarisPaymentForOrder(
   input: {
     orderId: number;
     channelCode: AutoLarisCheckoutChannel;
-    callbackUrl: string;
   },
 ): Promise<AutoLarisPaymentRecord> {
   const existing = await loadPaymentRecord(database, input.orderId);
@@ -127,15 +155,10 @@ export async function createAutoLarisPaymentForOrder(
     .bind(input.orderId)
     .first<PaymentOrderRow>();
   if (!order) throw new Error("Order pembayaran tidak ditemukan.");
-  if (order.payment_method === "cod") {
-    throw new Error("Order COD tidak memerlukan AutoLaris.");
+  if (!["bank_transfer", "qris"].includes(order.payment_method)) {
+    throw new Error("Metode pembayaran order tidak menggunakan AutoLaris.");
   }
-  const cleanPhone = order.customer_phone?.replace(/\D/g, "") || "081234567890";
-  const customerEmail =
-    order.customer_email?.trim() ||
-    `${cleanPhone}@${new URL(input.callbackUrl).hostname}`;
-
-
+  const siteUrl = locals.tenant?.siteUrl || "https://example.com";
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const createdAt = now.toISOString();
@@ -202,15 +225,15 @@ export async function createAutoLarisPaymentForOrder(
       config.apiKey,
       config.baseUrl,
     ).createPayment({
-      reffId: order.order_number,
+      reffId: autoLarisReferenceId(order.order_number),
       channelCode: input.channelCode,
       customerId: String(order.id),
       customerName: order.customer_name,
       customerPhone: order.customer_phone,
-      customerEmail: customerEmail,
-      amount: requestAmount,
-      callbackUrl: input.callbackUrl,
+      customerEmail: buyerEmail(order.customer_email, order.customer_phone, siteUrl),
       expiresAt,
+      amount: requestAmount,
+      callbackUrl: new URL("/api/webhooks/autolaris", siteUrl).toString(),
     });
 
     await database
@@ -251,4 +274,3 @@ export async function createAutoLarisPaymentForOrder(
   if (!updated) throw new Error("Catatan pembayaran gagal dimuat ulang.");
   return updated;
 }
-

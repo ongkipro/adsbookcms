@@ -9,7 +9,7 @@ import {
   loadPublishedProductContent,
   mergeRuntimeProductContent,
 } from "./storefront-content";
-import { catalogItemGroupId } from "./catalog-feed";
+import { catalogProductId } from "./catalog-feed";
 
 async function loadCatalogRows(database: D1Database) {
   const [products, variants] = await database.batch([
@@ -73,7 +73,7 @@ export async function getStorefrontProducts(
       rows.products,
       runtimeContent,
     );
-    return mergeStorefrontCatalog(presentations, rows.products, rows.variants);
+    return mergeStorefrontCatalog(rows.products, rows.variants, presentations);
   } catch (error) {
     console.error("storefront-catalog-load", error);
     return [];
@@ -88,9 +88,10 @@ export async function getStorefrontProduct(locals: App.Locals, key: string) {
       product.slug === key ||
       product.productId === key ||
       String(product.catalogId) === key ||
-      // `/api/v1/products` hands a caller `content_id: "p1"`. Accepting it back
+      // `/api/v1/products` hands a caller the numeric Product ID as content_id.
+      // Accepting it back keeps the documented list/detail round trip stable.
       // is the difference between a documented round trip and a 404 on the value
       // the API just returned.
-      catalogItemGroupId(product.productId) === key,
+      catalogProductId(product.productId) === key,
   );
 }

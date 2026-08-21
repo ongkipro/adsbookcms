@@ -1,12 +1,12 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
->
+> Last executed baseline: 2026-08-21 @ `d140510` + the AutoLaris payment-gateway,
+> Meta/Google identity, and reconciliation-queue working tree merged in.
 > `main` was re-founded as AdsBookCMS and its history rewritten (ADR-012), so the
 > commit range this document once cited no longer exists on this branch; the
 > previous 61 commits are preserved on `backup/pre-history-rewrite`. Gates re-run
-> on the current tree, not inherited: `npm run check` 317 files / 0 errors /
-> 0 warnings / 0 hints · `npm test` 303 / 303 · `npm run build` Cloudflare server
+> on the current tree, not inherited: `npm run check` 360 files / 0 errors /
+> 0 warnings / 0 hints · `npm test` 445 / 445 · `npm run build` Cloudflare server
 > bundle complete.
 
 Current state of the system. Implemented behaviour lives here; history lives in `BUILD-LOG.md`; remaining work lives in `UNIMPLEMENTED_SPECS.md`; structure lives in `ARCHITECTURE.md`.
@@ -23,7 +23,7 @@ The previous version of this file described a different repository — it opened
 | Repository role | **Product.** Deploys nothing; CI runs check, test and build only |
 | Install model | 1 installer = 1 Worker = 1 store (ADR-001) |
 | Version | `1.2.0` / `2026.08-hardened` (`src/lib/version.ts`) |
-| Schema | 37 migration files, `0000`-`0036` |
+| Schema | 44 migration files, `0000`-`0043` |
 | Bindings | `OMS_DB` (D1), `SESSION` (KV), `ASSET_BUCKET` (R2), `AI`, `ASSETS` — names fixed across installs |
 | `wrangler.jsonc` | template of placeholders; each install supplies its own resources |
 
@@ -41,44 +41,46 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **303 / 303 passing** |
-| `npm run check` | 317 files · 0 errors · 0 warnings · 0 hints |
-| `npm run build` | Cloudflare server bundle complete |
-| Browser smoke | Public 8/8 menu routes and current-role admin menu/profile 5/5 returned 200 at the expected path; public and admin skip links target the main content; no horizontal overflow at 390 px |
+| `npm test` | **445 / 445 passing** |
+| `npm run check` | 360 files · 0 errors · 0 warnings · 0 hints |
+| `npm run build` | Cloudflare server bundle complete; 44 bundled migrations |
+| Browser smoke | A fresh isolated install exposed all ten default couriers through `/api/admin/expeditions`. `/admin/orders/abandoned` rendered its shadcn Card/Badge/Button/Dialog composition at 390, 768, and 1280 CSS px with zero overflow, no stuck busy state, no failed request, and no console error. A populated lead opened the conversion Dialog, focused the invalid address, and returned focus after `Escape`. A separate isolated owner session on `/admin/balance` rendered pending and locked AutoLaris rows, blocked blank manual-confirmation submission with focused inline errors, and an already-confirmed payment redirected `/payment` to `/thanks` with zero console errors. No live provider request, deployment, or remote D1 mutation occurred. |
+| Live provider read | On 2026-08-19 the repository's own clients were exercised against the real providers. Mengantar: `searchAddress("Cihapit")` resolved one area and `estimateRates` returned ten couriers with real prices (JNE Rp11.000, SiCepat Rp8.500, SAP Rp10.500). Read-only; no order, pickup, or D1 write. AutoLaris: `createPayment` on the provider's **published development key** returned a real virtual account for a Rp118.400 order, and `inquirePayment` read it back as `PENDING`. No production AutoLaris credential was used, no deployment occurred, and no remote D1 was touched. |
 
 ---
 
 ## 3. What is implemented
 
-**Storefront** — SSR home with two selectable templates, product listing with progressive load-more, product detail with variant selection and sticky mobile CTA, custom 404 with related products, hand-authored `sitemap.xml`, Google and Meta catalog feeds, JSON-LD (Organization, WebSite, Product, ItemList, Breadcrumb).
+**Storefront** — SSR home that remains available when optional homepage content is unpublished, product listing with progressive load-more, product detail with variant selection and sticky mobile CTA, custom 404 with related products, hand-authored `sitemap.xml`, Google and Meta catalog feeds, JSON-LD (Organization, WebSite, Product, ItemList, Breadcrumb). The public component and CSS boundaries are isolated under `components/storefront/` and `styles/storefront.css`.
 
 **Landing pages** — D1-backed builder with ordered `html` and `form` sections, drag reorder, shortcode pills, 480px mobile canvas preview, rendered through the `/[slug]` catch-all with admin-gated `?preview=1`.
 
-**Checkout** — three form modes (hybrid, middle, full) plus a geo-resolved variant and a cross-origin embed. Province-based COD gating from trusted Cloudflare geo, district autocomplete over a 7,285-district index, live Mengantar rate quotes, honeypot and rate-limit guards, `submit_token` idempotency, atomic order + items + stock reservation.
+**Checkout** — three form modes (hybrid, middle, full) plus a geo-resolved variant and a cross-origin embed. Province-based COD gating from trusted Cloudflare geo, district autocomplete over a 7,285-district index, live Mengantar rate quotes that never request the provider COD fee, so the store's own COD service fee cannot be billed twice, honeypot and rate-limit guards, `submit_token` idempotency, atomic order + items + stock reservation, one atomic order-number allocator, and scheduled abandoned-order retention. Qualified unsubmitted leads retain a per-tab set of successful normalized identity/product fingerprints: identical combinations are suppressed across blur and reload, changed combinations may capture, and failed capture or unavailable storage fails open. Submitted non-COD checkouts remain real orders with pending shipping; successfully-created unpaid VA/QRIS and bank transfer remain payment-pending, while an explicit AutoLaris creation failure may be payment-failed.
 
-**Payments** — COD, manual bank transfer with seller bank accounts, and AutoLaris QRIS/VA with per-channel toggles, fee-bearer policy (buyer or seller) for both payment and COD fees, a dedicated instruction page with copy-to-clipboard and countdown, and idempotent webhook reconciliation.
+**Payments** — COD, manual bank transfer with seller bank accounts, and AutoLaris QRIS/VA with per-channel toggles enforced at listing and submit boundaries, fee-bearer policy (buyer or seller) for both payment and COD fees, and a dedicated instruction page with copy-to-clipboard, countdown, token-scoped CMS-status refresh, and automatic `/thanks` replacement after the server confirms payment. Online checkout creates one AutoLaris payment through `POST /api/h2h/create_payment` — the gateway path, carrying buyer payment identity and the fee-policy amount only. No shipping data reaches AutoLaris; that is Mengantar's. Manual seller-bank transfers remain visible in analytics but are excluded from AutoLaris reconciliation. Because no settled `POST /api/h2h/advice` response has been observed, an owner/admin must still verify the provider dashboard and re-enter the exact recorded total and provider reference before the CMS marks the payment paid. Owner and admin can read one transaction's provider state on demand from the reconciliation queue; that read writes nothing, cannot mark a payment paid, and flags the case that matters — the provider reporting an unpaid transaction this store has already marked paid. Every accepted transition is atomic, idempotent, append-only audited, and blocked for released or incompatible orders. The legacy webhook is retired. Paid confirmation changes shipping eligibility only and never dispatches automatically.
 
-**Orders and shipping** — operator-controlled dispatch to Mengantar under a single-flight lease, sequential shipment creation with independent per-order results, pickup address and schedule synchronisation with the provider, receiver RTS scoring, and a shipping lifecycle view separate from pending intake.
+**Orders and shipping** — one shared lifecycle validates every single/bulk status transition, restores reserved stock exactly once on cancellation or deletion, and prevents destructive removal after provider dispatch. **Pesanan tertinggal** has a dedicated product-first lead workspace and is excluded from normal order lists, summaries, details, bulk actions, and shipping. CS can record follow-up and explicitly convert one ABN lead into one complete pending INV with a current server-side rate and exactly-once stock reservation. Checkout, conversion, and payment confirmation only persist or change eligibility. Mengantar dispatch runs solely after an explicit authenticated single/bulk operator action under a single-flight lease; provider acceptance rechecks the claim and dispatch-critical snapshot so concurrent cancellation or buyer edits cannot be overwritten. Accepted provider identifiers and provider-supplied waybills persist, duplicates are suppressed, and bounded failures remain pending and retryable. The Shipping workspace exposes exactly **Semua Pengiriman**, **Perlu Dibuatkan Resi**, **Perlu Pickup**, and **Sampai Tujuan**, with responsive state-valid actions and explicit sequential provider polling by waybill. `/order/pay-unpaid` recovery remains provider-blocked.
 
-**Admin** — 27 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker, payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. Navigation and route authorization share one deny-by-default role policy; scoped operators see only the complete workspace their role owns.
+**Admin** — 27 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker with an optional COD value that reveals the provider's own COD fee for comparison, payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. The JSON/AI content workbench is off the main navigation (ADR-018); `/admin/content` itself stays reachable and unchanged — it is no longer gated behind the storefront's setup-required state, since the home page now always renders. Warehouse settings create the required single-row origin on a fresh install and update it thereafter. Fresh installation also creates the neutral ten-courier policy; migration `0042` repairs only installed stores with no courier rows and never overwrites an existing policy. Navigation and route authorization share one deny-by-default role policy. Phones use role-aware bottom navigation and sheets, tablet starts with a 48 px rail, desktop uses a 256 px sidebar, and first-run sessions expose only password rotation and logout.
 
-**Headless API** — seven `/api/v1/*` routes (storefront descriptor, products list and detail, district lookup, shipping rates, checkout, tracking events) authenticated by API key against `developer_api_keys`. The independently validated Headless origin allowlist is persisted on `stores.headless_allowed_origins` and editable in Developer settings.
+**Headless API** — nine `/api/v1/*` routes authenticated by API key and independently origin-checked. Every operation has a minimum scope; origin denials occur before quota, minute denials do not spend daily quota, and D1 records the final handler status exactly once without request payloads. The order-status route requires the order number plus its public status token and returns no customer PII.
 
-**Tracking** — Meta Pixel plus server-side CAPI through a durable outbox with retry and a shared, order-derived `event_id`; Google Tag and Ads conversion configuration with region-scoped Consent Mode v2; TikTok event hooks; and click-id capture for `gclid`/`gbraid`/`wbraid`/`fbclid`/`ttclid`. Hosted and embedded checkout surfaces emit Purchase only after the order can be resolved and verified.
+**Tracking** — Meta Pixel plus server-side CAPI through a durable outbox with retry and a shared, order-derived `event_id`, with one shared identity normalizer (`meta-identity.ts`) so the browser and server legs hash the same person; Google Tag and Ads conversion configuration with region-scoped Consent Mode v2; TikTok event hooks; and click-id capture for `gclid`/`gbraid`/`wbraid`/`fbclid`/`ttclid`. Hosted and embedded checkout surfaces emit Purchase only after the order can be resolved and verified. Product ID is the canonical advertising identity: the API `content_id`, Meta `content_ids`, Google ecommerce `item_id`, and `<g:id>` in both catalog feeds are the same numeric value with at least five digits; variants remain separate checkout selections.
+
 
 ---
 
 ## 4. Data state
 
-17 tables. `stores` is a single row carrying provider keys, tracking ids, fee policy, payment toggles, CRM templates, independent embed and Headless origin policies, AI instructions, and COD province exclusions.
+21 tables. `stores` is a single row carrying provider keys, tracking ids, fee policy, payment toggles, CRM templates, independent embed and Headless origin policies, AI instructions, and COD province exclusions. `order_number_counters` owns collision-free numbering; Headless usage/audits and runtime storefront definitions have dedicated tables.
 
-Catalog: **empty by default**. No dataset ships (ADR-016); an install starts with no products and the storefront renders an explicit "Katalog sedang disiapkan" state rather than a broken-looking grid.
+Catalog: **empty by default**. No dataset ships (ADR-016); an install starts with no products and the storefront renders an explicit setup state until the operator publishes home content and adds products.
 
 Known data issues, all tracked:
 
-- The local development D1 still holds the previously provisioned warehouse row — a real address, phone number, and Mengantar ObjectIds. The repository is clean, but that data lives in local state and presumably in the remote database; scrubbing it needs a remote write and is a separate decision.
+- The local development D1 may hold a previously provisioned warehouse row with address, phone, and Mengantar identifiers. Remote state was not read and is explicitly unverified; any local or remote scrub is a separate destructive-data decision.
 - No seed ships. `scripts/seed-catalog.sql`, `public/images/products/` and `db:reset:demo:local` were removed on 2026-08-17 (ADR-016); whether to reintroduce sample data, and in what form, is deferred rather than decided against. The earlier `src/db/seed.sql`, which held two previous merchants' catalogs plus genuine-looking provider ids, a real address and a real phone number, was deleted on 2026-08-16.
-- Migration `0017` aborted the chain on an empty database, so **no new install could be created**; fixed 2026-08-16 by removing the sample-data insert it carried. All 37 migrations now apply from zero.
+- Migration `0017` once aborted the chain on an empty database; that insert was removed 2026-08-16. All 44 migrations now apply from zero, and the Worker applies a valid missing suffix automatically before database-backed requests. Migration `0040` adds persisted provider status text, provider event time, and synchronization time to `orders`; migration `0041` adds persisted missed-order follow-up state; migration `0042` restores the neutral courier catalogue only for stores with an empty policy; migration `0043` adds immutable manual-payment reconciliation evidence.
 
 ---
 
@@ -108,20 +110,22 @@ System-wide security, correctness, documentation, navigation, and UX audit:
 - Closed inactive-product exposure, landing-preview cache, custom-HTML preview injection, legacy embed redirect, catalog identity, and public cache-control defects. Removed dead completion-query builders after the safe navigation boundary made them redundant.
 - Centralised admin navigation contracts, aligned menu visibility with authorization, repaired nested `<main>` landmarks, and made public/admin skip links target the actual main content.
 - Reconciled repository specifications, architecture, installation notes, storefront integration guidance, remaining-gap register, and migration `0034` behaviour with the executable tree.
-- Independent final security review found no exploitable finding in the audited trust boundaries. Remaining work below is product/operations debt rather than a known open vulnerability.
+- Published the authenticated OpenAPI 3.1 contract and framework-neutral server adapter for the complete Headless commerce journey. External tracking now preserves the allowlisted storefront origin instead of replacing it with the CMS origin, while the developer key remains server-side.
+- The 2026-08-17 repository audit found open correctness and abuse-control defects. They are recorded in §6 and `UNIMPLEMENTED_SPECS.md`; the earlier statement that no exploitable finding remained is superseded.
 
 ---
 
 ## 6. Known issues
 
-| Severity | Issue |
+| Severity | Current fact |
 | --- | --- |
-| High | The admin gate read the raw request path while Astro routed on a normalized one, so `//api/admin/...` bypassed every check — fixed 2026-08-17, pinned by `middleware-path-source.test.ts` and `auth.test.ts` |
-| Medium | There is no automatic schema-upgrade path (**G3**) |
-| Medium | Fresh-install home content and compile-time theme selection remain coupled to repository defaults (**G5**, **G6**) |
-| Medium | Headless key scope/quota, authenticated order-status read, a published OpenAPI contract, and an executable adapter remain open (**H4**, **H6**, **H7**, **H8**) |
-| Medium | Alerting and a cross-install view remain absent; Workers Logs and the per-install health endpoint exist (**G7**, `OBSERVABILITY.md`) |
-| Blocked | Unpaid-order recovery and several provider edge contracts require an explicitly approved live capture before implementation |
+| Release blocker | Automatic AutoLaris paid marking stays disabled. The inquiry endpoint `POST /api/h2h/advice` exists and is implemented, but only its **pending** response has been observed; capturing a settled one means paying a real virtual account. Owner/admin manual confirmation remains the sole path that marks a payment paid. |
+| Release blocker | AutoLaris production access requires an IP allowlist of at most five addresses. Cloudflare Workers have no fixed egress address, so no install is AutoLaris-production-ready on current evidence. |
+| Medium | Product-grain feeds still need a truthful standard-identifier policy and stable out-of-stock publication contract. |
+| Medium | Theme colour, locale, and admin display name resolve from D1 but still lack complete admin editors. |
+| Medium | External uptime checks and a cross-install operational view do not exist; per-install schema/CAPI alerting does. |
+| Blocked | Mengantar tracking, pickup, insufficient-wallet recovery, and wallet balance still require canonical provider contracts or explicitly approved sandbox/live evidence. |
+| Release evidence | Commit `09812c7` plus the A17 working tree has local test/check/build and isolated browser evidence, but no hosted CI result, production-D1 preflight, or install-specific provider smoke. |
 | Data note | Local/remote D1 may still contain a previously provisioned warehouse address, phone, and provider ObjectIds; scrubbing it is a separate destructive/remote-data action |
 
 ---
@@ -134,6 +138,6 @@ redirects to `/install`, the wizard writes the store and the operator's own
 credential, and the wizard locks itself afterwards. It has been exercised against
 a real Worker on a real empty D1, not only in tests.
 
-**Three** structural gaps remain open — **G3**, **G5**, **G6** — tracked in
-`ARCHITECTURE.md` §10, with constraining decisions in `DECISIONS.md`. G1, G2, G4,
-G8, G9 and G10 are closed.
+All ten structural gaps in `ARCHITECTURE.md` §10 are closed. Remaining audited
+defects, documentation debt, integration deliverables, and provider-blocked work
+are tracked only in `UNIMPLEMENTED_SPECS.md`.

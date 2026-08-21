@@ -11,8 +11,8 @@ export const OPTIONS = handleOptions;
 
 export const GET: APIRoute = async ({ request, locals }) => {
   const tenantConfig = locals.tenant;
-  const validation = await validateHeadlessRequest(request, locals);
-  if (!validation.allowed && validation.errorResponse) {
+  const validation = await validateHeadlessRequest(request, locals, { operation: 'storefrontRead' });
+  if (!validation.allowed) {
     return validation.errorResponse;
   }
 
@@ -24,7 +24,16 @@ export const GET: APIRoute = async ({ request, locals }) => {
       loadStoreCodDisabledProvinceCodes(database),
     ]);
 
-    return headlessOk(
+    if (homeContent.state === 'unavailable') {
+      return validation.finalize(headlessError(
+        'Konten storefront sedang tidak tersedia.',
+        503,
+        { code: 'STOREFRONT_CONTENT_UNAVAILABLE' },
+        validation.corsHeaders,
+      ));
+    }
+
+    return validation.finalize(headlessOk(
       {
         storefront: {
           slug: tenantConfig.slug,
@@ -38,7 +47,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
           template: tenantConfig.storefrontTemplate,
           admin_name: tenantConfig.adminName,
         },
-        content: homeContent,
+        content: homeContent.content,
         tracking: {
           meta_pixel_id: adsConfig.metaPixelId || null,
           google_ads_conversion_id: adsConfig.googleAdsConversionId || null,
@@ -55,11 +64,11 @@ export const GET: APIRoute = async ({ request, locals }) => {
       // Install-specific configuration: pixel/CAPI IDs and the live COD province policy.
       // Never store it anywhere, so an admin change takes effect on the next request.
       { ...validation.corsHeaders, 'cache-control': 'no-store' }
-    );
+    ));
   } catch (error) {
-    return headlessError('Gagal memuat data storefront.', 500, {
+    return validation.finalize(headlessError('Gagal memuat data storefront.', 500, {
       code: 'STOREFRONT_LOAD_ERROR',
       details: error instanceof Error ? error.message : String(error),
-    }, validation.corsHeaders);
+    }, validation.corsHeaders));
   }
 };

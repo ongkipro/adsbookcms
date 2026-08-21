@@ -1,0 +1,33 @@
+---
+import { cn } from '../../../lib/cn';
+import { badgeVariants, introSectionClass, textVariants } from '../../../lib/ui-variants';
+import Breadcrumb from './Breadcrumb.astro';
+
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  badge: string;
+  title: string;
+  description: string;
+  breadcrumbs?: BreadcrumbItem[];
+}
+
+const { badge, title, description, breadcrumbs = [] } = Astro.props;
+const rail = 'max-w-[480px]';
+---
+
+{breadcrumbs.length > 0 && <Breadcrumb items={breadcrumbs} />}
+<section class={introSectionClass}>
+  <div class={cn('mx-auto', rail)}>
+    <span class={badgeVariants()}>{badge}</span>
+    <h1
+      class={cn('mt-3 text-[28px] font-bold leading-[1.18] tracking-[-0.02em]', textVariants({ tone: 'heading' }))}
+    >
+      {title}
+    </h1>
+    <p class={cn('mt-3 max-w-[32rem] text-sm leading-6', textVariants({ tone: 'soft' }))}>{description}</p>
+  </div>
+</section>

@@ -1,0 +1,280 @@
+---
+interface Props {
+  tenantName: string;
+  tenantSlug: string;
+}
+
+const { tenantName, tenantSlug } = Astro.props;
+---
+
+<script is:inline define:vars={{ tenantName, tenantSlug }}>
+  (() => {
+    if (typeof window === 'undefined') return;
+
+    const pushGtmEcomEvent =
+      window.__PS_PUSH_GTM_ECOM__ ||
+      ((event, payload) => {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({ ecommerce: null });
+        window.dataLayer.push({
+          event,
+          tracking_owner: 'app',
+          meta_managed_by_app: true,
+          meta_event_id: payload.event_id,
+          ecommerce: {
+            currency: payload.currency || 'IDR',
+            value: Number(payload.value || 0),
+            transaction_id: payload.transaction_id,
+            items: [
+              {
+                item_id: payload.item_id || '',
+                item_name: payload.item_name || '',
+                item_variant: payload.item_variant,
+                quantity: 1,
+              },
+            ],
+          },
+        });
+      });
+
+    const hashSha256Hex = async (input) => {
+      const normalized = String(input || '')
+        .trim()
+        .toLowerCase();
+      if (!normalized || !globalThis.crypto?.subtle) return '';
+      const bytes = new TextEncoder().encode(normalized);
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    };
+
+    if (new URLSearchParams(window.location.search).get('preview') === '1') return;
+    let state = null;
+    try {
+      state = JSON.parse(sessionStorage.getItem('thanks_state') || 'null');
+    } catch {}
+
+    const pick = (key, fallback = '') => String(state?.[key] ?? fallback);
+    const pickNum = (key, fallback = 0) => Number(state?.[key] ?? fallback);
+    const once = (key) => {
+      const fullKey = `meta_once_${key}`;
+      const prev = localStorage.getItem(fullKey);
+      if (prev === '1') return false;
+      localStorage.setItem(fullKey, '1');
+      sessionStorage.setItem(fullKey, '1');
+      return true;
+    };
+    const getCookieValue = (name) =>
+      document.cookie
+        .split('; ')
+        .find((row) => row.startsWith(`${name}=`))
+        ?.split('=')[1] || '';
+
+    const postMeta = (payload) => {
+      fetch('/api/meta-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+    };
+
+    // event_id dipakai untuk event funnel awal (ViewContent/AddToCart/InitiateCheckout).
+    // Purchase TIDAK memakai id buatan browser: server CAPI selalu memakai
+    // order_number sebagai event_id (lihat resolveMetaEventId), jadi leg browser
+    // wajib memakai order_number yang sama - dibaca ulang dari /api/order-status
+    // di dalam fire() supaya dua leg mengutip baris order yang sama.
+    const orderId = pick('order_id', '');
+    const productName = pick('product_name', tenantName);
+    // Product ID is the catalog identity published by both feeds. Variant ID is
+    // retained separately for checkout and reporting, never folded into it.
+    const productId = pick('product_id', '');
+    const contentId = productId;
+    const phone = pick('phone', '');
+    const name = pick('name', '');
+    const province = pick('province', '');
+    const city = pick('city', '');
+    const district = pick('district', '');
+    const postalCode = pick('postal_code', '');
+    const productPrice = pickNum('product_price', pickNum('value', 1));
+    const quantity = Math.max(1, pickNum('quantity', 1));
+    let conversionValue = productPrice * quantity;
+    let verifiedPaymentStatus = pick('payment_status', '').toLowerCase();
+    const eventName = 'Purchase';
+
+
+    const paymentMethod = pick('pm', pick('payment_method', 'cod')).toLowerCase();
+
+    const data = {
+      content_name: productName,
+      content_ids: contentId ? [contentId] : undefined,
+      content_type: 'product',
+      value: Number(conversionValue || 1),
+      currency: 'IDR',
+    };
+
+    const fire = async () => {
+      // Every Purchase must resolve to a server-known order. Online orders must
+      // additionally be paid; browser state is never authoritative.
+      const orderPk = pick('order_pk', '');
+      const statusToken = pick('status_token', '');
+      if (!orderPk || !statusToken) return;
+      let finalEventId = '';
+      try {
+        const resp = await fetch('/api/order-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_pk: orderPk, status_token: statusToken }),
+          cache: 'no-store',
+        });
+        const statusData = await resp.json().catch(() => ({}));
+        if (!resp.ok || !statusData?.success) return;
+        // The event_id for both legs. The server CAPI leg substitutes this exact
+        // column, so an order that cannot be resolved gets no Purchase at all -
+        // firing a browser-minted id here would be an undeduplicatable double count.
+        finalEventId = String(statusData.order_number || '').trim();
+        if (!finalEventId) return;
+        verifiedPaymentStatus = String(statusData.payment_status || verifiedPaymentStatus).toLowerCase();
+        if (paymentMethod !== 'cod' && !statusData.is_paid) return;
+        // Report what the customer actually owes, taken from the order we just
+        // verified. Browser state omits shipping and the COD service fee, and a
+        // tampered sessionStorage would otherwise dictate reported revenue.
+        const serverTotal = Number(statusData.total_amount || 0);
+        if (serverTotal > 0) {
+          conversionValue = serverTotal;
+          // `data` was built before this fetch, so the pixel payload has to be
+          // corrected too or the two legs would report different revenue.
+          data.value = serverTotal;
+        }
+      } catch {
+        return;
+      }
+      // Guard 1: cegah event success dobel untuk event yang sama.
+      if (!once(`${eventName}_${finalEventId}`)) return;
+      // Guard 2: cegah success event dobel untuk order yang sama walau thanks page dibuka/refresh lagi.
+      if (orderId && !once(`${eventName}_order_${orderId}`)) return;
+
+      // Kept byte-identical to `src/lib/meta-identity.ts`, which the server CAPI
+      // leg uses. This script cannot import it — `define:vars` forces
+      // `is:inline`, which Astro never bundles — so `meta-identity.test.ts`
+      // reads this file and fails if the two drift apart.
+      const normalizeMetaText = (value) => {
+        const cleaned = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cleaned || undefined;
+      };
+      const toE164Digits = (value) => {
+        let digits = String(value || '').replace(/\D/g, '');
+        if (!digits) return undefined;
+        if (digits.startsWith('00')) digits = digits.slice(2);
+        if (digits.startsWith('620')) digits = `62${digits.slice(3)}`;
+        else if (digits.startsWith('0')) digits = `62${digits.slice(1)}`;
+        else if (digits.startsWith('8')) digits = `62${digits}`;
+        return digits.length >= 8 && digits.length <= 15 ? digits : undefined;
+      };
+      const nameParts = String(name || '').trim().split(/\s+/).filter(Boolean);
+      const normalizedPhone = toE164Digits(phone);
+      const firstName = normalizeMetaText(nameParts[0]);
+      const lastName = nameParts.length > 1 ? normalizeMetaText(nameParts.slice(1).join('')) : undefined;
+      try {
+        if (window.fbq) {
+          const pixelId = window.__META_PIXEL_ID__;
+          if (pixelId) {
+            window.fbq('init', pixelId, {
+              ph: normalizedPhone ? await hashSha256Hex(normalizedPhone) : undefined,
+              fn: firstName ? await hashSha256Hex(firstName) : undefined,
+              ln: lastName ? await hashSha256Hex(lastName) : undefined,
+              external_id: normalizedPhone ? await hashSha256Hex(normalizedPhone) : undefined,
+              client_user_agent: navigator.userAgent,
+            });
+          }
+          window.fbq('track', eventName, data, { eventID: finalEventId });
+        }
+      } catch (error) {
+        console.error('meta-browser-purchase', error);
+      }
+
+      try {
+        pushGtmEcomEvent('purchase', {
+          currency: 'IDR',
+          value: Number(conversionValue || 1),
+          item_id: productId,
+          item_name: productName,
+          item_variant: pick('variant_unique_id', '') || undefined,
+          transaction_id: orderId || undefined,
+          event_id: finalEventId,
+        });
+      } catch (error) {
+        console.error('gtm-purchase', error);
+      }
+
+      try {
+        if (typeof window.__PS_PUSH_GOOGLE_CONVERSION__ === 'function') {
+          // Google normalises differently from Meta: trim and lowercase only.
+          // Meta additionally strips every non-alphanumeric, which collapses a
+          // multi-word Indonesian family name ("Nur Aisyah" -> "nuraisyah") into
+          // something no Google account carries. Reusing the Meta values here is
+          // what this leg used to do.
+          const googleText = (value) => {
+            const cleaned = String(value || '').trim().toLowerCase();
+            return cleaned || undefined;
+          };
+          const googleFirstName = googleText(nameParts[0]);
+          const googleLastName = nameParts.length > 1 ? googleText(nameParts.slice(1).join(' ')) : undefined;
+          const googleUserData = {
+            // Google matches on E.164 including the leading '+'; Meta matches on
+            // digits only. Same number, two different hashes — do not share one.
+            sha256_phone_number: normalizedPhone ? await hashSha256Hex(`+${normalizedPhone}`) : undefined,
+            // Names belong inside `address`. Sent at the top level — as they were
+            // — gtag ignores them, so the hashes cost work and match nobody.
+            // `postal_code` and `country` travel unhashed beside them, and Google
+            // treats name plus those two as one address match key.
+            address: {
+              sha256_first_name: googleFirstName ? await hashSha256Hex(googleFirstName) : undefined,
+              sha256_last_name: googleLastName ? await hashSha256Hex(googleLastName) : undefined,
+              city: googleText(city),
+              region: googleText(province),
+              postal_code: googleText(postalCode),
+              country: 'id',
+            },
+          };
+          window.__PS_PUSH_GOOGLE_CONVERSION__(Number(conversionValue || 1), orderId || undefined, googleUserData);
+        }
+      } catch (error) {
+        console.error('google-ads-purchase', error);
+      }
+
+      postMeta({
+        event_name: eventName,
+        event_id: finalEventId,
+        // The order reference the server re-resolves the Purchase from. Sent
+        // explicitly instead of leaving the route to parse the address bar.
+        order_number: finalEventId,
+        status_token: statusToken,
+        lp_name: pick('lp_name', ''),
+        product_id: productId || undefined,
+        content_name: productName,
+        value: Number(conversionValue || 1),
+        currency: 'IDR',
+        content_type: 'product',
+        event_source_url: window.location.href,
+        user_data: {
+          customer_name: name,
+          customer_phone: phone,
+          country: 'id',
+          postal_code: postalCode,
+          province,
+          city,
+          district,
+          // Same value the browser leg hashes into external_id, so both legs
+          // resolve to one person instead of two.
+          external_id: normalizedPhone || undefined,
+          fbp: getCookieValue('_fbp'),
+          fbc: getCookieValue('_fbc'),
+        },
+        payment_status: verifiedPaymentStatus,
+      });
+    };
+
+    void fire();
+  })();
+</script>

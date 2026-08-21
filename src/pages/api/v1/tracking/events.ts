@@ -11,38 +11,38 @@ export const prerender = false;
 export const OPTIONS = handleOptions;
 
 export const POST: APIRoute = async ({ request, locals }) => {
-  const validation = await validateHeadlessRequest(request, locals);
-  if (!validation.allowed && validation.errorResponse) {
+  const validation = await validateHeadlessRequest(request, locals, { operation: 'trackingCreate' });
+  if (!validation.allowed) {
     return validation.errorResponse;
   }
 
   try {
     const rawPayload = await request.json().catch(() => null);
-    const validated = validateMetaEventPayload(rawPayload, request.url);
+    const validated = validateMetaEventPayload(rawPayload, request.url, validation.origin);
     if (!validated.ok) {
-      return headlessError(validated.error, 400, {
+      return validation.finalize(headlessError(validated.error, 400, {
         code: 'INVALID_TRACKING_PAYLOAD',
-      }, validation.corsHeaders);
+      }, validation.corsHeaders));
     }
 
     const payload = validated.value;
     const adsConfig = await getStoreAdsConfig(locals);
     if (!adsConfig.metaPixelId || !adsConfig.metaCapiToken) {
-      return headlessOk(
+      return validation.finalize(headlessOk(
         {
           skipped: true,
           reason: 'Tracking pixel/CAPI belum dikonfigurasi untuk toko ini.',
         },
         200,
         validation.corsHeaders
-      );
+      ));
     }
 
     const database = getRuntimeEnv(locals)?.OMS_DB as D1Database | undefined;
     if (!database?.prepare) {
-      return headlessError('Database tracking event store belum dikonfigurasi.', 503, {
+      return validation.finalize(headlessError('Database tracking event store belum dikonfigurasi.', 503, {
         code: 'DATABASE_UNAVAILABLE',
-      }, validation.corsHeaders);
+      }, validation.corsHeaders));
     }
 
     const event = {
@@ -73,14 +73,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     const queued = await enqueueCapiEvent(database, event);
     if (!queued) {
-      return headlessOk(
+      return validation.finalize(headlessOk(
         {
           deduplicated: true,
           event_id: payload.eventId,
         },
         200,
         validation.corsHeaders
-      );
+      ));
     }
 
     const delivered = await deliverCapiEvent(
@@ -95,7 +95,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     if (locals.cfContext) locals.cfContext.waitUntil(drain);
     else void drain;
 
-    return headlessOk(
+    return validation.finalize(headlessOk(
       {
         event_id: payload.eventId,
         event_name: payload.eventName,
@@ -104,11 +104,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       },
       200,
       validation.corsHeaders
-    );
+    ));
   } catch (error) {
-    return headlessError('Gagal memproses tracking signal event.', 500, {
+    return validation.finalize(headlessError('Gagal memproses tracking signal event.', 500, {
       code: 'TRACKING_SIGNAL_ERROR',
       details: error instanceof Error ? error.message : String(error),
-    }, validation.corsHeaders);
+    }, validation.corsHeaders));
   }
 };

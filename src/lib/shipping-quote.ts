@@ -1,11 +1,11 @@
 import {
   isCourierRateEnabled,
   type CourierAvailabilityRule,
-} from "./courier-rules";
-import { getEnvValue, getRuntimeEnv } from "./env";
-import { MengantarClient, type CourierRateResult } from "./mengantar-client";
-import { getProviderConfig } from "./provider-config";
-import { buildCityAverageFallbackRate } from "./shipping-fallback";
+} from "./courier-rules.ts";
+import { getEnvValue, getRuntimeEnv } from "./env.ts";
+import { MengantarClient, type CourierRateResult } from "./mengantar-client.ts";
+import { getProviderConfig } from "./provider-config.ts";
+import { buildCityAverageFallbackRate } from "./shipping-fallback.ts";
 
 export type ShippingQuoteInput = {
   destinationId: string;
@@ -18,12 +18,13 @@ export type ShippingQuoteInput = {
 };
 
 export class ShippingQuoteError extends Error {
-  constructor(
-    message: string,
-    readonly code: string,
-    readonly status: number,
-  ) {
+  readonly code: string;
+  readonly status: number;
+
+  constructor(message: string, code: string, status: number) {
     super(message);
+    this.code = code;
+    this.status = status;
   }
 }
 
@@ -139,6 +140,19 @@ export async function resolveEligibleShippingRates(
   }
 
   const client = new MengantarClient(config.apiKey, config.baseUrl);
+  // `COD_AMOUNT` is deliberately not sent on a checkout quote.
+  //
+  // Mengantar returns its own COD fee when asked, but this store already bills a
+  // COD service fee of its own through `payment-fee-policy.ts`, persisted as
+  // `cod_service_fee` and `cod_service_fee_vat`. Asking for the provider figure
+  // here and adding it to the shipping cost would charge the buyer for the same
+  // service twice. The operator's rate checker (`/api/admin/ongkir?cod=`) is the
+  // only caller that asks for it, and only to display it.
+  //
+  // The two figures are not identical: measured against the live account on
+  // 2026-08-19, the provider charges exactly one rupiah less than this store's
+  // policy at every amount sampled between Rp50.000 and Rp1.000.000. That
+  // divergence is recorded in `UNIMPLEMENTED_SPECS.md`, not silently corrected.
   const [rates, ruleResult] = await Promise.all([
     client.estimateRates({
       originId,
@@ -202,10 +216,7 @@ export async function resolveEligibleShippingRates(
   const citySamples = sampleResults.flatMap((result) => {
     if (result.status !== "fulfilled") return [];
     const cheapest = eligible(result.value)
-      .map(
-        (rate) =>
-          rate.price + (isCod ? Number(rate.cod_fee || 0) : 0),
-      )
+      .map((rate) => rate.price)
       .sort((left, right) => left - right)[0];
     return cheapest ? [cheapest] : [];
   });

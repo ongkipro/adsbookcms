@@ -1,11 +1,20 @@
 import type { APIRoute } from "astro";
 import { jsonError, jsonOk } from "../../../lib/api";
 import { getRuntimeEnv } from "../../../lib/env";
-import { MengantarClient } from "../../../lib/mengantar-client";
+import {
+  mapMengantarStatusEvidence,
+  MengantarClient,
+  selectProviderShippingAdvance,
+} from "../../../lib/mengantar-client";
 import { resolveMengantarPickupSlot } from "../../../lib/mengantar-order";
 import { getMengantarDispatchEligibility } from "../../../lib/payment-dispatch-policy";
 import { getProviderConfig } from "../../../lib/provider-config";
-import { restoreReservedStock } from "../../../lib/stock-restore";
+import {
+  ADMIN_SHIPPING_STATUSES,
+  applyOrderLifecycleMutation,
+  OrderLifecycleError,
+} from "../../../lib/order-lifecycle";
+import type { AdminShippingStatus } from "../../../lib/order-lifecycle";
 import {
   isAdminDateFilter,
   resolveAdminDateRange,
@@ -13,19 +22,10 @@ import {
 
 export const prerender = false;
 
-const SHIPPING_STATUSES = [
-  "pending",
-  "processing",
-  "shipped",
-  "delivered",
-  "returned",
-  "cancelled",
-] as const;
-const PAID_STATUSES = new Set(["paid", "settled", "success"]);
-const SHIPPED_LIKE_STATUSES = new Set(["shipped", "delivered", "returned"]);
 
 type ShippingMutation =
   | { action: "update-status"; orderId?: number; status?: string }
+  | { action: "sync-provider"; orderIds?: number[] }
   | {
       action: "schedule-pickup";
       warehouseId?: number;
@@ -51,6 +51,9 @@ type ShippingOrderRow = {
   cnoteNo: string | null;
   providerOrderId: string | null;
   providerDispatchError: string | null;
+  providerStatusText: string | null;
+  providerStatusAt: string | null;
+  providerSyncedAt: string | null;
   destinationAreaId: string | null;
   pickupAddressId: string | null;
   receiverDeliveryRate: number | null;
@@ -70,6 +73,19 @@ type OrderStatusCheckRow = {
   courier_code: string | null;
   cnote_no: string | null;
   provider_order_id: string | null;
+  stock_restored_at: string | null;
+};
+
+type ProviderSyncOrderRow = OrderStatusCheckRow & {
+  order_number: string;
+};
+
+type ProviderSyncResult = {
+  orderId: number;
+  orderNumber: string;
+  localStatus: string;
+  providerStatus: string | null;
+  error: string | null;
 };
 
 export const GET: APIRoute = async ({ locals, url }) => {
@@ -123,6 +139,9 @@ export const GET: APIRoute = async ({ locals, url }) => {
           o.cnote_no AS cnoteNo,
           o.provider_order_id AS providerOrderId,
           o.provider_dispatch_error AS providerDispatchError,
+          o.provider_status_text AS providerStatusText,
+          o.provider_status_at AS providerStatusAt,
+          o.provider_synced_at AS providerSyncedAt,
           o.destination_area_id AS destinationAreaId,
           o.receiver_rts_score AS receiverDeliveryRate,
           o.rts_risk_label AS receiverRiskLabel,
@@ -217,15 +236,230 @@ export const PATCH: APIRoute = async ({ locals, request }) => {
   try {
     const db = database as D1Database;
 
+    if (body.action === "sync-provider") {
+      let requestedIds: number[] | null = null;
+      if (body.orderIds !== undefined) {
+        if (
+          !Array.isArray(body.orderIds) ||
+          body.orderIds.some(
+            (orderId) =>
+              typeof orderId !== "number" ||
+              !Number.isInteger(orderId) ||
+              orderId <= 0,
+          )
+        ) {
+          return jsonError("ID pengiriman tidak valid.", 400);
+        }
+        requestedIds = Array.from(new Set(body.orderIds));
+        if (requestedIds.length === 0 || requestedIds.length > 50) {
+          return jsonError(
+            "Pilih 1 sampai 50 pengiriman untuk disinkronkan.",
+            400,
+          );
+        }
+      }
+
+      const selected = requestedIds
+        ? await db
+            .prepare(
+              `SELECT id, order_number, payment_method, payment_status,
+                shipping_status, courier_code, cnote_no, provider_order_id,
+                stock_restored_at
+              FROM orders
+              WHERE id IN (${requestedIds.map(() => "?").join(", ")})
+              ORDER BY id ASC`,
+            )
+            .bind(...requestedIds)
+            .all<ProviderSyncOrderRow>()
+        : await db
+            .prepare(
+              `SELECT id, order_number, payment_method, payment_status,
+                shipping_status, courier_code, cnote_no, provider_order_id,
+                stock_restored_at
+              FROM orders
+              WHERE provider_order_id IS NOT NULL
+                AND cnote_no IS NOT NULL
+                AND shipping_status IN ('processing', 'shipped')
+              ORDER BY id ASC
+              LIMIT 50`,
+            )
+            .all<ProviderSyncOrderRow>();
+      const rows = selected.results ?? [];
+      const rowsById = new Map(rows.map((row) => [Number(row.id), row]));
+      const queue = requestedIds
+        ? requestedIds.map((orderId) => ({
+            orderId,
+            row: rowsById.get(orderId) || null,
+          }))
+        : rows.map((row) => ({ orderId: Number(row.id), row }));
+      const syncedAt = new Date().toISOString();
+      const results: ProviderSyncResult[] = [];
+      let synced = 0;
+      let updated = 0;
+      let unchanged = 0;
+      let failed = 0;
+
+      if (queue.length === 0) {
+        return jsonOk({
+          data: {
+            synced,
+            updated,
+            unchanged,
+            failed,
+            syncedAt,
+            results,
+          },
+        });
+      }
+
+      const needsProvider = queue.some(
+        ({ row }) => Boolean(row?.provider_order_id && row.cnote_no),
+      );
+      let client: MengantarClient | null = null;
+      if (needsProvider) {
+        const provider = (await getProviderConfig(db, locals)).mengantar;
+        if (!provider.apiKey) {
+          return jsonError("Mengantar belum dikonfigurasi.", 409);
+        }
+        client = new MengantarClient(provider.apiKey, provider.baseUrl);
+      }
+
+      for (const item of queue) {
+        const row = item.row;
+        if (!row) {
+          failed += 1;
+          results.push({
+            orderId: item.orderId,
+            orderNumber: "",
+            localStatus: "",
+            providerStatus: null,
+            error: "Order tidak ditemukan.",
+          });
+          continue;
+        }
+        if (!row.provider_order_id) {
+          failed += 1;
+          results.push({
+            orderId: row.id,
+            orderNumber: row.order_number,
+            localStatus: row.shipping_status,
+            providerStatus: null,
+            error: "Shipment Mengantar belum dibuat.",
+          });
+          continue;
+        }
+        if (!row.cnote_no) {
+          failed += 1;
+          results.push({
+            orderId: row.id,
+            orderNumber: row.order_number,
+            localStatus: row.shipping_status,
+            providerStatus: null,
+            error: "Nomor resi Mengantar belum tersedia.",
+          });
+          continue;
+        }
+
+        let providerStatus: string | null = null;
+        let localStatus = row.shipping_status;
+        try {
+          const tracking = await client!.getOrderByTrackingId(row.cnote_no);
+          const evidence = mapMengantarStatusEvidence(tracking);
+          providerStatus = evidence.description;
+          const observation = await db
+            .prepare(
+              `UPDATE orders
+              SET provider_status_text = ?, provider_status_at = ?,
+                provider_synced_at = ?
+              WHERE id = ?`,
+            )
+            .bind(
+              evidence.description,
+              evidence.occurredAt,
+              syncedAt,
+              row.id,
+            )
+            .run();
+          if (!observation.meta?.changes) {
+            throw new Error("Observasi status provider gagal disimpan.");
+          }
+          synced += 1;
+
+          const nextStatus = selectProviderShippingAdvance(
+            row.shipping_status,
+            evidence.shippingStatus,
+          );
+          if (!nextStatus) {
+            unchanged += 1;
+          } else {
+            const transition = await applyOrderLifecycleMutation(
+              db,
+              row,
+              { shippingStatus: nextStatus },
+              db
+                .prepare(
+                  `UPDATE orders
+                  SET shipping_status = ?
+                  WHERE id = ? AND shipping_status = ?`,
+                )
+                .bind(nextStatus, row.id, row.shipping_status),
+            );
+            if (transition.updated) {
+              updated += 1;
+              localStatus = nextStatus;
+            } else {
+              const current = await db
+                .prepare(
+                  "SELECT shipping_status FROM orders WHERE id = ? LIMIT 1",
+                )
+                .bind(row.id)
+                .first<{ shipping_status: string }>();
+              localStatus = current?.shipping_status || row.shipping_status;
+              unchanged += 1;
+            }
+          }
+
+          results.push({
+            orderId: row.id,
+            orderNumber: row.order_number,
+            localStatus,
+            providerStatus,
+            error: null,
+          });
+        } catch (error) {
+          failed += 1;
+          results.push({
+            orderId: row.id,
+            orderNumber: row.order_number,
+            localStatus,
+            providerStatus,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Gagal menyinkronkan status Mengantar.",
+          });
+        }
+      }
+
+      return jsonOk({
+        data: {
+          synced,
+          updated,
+          unchanged,
+          failed,
+          syncedAt,
+          results,
+        },
+      });
+    }
+
     if (body.action === "update-status") {
       const orderId = Number(body.orderId);
       const nextStatus =
         typeof body.status === "string" ? body.status.trim().toLowerCase() : "";
       if (
         !Number.isInteger(orderId) ||
-        !SHIPPING_STATUSES.includes(
-          nextStatus as (typeof SHIPPING_STATUSES)[number],
-        )
+        !ADMIN_SHIPPING_STATUSES.includes(nextStatus as AdminShippingStatus)
       ) {
         return jsonError("Status atau order tidak valid.", 400);
       }
@@ -233,7 +467,8 @@ export const PATCH: APIRoute = async ({ locals, request }) => {
       const current = (await db
         .prepare(
           `
-        SELECT id, payment_method, payment_status, shipping_status, courier_code, cnote_no, provider_order_id
+        SELECT id, payment_method, payment_status, shipping_status, courier_code,
+          cnote_no, provider_order_id, stock_restored_at
         FROM orders
         WHERE id = ?
         LIMIT 1
@@ -250,48 +485,26 @@ export const PATCH: APIRoute = async ({ locals, request }) => {
           409,
         );
       }
-      if (nextStatus === "pending") {
-        return jsonError(
-          "Shipment yang sudah dibuat tidak dapat dikembalikan ke status menunggu.",
-          409,
-        );
-      }
 
-      if (
-        SHIPPED_LIKE_STATUSES.has(nextStatus) &&
-        (!current.courier_code || !current.cnote_no)
-      ) {
-        return jsonError(
-          "Order yang sudah dikirim harus memiliki kurir dan nomor resi.",
-          400,
-        );
-      }
-      if (
-        nextStatus === "delivered" &&
-        current.payment_method !== "cod" &&
-        !PAID_STATUSES.has(current.payment_status)
-      ) {
-        return jsonError(
-          "Order non-COD tidak boleh diselesaikan sebelum berstatus paid.",
-          409,
-        );
-      }
-
-      const result = await db
-        .prepare("UPDATE orders SET shipping_status = ? WHERE id = ?")
-        .bind(nextStatus, orderId)
-        .run();
-      if (!result.meta?.changes) {
+      const result = await applyOrderLifecycleMutation(
+        db,
+        current,
+        { shippingStatus: nextStatus },
+        db
+          .prepare("UPDATE orders SET shipping_status = ? WHERE id = ?")
+          .bind(nextStatus, orderId),
+      );
+      if (!result.updated) {
         return jsonError("Order tidak ditemukan.", 404);
-      }
-      if (["cancelled", "returned"].includes(nextStatus)) {
-        await restoreReservedStock(db, orderId);
       }
       return jsonOk({ message: "Status pengiriman diperbarui." });
     }
 
     return jsonError("Aksi PATCH tidak dikenal.", 400);
   } catch (error) {
+    if (error instanceof OrderLifecycleError) {
+      return jsonError(error.message, error.status);
+    }
     console.error("shipping-update", error);
     return jsonError("Gagal memperbarui data pengiriman.", 500);
   }

@@ -1,0 +1,87 @@
+---
+import { getStoreAdsConfig } from '../../../lib/store-ads';
+
+interface Props {
+  googleAdsId?: string;
+  googleAdsLabel?: string;
+}
+
+const { googleAdsId: googleAdsIdProp, googleAdsLabel: googleAdsLabelProp } = Astro.props;
+let googleAdsId = googleAdsIdProp;
+let googleAdsLabel = googleAdsLabelProp;
+
+if (googleAdsId === undefined || googleAdsLabel === undefined) {
+  const adsConfig = await getStoreAdsConfig(Astro.locals);
+  googleAdsId = googleAdsId ?? adsConfig.googleAdsConversionId;
+  googleAdsLabel = googleAdsLabel ?? adsConfig.googleAdsConversionLabel;
+}
+
+const shouldRenderGoogleAds = Boolean(String(googleAdsId || '').trim() && String(googleAdsLabel || '').trim());
+---
+
+{shouldRenderGoogleAds && (
+  <>
+    <script is:inline define:vars={{ googleAdsId, googleAdsLabel }}>
+      (() => {
+        if (typeof window === 'undefined') return;
+        window.dataLayer = window.dataLayer || [];
+        function gtag() {
+          window.dataLayer.push(arguments);
+        }
+        window.gtag = window.gtag || gtag;
+        // Consent Mode v2, scoped by region. The consent requirement is EEA/UK
+        // law; this storefront sells to Indonesia and ships no CMP, so a global
+        // "denied" default would destroy our own conversion signal to satisfy a
+        // rule that does not govern our traffic.
+        window.gtag('consent', 'default', {
+          ad_storage: 'denied',
+          ad_user_data: 'denied',
+          ad_personalization: 'denied',
+          analytics_storage: 'denied',
+          region: [
+            'AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IS','IE','IT',
+            'LV','LI','LT','LU','MT','NL','NO','PL','PT','RO','SK','SI','ES','SE','GB','CH',
+          ],
+          wait_for_update: 500,
+        });
+        window.gtag('consent', 'default', {
+          ad_storage: 'granted',
+          ad_user_data: 'granted',
+          ad_personalization: 'granted',
+          analytics_storage: 'granted',
+        });
+
+        window.gtag('js', new Date());
+        window.gtag('config', googleAdsId);
+
+        window.__GOOGLE_ADS_ID__ = googleAdsId;
+        window.__GOOGLE_ADS_LABEL__ = googleAdsLabel;
+        window.__PS_PUSH_GOOGLE_CONVERSION__ = function (value, transactionId, userData) {
+          if (!googleAdsId || !googleAdsLabel) return;
+          var payload = {
+            send_to: googleAdsId + '/' + googleAdsLabel,
+            value: Number(value || 0),
+            currency: 'IDR',
+          };
+          // Google deduplicates on transaction_id. Sending an empty string for
+          // every order without one makes them collide instead of dedupe, so
+          // omit the key entirely when there is no order number.
+          if (transactionId) payload.transaction_id = transactionId;
+          if (userData) {
+            payload.user_data = userData;
+          }
+          window.gtag('event', 'conversion', payload);
+        };
+      })();
+    </script>
+    <script is:inline define:vars={{ googleAdsId }}>
+      (function (d, s, i) {
+        var f = d.getElementsByTagName(s)[0],
+          j = d.createElement(s);
+        j.async = true;
+        j.src = 'https://www.googletagmanager.com/gtag/js?id=' + i;
+        f.parentNode.insertBefore(j, f);
+      })(document, 'script', googleAdsId);
+    </script>
+  </>
+)}

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   homeContentSchema,
+  loadPublishedHomeContent,
   mergeRuntimeProductContent,
   parseContentKey,
   productContentSchema,
@@ -30,6 +31,26 @@ const productContent = {
 
 test("homepage content accepts no testimonials", () => {
   assert.deepEqual(homeContentSchema.shape.proofs.parse([]), []);
+});
+
+test("an empty home-content row is distinguishable from a D1 read failure", async () => {
+  const emptyDatabase = {
+    prepare: () => ({ first: async () => null }),
+  } as unknown as D1Database;
+  const failedDatabase = {
+    prepare: () => ({
+      first: async () => {
+        throw new Error("D1 unavailable");
+      },
+    }),
+  } as unknown as D1Database;
+
+  assert.deepEqual(await loadPublishedHomeContent(emptyDatabase), {
+    state: "unpublished",
+  });
+  assert.deepEqual(await loadPublishedHomeContent(failedDatabase), {
+    state: "unavailable",
+  });
 });
 
 test("content keys accept home and canonical D1 product IDs", () => {

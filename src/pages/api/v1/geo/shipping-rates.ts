@@ -11,8 +11,8 @@ export const GET: APIRoute = async (context) => calculateRates(context);
 export const POST: APIRoute = async (context) => calculateRates(context);
 
 async function calculateRates({ request, url, locals }: Parameters<APIRoute>[0]) {
-  const validation = await validateHeadlessRequest(request, locals);
-  if (!validation.allowed && validation.errorResponse) {
+  const validation = await validateHeadlessRequest(request, locals, { operation: 'shippingQuote' });
+  if (!validation.allowed) {
     return validation.errorResponse;
   }
 
@@ -35,9 +35,9 @@ async function calculateRates({ request, url, locals }: Parameters<APIRoute>[0])
     ).trim();
 
     if (!destinationId) {
-      return headlessError('destination_id / location_id wajib diisi.', 400, {
+      return validation.finalize(headlessError('destination_id / location_id wajib diisi.', 400, {
         code: 'DESTINATION_ID_REQUIRED',
-      }, validation.corsHeaders);
+      }, validation.corsHeaders));
     }
 
     const paymentMethod = String(
@@ -55,9 +55,9 @@ async function calculateRates({ request, url, locals }: Parameters<APIRoute>[0])
     const env = getRuntimeEnv(locals);
     const database = env?.OMS_DB as D1Database | undefined;
     if (!database) {
-      return headlessError('Database belum dikonfigurasi.', 503, {
+      return validation.finalize(headlessError('Database belum dikonfigurasi.', 503, {
         code: 'DATABASE_UNAVAILABLE',
-      }, validation.corsHeaders);
+      }, validation.corsHeaders));
     }
 
     const { originId, rates, fallbackUsed } = await resolveEligibleShippingRates(
@@ -72,7 +72,7 @@ async function calculateRates({ request, url, locals }: Parameters<APIRoute>[0])
       }
     );
 
-    return headlessOk(
+    return validation.finalize(headlessOk(
       {
         destination_id: destinationId,
         payment_method: paymentMethod,
@@ -90,14 +90,14 @@ async function calculateRates({ request, url, locals }: Parameters<APIRoute>[0])
       },
       200,
       validation.corsHeaders
-    );
+    ));
   } catch (error) {
     const quoteErr = error instanceof ShippingQuoteError ? error : null;
-    return headlessError(
+    return validation.finalize(headlessError(
       quoteErr?.message || 'Gagal menghitung tarif pengiriman.',
       quoteErr?.status || 500,
       { code: quoteErr?.code || 'SHIPPING_RATES_ERROR' },
       validation.corsHeaders
-    );
+    ));
   }
 }

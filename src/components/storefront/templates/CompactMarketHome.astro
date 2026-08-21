@@ -1,10 +1,12 @@
 ---
-import HeroSection from '../../home/HeroSection.astro';
-import ProductsSection from '../../home/ProductsSection.astro';
-import ProofsSection from '../../home/ProofsSection.astro';
+import HeroSection from '../home/HeroSection.astro';
+import { dailySeed, pickDaily } from '../../../lib/daily-rotation';
+import ProductsSection from '../home/ProductsSection.astro';
+import LandingPagesSection from '../home/LandingPagesSection.astro';
 import type { TenantHomeContent } from '../../../lib/tenant-content';
 
 interface ProductCard {
+  slug: string;
   name: string;
   category: string;
   description: string;
@@ -21,14 +23,26 @@ interface ProductCard {
 interface Props {
   content: TenantHomeContent;
   products: ProductCard[];
+  sections: {
+    hero: boolean;
+    catalog: true;
+    // `proofs` is still accepted so a template saved before this change keeps
+    // parsing; the third slot lists landing pages now.
+    proofs?: boolean;
+    landingPages?: boolean;
+  };
 }
 
-const { content, products } = Astro.props;
+const { content, products, sections } = Astro.props;
 
+// No slides of the operator's own means the hero borrows from the catalogue.
+// The pick rotates daily rather than per request: a per-request shuffle would
+// change the LCP image on every load, so no visitor could reuse bytes another
+// had already cached.
 const heroSlides =
   content.heroSlides.length > 0
     ? content.heroSlides
-    : products.slice(0, 3).map((product) => ({
+    : pickDaily(products, 3, dailySeed(new Date())).map((product) => ({
         image: product.image,
         alt: product.name,
         badge: product.category,
@@ -38,15 +52,15 @@ const heroSlides =
 
 <main
   id="konten-utama"
-  class="relative min-h-screen overflow-x-hidden bg-[#F8F7F4] font-sans text-[#111111] antialiased"
+  class="relative min-h-screen overflow-x-hidden bg-white font-sans text-[#111111] antialiased"
 >
   <div
     id="home"
-    class="mx-auto flex min-h-screen w-full max-w-[480px] flex-col border-x border-[#E5E5E5] bg-[#F8F7F4]"
+    class="mx-auto flex min-h-screen w-full max-w-[480px] flex-col border-x border-[#E5E5E5] bg-white"
   >
-    <HeroSection slides={heroSlides} highlights={content.heroHighlights} content={content.hero} />
-    <ProductsSection products={products} heading={content.catalog} />
-    <ProofsSection proofs={content.proofs} heading={content.proofsHeading} />
+    {sections.hero && <HeroSection slides={heroSlides} highlights={content.heroHighlights} content={content.hero} />}
+    {sections.catalog && <ProductsSection products={products} heading={content.catalog} />}
+    {sections.landingPages !== false && <LandingPagesSection pages={content.solutions} heading={content.solutionsHeading} />}
   </div>
 </main>
 

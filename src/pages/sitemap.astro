@@ -1,5 +1,5 @@
 ---
-import PageIntro from '../components/shared/PageIntro.astro';
+import PageIntro from '../components/storefront/shared/PageIntro.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { footerLegal, footerNavigation } from '../data/site';
 import { getStorefrontProducts } from '../lib/catalog';
@@ -35,7 +35,7 @@ const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
     <div class="mx-auto max-w-[800px] px-5 py-8 space-y-6">
       <!-- Section 1: Halaman Utama & Navigasi -->
       <div class="rounded-xl border border-[#EAEDED] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-        <h2 class="text-[16px] font-extrabold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
+        <h2 class="text-[16px] font-bold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
           <span class="h-2 w-2 rounded-full bg-[#FF9900]"></span>
           Navigasi Utama
         </h2>
@@ -56,7 +56,7 @@ const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
 
       <!-- Section 2: Produk & Landing Page -->
       <div class="rounded-xl border border-[#EAEDED] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-        <h2 class="text-[16px] font-extrabold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
+        <h2 class="text-[16px] font-bold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
           <span class="h-2 w-2 rounded-full bg-[#EC7211]"></span>
           Produk & Solusi Khusus
         </h2>
@@ -71,8 +71,8 @@ const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
                     href={`/produk/${product.slug}`}
                     class="block rounded-lg border border-[#EAEDED]/60 bg-[#FAFAFA] p-3 text-center hover:border-[#232F3E]/30 hover:bg-[#FFF5E5] transition-all"
                   >
-                    <p class="text-[14px] font-extrabold text-[#16191F]">{product.productName}</p>
-                    <p class="mt-0.5 text-[10px] font-medium text-[#545B64]">{product.variants[0]?.label || ''}</p>
+                    <p class="text-[14px] font-bold text-[#16191F]">{product.productName}</p>
+                    <p class="mt-0.5 text-[10px] font-normal text-[#545B64]">{product.variants[0]?.label || ''}</p>
                   </a>
                 ))
               }
@@ -102,7 +102,7 @@ const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
 
       <!-- Section 4: Halaman Legal & Informasi -->
       <div class="rounded-xl border border-[#EAEDED] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-        <h2 class="text-[15px] font-extrabold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
+        <h2 class="text-[15px] font-bold tracking-[-0.01em] text-[#16191F] flex items-center gap-2">
           <span class="h-2 w-2 rounded-full bg-slate-400"></span>
           Legal & Informasi Tambahan
         </h2>
@@ -126,9 +126,9 @@ const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
         <a
           href="/sitemap.xml"
           target="_blank"
-          class="inline-flex items-center gap-2 rounded-lg border border-[#EAEDED] bg-white px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+          class="inline-flex items-center gap-2 rounded-lg border border-[#EAEDED] bg-white px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
         >
-          <svg class="h-4 w-4 text-[#C5A880]" viewBox="0 0 24 24" fill="currentColor">
+          <svg class="h-4 w-4 text-[#111111]" viewBox="0 0 24 24" fill="currentColor">
             <path
               d="M4 11.189v-1.189c0-.552.448-1 1-1h6c.552 0 1 .448 1 1v1.189c0 .552-.448 1-1 1H5c-.552 0-1-.448-1-1zm0 4.811c0-.552.448-1 1-1h6c.552 0 1 .448 1 1v1.189c0 .552-.448 1-1 1H5c-.552 0-1-.448-1-1v-1.189zm8.583-12h2.417c.552 0 1 .448 1 1v1.189c0 .552-.448 1-1 1h-2.417c-.552 0-1-.448-1-1v-1.189c0-.552.448-1 1-1zm2.417 6c.552 0 1 .448 1 1v1.189c0 .552-.448 1-1 1h-2.417c-.552 0-1-.448-1-1v-1.189c0-.552.448-1 1-1h2.417zm-1.417 6v1.189c0 .552-.448 1-1 1h-2.583c-.552 0-1-.448-1-1v-1.189c0-.552.448-1 1-1h2.583c.552 0 1 .448 1 1zm5.417-12c.552 0 1 .448 1 1v1.189c0 .552-.448 1-1 1h-2.417c-.552 0-1-.448-1-1v-1.189c0-.552.448-1 1-1h2.417z"
             ></path>

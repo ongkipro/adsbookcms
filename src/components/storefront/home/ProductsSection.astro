@@ -1,0 +1,193 @@
+---
+// One card for the whole storefront. The home grid grew its own with a
+// rating, a sold count and a CTA while /produk had a cleaner one; two cards
+// meant two answers to the same question. The wrapper below keeps the search
+// hooks the filter script reads - the card has no business knowing them.
+import ProductListItem from '../shared/ProductListItem.astro';
+import Icon from '../shared/Icon.astro';
+
+interface Product {
+  slug: string;
+  name: string;
+  category: string;
+  description: string;
+  href: string;
+  image: string;
+  price: number;
+  comparePrice?: number;
+  ratingValue?: number;
+  reviewCount?: number;
+  soldCount?: number;
+  variants?: Array<{ label: string; price: number }>;
+}
+
+interface Heading {
+  eyebrow: string;
+  title: string;
+  description: string;
+}
+
+interface Props {
+  products: Product[];
+  heading: Heading;
+}
+
+const { products, heading } = Astro.props;
+
+
+
+const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
+---
+
+<section id="produk" class="border-b border-[#E5E5E5] bg-white px-4 py-10">
+  <div class="mb-7 border-l-2 border-[#111111] pl-4">
+    <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#767676]">
+      {heading.eyebrow}
+    </span>
+    <h2 class="mt-2 text-[26px] font-semibold leading-tight tracking-[-0.035em] text-[#111111]">{heading.title}</h2>
+    <p class="mt-2 max-w-[38rem] text-[13px] leading-6 text-[#555555]">{heading.description}</p>
+  </div>
+
+  <div class="mb-7 flex flex-col gap-3" hidden={products.length === 0}>
+    <div class="relative w-full">
+      <input
+        type="text"
+        id="catalog-search"
+        placeholder="Cari produk pilihan Anda..."
+        aria-label="Cari produk"
+        class="min-h-12 w-full rounded-none border border-[#E5E5E5] bg-white py-3 pl-11 pr-4 text-base text-[#111111] transition-colors placeholder:text-[#767676] focus:border-[#111111] focus:outline-none focus:ring-1 focus:ring-[#111111]"
+      />
+      <Icon
+        name="lucide:search"
+        class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#555555]"
+        aria-hidden="true"
+      />
+    </div>
+  </div>
+
+  {
+    products.length === 0 && (
+      <div class="border border-[#E5E5E5] bg-white px-5 py-10 text-center">
+        <p class="text-[13px] font-semibold text-[#111111]">Katalog sedang disiapkan</p>
+        <p class="mx-auto mt-2 max-w-[26rem] text-[12px] leading-6 text-[#555555]">
+          Belum ada produk yang diterbitkan. Produk akan muncul di sini setelah
+          ditambahkan dan varian harganya diisi dari dashboard.
+        </p>
+      </div>
+    )
+  }
+
+  <div id="product-grid" class="grid grid-cols-2 gap-2.5" hidden={products.length === 0}>
+    {
+      products.map((product, idx) => (
+        <div
+          class="product-card"
+          data-category={product.category}
+          data-search={`${product.name} ${product.category} ${product.description}`.toLowerCase()}
+          data-index={idx}
+          style={idx >= 10 ? 'display: none;' : ''}
+        >
+          <ProductListItem
+            product={{
+              slug: product.slug,
+              productName: product.name,
+              heroImage: product.image,
+              category: product.category,
+              price: product.price,
+              comparePrice: product.comparePrice,
+              variants: product.variants ?? [],
+            }}
+            formatPrice={formatPrice}
+          />
+        </div>
+      ))
+    }
+  </div>
+
+  <div
+    id="load-more-container"
+    class="mt-8 flex flex-col items-center gap-3 border-t border-[#E5E5E5] pt-6"
+    hidden={products.length === 0}
+  >
+    <p id="catalog-status" class="text-[11px] font-normal text-[#555555]">
+      Menampilkan <span id="product-visible-count">{Math.min(10, products.length)}</span> dari <span id="product-total-count">{products.length}</span> produk
+    </p>
+    {
+      products.length > 10 && (
+        <button
+          type="button"
+          id="load-more-btn"
+          class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-none border border-[#111111] bg-[#111111] px-6 py-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-[#000000] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
+        >
+          <span>Lihat Produk Lainnya</span>
+          <Icon name="lucide:chevron-down" class="h-4 w-4" aria-hidden="true" />
+        </button>
+      )
+    }
+  </div>
+</section>
+
+<script>
+  function initProductCatalog() {
+    const searchInput = document.getElementById('catalog-search') as HTMLInputElement | null;
+    const cards = document.querySelectorAll('.product-card') as NodeListOf<HTMLElement>;
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const visibleCountEl = document.getElementById('product-visible-count');
+    const totalCountEl = document.getElementById('product-total-count');
+
+    let currentSearch = '';
+    let visibleLimit = 10;
+
+    function filterAndRender() {
+      let matchedCount = 0;
+      let currentlyShown = 0;
+
+      cards.forEach((card) => {
+        const searchData = card.getAttribute('data-search') || '';
+        const matchesSearch = !currentSearch || searchData.includes(currentSearch);
+
+        if (matchesSearch) {
+          matchedCount++;
+          if (currentlyShown < visibleLimit) {
+            card.style.display = 'flex';
+            currentlyShown++;
+          } else {
+            card.style.display = 'none';
+          }
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      if (visibleCountEl) visibleCountEl.textContent = String(currentlyShown);
+      if (totalCountEl) totalCountEl.textContent = String(matchedCount);
+
+      if (loadMoreBtn) {
+        if (currentlyShown >= matchedCount) {
+          loadMoreBtn.style.display = 'none';
+        } else {
+          loadMoreBtn.style.display = 'inline-flex';
+        }
+      }
+    }
+
+    searchInput?.addEventListener('input', (e) => {
+      currentSearch = (e.target as HTMLInputElement).value.trim().toLowerCase();
+      visibleLimit = 10;
+      filterAndRender();
+    });
+
+    loadMoreBtn?.addEventListener('click', () => {
+      visibleLimit += 10;
+      filterAndRender();
+    });
+
+    filterAndRender();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initProductCatalog);
+  } else {
+    initProductCatalog();
+  }
+</script>

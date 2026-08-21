@@ -18,6 +18,16 @@ import {
   buildEmbedFrameAncestors,
   resolveEmbedAllowedOrigins,
 } from './lib/embed-security';
+import {
+  ensureSchemaUpgraded,
+  SCHEMA_UPGRADE_ERROR_LABEL,
+  SchemaUpgradeError,
+} from './lib/schema-version';
+import {
+  evaluateOperationalAlerts,
+  schemaAlertFromError,
+} from './lib/operational-alerts';
+import { CMS_VERSION } from './lib/version';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -34,6 +44,15 @@ function applySecurityHeaders(
   } else {
     response.headers.set('X-Frame-Options', 'DENY');
   }
+  // Sent unconditionally on purpose. RFC 6797 section 8.1 requires a user agent
+  // to ignore an STS header received over insecure transport, so this is inert
+  // on http and on local dev, and there is no protocol to branch on here.
+  //
+  // No includeSubDomains: this ships to every install, and committing every
+  // future subdomain of every store to HTTPS is not a promise this file can
+  // keep. No preload either - that one is close to irreversible. A store that
+  // wants both can turn on zone-level HSTS in Cloudflare.
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   if (isPrivate) response.headers.set('Cache-Control', 'no-store');
@@ -128,7 +147,11 @@ function isInstallerPath(pathname: string): boolean {
   );
 }
 
-export const onRequest = defineMiddleware(async (context, next) => {
+export function createMiddleware(
+  ensureSchemaReady: (database: D1Database) => Promise<unknown> =
+    ensureSchemaUpgraded,
+) {
+  return defineMiddleware(async (context, next) => {
   // `context.url`, never a URL built from the raw request. Astro routes on a
   // normalized pathname — it decodes percent-escapes in a loop and collapses
   // duplicate slashes — and exposes the result here, while leaving
@@ -140,12 +163,85 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // readable, and writable cross-site, with no session at all.
   const url = context.url;
   const runtime = getRuntimeEnv(context.locals);
+  const identityDb = runtime?.OMS_DB as D1Database | undefined;
+  try {
+    if (!identityDb?.prepare) {
+      throw new SchemaUpgradeError(
+        'SCHEMA_UPGRADE_NO_DATABASE',
+        CMS_VERSION.schemaVersion,
+        null,
+      );
+    }
+    await ensureSchemaReady(identityDb);
+  } catch (error) {
+    const schemaError =
+      error instanceof SchemaUpgradeError
+        ? error
+        : new SchemaUpgradeError(
+            'SCHEMA_UPGRADE_READ_FAILED',
+            CMS_VERSION.schemaVersion,
+            null,
+          );
+    console.error(SCHEMA_UPGRADE_ERROR_LABEL, {
+      code: schemaError.code,
+      expected: schemaError.expected,
+      applied: schemaError.applied,
+      migration: schemaError.migration,
+    });
+    await evaluateOperationalAlerts([schemaAlertFromError(schemaError)], {
+      store: runtime?.SESSION as KVNamespace | undefined,
+      webhookUrl: getEnvValue('OPS_ALERT_WEBHOOK_URL', runtime),
+    });
+
+    const apiRequest = url.pathname === '/api' || url.pathname.startsWith('/api/');
+    const response = apiRequest
+      ? new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Database belum siap menerima permintaan.',
+            code: 'SCHEMA_UPGRADE_FAILED',
+          }),
+          { status: 503, headers: JSON_HEADERS },
+        )
+      : new Response(
+          'Database toko belum siap. Periksa status migrasi di Workers Logs.',
+          {
+            status: 503,
+            headers: {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Cache-Control': 'no-store',
+            },
+          },
+        );
+    return applySecurityHeaders(response, true);
+  }
+
+  // Canonical host first. This used to sit below the installer redirects, which
+  // are relative - so `www` reached `/install` and the wizard was served on the
+  // non-canonical host, and an installed store took two hops to get home. It is
+  // also a host-level decision that needs no store row, so answering it here
+  // spares a D1 read on every `www` request.
+  const siteUrl = getEnvValue('PUBLIC_SITE_URL', runtime);
+  if (siteUrl && url.hostname.startsWith('www.')) {
+    try {
+      const canonical = new URL(siteUrl);
+      if (url.hostname.slice(4) === canonical.hostname) {
+        const targetUrl = new URL(url);
+        targetUrl.hostname = canonical.hostname;
+        targetUrl.protocol = canonical.protocol;
+        targetUrl.port = canonical.port;
+        return applySecurityHeaders(
+          context.redirect(targetUrl.toString(), 301),
+          false,
+        );
+      }
+    } catch {}
+  }
 
   // Store identity is resolved once per request and handed to every consumer
   // through locals. Doing it here rather than per page keeps consumers
   // synchronous — 125 call sites cannot each be an opportunity to forget an
   // await for a value that cannot change mid-request. ADR-003.
-  const identityDb = runtime?.OMS_DB as D1Database | undefined;
   const identity =
     identityDb && typeof identityDb === 'object'
       ? await readStoreIdentity(identityDb)
@@ -169,22 +265,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // must not linger as a re-runnable surface.
   if (identity.state === 'installed' && isInstallerRoute(url.pathname)) {
     return applySecurityHeaders(context.redirect('/hello'), true);
-  }
-  const siteUrl = getEnvValue('PUBLIC_SITE_URL', runtime);
-  if (siteUrl && url.hostname.startsWith('www.')) {
-    try {
-      const canonical = new URL(siteUrl);
-      if (url.hostname.slice(4) === canonical.hostname) {
-        const targetUrl = new URL(url);
-        targetUrl.hostname = canonical.hostname;
-        targetUrl.protocol = canonical.protocol;
-        targetUrl.port = canonical.port;
-        return applySecurityHeaders(
-          context.redirect(targetUrl.toString(), 301),
-          false,
-        );
-      }
-    } catch {}
   }
   const isEmbedForm =
     url.pathname === '/embed/form' || url.pathname === '/embed/form/';
@@ -266,6 +346,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     context.locals.admin = {
       username: session.username,
       role: session.role,
+      mustChangePassword,
     };
     if (!canAccessAdminRoute(session.role, url.pathname)) {
       if (isAdminApi) {
@@ -341,4 +422,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   return response;
-});
+  });
+}
+
+export const onRequest = createMiddleware();

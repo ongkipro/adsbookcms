@@ -17,7 +17,9 @@ import {
 } from "./json-ld.ts";
 import { resolveMetaEventId } from "./meta-capi.ts";
 import {
+  allocateOrderNumber,
   persistOrder,
+  purgeExpiredAbandonedOrders,
   recordAbandonedOrder,
   type PersistedOrder,
 } from "./order-persistence.ts";
@@ -169,6 +171,21 @@ class SqliteD1Database {
         quantity INTEGER NOT NULL,
         unit_price INTEGER NOT NULL
       );
+
+      CREATE TABLE payment_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL REFERENCES orders(id),
+        reference_id TEXT
+      );
+
+      CREATE TABLE order_number_counters (
+        counter_name TEXT PRIMARY KEY,
+        last_value INTEGER NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      INSERT INTO order_number_counters (counter_name, last_value, updated_at)
+      VALUES ('orders', 10000, '2026-08-17T00:00:00.000Z');
 
       CREATE TABLE capi_event_outbox (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -440,6 +457,42 @@ test("checkout promotes one abandoned lead and queues one attributable Purchase"
   );
 });
 
+test("non-COD checkout stays pending until payment confirmation", async () => {
+  for (const paymentMethod of ["bank_transfer", "qris"] as const) {
+    const database = new SqliteD1Database();
+    const order = await persistOrder(asD1(database), {
+      submitToken: `submit-${paymentMethod}`,
+      customerName: "Siti Rahayu",
+      customerPhone:
+        paymentMethod === "qris" ? "6281234567891" : "6281234567892",
+      address: "Jl. Melati 10",
+      province: "ID-JI",
+      city: "Surabaya",
+      district: "Wonokromo",
+      postalCode: "60243",
+      variantKey: "20001",
+      quantity: 1,
+      shippingCost: 18000,
+      paymentMethod,
+      destinationAreaId: "area-surabaya",
+      courierCode: "jne",
+      courierService: "REG",
+    });
+    const stored = await readRow<{
+      payment_status: string;
+      shipping_status: string;
+    }>(
+      database,
+      `SELECT payment_status, shipping_status
+       FROM orders WHERE id = ?`,
+      order.id,
+    );
+
+    assert.equal(stored.payment_status, "pending");
+    assert.equal(stored.shipping_status, "pending");
+  }
+});
+
 test("5. product and storefront JSON-LD builders generate complete schema", () => {
   const siteUrl = "https://shop.example/";
   const organization = {
@@ -540,4 +593,100 @@ test("5. product and storefront JSON-LD builders generate complete schema", () =
     faq.mainEntity[0]?.acceptedAnswer.text,
     "Ya, COD tersedia di wilayah yang didukung.",
   );
+});
+
+test("the D1 counter allocates unique suffixes across concurrent INV and ABN requests", async () => {
+  const database = new SqliteD1Database();
+  const d1 = asD1(database);
+
+  const numbers = await Promise.all(
+    Array.from({ length: 64 }, (_, index) =>
+      allocateOrderNumber(d1, index % 2 === 0 ? "INV" : "ABN"),
+    ),
+  );
+  const suffixes = numbers.map((number) => number.slice(4));
+
+  assert.equal(new Set(numbers).size, numbers.length);
+  assert.equal(new Set(suffixes).size, suffixes.length);
+  assert.ok(numbers.every((number) => /^(?:INV|ABN)-\d{5}$/.test(number)));
+});
+
+test("abandoned retention deletes only unpaid abandoned orders older than seven days", async () => {
+  const database = new SqliteD1Database();
+  const d1 = asD1(database);
+  const now = new Date("2026-08-17T12:00:00.000Z");
+  const insertOrder = async (
+    number: string,
+    paymentStatus: string,
+    shippingStatus: string,
+    createdAt: string,
+  ) => {
+    const result = await database
+      .prepare(
+        `INSERT INTO orders (
+          order_number, store_id, customer_name, customer_phone,
+          address, province, city, district, total_amount,
+          payment_status, shipping_status, created_at
+        ) VALUES (?, 1, 'Retention Test', '628123456789', '', 'ID-JB', '', '', 0, ?, ?, ?)`,
+      )
+      .bind(number, paymentStatus, shippingStatus, createdAt)
+      .run();
+    return result.meta.last_row_id;
+  };
+
+  const expiredId = await insertOrder(
+    "ABN-20001",
+    "unpaid",
+    "abandoned",
+    "2026-08-10T11:59:59.000Z",
+  );
+  const boundaryId = await insertOrder(
+    "ABN-20002",
+    "unpaid",
+    "abandoned",
+    "2026-08-10T12:00:00.000Z",
+  );
+  const paidId = await insertOrder(
+    "ABN-20003",
+    "paid",
+    "abandoned",
+    "2026-08-01T00:00:00.000Z",
+  );
+  const pendingId = await insertOrder(
+    "INV-20004",
+    "unpaid",
+    "pending",
+    "2026-08-01T00:00:00.000Z",
+  );
+  await database
+    .prepare(
+      "INSERT INTO order_items (order_id, variant_id, quantity, unit_price) VALUES (?, 20001, 1, 150000), (?, 20001, 1, 150000)",
+    )
+    .bind(expiredId, boundaryId)
+    .run();
+  await database
+    .prepare(
+      "INSERT INTO payment_transactions (order_id, reference_id) VALUES (?, 'ABN-20001')",
+    )
+    .bind(expiredId)
+    .run();
+
+  assert.equal(await purgeExpiredAbandonedOrders(d1, now), 1);
+  assert.equal(
+    await database.prepare("SELECT id FROM orders WHERE id = ?").bind(expiredId).first(),
+    null,
+  );
+  assert.equal(
+    await database.prepare("SELECT id FROM order_items WHERE order_id = ?").bind(expiredId).first(),
+    null,
+  );
+  assert.equal(
+    await database.prepare("SELECT id FROM payment_transactions WHERE order_id = ?").bind(expiredId).first(),
+    null,
+  );
+  for (const id of [boundaryId, paidId, pendingId]) {
+    assert.ok(
+      await database.prepare("SELECT id FROM orders WHERE id = ?").bind(id).first(),
+    );
+  }
 });

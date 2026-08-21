@@ -2,8 +2,51 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 
-import { planInstall, runInstall, slugFromStoreName } from "./install.ts";
+import {
+  DEFAULT_COURIER_RULES,
+  planInstall,
+  runInstall,
+  slugFromStoreName,
+} from "./install.ts";
 import { verifyPasswordHash } from "./auth.ts";
+import { POST as installRoute } from "../pages/api/install.ts";
+
+test("fresh install requires the one-time setup capability before any write", async () => {
+  let writes = 0;
+  const database = {
+    prepare() {
+      return { async first() { return null; } };
+    },
+    async batch() {
+      writes += 1;
+      return [];
+    },
+  } as unknown as D1Database;
+  const response = await installRoute({
+    request: new Request("https://store.example.test/api/install", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        install_token: "wrong-token-value",
+        store_name: "Test Store",
+        site_url: "https://store.example.test",
+        admin_username: "owner",
+        admin_password: "safe-password-123",
+        admin_password_confirm: "safe-password-123",
+      }),
+    }),
+    locals: {
+      runtimeEnv: {
+        OMS_DB: database,
+        AUTH_SECRET: "local-auth-secret-with-at-least-32-characters",
+        INSTALL_TOKEN: "correct-install-token-value",
+      },
+    },
+  } as never);
+
+  assert.equal(response.status, 403);
+  assert.equal(writes, 0);
+});
 
 /**
  * A D1 shim over real SQLite. The stub below proves which SQL is sent; this
@@ -23,6 +66,14 @@ function sqliteD1() {
       password_hash TEXT NOT NULL,
       must_change_password INTEGER NOT NULL DEFAULT 1,
       updated_at TEXT NOT NULL
+    );
+    CREATE TABLE courier_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      store_id INTEGER NOT NULL,
+      courier_code TEXT NOT NULL,
+      is_enabled INTEGER NOT NULL DEFAULT 1,
+      is_cod_enabled INTEGER NOT NULL DEFAULT 1,
+      excluded_provinces TEXT
     );
     INSERT INTO admin_credentials (id, username, password_hash, must_change_password, updated_at)
     VALUES (1, 'admin', 'pbkdf2-sha256$100000$seed$seed', 1, '2026-08-07T00:00:00.000Z');
@@ -154,8 +205,8 @@ test("the install writes the store and the credential together", async () => {
   const result = await runInstall(database, planned.plan);
   assert.equal(result.ok, true);
 
-  const [seatCheck, storeInsert, credentialUpdate] = statements;
-  assert.equal(statements.length, 3, "one seat check, then a batch of two");
+  const [seatCheck, storeInsert, credentialUpdate, courierInsert] = statements;
+  assert.equal(statements.length, 4, "one seat check, then one atomic install batch");
   assert.match(seatCheck, /COUNT\(\*\).+FROM admin_credentials/s);
   assert.match(storeInsert, /INSERT INTO stores/);
   assert.match(
@@ -173,6 +224,12 @@ test("the install writes the store and the credential together", async () => {
     credentialUpdate,
     /AND must_change_password = 1/,
     "only the never-configured seeded credential may be claimed, and only once",
+  );
+  assert.match(courierInsert, /INSERT INTO courier_rules/);
+  assert.match(
+    courierInsert,
+    /NOT EXISTS[\s\S]+FROM courier_rules/,
+    "an existing courier policy must never be overwritten",
   );
 
   // The password must be stored hashed, never in the clear.
@@ -243,6 +300,40 @@ test("a second install cannot take the admin account from the first", async () =
     total: number;
   };
   assert.equal(stores.total, 1);
+});
+
+test("a fresh install carries the default courier catalogue without provider calls", async () => {
+  const { raw, database } = sqliteD1();
+  const planned = planInstall(valid);
+  assert.equal(planned.ok, true);
+  if (!planned.ok) return;
+
+  assert.deepEqual(await runInstall(database, planned.plan), { ok: true });
+
+  const couriers = raw
+    .prepare(`
+      SELECT courier_code AS code, is_enabled AS enabled,
+             is_cod_enabled AS cod, excluded_provinces AS excluded
+      FROM courier_rules
+      ORDER BY id
+    `)
+    .all()
+    .map((row) => ({ ...row })) as Array<{
+      code: string;
+      enabled: number;
+      cod: number;
+      excluded: string | null;
+    }>;
+
+  assert.deepEqual(
+    couriers,
+    DEFAULT_COURIER_RULES.map((rule) => ({
+      code: rule.code,
+      enabled: 1,
+      cod: rule.cod,
+      excluded: null,
+    })),
+  );
 });
 
 test("an install with no seeded credential row refuses instead of bricking", async () => {

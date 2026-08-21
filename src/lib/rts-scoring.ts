@@ -1,6 +1,6 @@
-import { MengantarClient } from './mengantar-client';
-import { getProviderConfig } from './provider-config';
-import { parseReceiverPerformance, type ReceiverPerformance } from './receiver-performance';
+import { MengantarClient } from './mengantar-client.ts';
+import { getProviderConfig } from './provider-config.ts';
+import { parseReceiverPerformance, type ReceiverPerformance } from './receiver-performance.ts';
 
 
 export async function getReceiverPerformance(
@@ -63,4 +63,3 @@ export function scheduleReceiverPerformanceRefresh(
 
   void task;
 }
-

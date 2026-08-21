@@ -1,31 +1,31 @@
 import type { APIRoute } from 'astro';
 import { handleOptions, headlessError, headlessOk, validateHeadlessRequest } from '../../../../lib/headless-api';
 import { getStorefrontProduct, getStorefrontProducts } from '../../../../lib/catalog';
-import { catalogItemGroupId, catalogItemId } from "../../../../lib/catalog-feed";
+import { catalogProductId } from "../../../../lib/catalog-feed";
 
 export const prerender = false;
 
 export const OPTIONS = handleOptions;
 
 export const GET: APIRoute = async ({ params, request, locals }) => {
-  const validation = await validateHeadlessRequest(request, locals);
-  if (!validation.allowed && validation.errorResponse) {
+  const validation = await validateHeadlessRequest(request, locals, { operation: 'catalogDetail' });
+  if (!validation.allowed) {
     return validation.errorResponse;
   }
 
   try {
     const slug = (params.slug || '').trim();
     if (!slug) {
-      return headlessError('Slug atau ID produk wajib diisi.', 400, {
+      return validation.finalize(headlessError('Slug atau ID produk wajib diisi.', 400, {
         code: 'SLUG_REQUIRED',
-      }, validation.corsHeaders);
+      }, validation.corsHeaders));
     }
 
     const product = await getStorefrontProduct(locals, slug);
     if (!product) {
-      return headlessError(`Produk "${slug}" tidak ditemukan.`, 404, {
+      return validation.finalize(headlessError(`Produk "${slug}" tidak ditemukan.`, 404, {
         code: 'PRODUCT_NOT_FOUND',
-      }, validation.corsHeaders);
+      }, validation.corsHeaders));
     }
 
     const allProducts = await getStorefrontProducts(locals);
@@ -41,11 +41,11 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
         image: p.image,
       }));
 
-    return headlessOk(
+    return validation.finalize(headlessOk(
       {
         product: {
           id: product.catalogId,
-          content_id: catalogItemGroupId(product.productId),
+          content_id: catalogProductId(product.productId),
           slug: product.slug,
           name: product.productName,
           category: product.category,
@@ -69,7 +69,7 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
           sold_count: product.soldCount,
           variants: product.variants.map((v) => ({
             id: v.catalogId,
-            content_id: catalogItemId(product.productId, v.id),
+            content_id: catalogProductId(product.productId),
             label: v.label,
             price: v.price,
             compare_price: v.comparePrice ?? v.price,
@@ -93,11 +93,11 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
       },
       200,
       validation.corsHeaders
-    );
+    ));
   } catch (error) {
-    return headlessError('Gagal memuat rincian produk.', 500, {
+    return validation.finalize(headlessError('Gagal memuat rincian produk.', 500, {
       code: 'PRODUCT_DETAIL_ERROR',
       details: error instanceof Error ? error.message : String(error),
-    }, validation.corsHeaders);
+    }, validation.corsHeaders));
   }
 };

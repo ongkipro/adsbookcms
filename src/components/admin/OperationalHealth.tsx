@@ -20,7 +20,7 @@ const SIGNAL_TITLES: Record<HealthSignal["id"], string> = {
   "capi-outbox": "Antrean Meta CAPI",
   "meta-capi": "Pengiriman Meta CAPI terakhir",
   mengantar: "Kontak Mengantar terakhir",
-  autolaris: "Kontak AutoLaris terakhir",
+  autolaris: "AutoLaris Create Order & verifikasi",
 };
 
 const REASONS: Record<string, string> = {
@@ -46,9 +46,9 @@ const REASONS: Record<string, string> = {
   "never-used": "Belum pernah ada transaksi payment gateway.",
   "no-accepted-request": "Belum ada request pembayaran yang diterima AutoLaris.",
   "create-failing": "Semua request pembuatan pembayaran gagal.",
-  "awaiting-first-callback":
-    "Request diterima AutoLaris, callback pembayaran belum pernah masuk.",
-  "callback-received": "Callback pembayaran terakhir diterima.",
+  "awaiting-first-manual-confirmation":
+    "Create Order diterima AutoLaris; belum ada pembayaran yang dikonfirmasi manual.",
+  "manually-confirmed": "Pembayaran terakhir dikonfirmasi manual dengan audit operator.",
 };
 
 const STATE_LABEL: Record<HealthState, string> = {
@@ -90,6 +90,11 @@ function describeMetrics(signal: HealthSignal) {
 }
 
 function ageLabel(signal: HealthSignal) {
+  if (signal.id === "autolaris") {
+    return signal.reason === "manually-confirmed"
+      ? "Verifikasi terakhir"
+      : "Create Order terakhir";
+  }
   return signal.id === "capi-outbox" ? "Antrean tertua" : "Terakhir sukses";
 }
 
@@ -134,7 +139,7 @@ export default function OperationalHealth() {
     <Card className="border-slate-200 shadow-sm">
       <CardHeader className="flex flex-row items-start justify-between gap-3 border-b border-slate-100 pb-4">
         <div className="min-w-0">
-          <CardTitle as="h3" className="text-sm font-bold text-slate-950 md:text-base">
+          <CardTitle as="h3" className="text-sm font-semibold text-slate-950 md:text-base">
             Kesehatan operasional
           </CardTitle>
           <CardDescription className="text-xs">
@@ -156,7 +161,7 @@ export default function OperationalHealth() {
       </CardHeader>
       <CardContent className="pt-5">
         {error ? (
-          <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800">
+          <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium text-rose-800">
             {error}
           </p>
         ) : !health ? (
@@ -177,7 +182,7 @@ export default function OperationalHealth() {
                     className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900">
+                      <p className="text-xs font-medium text-slate-900">
                         {SIGNAL_TITLES[signal.id]}
                       </p>
                       <p className="text-[11px] leading-relaxed text-slate-500">
@@ -189,12 +194,12 @@ export default function OperationalHealth() {
                       <span className="text-right text-[11px] text-slate-500">
                         {ageLabel(signal)}
                         <br />
-                        <span className="font-bold text-slate-700">
+                        <span className="font-medium text-slate-700">
                           {formatAge(signal.ageMinutes)}
                         </span>
                       </span>
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold ${STATE_TONE[signal.state]}`}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium ${STATE_TONE[signal.state]}`}
                       >
                         <Icon className="size-3.5" aria-hidden />
                         {STATE_LABEL[signal.state]}

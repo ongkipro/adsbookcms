@@ -1,4 +1,6 @@
+import { metaNameParts, toE164Digits } from "../lib/meta-identity.ts";
 import { formatIdr } from "../lib/format-idr";
+import { normalizePhone } from "../lib/validation";
 import { calculateCodFeeBreakdown } from "../lib/payment-fee-policy";
 import { paymentBrandAsset } from "../lib/payment-brand";
 
@@ -7,6 +9,12 @@ import { pushGtmEcomEvent } from "../lib/gtm";
 import { isValidWa62 } from "../lib/validation";
 import { normalizeProvinceCode } from "../lib/province";
 import { navigateAfterCheckout } from "../lib/checkout-navigation";
+import {
+  AbandonedLeadCaptureGate,
+  createAbandonedLeadFingerprint,
+  readAbandonedLeadFingerprints,
+  writeAbandonedLeadFingerprint,
+} from "../lib/abandoned-lead-session";
 
 type HybridConfig = {
   instanceId: string;
@@ -174,15 +182,6 @@ const parsePaymentOptions = (payload: unknown): PaymentOption[] => {
 };
 
 const fmt = formatIdr;
-const normalizePhone = (raw: string) => {
-  const digits = String(raw || "").replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("620")) return `62${digits.slice(3)}`;
-  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
-  if (digits.startsWith("8")) return `62${digits}`;
-  if (digits.startsWith("62")) return digits;
-  return digits;
-};
 const createId = (prefix: string) =>
   `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 const hashSha256Hex = async (input: string) => {
@@ -362,16 +361,14 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
       'input[name="variant"]:checked',
     );
     const variantUniqueId = String(checked?.value || "");
-    // The catalog is variant-level, so `content_ids` is the variant's item id —
-    // `p{product}-v{variant}` — and it must be byte-identical to `<g:id>` in the
-    // feed or Advantage+ has nothing to match. It used to send the bare product
-    // row id while the feed published `10000 + id`, so nothing ever matched.
+    // Ads identity is product-level: Product ID, Meta content_id, Google item_id
+    // and feed <g:id> are byte-identical. The selected variant remains a separate
+    // commerce field and never changes catalog identity.
     const productId = String(config.productId || "");
     return {
       productId,
       variantUniqueId,
-      contentId:
-        productId && variantUniqueId ? `p${productId}-v${variantUniqueId}` : "",
+      contentId: productId,
       contentName: String(checked?.dataset.label || config.productName),
       value: Number(checked?.dataset.price || 1),
     };
@@ -386,13 +383,14 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
   const buildAdvancedMatching = async (
     extraUserData?: Record<string, unknown>,
   ) => {
-    const normalizedPhone = String(extraUserData?.customer_phone || "").replace(
-      /\D/g,
-      "",
+    // Normalised exactly as the server CAPI leg does. Both legs describe one
+    // person; a difference here means Meta matches neither.
+    const normalizedPhone = toE164Digits(
+      String(extraUserData?.customer_phone || ""),
     );
-    const normalizedName = String(extraUserData?.customer_name || "").trim();
-    const firstName = normalizedName.split(/\s+/)[0] || "";
-    const lastName = normalizedName.split(/\s+/).slice(1).join(" ");
+    const { firstName, lastName } = metaNameParts(
+      String(extraUserData?.customer_name || ""),
+    );
     return {
       ph: normalizedPhone ? await hashSha256Hex(normalizedPhone) : undefined,
       fn: firstName ? await hashSha256Hex(firstName) : undefined,
@@ -503,38 +501,65 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
       country: "id",
     });
   };
-  let hasRecordedAbandonedLead = false;
-  let abandonedTimer: ReturnType<typeof setTimeout> | null = null;
+  const abandonedCapture = new AbandonedLeadCaptureGate(
+    readAbandonedLeadFingerprints(sessionStorage),
+  );
+  let abandonedTimer: number | undefined;
 
   const maybeRecordAbandonedLead = () => {
-    if (hasRecordedAbandonedLead) return;
     const customerName = String(customerNameInput?.value || "").trim();
     const customerPhone = normalizePhone(String(phoneInput?.value || ""));
     if (customerName.length < 3 || !isValidWa62(customerPhone)) return;
 
-    if (abandonedTimer) clearTimeout(abandonedTimer);
-    abandonedTimer = setTimeout(() => {
-      hasRecordedAbandonedLead = true;
-      const selectedVariant = getSelectedVariant();
-      const variantId = selectedVariant ? Number(selectedVariant.value) : undefined;
+    const selectedVariant = getSelectedVariant();
+    const variantId = selectedVariant ? Number(selectedVariant.value) : undefined;
+    const fingerprint = createAbandonedLeadFingerprint({
+      customerName,
+      customerPhone,
+      productId: config.productId,
+      variantId,
+    });
+    if (!abandonedCapture.shouldStart(fingerprint)) return;
+
+    window.clearTimeout(abandonedTimer);
+    abandonedTimer = window.setTimeout(() => {
+      if (!abandonedCapture.start(fingerprint)) return;
       const variantPrice = getSelectedPrice();
-      const totalAmount = variantPrice > 0 ? variantPrice + (state.shipping?.shipping_cost || 0) : undefined;
+      const totalAmount =
+        variantPrice > 0
+          ? variantPrice + (state.shipping?.shipping_cost || 0)
+          : undefined;
       void fetch("/api/record-abandoned-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customer_name: customerName,
+          website: String(
+            new FormData(form).get("contact_url_confirm") || "",
+          ),
           customer_phone: customerPhone,
           product_id: config.productId,
-          variant_id: Number.isFinite(variantId) && (variantId ?? 0) > 0 ? variantId : undefined,
-          total_amount: typeof totalAmount === "number" && totalAmount > 0 ? totalAmount : undefined,
+          variant_id:
+            Number.isFinite(variantId) && (variantId ?? 0) > 0
+              ? variantId
+              : undefined,
+          total_amount:
+            typeof totalAmount === "number" && totalAmount > 0
+              ? totalAmount
+              : undefined,
           product_title: config.productName,
           address: addressInput ? addressInput.value.trim() : "",
           province: state.selectedProvince || state.geoProvince || "",
         }),
-      }).catch(() => {
-        hasRecordedAbandonedLead = false;
-      });
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error("Abandoned capture rejected.");
+          abandonedCapture.finish(fingerprint, true);
+          writeAbandonedLeadFingerprint(sessionStorage, fingerprint);
+        })
+        .catch(() => {
+          abandonedCapture.finish(fingerprint, false);
+        });
     }, 600);
   };
 
@@ -1918,6 +1943,7 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           submit_token: `${submitToken}_${eventId}`,
+          website: String(fd.get("contact_url_confirm") || ""),
           customer_name: customerName,
           seller_bank_account_id:
             state.paymentMethod === "manual_transfer"

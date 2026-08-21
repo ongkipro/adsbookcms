@@ -16,8 +16,98 @@ export const prerender = false;
     <div id="storeLoading" class="h-60 animate-pulse rounded-xl bg-slate-100" role="status" aria-live="polite" aria-busy="true" aria-atomic="true"><span class="sr-only">Memuat profil store.</span></div>
     <div id="storeError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
     <form id="storeForm" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm" novalidate aria-busy="false">
-      <div class="grid grid-cols-1 gap-5 p-5 md:grid-cols-2 md:p-6"><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Nama store</span><input id="storeName" required maxlength="120" autocomplete="organization" class="admin-input-flat h-11 text-base md:text-sm" /></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">WhatsApp customer service</span><input id="supportWhatsapp" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="081234567890" class="admin-input-flat h-11 font-mono text-base md:text-sm" /><span class="mt-1.5 block text-[11px] text-slate-500">Gunakan 9–15 digit; awalan + diperbolehkan.</span></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Alamat storefront</span><input id="storeSiteUrl" inputmode="url" maxlength="200" placeholder="https://tokosaya.com" class="admin-input-flat h-11 text-base md:text-sm" /><span class="mt-1.5 block text-[11px] text-slate-500">Harus https. Dipakai untuk canonical, sitemap, dan feed katalog.</span></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Tagline</span><input id="storeTagline" maxlength="120" class="admin-input-flat h-11 text-base md:text-sm" /><span class="mt-1.5 block text-[11px] text-slate-500">Muncul di judul halaman dan header storefront.</span></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Deskripsi</span><input id="storeDescription" maxlength="300" class="admin-input-flat h-11 text-base md:text-sm" /><span class="mt-1.5 block text-[11px] text-slate-500">Meta description bawaan dan teks Open Graph.</span></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Logo</span><input id="storeLogo" maxlength="300" placeholder="/images/adsbook-mark.webp" class="admin-input-flat h-11 text-base md:text-sm" /><span class="mt-1.5 block text-[11px] text-slate-500">Kosongkan untuk memakai logo bawaan AdsBookCMS.</span></label><label class="block"><span class="mb-1.5 block text-xs font-black text-slate-700">Tampilan storefront</span><select id="storeTemplate" class="admin-input-flat h-11 text-base md:text-sm"><option value="compact-market">Compact Market</option><option value="wide-catalog">Wide Catalog</option></select><span class="mt-1.5 block text-[11px] text-slate-500">Berlaku langsung tanpa build ulang.</span></label></div>
-      <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"><p id="storeStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p><button id="saveStore" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">Simpan profil store</button></div>
+      <div class="grid grid-cols-1 gap-5 p-5 md:grid-cols-2 md:p-6">
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Nama store</span>
+          <input id="storeName" required maxlength="120" autocomplete="organization" class="admin-input-flat h-11 text-base md:text-sm" />
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">WhatsApp customer service</span>
+          <input id="supportWhatsapp" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="081234567890" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
+          <span class="mt-1.5 block text-[11px] text-slate-500">Gunakan 9–15 digit; awalan + diperbolehkan.</span>
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Alamat storefront</span>
+          <input id="storeSiteUrl" inputmode="url" maxlength="200" placeholder="https://tokosaya.com" class="admin-input-flat h-11 text-base md:text-sm" />
+          <span class="mt-1.5 block text-[11px] text-slate-500">Harus https. Dipakai untuk canonical, sitemap, dan feed katalog.</span>
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Tagline</span>
+          <input id="storeTagline" maxlength="120" class="admin-input-flat h-11 text-base md:text-sm" />
+          <span class="mt-1.5 block text-[11px] text-slate-500">Muncul di judul halaman dan header storefront.</span>
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Deskripsi</span>
+          <input id="storeDescription" maxlength="300" class="admin-input-flat h-11 text-base md:text-sm" />
+          <span class="mt-1.5 block text-[11px] text-slate-500">Meta description bawaan dan teks Open Graph.</span>
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Logo</span>
+          <input id="storeLogo" maxlength="300" placeholder="/images/adsbook-mark.webp" class="admin-input-flat h-11 text-base md:text-sm" />
+          <span class="mt-1.5 block text-[11px] text-slate-500">Kosongkan untuk memakai logo bawaan AdsBookCMS.</span>
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Tampilan storefront</span>
+          <select id="storeTemplate" class="admin-input-flat h-11 text-base md:text-sm">
+            <option value="compact-market">Compact Market</option>
+          </select>
+          <span class="mt-1.5 block text-[11px] text-slate-500">Berlaku langsung tanpa build ulang.</span>
+        </label>
+        <div class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Konten beranda</span>
+          <a
+            href="/admin/content"
+            class="btn-secondary inline-flex min-h-11 w-full items-center justify-center px-4 text-xs sm:w-auto"
+          >
+            Buka pengaturan konten
+          </a>
+          <span class="mt-1.5 block text-[11px] text-slate-500">
+            Hero, solusi, dan bagian beranda lainnya. Halaman itu sengaja tidak ada di menu;
+            sebelumnya satu-satunya jalan ke sana adalah tombol di storefront yang hilang begitu
+            konten diterbitkan.
+          </span>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p id="storeStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p>
+        <button id="saveStore" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">Simpan profil store</button>
+      </div>
+    </form>
+    <form id="templateDefinitionForm" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm" novalidate aria-busy="false">
+      <div class="p-5 md:p-6">
+        <h2 class="text-base font-black text-slate-950">Tambah template storefront</h2>
+        <p class="mt-1 text-xs leading-5 text-slate-500">Susun template dari bagian yang tersedia. Konfigurasi tersimpan tidak dapat menjalankan HTML atau JavaScript.</p>
+        <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+          <label class="block">
+            <span class="mb-1.5 block text-xs font-black text-slate-700">ID template</span>
+            <input id="templateDefinitionId" required minlength="2" maxlength="40" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="katalog-ringkas" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
+            <span class="mt-1.5 block text-[11px] text-slate-500">Huruf kecil, angka, dan tanda hubung.</span>
+          </label>
+          <label class="block">
+            <span class="mb-1.5 block text-xs font-black text-slate-700">Nama template</span>
+            <input id="templateDefinitionName" required minlength="2" maxlength="80" placeholder="Katalog Ringkas" class="admin-input-flat h-11 text-base md:text-sm" />
+          </label>
+          <label class="block">
+            <span class="mb-1.5 block text-xs font-black text-slate-700">Layout</span>
+            <select id="templateDefinitionLayout" class="admin-input-flat h-11 text-base md:text-sm">
+              <option value="compact">Compact</option>
+              <option value="wide">Wide</option>
+            </select>
+          </label>
+          <fieldset class="block">
+            <legend class="mb-1.5 text-xs font-black text-slate-700">Bagian halaman</legend>
+            <div class="flex min-h-11 flex-wrap items-center gap-4">
+              <label class="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-slate-700"><input id="templateSectionHero" type="checkbox" checked class="size-4" /> Hero</label>
+              <label class="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-slate-700"><input type="checkbox" checked disabled class="size-4" /> Katalog</label>
+              <label class="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-slate-700"><input id="templateSectionProofs" type="checkbox" checked class="size-4" /> Bukti sosial</label>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p id="templateDefinitionStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Template baru belum disimpan.</p>
+        <button id="saveTemplateDefinition" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">Tambah template</button>
+      </div>
     </form>
     <form id="embedOriginsForm" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm" novalidate aria-busy="false">
       <div class="p-5 md:p-6">
@@ -48,8 +138,18 @@ export const prerender = false;
     const embedOrigins = document.getElementById('embedAllowedOrigins') as HTMLTextAreaElement | null;
     const saveEmbedOrigins = document.getElementById('saveEmbedOrigins') as HTMLButtonElement | null;
     const embedStatus = document.getElementById('embedOriginsStatus');
+    const templateDefinitionForm = document.getElementById('templateDefinitionForm') as HTMLFormElement | null;
+    const templateDefinitionId = document.getElementById('templateDefinitionId') as HTMLInputElement | null;
+    const templateDefinitionName = document.getElementById('templateDefinitionName') as HTMLInputElement | null;
+    const templateDefinitionLayout = document.getElementById('templateDefinitionLayout') as HTMLSelectElement | null;
+    const templateSectionHero = document.getElementById('templateSectionHero') as HTMLInputElement | null;
+    const templateSectionProofs = document.getElementById('templateSectionProofs') as HTMLInputElement | null;
+    const saveTemplateDefinition = document.getElementById('saveTemplateDefinition') as HTMLButtonElement | null;
+    const templateDefinitionStatus = document.getElementById('templateDefinitionStatus');
     let embedPending = false;
     let pending = false;
+    let templateDefinitionPending = false;
+    let runtimeTemplatesAvailable = true;
 
     const show = (message: string, state: 'idle' | 'success' | 'error') => {
       if (!status) return;
@@ -64,6 +164,44 @@ export const prerender = false;
       embedStatus.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
       embedStatus.textContent = message;
       embedStatus.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+    };
+    const showTemplateDefinitionStatus = (message: string, state: 'idle' | 'success' | 'error') => {
+      if (!templateDefinitionStatus) return;
+      templateDefinitionStatus.setAttribute('role', state === 'error' ? 'alert' : 'status');
+      templateDefinitionStatus.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
+      templateDefinitionStatus.textContent = message;
+      templateDefinitionStatus.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+    };
+
+    const populateTemplateOptions = (definitions: unknown, selectedId: string) => {
+      if (!template || !Array.isArray(definitions)) return;
+      template.replaceChildren();
+      for (const candidate of definitions) {
+        if (!candidate || typeof candidate !== 'object') continue;
+        const definition = candidate as { id?: unknown; name?: unknown };
+        if (typeof definition.id !== 'string' || typeof definition.name !== 'string') continue;
+        const option = document.createElement('option');
+        option.value = definition.id;
+        option.textContent = definition.name;
+        template.append(option);
+      }
+      if (selectedId && ![...template.options].some(option => option.value === selectedId)) {
+        const invalidOption = document.createElement('option');
+        invalidOption.value = selectedId;
+        invalidOption.textContent = `Template tidak valid (${selectedId})`;
+        invalidOption.disabled = true;
+        template.append(invalidOption);
+      }
+      template.value = selectedId || 'compact-market';
+    };
+
+    const setTemplateDefinitionPending = (next: boolean) => {
+      templateDefinitionPending = next;
+      if (saveTemplateDefinition) {
+        saveTemplateDefinition.disabled = next || !runtimeTemplatesAvailable;
+        saveTemplateDefinition.textContent = next ? 'Menambahkan…' : 'Tambah template';
+      }
+      templateDefinitionForm?.setAttribute('aria-busy', String(next));
     };
 
     const setEmbedPending = (next: boolean) => {
@@ -96,8 +234,14 @@ export const prerender = false;
       if (tagline) tagline.value = data.tagline || '';
       if (description) description.value = data.description || '';
       if (logo) logo.value = data.logo || '';
-      if (template && data.storefront_template) template.value = data.storefront_template;
+      populateTemplateOptions(data.storefront_templates, data.storefront_template || 'compact-market');
       if (embedOrigins) embedOrigins.value = Array.isArray(data.embed_allowed_origins) ? data.embed_allowed_origins.join('\n') : '';
+      templateDefinitionForm?.classList.remove('hidden');
+      runtimeTemplatesAvailable = data.storefront_templates_available !== false;
+      if (data.storefront_templates_available === false) {
+        if (saveTemplateDefinition) saveTemplateDefinition.disabled = true;
+        showTemplateDefinitionStatus('Penyimpanan template belum tersedia. Jalankan migrasi database terbaru.', 'error');
+      }
       loading?.setAttribute('aria-busy', 'false');
       loading?.classList.add('hidden');
       form?.classList.remove('hidden');
@@ -141,6 +285,53 @@ export const prerender = false;
         setPending(false);
       }
     });
+    templateDefinitionLayout?.addEventListener('change', () => {
+      const wide = templateDefinitionLayout.value === 'wide';
+      if (templateSectionProofs) {
+        templateSectionProofs.disabled = wide;
+        if (wide) templateSectionProofs.checked = false;
+      }
+    });
+
+    templateDefinitionForm?.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (templateDefinitionPending || !templateDefinitionForm.reportValidity()) return;
+      setTemplateDefinitionPending(true);
+      showTemplateDefinitionStatus('Menambahkan template…', 'idle');
+      const definition = {
+        id: templateDefinitionId?.value,
+        name: templateDefinitionName?.value,
+        composition: {
+          layout: templateDefinitionLayout?.value,
+          sections: {
+            hero: Boolean(templateSectionHero?.checked),
+            catalog: true,
+            proofs: Boolean(templateSectionProofs?.checked),
+          },
+        },
+      };
+      try {
+        const response = await fetch('/api/admin/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'add-storefront-template',
+            storefront_template_definition: definition,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal menambahkan template.');
+        populateTemplateOptions(payload.data?.storefront_templates, String(definition.id || ''));
+        if (templateDefinitionId) templateDefinitionId.value = '';
+        if (templateDefinitionName) templateDefinitionName.value = '';
+        showTemplateDefinitionStatus('Template ditambahkan. Simpan profil store untuk memilihnya.', 'success');
+      } catch (error) {
+        showTemplateDefinitionStatus(error instanceof Error ? error.message : 'Gagal menambahkan template.', 'error');
+      } finally {
+        setTemplateDefinitionPending(false);
+      }
+    });
+
 
     embedForm?.addEventListener('submit', async event => {
       event.preventDefault();

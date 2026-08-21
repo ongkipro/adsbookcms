@@ -8,7 +8,7 @@
   position: relative;
   overflow: hidden;
   background: #111111 !important;
-  background-image: linear-gradient(135deg, #111111 0%, #1a1a1a 100%) !important;
+  background-image: linear-gradient(135deg, #111111 0%, #000000 100%) !important;
 }
 .flash-sale-banner::before {
   content: '';
@@ -20,7 +20,7 @@
   pointer-events: none;
 }
 .flash-sale-banner {
-  border-bottom: 1px solid #C5A880;
+  border-bottom: 1px solid #111111;
 }
 .scroll-cue {
   display: grid;
@@ -30,7 +30,7 @@
   color: #111111;
 }
 .scroll-cue-text {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.2;
   color: #111111;
@@ -62,33 +62,18 @@
   position: relative;
   display: grid;
   gap: 0.75rem;
-  margin-top: 1.25rem;
-  padding-top: 1rem;
+  /* Wider than before: with the hairline gone, the gap is what separates one
+     block from the next. */
+  margin-top: 2rem;
+  padding-top: 0;
   border-top: 0;
 }
-.form-block::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    rgba(229, 229, 229, 0) 0%,
-    rgba(229, 229, 229, 0.95) 14%,
-    rgba(229, 229, 229, 0.95) 86%,
-    rgba(229, 229, 229, 0) 100%
-  );
-  pointer-events: none;
-}
+/* The blocks used to be separated by a faded hairline here. Flat means the
+   separation is spacing and the block heading, nothing drawn. */
 .form-block-first {
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
-}
-.form-block-first::before {
-  display: none;
 }
 .form-block-head {
   display: grid;
@@ -100,8 +85,8 @@
   align-items: center;
   gap: 0.45rem;
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 800;
+  font-size: 0.9375rem;
+  font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.01em;
   color: #111111;
@@ -111,15 +96,15 @@
   width: 0.48rem;
   height: 0.48rem;
   border-radius: 999px;
-  background: #C5A880;
+  background: #111111;
   flex: 0 0 auto;
   transform: translateY(0.02rem);
 }
 .section-lead {
   max-width: 32rem;
   margin: 0;
-  font-size: 0.72rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
   line-height: 1.45;
   color: #555555;
 }
@@ -144,7 +129,8 @@
   gap: 0.65rem;
   padding: 0.65rem 0.85rem;
   border: 1px solid #E5E5E5;
-  background: #fff;
+  border-radius: 0.7rem;
+  background: #ffffff;
   transition: 0.18s ease;
 }
 .simple-variant-copy {
@@ -158,29 +144,36 @@
   width: 1.1rem;
   height: 1.1rem;
   border-radius: 999px;
-  border: 2px solid #D8D6D0;
+  /* #E5E5E5 sat at 1.05:1 on the row fill - invisible, and this ring is now the
+     primary selection signal. #767676 clears the 3:1 floor for controls. */
+  border: 2px solid #767676;
   margin-top: 0.12rem;
   flex: 0 0 auto;
 }
 .variant-main {
   flex: 1;
 }
-.variant-option:last-child .variant-copy {
-  border-bottom: 1px solid #E5E5E5;
-}
+/* The last row closed the outlined stack. Nothing is outlined now. */
 .variant-option input:checked + .variant-copy {
+  /* Ink border plus a thin grey fill: the chosen row is the only one that is
+     not white, so it reads before the border does. */
   border-color: #111111;
-  background: #F8F7F4;
+  background: #F5F5F5;
   box-shadow: none;
 }
 .simple-variant-option input:checked + .simple-variant-copy {
   border-color: #111111;
-  background: #F8F7F4;
+  background: #F5F5F5;
   box-shadow: none;
+}
+.variant-option input:checked + .variant-copy .variant-label {
+  /* Third signal. Fill alone is a 1.1:1 step, which is easy to miss; the filled
+     radio and a heavier label make the choice unmistakable without a line. */
+  font-weight: 700;
 }
 .variant-option input:checked + .variant-copy .variant-radio {
   border-color: #111111;
-  background: radial-gradient(circle, #C5A880 0 45%, #ffffff 46% 100%);
+  background: radial-gradient(circle, #111111 0 45%, #ffffff 46% 100%);
 }
 .summary-row {
   display: flex;
@@ -204,8 +197,8 @@
   min-height: 1.25rem;
   padding: 0.15rem 0.5rem;
   border-radius: 0.35rem;
-  font-size: 0.62rem;
-  font-weight: 800;
+  font-size: 0.625rem;
+  font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -219,21 +212,24 @@
   color: #fff !important;
 }
 .simple-variant-badge-save {
-  background: #fef08a !important;
-  color: #b91c1c !important;
+  /* Decorative emphasis, not a status. It matches the -31% badge on the
+     product cards now instead of introducing yellow and red of its own. */
+  background: #111111 !important;
+  color: #ffffff !important;
 }
 .simple-variant-dot {
   width: 0.28rem;
   height: 0.28rem;
   border-radius: 999px;
-  background: #D8D6D0;
+  background: #E5E5E5;
   flex: 0 0 auto;
   align-self: center;
 }
 .variant-label {
   display: block;
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 0.8125rem;
+  /* 600 at rest so the checked rule's 700 is an actual step, not a no-op. */
+  font-weight: 600;
   line-height: 1.3;
   color: #111111;
 }
@@ -244,14 +240,14 @@
   gap: 0.45rem;
 }
 .variant-price {
-  font-size: 0.95rem;
-  font-weight: 800;
+  font-size: 0.9375rem;
+  font-weight: 700;
   color: #111111;
   line-height: 1.1;
 }
 .variant-compare {
-  font-size: 0.72rem;
-  color: #77736C;
+  font-size: 0.75rem;
+  color: #767676;
   text-decoration: line-through;
 }
 .simple-variant-price-row {
@@ -283,11 +279,11 @@
   padding: 0.96rem 0.75rem 0.2rem;
   border: 1px solid #E5E5E5;
   border-radius: 0.5rem;
-  background: #ffffff;
+  background: #F5F5F5;
   color: #111111;
   font: inherit;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.35;
   box-shadow: none;
   transition:
@@ -313,8 +309,8 @@
   top: 1rem;
   margin: 0;
   color: #555555;
-  font-size: 0.78rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
   line-height: 1;
   transform-origin: left top;
   pointer-events: none;
@@ -337,7 +333,7 @@
 .form-field textarea:not(:placeholder-shown) ~ span {
   top: 0.3rem;
   color: #111111;
-  font-size: 0.62rem;
+  font-size: 0.625rem;
   font-weight: 700;
 }
 .form-field input:focus,
@@ -345,7 +341,7 @@
   outline: none;
   border-color: #111111;
   background: #ffffff;
-  box-shadow: 0 0 0 2px rgba(197, 168, 128, 0.3) !important;
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.12) !important;
 }
 .form-field input.field-invalid ~ label,
 .form-field textarea.field-invalid ~ label {
@@ -355,15 +351,15 @@
   display: block;
   margin-top: 0.35rem;
   color: #555555;
-  font-weight: 500;
-  font-size: 0.72rem;
+  font-weight: 400;
+  font-size: 0.75rem;
 }
 .field-feedback {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
   margin-top: 0.4rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.45;
   color: #d92d20;
@@ -381,8 +377,8 @@
   border-radius: 999px;
   background: #fee4e2;
   color: #d92d20;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.6875rem;
+  font-weight: 700;
   flex: 0 0 auto;
 }
 .field-feedback[hidden] {
@@ -400,8 +396,8 @@
 .field-grid textarea.field-valid,
 .form-field input.field-valid,
 .form-field textarea.field-valid {
-  border-color: #C5A880;
-  background: #F8F7F4 !important;
+  border-color: #111111;
+  background: #F5F5F5 !important;
   box-shadow: none !important;
 }
 .field-grid input.field-valid:focus,
@@ -410,7 +406,7 @@
 .form-field textarea.field-valid:focus {
   border-color: #111111 !important;
   background: #ffffff !important;
-  box-shadow: 0 0 0 2px rgba(197, 168, 128, 0.3) !important;
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.12) !important;
 }
 @keyframes fieldFeedbackIn {
   from {
@@ -426,8 +422,8 @@
   display: block;
   margin-top: 0.1rem;
   color: #555555;
-  font-size: 0.72rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
   line-height: 1.45;
 }
 .district-help[data-tone='error'] {
@@ -446,9 +442,9 @@
 .shipping-address-summary {
   margin-top: 0.45rem;
   padding: 0.75rem;
-  border: 1px solid #C5A880;
+  border: 1px solid #111111;
   border-radius: 0.65rem;
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .shipping-address-summary[hidden] {
   display: none;
@@ -460,16 +456,16 @@
   gap: 0.75rem;
 }
 .shipping-address-summary-head strong {
-  color: #8A704F;
-  font-size: 0.72rem;
-  font-weight: 800;
+  color: #767676;
+  font-size: 0.75rem;
+  font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 #shipping-address-line {
   margin: 0.65rem 0 0;
   color: #111111;
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.45;
   overflow-wrap: anywhere;
@@ -477,8 +473,8 @@
 #district-picked-subtitle {
   margin: 0.2rem 0 0;
   color: #555555;
-  font-size: 0.74rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -488,7 +484,7 @@
   background: transparent;
   color: #111111;
   font: inherit;
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
   padding: 0;
@@ -521,7 +517,7 @@
   background: #fff;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
   scrollbar-width: thin;
-  scrollbar-color: #D8D6D0 transparent;
+  scrollbar-color: #E5E5E5 transparent;
   transform-origin: top center;
 }
 .district-list:not([hidden]) {
@@ -531,7 +527,7 @@
   width: 6px;
 }
 .district-list::-webkit-scrollbar-thumb {
-  background: #D8D6D0;
+  background: #E5E5E5;
   border-radius: 999px;
 }
 .district-item {
@@ -573,7 +569,7 @@
   display: block;
   width: 100%;
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.01em;
@@ -583,26 +579,26 @@
   display: block;
   width: 100%;
   margin: 0;
-  font-size: 0.68rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 400;
   line-height: 1.25;
   color: #555555;
 }
 .district-item:hover,
 .district-item:focus-visible {
-  background: #F8F7F4;
-  border-left-color: #C5A880;
+  background: #F5F5F5;
+  border-left-color: #111111;
   outline: none;
 }
 .district-item:active {
   transform: scale(0.99);
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .district-empty {
   padding: 0.65rem 0.85rem;
   color: #555555;
-  font-size: 0.78rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 400;
 }
 .inner-card {
   display: grid;
@@ -631,12 +627,12 @@
 .payment-block-anchor small {
   flex: 0 0 auto;
   margin: 0;
-  font-size: 0.62rem;
+  font-size: 0.625rem;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #77736C;
+  color: #767676;
 }
 .payment-options {
   display: grid;
@@ -654,7 +650,7 @@
   align-items: center;
   gap: 0.65rem;
   padding: 0.6rem 0.75rem;
-  border: 1px solid #E5E5E5;
+  border: 0;
   border-radius: 0.55rem;
   background: #ffffff;
   box-shadow: none;
@@ -691,7 +687,7 @@
   border-color: #111111;
   background: #111111;
   color: #fff;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   /* was 900: the only 900 in the tree, and no Inter 900 is loaded, so it already
      resolved to the 700 face. Declaring what ships (A-32). */
   font-weight: 700;
@@ -702,12 +698,12 @@
   width: 0.95rem;
   height: 0.95rem;
   border-radius: 999px;
-  border: 2px solid #D8D6D0;
+  border: 2px solid #767676;
   flex: 0 0 auto;
 }
 .payment-option-label {
   margin: 0;
-  font-size: 0.84rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.25;
   color: #111111;
@@ -715,38 +711,36 @@
 }
 .payment-option-desc {
   margin: 0;
-  font-size: 0.7rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 400;
   line-height: 1.4;
   color: #555555;
 }
 .payment-option:hover .payment-option-copy,
 .payment-option input:focus-visible + .payment-option-copy {
-  border-color: #D8D6D0;
-  background: #F8F7F4;
+  background: #EDEDED;
   box-shadow: none;
 }
 .payment-option input:checked + .payment-option-copy {
-  border-color: #111111;
-  background: #F8F7F4;
+  background: #E3E3E3;
   box-shadow: none;
 }
 .payment-option input:checked + .payment-option-copy .payment-option-radio {
   border-color: #111111;
-  background: radial-gradient(circle, #C5A880 0 45%, #ffffff 46% 100%);
+  background: radial-gradient(circle, #111111 0 45%, #ffffff 46% 100%);
 }
 .payment-option input:checked + .payment-option-copy .payment-option-label {
   color: #111111;
 }
 .payment-group {
-  border: 1px solid #E5E5E5;
+  border: 0;
   border-radius: 0.55rem;
-  background: #ffffff;
+  background: transparent;
   overflow: hidden;
 }
 .payment-group.is-selected {
   border-color: #111111;
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .payment-group-head {
   display: flex;
@@ -778,7 +772,7 @@
 }
 .payment-group.is-selected .payment-group-head .payment-option-radio {
   border-color: #111111;
-  background: radial-gradient(circle, #C5A880 0 45%, #ffffff 46% 100%);
+  background: radial-gradient(circle, #111111 0 45%, #ffffff 46% 100%);
 }
 .payment-group.is-selected .payment-group-head .payment-option-label {
   color: #111111;
@@ -792,12 +786,7 @@
 .payment-group-body[hidden] {
   display: none;
 }
-.payment-group-body .payment-option {
-  border-bottom: 1px solid #E5E5E5;
-}
-.payment-group-body .payment-option:last-child {
-  border-bottom: 0;
-}
+/* Grouped methods separate by fill and spacing, like every other row here. */
 .payment-group-body .payment-option-copy {
   border: 0;
   border-radius: 0;
@@ -806,17 +795,17 @@
   gap: 0.6rem;
 }
 .payment-group-body .payment-option:hover .payment-option-copy {
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .payment-group-body .payment-option input:checked + .payment-option-copy {
   border: 0;
-  background: #F8F7F4;
+  background: #F5F5F5;
 }
 .payment-group-body .payment-option-label {
-  font-size: 0.8rem;
+  font-size: 0.8125rem;
 }
 .payment-group-body .payment-option-desc {
-  font-size: 0.66rem;
+  font-size: 0.6875rem;
 }
 .summary-block {
   gap: 1rem;
@@ -827,61 +816,63 @@
   overflow: hidden;
   border: 1px solid #E5E5E5;
   border-radius: 0.75rem;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  background: #ffffff;
+  box-shadow: none;
+  padding-top: 0.25rem;
 }
 .summary-card > .summary-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.62rem 0.85rem;
+  padding: 0.55rem 0.85rem;
   color: #555555;
-  border-bottom: 1px solid #E5E5E5;
+  /* Dashed rather than solid: it divides the rows without adding another solid
+     rule beside the card frame. */
+  border-bottom: 1px dashed #E5E5E5;
 }
 .summary-card > .summary-row span {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.3;
   color: #555555;
 }
 .summary-card > .summary-row strong {
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.25;
   color: #111111;
   text-align: right;
-}
-.summary-product-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-  gap: 0.1rem;
+  /* Proportional digits make a stacked column of Rp figures ragged; tabular
+     ones line the thousands up. */
+  font-variant-numeric: tabular-nums;
 }
 .summary-product-name {
-  font-size: 0.82rem !important;
+  /* The name and the variant used to stack inside one row, which made it the
+     only row whose value ran to two lines - and it muted the name while
+     bolding the variant. They are two rows now, so the name is just a value
+     like every other. */
+  max-width: 72%;
+  text-wrap: balance;
+}
+/* The discount row used to carry a white band as a highlight. On a grey card
+   that becomes a stripe, and the ink chip beside it already does the work. */
+#summary-compare {
+  /* Same datum as the struck-through price on the variant rows, but it was
+     rendered as bold ink here - which reads as another amount to pay, right
+     above the one that is. Strike it and mute it so its role is obvious. */
   font-weight: 400 !important;
-  color: #555555 !important;
-  line-height: 1.25;
-}
-.summary-product-meta strong {
-  font-size: 0.82rem !important;
-  font-weight: 600 !important;
-  color: #111111 !important;
-  line-height: 1.25;
-}
-.summary-row-discount {
-  background: #fff;
+  color: #767676 !important;
+  text-decoration: line-through;
 }
 .summary-row-discount span {
   color: #555555;
 }
 .summary-row-discount strong,
 .summary-discount-chip {
-  color: #b91c1c !important;
-  font-weight: 800;
-  background: #fef08a;
+  color: #ffffff !important;
+  font-weight: 700;
+  background: #111111;
   padding: 0.04rem 0.28rem;
   border-radius: 0.2rem;
   line-height: 1.1;
@@ -892,20 +883,22 @@
   justify-content: space-between;
   align-items: center;
   gap: 0.85rem;
-  padding: 0.85rem;
-  border-top: 1px solid #E5E5E5;
-  background: #F8F7F4;
+  margin-top: 0.35rem;
+  padding: 0.9rem 0.85rem;
+  /* The one row that is filled. On a white list the grey lands on the figure
+     the buyer acts on instead of on everything. */
+  background: #F5F5F5;
 }
 .total-box p {
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 0.8125rem;
+  font-weight: 700;
   line-height: 1.15;
   color: #111111;
 }
 .total-box small {
   display: block;
   margin-top: 0.1rem;
-  font-size: 0.68rem;
+  font-size: 0.6875rem;
   line-height: 1.2;
   color: #555555;
   font-weight: 600;
@@ -916,25 +909,28 @@
   gap: 0.25rem;
 }
 .total-box strong {
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: 1.25rem;
+  font-weight: 700;
   color: #111111;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 .info-box {
   display: grid;
   gap: 0.2rem;
   padding: 0.88rem 0.95rem;
-  border: 1px solid #C5A880;
+  /* Flat. The note is set apart by its fill, never by an outline. */
+  border: 0;
   border-radius: 0.68rem;
-  background: #F8F7F4;
+  background: #F5F5F5;
   color: #111111;
 }
 .info-box span {
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   line-height: 1.55;
-  font-weight: 500;
-  color: #8A704F;
+  font-weight: 400;
+  color: #767676;
 }
 .submit-panel {
   display: grid;
@@ -948,8 +944,8 @@
   padding: 0.72rem 1rem;
   background: #111111 !important;
   color: #ffffff !important;
-  font-size: 0.92rem;
-  font-weight: 800;
+  font-size: 0.9375rem;
+  font-weight: 700;
   border-radius: 0.65rem;
   letter-spacing: 0.01em;
   cursor: pointer;
@@ -961,10 +957,10 @@
   transition: all 0.15s ease;
 }
 .submit-main:hover {
-  border-color: #C5A880;
-  background: #C5A880 !important;
+  border-color: #111111;
+  background: #111111 !important;
   color: #111111 !important;
-  box-shadow: 0 10px 20px -4px rgba(197, 168, 128, 0.35);
+  box-shadow: 0 10px 20px -4px rgba(17, 17, 17, 0.18);
 }
 .submit-main:active {
   transform: scale(0.98);
@@ -994,9 +990,11 @@
   box-shadow: 0 8px 16px -4px rgba(17, 17, 17, 0.25);
 }
 .submit-main[data-state='ready']:hover {
-  border-color: #C5A880;
-  background: #C5A880 !important;
-  color: #111111 !important;
+  /* This set the label to ink on an ink fill, which made it vanish on hover.
+     Hover deepens the fill; the label stays white. */
+  border-color: #000000;
+  background: #000000 !important;
+  color: #ffffff !important;
 }
 .submit-main[data-state='ready']:hover .submit-main-icon {
   transform: translateX(2px);
@@ -1039,7 +1037,7 @@
   border-radius: 0.68rem;
   background: #fef3f2;
   color: #b42318;
-  font-size: 0.79rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.45;
 }
@@ -1047,8 +1045,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
-  border-top: 1px solid #E5E5E5;
-  border-bottom: 1px solid #E5E5E5;
+  margin-top: 0.3rem;
 }
 .trust-strip span {
   display: flex;
@@ -1076,8 +1073,8 @@
 }
 .trust-strip i {
   font-style: normal;
-  font-size: 0.62rem;
-  font-weight: 800;
+  font-size: 0.625rem;
+  font-weight: 700;
   line-height: 1.25;
   text-transform: uppercase;
   letter-spacing: 0.03em;

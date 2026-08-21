@@ -1,0 +1,90 @@
+---
+import { getStoreAdsConfig } from '../../../lib/store-ads';
+
+interface Props {
+  pixelId?: string;
+}
+
+const { pixelId: pixelIdProp } = Astro.props;
+
+let pixelId = pixelIdProp;
+if (pixelId === undefined) {
+  const adsConfig = await getStoreAdsConfig(Astro.locals);
+  pixelId = adsConfig.metaPixelId;
+}
+const shouldRenderPixel = /^\d{5,25}$/.test(String(pixelId || '').trim());
+---
+
+{shouldRenderPixel && (
+  <>
+    {/* fbevents.js and the pixel config together cost roughly 220 KB from a
+        third-party origin, and the connection is only opened once the inline
+        loader runs. Warming DNS, TCP and TLS here removes that round trip from
+        the critical path. Rendered only when a pixel is actually configured. */}
+    <link rel="preconnect" href="https://connect.facebook.net" crossorigin />
+    <link rel="dns-prefetch" href="https://connect.facebook.net" />
+    <script is:inline define:vars={{ pixelId }}>
+      (() => {
+        if (typeof window === 'undefined') return;
+
+        const createEventId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+        // Meta's own stub queues every fbq() call until the script arrives, so
+        // the queue is created now and the 105 KB download is deferred. The
+        // events, their order and their event IDs are unchanged; only the
+        // moment the network request happens moves off the critical path,
+        // where it and the pixel config were costing about 520 KB on a product
+        // page.
+        (function (f) {
+          if (f.fbq) return;
+          const n = (f.fbq = function () {
+            n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+          });
+          if (!f._fbq) f._fbq = n;
+          n.push = n;
+          n.loaded = true;
+          n.version = '2.0';
+          n.queue = [];
+        })(window);
+
+        let requested = false;
+        const loadPixel = () => {
+          if (requested) return;
+          requested = true;
+          const script = document.createElement('script');
+          script.async = true;
+          script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+          document.head.appendChild(script);
+        };
+
+        // Whichever comes first. The interaction path covers anyone who stays;
+        // the timeout covers a visitor who reads and leaves without touching
+        // anything, so a bounce is still counted rather than traded away.
+        for (const type of ['pointerdown', 'keydown', 'touchstart', 'scroll']) {
+          window.addEventListener(type, loadPixel, { once: true, passive: true });
+        }
+        // A plain timer, deliberately. `requestIdleCallback` was tried first and
+        // does not defer anything: its `timeout` is a ceiling, not a floor, so
+        // on a page this light it fired at 245 ms and the download landed
+        // almost exactly where it had been.
+        window.setTimeout(loadPixel, 2500);
+
+        window.__META_PIXEL_ID__ = pixelId;
+        window.fbq('init', pixelId);
+
+        const eventId = createEventId('pv');
+        window.__META_PAGEVIEW_EVENT_ID__ = eventId;
+        window.fbq('track', 'PageView', {}, { eventID: eventId });
+      })();
+    </script>
+    <noscript>
+      <img
+        height="1"
+        width="1"
+        style="display:none"
+        src={`https://www.facebook.com/tr?id=${encodeURIComponent(pixelId)}&ev=PageView&noscript=1`}
+        alt=""
+      />
+    </noscript>
+  </>
+)}

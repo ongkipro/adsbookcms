@@ -1,19 +1,19 @@
 ---
 import type { ComponentProps } from 'astro/types';
 import { SEO } from 'astro-seo';
-// Font faces are imported by `src/styles/global.css`, which every route loads.
+// Font faces are imported by the shared token layer consumed by storefront.css.
 // Importing them here put them in this layout's own stylesheet, which the admin,
 // the login screen and the embedded checkout never request — see the note there.
-import GoogleAdsBase from '../components/tracking/GoogleAdsBase.astro';
-import MetaPageViewTracker from '../components/tracking/MetaPageViewTracker.astro';
-import MetaPixelBase from '../components/tracking/MetaPixelBase.astro';
-import GtmBase from '../components/tracking/GtmBase.astro';
-import MetaDebugTracker from '../components/tracking/MetaDebugTracker.astro';
-import JsonLdSchema from '../components/seo/JsonLdSchema.astro';
-import SiteFooter from '../components/shared/SiteFooter.astro';
-import SiteHeader from '../components/shared/SiteHeader.astro';
+import GoogleAdsBase from '../components/storefront/tracking/GoogleAdsBase.astro';
+import MetaPageViewTracker from '../components/storefront/tracking/MetaPageViewTracker.astro';
+import MetaPixelBase from '../components/storefront/tracking/MetaPixelBase.astro';
+import GtmBase from '../components/storefront/tracking/GtmBase.astro';
+import MetaDebugTracker from '../components/storefront/tracking/MetaDebugTracker.astro';
+import JsonLdSchema from '../components/storefront/seo/JsonLdSchema.astro';
+import SiteFooter from '../components/storefront/shared/SiteFooter.astro';
+import SiteHeader from '../components/storefront/shared/SiteHeader.astro';
 import { getStoreAdsConfig } from '../lib/store-ads';
-import '../styles/global.css';
+import '../styles/storefront.css';
 
 type JsonLdProps = ComponentProps<typeof JsonLdSchema>;
 
@@ -31,7 +31,6 @@ interface Props {
   product?: JsonLdProps['product'];
   faqs?: JsonLdProps['faqs'];
   itemList?: JsonLdProps['itemList'];
-  contentWidth?: 'compact' | 'wide';
   preloadImages?: PreloadImageItem | readonly PreloadImageItem[];
   shell?: string;
 }
@@ -48,7 +47,6 @@ const {
   product,
   faqs,
   itemList,
-  contentWidth = Astro.locals.tenant.storefrontTemplate === 'wide-catalog' ? 'wide' : 'compact',
   preloadImages,
 } = Astro.props;
 
@@ -186,9 +184,7 @@ const preloadImageUrls =
       <div
         class:list={[
           'min-h-screen w-full bg-white',
-          contentWidth === 'compact'
-            ? 'max-w-[480px] shadow-[0_0_40px_rgba(15,23,42,0.08)]'
-            : 'max-w-none',
+          'max-w-[480px] shadow-[0_0_40px_rgba(15,23,42,0.08)]',
         ]}
       >
         {!hideHeader && <SiteHeader />}

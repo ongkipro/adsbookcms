@@ -1,6 +1,5 @@
 import { getRuntimeEnv } from "./env.ts";
 import { formatIdr } from "./format-idr.ts";
-import { editorialProducts } from "../data/products.ts";
 import { solutionEntries } from "../data/content.ts";
 
 type D1Statement = ReturnType<D1Database["prepare"]>;
@@ -38,33 +37,19 @@ export type LandingPage = {
   sections: LandingSection[];
 };
 
-const editorialProductsBySlug: Record<
-  string,
-  (typeof editorialProducts)[number]
-> = Object.fromEntries(
-  editorialProducts.map((product) => [product.slug, product]),
-);
-
-const staticLandingPages: LandingPage[] = solutionEntries.map((entry) => {
-  const hrefSlug = entry.href?.replace(/^\/+/, "");
-  const product =
-    editorialProductsBySlug[entry.slug] ??
-    (hrefSlug ? editorialProductsBySlug[hrefSlug] : undefined);
-
-  return {
-    id: `static:${entry.slug}`,
-    slug: entry.slug,
-    title: entry.title,
-    product_id: product?.productId ?? "",
-    product_title: product?.productName ?? null,
-    is_active: entry.isAvailable === false ? 0 : 1,
-    meta_title: entry.title,
-    meta_description: entry.excerpt,
-    created_at: "",
-    updated_at: "",
-    sections: [],
-  };
-});
+const staticLandingPages: LandingPage[] = solutionEntries.map((entry) => ({
+  id: `static:${entry.slug}`,
+  slug: entry.slug,
+  title: entry.title,
+  product_id: "",
+  product_title: null,
+  is_active: entry.isAvailable === false ? 0 : 1,
+  meta_title: entry.title,
+  meta_description: entry.excerpt,
+  created_at: "",
+  updated_at: "",
+  sections: [],
+}));
 
 export type LandingSectionInput = {
   id?: string;
@@ -266,14 +251,8 @@ export async function listLandingPages(
        ORDER BY landing_page_id ASC, sort_order ASC, created_at ASC`,
     ),
   ]);
-
   const productMap = new Map<string, string>();
-  for (const prod of editorialProducts) {
-    if (prod?.productName) {
-      productMap.set(String(prod.productId), prod.productName);
-      if (prod.catalogId) productMap.set(String(prod.catalogId), prod.productName);
-    }
-  }
+
 
   try {
     const productResult = await database

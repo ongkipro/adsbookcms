@@ -1,8 +1,8 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import FormHybridContent from '../components/forms/FormHybridContent.astro';
-import FormMiddleContent from '../components/forms/FormMiddleContent.astro';
-import MetaLandingTracker from '../components/tracking/MetaLandingTracker.astro';
+import FormHybridContent from '../components/storefront/forms/FormHybridContent.astro';
+import FormMiddleContent from '../components/storefront/forms/FormMiddleContent.astro';
+import MetaLandingTracker from '../components/storefront/tracking/MetaLandingTracker.astro';
 import { getStorefrontProduct } from '../lib/catalog';
 import { getRuntimeEnv } from '../lib/env';
 import { resolveFormVariant } from '../lib/form-config';
@@ -11,7 +11,7 @@ import {
   resolveFormModeContext,
 } from '../lib/form-mode';
 import '../styles/form-hybrid.css';
-import { catalogItemId } from '../lib/catalog-feed';
+import { catalogProductId } from '../lib/catalog-feed';
 
 export const prerender = false;
 
@@ -40,7 +40,7 @@ const formContext = await resolveFormModeContext(
 >
   <MetaLandingTracker
     slug="hybrid-form"
-    contentId={catalogItemId(product.productId, selectedVariant.id)}
+    contentId={catalogProductId(product.productId)}
     contentName={product.productName}
     price={selectedVariant.price}
   />

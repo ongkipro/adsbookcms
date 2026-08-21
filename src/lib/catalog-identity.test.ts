@@ -5,8 +5,7 @@ import { join } from "node:path";
 
 import { mergeStorefrontCatalog } from "./catalog-data.ts";
 import {
-  catalogItemGroupId,
-  catalogItemId,
+  catalogProductId,
   defaultCatalogContentId,
   generateGoogleCatalogXml,
   generateMetaCatalogXml,
@@ -33,7 +32,7 @@ import {
 
 const productRows = [
   {
-    id: 1,
+    id: 10001,
     title: "Serum Wajah",
     slug: "serum-wajah",
     category: "Skincare",
@@ -43,8 +42,8 @@ const productRows = [
 ] as never[];
 
 const variantRows = [
-  { id: 11, product_id: 1, sku: "SW-30", title: "30ml", price: 150000, compare_price: 200000, stock: 10 },
-  { id: 12, product_id: 1, sku: "SW-60", title: "60ml", price: 250000, compare_price: null, stock: 10 },
+  { id: 11, product_id: 10001, sku: "SW-30", title: "30ml", price: 150000, compare_price: 200000, stock: 10 },
+  { id: 12, product_id: 10001, sku: "SW-60", title: "60ml", price: 250000, compare_price: null, stock: 10 },
 ] as never[];
 
 function feedIds(xml: string) {
@@ -52,7 +51,7 @@ function feedIds(xml: string) {
 }
 
 test("what the feed publishes is what the pixel sends", () => {
-  const merged = mergeStorefrontCatalog([], productRows, variantRows);
+  const merged = mergeStorefrontCatalog(productRows, variantRows);
   const product = merged[0] as {
     productId: string;
     variants: { id: string }[];
@@ -71,34 +70,22 @@ test("what the feed publishes is what the pixel sends", () => {
     `ViewContent sends ${viewContent}, which the feed does not publish`,
   );
 
-  // AddToCart / InitiateCheckout / Purchase, once a variant is chosen. This is
-  // the string `form-hybrid.ts` and `MetaThanksTracker.astro` build by hand from
-  // the product id and the variant radio's value, so it is spelled out here
-  // rather than imported — an inline script cannot import, and a shared helper
-  // that both sides call would prove nothing about what the scripts actually do.
+  // Variant selection never changes the product-level ads identity.
   for (const variant of product.variants) {
-    const sent = `p${product.productId}-v${variant.id}`;
+    const sent = product.productId;
     assert.ok(
       google.includes(sent),
-      `checkout sends ${sent}, which the feed does not publish`,
+      `variant ${variant.id} sends ${sent}, which the feed does not publish`,
     );
-    assert.equal(sent, catalogItemId(product.productId, variant.id));
+    assert.equal(sent, catalogProductId(product.productId));
   }
 
-  // Every published id belongs to some variant — the feed invents nothing.
-  assert.equal(google.length, product.variants.length);
-
-  // And the group is never itself an item, so a variant can never be confused
-  // with the product it belongs to.
-  assert.ok(!google.includes(catalogItemGroupId(product.productId)));
+  assert.deepEqual(google, [product.productId]);
 });
 
-test("no tracking surface sends a bare row id as content_ids", () => {
-  // The defect was not a wrong constant, it was a wrong *kind* of value: a
-  // database row id where a catalog identity was required. Nothing in the type
-  // system distinguishes those, so it is checked here.
+test("tracking surfaces use the canonical Product ID without rebuilding variant IDs", () => {
   const offenders: string[] = [];
-  const roots = ["src/components/tracking", "src/scripts", "src/pages"];
+  const roots = ["src/components/storefront/tracking", "src/scripts", "src/pages"];
 
   function walk(dir: string): string[] {
     const out: string[] = [];
@@ -115,9 +102,7 @@ test("no tracking surface sends a bare row id as content_ids", () => {
       const source = readFileSync(file, "utf8");
       source.split("\n").forEach((line, index) => {
         if (!/content_ids/.test(line)) return;
-        // A catalog identity is either built here as `p…-v…`, or it arrives in
-        // a variable already named for what it is.
-        if (/contentId|content_id|catalogItemId|`p\$\{/.test(line)) return;
+        if (/contentId|content_id|productId|product_id/.test(line)) return;
         offenders.push(`${file}:${index + 1} → ${line.trim().slice(0, 90)}`);
       });
     }
@@ -126,8 +111,13 @@ test("no tracking surface sends a bare row id as content_ids", () => {
   assert.deepEqual(
     offenders,
     [],
-    "content_ids must carry a catalog item id (`p{product}-v{variant}`), not a " +
-      "row id. A mismatch does not error — it silently retargets nobody:\n  " +
+    "content_ids must carry the canonical Product ID. A mismatch does not error:\n  " +
       offenders.join("\n  "),
   );
+
+  const trackingSources = [
+    readFileSync("src/scripts/form-hybrid.ts", "utf8"),
+    readFileSync("src/components/storefront/tracking/MetaThanksTracker.astro", "utf8"),
+  ].join("\n");
+  assert.doesNotMatch(trackingSources, /p\$\{productId\}-v\$\{/);
 });

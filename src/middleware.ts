@@ -44,6 +44,15 @@ function applySecurityHeaders(
   } else {
     response.headers.set('X-Frame-Options', 'DENY');
   }
+  // Sent unconditionally on purpose. RFC 6797 section 8.1 requires a user agent
+  // to ignore an STS header received over insecure transport, so this is inert
+  // on http and on local dev, and there is no protocol to branch on here.
+  //
+  // No includeSubDomains: this ships to every install, and committing every
+  // future subdomain of every store to HTTPS is not a promise this file can
+  // keep. No preload either - that one is close to irreversible. A store that
+  // wants both can turn on zone-level HSTS in Cloudflare.
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   if (isPrivate) response.headers.set('Cache-Control', 'no-store');

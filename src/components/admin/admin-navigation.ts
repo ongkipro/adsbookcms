@@ -182,7 +182,9 @@ export function getVisibleNavGroups(role: AdminRole) {
   const visibleIds = role === "admin"
     ? new Set(adminNavGroups.flatMap((group) => group.items.map((item) => item.id)))
     : role === "advertiser"
-      ? new Set(["dashboard", "products", "content", "ads"])
+      // "content" was here too, but no group defines that id any more - the page is
+      // deliberately off the menu and reached from Pengaturan > Toko.
+      ? new Set(["dashboard", "products", "ads"])
       : new Set(["dashboard", "orders", "shipping", "scoring"]);
   return adminNavGroups
     .map((group) => ({

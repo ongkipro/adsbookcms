@@ -14,7 +14,11 @@ const compositionSchema = z
       .object({
         hero: z.boolean(),
         catalog: z.literal(true),
-        proofs: z.boolean(),
+        // `proofs` stays optional rather than being deleted: the schema is strict,
+        // so removing the key would make every template a store has already saved
+        // fail to parse and take its home page down.
+        proofs: z.boolean().optional(),
+        landingPages: z.boolean().optional(),
       })
       .strict(),
   })
@@ -37,7 +41,7 @@ const compactMarket = storefrontTemplateDefinitionSchema.parse({
   name: "Compact Market",
   composition: {
     layout: "compact",
-    sections: { hero: true, catalog: true, proofs: true },
+    sections: { hero: true, catalog: true, landingPages: true },
   },
 });
 

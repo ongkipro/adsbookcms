@@ -3152,3 +3152,41 @@ write and returns `success: false` instead.
 fail-open-on-missing-KV, fail-open-on-corrupt-value, TTL floor) ·
 `npm run build` complete. No live Mengantar request, deployment, remote D1
 mutation, commit, or push occurred.
+
+### 2026-08-21 — A kecamatan text correction could leave the shipment routed to the old one
+
+Follow-on audit of the same admin order-edit route the kecamatan-caching fix
+above didn't touch, looking for anywhere else `destination_area_id` could go
+stale against the address text next to it.
+
+**The defect.** `PATCH /api/admin/orders/[id]` lets an operator correct
+`district`/`city`/`province` free text at any point before dispatch. That edit
+only forces a fresh `resolveEligibleShippingRates` call when
+`hasShippingSelection` is true — which requires either a new
+`destination_area_id` in the same request or a courier change. A pure text
+correction (the exact case CS does most: fixing a misspelled kecamatan) sent
+neither, so it fell through to the branch that persists the new text and
+leaves the old `destination_area_id` untouched. `action=dispatch-order` reads
+`resolvedDistrict`/`resolvedAddress` from the corrected text but
+`resolvedDestinationAreaId` from the stale id — the label would print the
+right kecamatan while the shipment routed to the wrong one. Once
+`provider_order_id` exists this path is already blocked, so the window was
+exactly the pre-dispatch moment CS corrections happen in.
+
+**The fix.** A district/city/province text change that doesn't arrive with a
+matching `destination_area_id` now nulls the stored one instead of leaving it,
+mirroring what editing the district field on checkout already does — clear
+the picked location rather than keep a stale id under changed text. Dispatch's
+existing completeness check (`!resolvedDestinationAreaId`) then fails closed
+until an operator reselects and re-resolves the destination through the same
+courier-selection path that already re-verifies live.
+
+**Verification.** `npm run check` 362 files / 0 errors · `npm test` 452 / 452
+· `npm run build` complete. Traced by hand against a real pre-dispatch order
+row in the local D1 (`INV-10005`, `WONOKROMO` → simulated correction to
+`GUBENG`): the assignment list produced `destination_area_id = NULL` alongside
+the corrected `district`, and a subsequent dispatch attempt on that state
+would fail the existing completeness check rather than ship. Not exercised as
+a live authenticated HTTP round-trip — that route requires an admin session,
+and forging one rather than logging in was out of scope here. No live
+Mengantar request, deployment, remote D1 mutation, commit, or push occurred.

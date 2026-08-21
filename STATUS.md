@@ -1,10 +1,10 @@
 # STATUS — AdsBookCMS
 
-> Last executed baseline: 2026-08-21 @ `5735479` + the location-search caching
-> working tree merged in. `main` was re-founded as AdsBookCMS and its history
-> rewritten (ADR-012), so the commit range this document once cited no longer
-> exists on this branch; the previous 61 commits are preserved on
-> `backup/pre-history-rewrite`. Gates re-run on the current tree, not
+> Last executed baseline: 2026-08-21 @ `36bd42b` + the admin destination-id
+> invalidation working tree merged in. `main` was re-founded as AdsBookCMS and
+> its history rewritten (ADR-012), so the commit range this document once
+> cited no longer exists on this branch; the previous 61 commits are preserved
+> on `backup/pre-history-rewrite`. Gates re-run on the current tree, not
 > inherited: `npm run check` 362 files / 0 errors / 0 warnings / 0 hints ·
 > `npm test` 452 / 452 · `npm run build` Cloudflare server bundle complete.
 

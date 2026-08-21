@@ -496,6 +496,22 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     let resolvedShippingCost = current.shipping_cost;
     let resolvedTotalAmount = current.total_amount;
 
+    // A kecamatan/kota/provinsi text correction that does not also carry a
+    // freshly resolved destination_area_id would otherwise leave the stored
+    // id pointing at the OLD address — the shipment would route there while
+    // every label shows the corrected text. Invalidate it so dispatch is
+    // forced back through resolveEligibleShippingRates, the same way editing
+    // the district field on checkout clears the picked location instead of
+    // keeping a stale id under changed text.
+    const addressTextChanged =
+      (nextDistrict !== undefined && nextDistrict !== current.district) ||
+      (nextCity !== undefined && nextCity !== current.city) ||
+      (nextProvince !== undefined && nextProvince !== current.province);
+    if (addressTextChanged && !hasShippingSelection && nextDestinationAreaId === undefined) {
+      resolvedDestinationAreaId = null;
+      addAssignment('destination_area_id', null);
+    }
+
     if (hasShippingSelection) {
       if (current.payment_method !== 'cod') {
         return jsonError('Kurir order pembayaran online tidak dapat diubah setelah invoice dibuat.', 409);

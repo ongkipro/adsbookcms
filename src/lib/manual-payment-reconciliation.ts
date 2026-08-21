@@ -1,4 +1,6 @@
+import { AutoLarisClient } from "./autolaris-client.ts";
 import type { AdminRole } from "./auth.ts";
+import { getProviderConfig } from "./provider-config.ts";
 
 const ONLINE_METHODS_SQL = "('bank_transfer', 'qris')";
 const CONFIRMATION_ROLES = new Set<AdminRole>(["owner", "admin"]);
@@ -427,5 +429,106 @@ export async function listManualAutoLarisPayments(
       total,
       total_pages: Math.ceil(total / input.pageSize),
     },
+  };
+}
+
+export type AutoLarisPaymentInquiryResult = {
+  transactionId: number;
+  orderNumber: string;
+  localStatus: string;
+  provider: {
+    code: string;
+    status: string;
+    settlement: "pending" | "unproven";
+    awb?: string;
+  };
+  /**
+   * The provider says the money has not arrived while this store says it has.
+   * That combination can only come from a mistaken manual confirmation, so it
+   * is surfaced rather than reconciled away.
+   */
+  contradictsLocalPaid: boolean;
+  checkedAt: string;
+};
+
+/**
+ * Reads one AutoLaris transaction's state straight from the provider.
+ *
+ * Deliberately read-only: it writes nothing to D1 and can never mark a payment
+ * paid. Only the pending response has an observed contract
+ * (`UNIMPLEMENTED_SPECS.md`), so an operator gets provider evidence to judge
+ * with — not an automated settlement.
+ */
+export async function inquireAutoLarisPaymentStatus(
+  database: D1Database,
+  locals: App.Locals,
+  admin: { username: string; role: AdminRole } | undefined,
+  transactionId: number,
+): Promise<AutoLarisPaymentInquiryResult> {
+  await resolveActor(database, admin);
+
+  const row = await database
+    .prepare(
+      `SELECT pt.id, pt.provider, pt.provider_transaction_id, pt.status,
+        o.order_number
+      FROM payment_transactions pt
+      INNER JOIN orders o ON o.id = pt.order_id
+      WHERE pt.id = ?
+      LIMIT 1`,
+    )
+    .bind(transactionId)
+    .first<{
+      id: number;
+      provider: string;
+      provider_transaction_id: string | null;
+      status: string;
+      order_number: string;
+    }>();
+  if (!row) {
+    throw new ManualPaymentReconciliationError(
+      "PAYMENT_NOT_FOUND",
+      "Transaksi pembayaran tidak ditemukan.",
+    );
+  }
+  if (row.provider !== "autolaris") {
+    throw new ManualPaymentReconciliationError(
+      "VALIDATION_ERROR",
+      "Hanya transaksi AutoLaris yang dapat dicek ke provider.",
+    );
+  }
+  const providerTransactionId = row.provider_transaction_id?.trim() || "";
+  if (!providerTransactionId) {
+    throw new ManualPaymentReconciliationError(
+      "VALIDATION_ERROR",
+      "Transaksi ini belum pernah diterima AutoLaris, jadi tidak ada yang bisa dicek.",
+    );
+  }
+
+  const config = (await getProviderConfig(database, locals)).autolaris;
+  if (!config.apiKey) {
+    throw new ManualPaymentReconciliationError(
+      "VALIDATION_ERROR",
+      "API Key AutoLaris belum dikonfigurasi.",
+    );
+  }
+
+  const inquiry = await new AutoLarisClient(
+    config.apiKey,
+    config.baseUrl,
+  ).inquirePayment(providerTransactionId);
+
+  return {
+    transactionId: row.id,
+    orderNumber: row.order_number,
+    localStatus: row.status,
+    provider: {
+      code: inquiry.code,
+      status: inquiry.status,
+      settlement: inquiry.settlement,
+      awb: inquiry.awb,
+    },
+    contradictsLocalPaid:
+      row.status === "paid" && inquiry.settlement === "pending",
+    checkedAt: new Date().toISOString(),
   };
 }

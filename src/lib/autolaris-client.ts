@@ -71,25 +71,43 @@ export const AUTOLARIS_CHANNEL_OPTIONS: ReadonlyArray<{
   { code: "VADANAMON", label: "Virtual Account Danamon", description: "Bayar melalui Danamon Virtual Account", paymentMethod: "bank_transfer" },
 ];
 
-export type AutoLarisCreateOrderInput = {
+
+/**
+ * AutoLaris is this repository's payment gateway only. Shipping is Mengantar's
+ * (`mengantar-client.ts`), so the combined shipping-and-payment Create Order
+ * path `/api/h2h/submit` is deliberately not used: it requires AutoLaris' own
+ * `id_area` district identifiers, and it registers a shipment nobody fulfils.
+ *
+ * Contract observed against the provider's published development key on
+ * 2026-08-19, not inferred from the documentation:
+ *
+ *   POST /api/h2h/create_payment  -> { rc, ket, data: { trx_id, virtual_account,
+ *                                      qr, payment_code, url, amount, admin, total } }
+ *   POST /api/h2h/advice          -> { rc, ket, data: { awb } }
+ *   GET  /api/h2h/list_payment    -> { rc, ket, data: [ { channel_code, ... } ] }
+ *
+ * Three request constraints were established by isolating one field at a time
+ * against a payload the provider had already accepted. Each returns
+ * `rc: "01" / "Invalid parameter"` with no further detail, so they are enforced
+ * here rather than discovered by a customer at checkout:
+ *
+ *   - `reff_id` accepts digits only. `INV-10001` is rejected.
+ *   - `customer_id` must be present and non-empty; any digits are accepted.
+ *   - `callback_url` must be present and non-empty.
+ */
+export type AutoLarisCreatePaymentInput = {
+  /** Digits only, at most 30 — the provider rejects any other shape. */
   reffId: string;
   channelCode: AutoLarisChannel;
-  originAreaId: string;
-  destinationAreaId: string;
-  weightGrams: number;
-  shipperName: string;
-  shipperPhone: string;
-  shipperAddress: string;
-  receiverName: string;
-  receiverPhone: string;
-  receiverEmail: string;
-  receiverAddress: string;
-  orderDetails: ReadonlyArray<{
-    name: string;
-    quantity: number;
-    unitPrice: number;
-  }>;
+  /** Digits only. The provider does not require a customer it already knows. */
+  customerId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  expiresAt: Date;
   amount: number;
+  /** Must be non-empty and absolute. */
+  callbackUrl: string;
 };
 
 export type AutoLarisPayment = {
@@ -102,12 +120,31 @@ export type AutoLarisPayment = {
   admin: number;
   total: number;
 };
+
 export type AutoLarisCredentialVerification = {
-  verified: false;
-  verificationSupported: false;
+  verified: boolean;
+  verificationSupported: boolean;
   message: string;
+  channels?: string[];
 };
 
+/**
+ * A read of one transaction's settlement state.
+ *
+ * `pending` is the only settlement this repository claims to understand: a
+ * freshly created, unpaid transaction returns `rc: "02" / "PENDING"`, observed
+ * directly. No response from a *settled* transaction has been observed, so
+ * every other code is `unproven` and must never be read as paid — see
+ * `UNIMPLEMENTED_SPECS.md`.
+ */
+export type AutoLarisPaymentInquiry = {
+  code: string;
+  status: string;
+  awb?: string;
+  settlement: "pending" | "unproven";
+};
+
+export const AUTOLARIS_PENDING_CODE = "02";
 
 type AutoLarisResponse = {
   rc?: string;
@@ -119,6 +156,7 @@ type AutoLarisResponse = {
     qr?: string;
     payment_code?: string;
     url?: string;
+    awb?: string;
     amount?: number;
     admin?: number;
     biaya_admin?: number;
@@ -177,9 +215,6 @@ export function parseAutoLarisPaymentResponse(
 
 const DEFAULT_BASE_URL = "https://api-h2h.autolaris.com";
 const DEFAULT_TIMEOUT_MS = 10_000;
-// Provider-team operational instruction for the online-payment Create Order path.
-// AutoLaris' published examples confirm the `courir_id` spelling, but not this value.
-const AUTOLARIS_PAYMENT_COURIR_ID = 1;
 
 function nonEmpty(value: string | undefined) {
   return value?.trim() || undefined;
@@ -193,16 +228,12 @@ function requiredText(value: string, field: string, max: number) {
   return normalized;
 }
 
-function requiredAreaId(value: string, field: string) {
-  const normalized = requiredText(value, field, 20);
+function requiredDigits(value: string, field: string, max: number) {
+  const normalized = requiredText(value, field, max);
   if (!/^\d+$/.test(normalized)) {
-    throw new Error(`Data ${field} AutoLaris tidak valid.`);
+    throw new Error(`Data ${field} AutoLaris harus berupa angka.`);
   }
-  const areaId = Number(normalized);
-  if (!Number.isSafeInteger(areaId) || areaId <= 0) {
-    throw new Error(`Data ${field} AutoLaris tidak valid.`);
-  }
-  return areaId;
+  return normalized;
 }
 
 function requiredPhone(value: string, field: string) {
@@ -214,73 +245,70 @@ function requiredPhone(value: string, field: string) {
 }
 
 function requiredEmail(value: string) {
-  const email = requiredText(value, "email penerima", 160);
+  const email = requiredText(value, "email pembeli", 160);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new Error("Data email penerima AutoLaris tidak valid.");
+    throw new Error("Data email pembeli AutoLaris tidak valid.");
   }
   return email;
 }
 
-export function buildAutoLarisCreateOrderPayload(
-  input: AutoLarisCreateOrderInput,
+function requiredCallbackUrl(value: string) {
+  const callbackUrl = requiredText(value, "callback", 500);
+  let parsed: URL;
+  try {
+    parsed = new URL(callbackUrl);
+  } catch {
+    throw new Error("Data callback AutoLaris tidak valid.");
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new Error("Data callback AutoLaris tidak valid.");
+  }
+  return parsed.toString();
+}
+
+/** `yyyyMMddHHmmss` in Asia/Jakarta, the format the provider's examples use. */
+export function formatAutoLarisExpiry(expiresAt: Date) {
+  if (Number.isNaN(expiresAt.getTime())) {
+    throw new Error("Masa berlaku pembayaran AutoLaris tidak valid.");
+  }
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Jakarta",
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+      .formatToParts(expiresAt)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+  const hour = parts.hour === "24" ? "00" : parts.hour;
+  return `${parts.year}${parts.month}${parts.day}${hour}${parts.minute}${parts.second}`;
+}
+
+export function buildAutoLarisCreatePaymentPayload(
+  input: AutoLarisCreatePaymentInput,
 ) {
   if (!Number.isSafeInteger(input.amount) || input.amount <= 0) {
     throw new Error(
       "Nominal pembayaran AutoLaris harus berupa bilangan bulat positif.",
     );
   }
-  if (
-    !Number.isSafeInteger(input.weightGrams) ||
-    input.weightGrams <= 0 ||
-    input.weightGrams > 10_000_000
-  ) {
-    throw new Error("Berat order AutoLaris tidak valid.");
-  }
-  if (input.orderDetails.length < 1 || input.orderDetails.length > 100) {
-    throw new Error("Item order AutoLaris tidak lengkap.");
-  }
-
-  let goodsTotal = 0;
-  const orderDetails = input.orderDetails.map((item) => {
-    if (
-      !Number.isSafeInteger(item.quantity) ||
-      item.quantity <= 0 ||
-      !Number.isSafeInteger(item.unitPrice) ||
-      item.unitPrice < 0
-    ) {
-      throw new Error("Item order AutoLaris tidak valid.");
-    }
-    goodsTotal += item.quantity * item.unitPrice;
-    if (!Number.isSafeInteger(goodsTotal) || goodsTotal <= 0) {
-      throw new Error("Total barang AutoLaris tidak valid.");
-    }
-    return {
-      name: requiredText(item.name, "nama item", 150),
-      qty: String(item.quantity),
-      unit_price: String(item.unitPrice),
-    };
-  });
 
   return {
-    reff_id: requiredText(input.reffId, "referensi", 30),
+    reff_id: requiredDigits(input.reffId, "referensi", 30),
     channel_code: input.channelCode,
-    courir_id: AUTOLARIS_PAYMENT_COURIR_ID,
-    origin: requiredAreaId(input.originAreaId, "origin"),
-    destination: requiredAreaId(input.destinationAreaId, "destination"),
-    weight: String(input.weightGrams),
-    shipper_name: requiredText(input.shipperName, "nama pengirim", 100),
-    shipper_phone: requiredPhone(input.shipperPhone, "telepon pengirim"),
-    shipper_email: "",
-    shipper_address: requiredText(input.shipperAddress, "alamat pengirim", 500),
-    receiver_name: requiredText(input.receiverName, "nama penerima", 100),
-    receiver_phone: requiredPhone(input.receiverPhone, "telepon penerima"),
-    receiver_email: requiredEmail(input.receiverEmail),
-    receiver_address: requiredText(input.receiverAddress, "alamat penerima", 500),
-    callback_url: "",
-    grand_total: String(goodsTotal),
-    cod_value: "0",
-    remark: `AdsBookCMS ${requiredText(input.reffId, "referensi", 30)}`,
-    order_details: orderDetails,
+    customer_id: requiredDigits(input.customerId, "id pembeli", 30),
+    customer_name: requiredText(input.customerName, "nama pembeli", 100),
+    customer_phone: requiredPhone(input.customerPhone, "telepon pembeli"),
+    customer_email: requiredEmail(input.customerEmail),
+    expired: formatAutoLarisExpiry(input.expiresAt),
+    amount: String(input.amount),
+    callback_url: requiredCallbackUrl(input.callbackUrl),
   };
 }
 
@@ -299,40 +327,37 @@ export class AutoLarisClient {
     this.timeoutMs = timeoutMs;
   }
 
-  async createOrder(input: AutoLarisCreateOrderInput): Promise<AutoLarisPayment> {
-    if (autoLarisChannelLockReason(input.channelCode)) {
-      throw new Error("Channel pembayaran tidak aktif di provider.");
-    }
-    const requestPayload = buildAutoLarisCreateOrderPayload(input);
-
+  private async request(
+    path: string,
+    body?: Record<string, unknown>,
+  ): Promise<AutoLarisResponse> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/h2h/submit`, {
-        method: "POST",
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        method: body ? "POST" : "GET",
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
+          ...(body ? { "Content-Type": "application/json" } : {}),
         },
-        body: JSON.stringify(requestPayload),
+        body: body ? JSON.stringify(body) : undefined,
         signal: controller.signal,
       });
 
-      let providerPayload: AutoLarisResponse;
+      let payload: AutoLarisResponse;
       try {
-        providerPayload = (await response.json()) as AutoLarisResponse;
+        payload = (await response.json()) as AutoLarisResponse;
       } catch {
         throw new Error("AutoLaris mengembalikan respons yang tidak valid.");
       }
-
       if (!response.ok) {
         throw new Error(
-          nonEmpty(providerPayload.ket) || `AutoLaris gagal (${response.status}).`,
+          nonEmpty(payload.ket) || `AutoLaris gagal (${response.status}).`,
         );
       }
-      return parseAutoLarisPaymentResponse(providerPayload, input.amount);
+      return payload;
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         throw new Error("AutoLaris timeout.");
@@ -344,20 +369,82 @@ export class AutoLarisClient {
       clearTimeout(timeoutId);
     }
   }
+
+  async createPayment(
+    input: AutoLarisCreatePaymentInput,
+  ): Promise<AutoLarisPayment> {
+    if (autoLarisChannelLockReason(input.channelCode)) {
+      throw new Error("Channel pembayaran tidak aktif di provider.");
+    }
+    const payload = await this.request(
+      "/api/h2h/create_payment",
+      buildAutoLarisCreatePaymentPayload(input),
+    );
+    return parseAutoLarisPaymentResponse(payload, input.amount);
+  }
+
+  /**
+   * Reads one transaction's settlement state. This never mutates payment state
+   * and never returns "paid" — see `AutoLarisPaymentInquiry`.
+   */
+  async inquirePayment(transactionId: string): Promise<AutoLarisPaymentInquiry> {
+    const payload = await this.request("/api/h2h/advice", {
+      // Echoed back exactly as the provider issued it. Every observed `trx_id`
+      // is numeric, but validating the provider's own identifier against our
+      // guess of its shape would only break when the provider changes it.
+      transaction_id: requiredText(transactionId, "id transaksi", 64),
+    });
+    const code = String(payload.rc || "").trim();
+    return {
+      code,
+      status: String(payload.ket || "").trim(),
+      awb: nonEmpty(payload.data?.awb),
+      settlement: code === AUTOLARIS_PENDING_CODE ? "pending" : "unproven",
+    };
+  }
+
+  /**
+   * Confirms the key against the provider's read-only channel catalogue. This
+   * is the one AutoLaris endpoint that reads without creating anything.
+   */
   async verifyCredentials(): Promise<AutoLarisCredentialVerification> {
     if (!this.apiKey) {
       return {
         verified: false,
-        verificationSupported: false,
+        verificationSupported: true,
         message: "API Key AutoLaris belum dikonfigurasi.",
       };
     }
 
-    return {
-      verified: false,
-      verificationSupported: false,
-      message:
-        "API Key AutoLaris tersimpan, tetapi tidak dapat diverifikasi otomatis karena kontrak yang tersedia tidak menyediakan endpoint baca-saja. Tidak ada permintaan ke AutoLaris yang dikirim.",
-    };
+    try {
+      const payload = await this.request("/api/h2h/list_payment");
+      if (payload.rc !== "00" || !Array.isArray(payload.data)) {
+        return {
+          verified: false,
+          verificationSupported: true,
+          message:
+            nonEmpty(payload.ket) ||
+            "AutoLaris menolak API Key yang tersimpan.",
+        };
+      }
+      const channels = (payload.data as Array<{ channel_code?: string }>)
+        .map((channel) => String(channel.channel_code || "").trim())
+        .filter(Boolean);
+      return {
+        verified: true,
+        verificationSupported: true,
+        channels,
+        message: `Koneksi AutoLaris aktif: ${channels.length} channel tersedia.`,
+      };
+    } catch (error) {
+      return {
+        verified: false,
+        verificationSupported: true,
+        message:
+          error instanceof Error && error.message
+            ? error.message
+            : "Koneksi AutoLaris gagal.",
+      };
+    }
   }
 }

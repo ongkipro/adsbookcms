@@ -154,16 +154,27 @@ const { tenantName, tenantSlug } = Astro.props;
       // Guard 2: cegah success event dobel untuk order yang sama walau thanks page dibuka/refresh lagi.
       if (orderId && !once(`${eventName}_order_${orderId}`)) return;
 
-      // Meta matches on E.164 digits. Hashing the raw Indonesian `08...` form
-      // never matches a profile stored as `62...`, and it must agree with the
-      // server CAPI leg or the two legs hash two different people.
-      const rawPhoneDigits = String(phone || '').replace(/\D/g, '');
-      const normalizedPhone = rawPhoneDigits.startsWith('0')
-        ? `62${rawPhoneDigits.slice(1)}`
-        : rawPhoneDigits;
-      const normalizedName = String(name || '').trim();
-      const firstName = normalizedName.split(/\s+/)[0] || '';
-      const lastName = normalizedName.split(/\s+/).slice(1).join(' ');
+      // Kept byte-identical to `src/lib/meta-identity.ts`, which the server CAPI
+      // leg uses. This script cannot import it — `define:vars` forces
+      // `is:inline`, which Astro never bundles — so `meta-identity.test.ts`
+      // reads this file and fails if the two drift apart.
+      const normalizeMetaText = (value) => {
+        const cleaned = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        return cleaned || undefined;
+      };
+      const toE164Digits = (value) => {
+        let digits = String(value || '').replace(/\D/g, '');
+        if (!digits) return undefined;
+        if (digits.startsWith('00')) digits = digits.slice(2);
+        if (digits.startsWith('620')) digits = `62${digits.slice(3)}`;
+        else if (digits.startsWith('0')) digits = `62${digits.slice(1)}`;
+        else if (digits.startsWith('8')) digits = `62${digits}`;
+        return digits.length >= 8 && digits.length <= 15 ? digits : undefined;
+      };
+      const nameParts = String(name || '').trim().split(/\s+/).filter(Boolean);
+      const normalizedPhone = toE164Digits(phone);
+      const firstName = normalizeMetaText(nameParts[0]);
+      const lastName = nameParts.length > 1 ? normalizeMetaText(nameParts.slice(1).join('')) : undefined;
       try {
         if (window.fbq) {
           const pixelId = window.__META_PIXEL_ID__;
@@ -198,12 +209,33 @@ const { tenantName, tenantSlug } = Astro.props;
 
       try {
         if (typeof window.__PS_PUSH_GOOGLE_CONVERSION__ === 'function') {
+          // Google normalises differently from Meta: trim and lowercase only.
+          // Meta additionally strips every non-alphanumeric, which collapses a
+          // multi-word Indonesian family name ("Nur Aisyah" -> "nuraisyah") into
+          // something no Google account carries. Reusing the Meta values here is
+          // what this leg used to do.
+          const googleText = (value) => {
+            const cleaned = String(value || '').trim().toLowerCase();
+            return cleaned || undefined;
+          };
+          const googleFirstName = googleText(nameParts[0]);
+          const googleLastName = nameParts.length > 1 ? googleText(nameParts.slice(1).join(' ')) : undefined;
           const googleUserData = {
             // Google matches on E.164 including the leading '+'; Meta matches on
             // digits only. Same number, two different hashes — do not share one.
             sha256_phone_number: normalizedPhone ? await hashSha256Hex(`+${normalizedPhone}`) : undefined,
-            sha256_first_name: firstName ? await hashSha256Hex(firstName) : undefined,
-            sha256_last_name: lastName ? await hashSha256Hex(lastName) : undefined,
+            // Names belong inside `address`. Sent at the top level — as they were
+            // — gtag ignores them, so the hashes cost work and match nobody.
+            // `postal_code` and `country` travel unhashed beside them, and Google
+            // treats name plus those two as one address match key.
+            address: {
+              sha256_first_name: googleFirstName ? await hashSha256Hex(googleFirstName) : undefined,
+              sha256_last_name: googleLastName ? await hashSha256Hex(googleLastName) : undefined,
+              city: googleText(city),
+              region: googleText(province),
+              postal_code: googleText(postalCode),
+              country: 'id',
+            },
           };
           window.__PS_PUSH_GOOGLE_CONVERSION__(Number(conversionValue || 1), orderId || undefined, googleUserData);
         }

@@ -7,41 +7,19 @@ import {
 import { summarizePaymentBuckets } from "./autolaris-balance.ts";
 import { createAutoLarisPaymentForOrder } from "./autolaris-payment.ts";
 
-function createAutoLarisOrderDatabase(originAreaId: string | null) {
+function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
   const state = {
     transaction: null as null | Record<string, unknown>,
   };
   const order = {
     id: 41,
     order_number: "INV-10041",
-    store_id: 1,
     customer_name: "Buyer",
     customer_phone: "081331000000",
     customer_email: "buyer@example.test",
-    address: "Buyer Street",
-    province: "Jawa Timur",
-    city: "Nganjuk",
-    district: "Sawahan",
-    postal_code: "64475",
-    destination_area_id: "3518010",
     total_amount: 118_400,
     payment_method: "qris",
     payment_fee_bearer: "seller",
-    store_name: "QA Store",
-    warehouse_name: "QA Warehouse",
-    origin_area_id: originAreaId,
-    warehouse_contact_name: "Warehouse PIC",
-    warehouse_contact_phone: "08123456789",
-    warehouse_address: "Warehouse Street",
-    warehouse_city: "Surabaya",
-    warehouse_province: "Jawa Timur",
-  };
-  const item = {
-    quantity: 2,
-    unit_price: 50_000,
-    weight_grams: 600,
-    product_title: "QA Product",
-    variant_title: "500 ml",
   };
 
   const database = {
@@ -61,17 +39,11 @@ function createAutoLarisOrderDatabase(originAreaId: string | null) {
             return {
               mengantar_api_key: null,
               mengantar_base_url: null,
-              autolaris_api_key: "qa-key",
+              autolaris_api_key: autoLarisApiKey,
               autolaris_base_url: "https://autolaris.example.test",
             };
           }
           throw new Error(`Unexpected first query: ${sql}`);
-        },
-        async all() {
-          if (sql.includes("FROM order_items oi")) {
-            return { success: true, results: [item], meta: {} };
-          }
-          throw new Error(`Unexpected all query: ${sql}`);
         },
         async run() {
           if (sql.includes("INSERT INTO payment_transactions")) {
@@ -122,12 +94,16 @@ function createAutoLarisOrderDatabase(originAreaId: string | null) {
   return { database, state };
 }
 
-test("payment orchestration sources the AutoLaris Create Order payload from D1", async (context) => {
+const QA_LOCALS = {
+  tenant: { siteUrl: "https://store.example.test" },
+} as App.Locals;
+
+test("payment orchestration sends only payment identity to AutoLaris", async (context) => {
   const originalFetch = globalThis.fetch;
   context.after(() => {
     globalThis.fetch = originalFetch;
   });
-  const { database } = createAutoLarisOrderDatabase("3517100");
+  const { database } = createAutoLarisOrderDatabase("qa-key");
   let requestedUrl = "";
   let requestedBody: Record<string, unknown> | undefined;
   globalThis.fetch = async (input, init) => {
@@ -136,53 +112,56 @@ test("payment orchestration sources the AutoLaris Create Order payload from D1",
     return Response.json({
       rc: "00",
       data: {
-        transaction_id: "TRX-SUBMIT-41",
-        biaya_admin: 84,
-        total: 118_484,
-        payment_info: { va: "", qr: "QR-PAYLOAD", url: "" },
+        trx_id: "TRX-PAY-41",
+        virtual_account: "",
+        qr: "QR-PAYLOAD",
+        payment_code: "",
+        url: "",
+        amount: 117_576,
+        admin: 824,
+        total: 118_400,
       },
     });
   };
 
-  const payment = await createAutoLarisPaymentForOrder(
-    database,
-    {} as App.Locals,
-    { orderId: 41, channelCode: "QRIS" },
-  );
+  const payment = await createAutoLarisPaymentForOrder(database, QA_LOCALS, {
+    orderId: 41,
+    channelCode: "QRIS",
+  });
 
-  assert.equal(requestedUrl, "https://autolaris.example.test/api/h2h/submit");
-  assert.deepEqual(
-    {
-      courir_id: requestedBody?.courir_id,
-      origin: requestedBody?.origin,
-      destination: requestedBody?.destination,
-      weight: requestedBody?.weight,
-      shipper_name: requestedBody?.shipper_name,
-      receiver_name: requestedBody?.receiver_name,
-      callback_url: requestedBody?.callback_url,
-      grand_total: requestedBody?.grand_total,
-      order_details: requestedBody?.order_details,
-    },
-    {
-      courir_id: 1,
-      origin: 3517100,
-      destination: 3518010,
-      weight: "1200",
-      shipper_name: "Warehouse PIC",
-      receiver_name: "Buyer",
-      callback_url: "",
-      grand_total: "100000",
-      order_details: [
-        { name: "QA Product - 500 ml", qty: "2", unit_price: "50000" },
-      ],
-    },
+  assert.equal(
+    requestedUrl,
+    "https://autolaris.example.test/api/h2h/create_payment",
   );
+  // `INV-10041` is not a legal provider reference; the digits are.
+  assert.equal(requestedBody?.reff_id, "10041");
+  assert.equal(requestedBody?.customer_id, "41");
+  assert.equal(requestedBody?.customer_name, "Buyer");
+  assert.equal(requestedBody?.customer_email, "buyer@example.test");
+  assert.equal(
+    requestedBody?.callback_url,
+    "https://store.example.test/api/webhooks/autolaris",
+  );
+  // The seller bears the QRIS fee here, so the provider is asked for the net
+  // amount and bills the buyer the order total (`payment-fee-policy.ts`).
+  assert.equal(requestedBody?.amount, "117576");
+  // The buyer's address, courier and parcel never leave for the gateway.
+  for (const shippingField of [
+    "origin",
+    "destination",
+    "courir_id",
+    "weight",
+    "receiver_address",
+    "order_details",
+  ]) {
+    assert.equal(shippingField in (requestedBody || {}), false, shippingField);
+  }
   assert.equal(payment.qrPayload, "QR-PAYLOAD");
-  assert.equal(payment.adminFee, 84);
-  assert.equal(payment.totalAmount, 118_484);
+  assert.equal(payment.adminFee, 824);
+  assert.equal(payment.totalAmount, 118_400);
 });
 
-test("payment orchestration records failure without a provider call when D1 shipping identity is incomplete", async (context) => {
+test("payment orchestration records failure without a provider call when AutoLaris is unconfigured", async (context) => {
   const originalFetch = globalThis.fetch;
   context.after(() => {
     globalThis.fetch = originalFetch;
@@ -194,15 +173,14 @@ test("payment orchestration records failure without a provider call when D1 ship
     return new Response(null, { status: 500 });
   };
 
-  const payment = await createAutoLarisPaymentForOrder(
-    database,
-    {} as App.Locals,
-    { orderId: 41, channelCode: "QRIS" },
-  );
+  const payment = await createAutoLarisPaymentForOrder(database, QA_LOCALS, {
+    orderId: 41,
+    channelCode: "QRIS",
+  });
 
   assert.equal(providerCalls, 0);
   assert.equal(payment.status, "failed");
-  assert.match(payment.failedReason || "", /origin.*tidak lengkap/i);
+  assert.match(payment.failedReason || "", /belum dikonfigurasi/i);
 });
 
 test("AutoLaris response parsing preserves provider instructions and billed total", () => {

@@ -4,6 +4,7 @@ import { DatabaseSync, type StatementSync } from "node:sqlite";
 import test from "node:test";
 import {
   confirmManualAutoLarisPayment,
+  inquireAutoLarisPaymentStatus,
   ManualPaymentReconciliationError,
 } from "./manual-payment-reconciliation.ts";
 import {
@@ -84,7 +85,11 @@ class ReconciliationDatabase {
   constructor() {
     this.sqlite.exec(`
       PRAGMA foreign_keys = ON;
-      CREATE TABLE stores (id INTEGER PRIMARY KEY);
+      CREATE TABLE stores (
+        id INTEGER PRIMARY KEY,
+        mengantar_api_key TEXT, mengantar_base_url TEXT,
+        autolaris_api_key TEXT, autolaris_base_url TEXT
+      );
       CREATE TABLE admin_credentials (
         id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE, role TEXT NOT NULL
       );
@@ -102,7 +107,7 @@ class ReconciliationDatabase {
         total_amount INTEGER NOT NULL, expires_at TEXT, paid_at TEXT,
         failed_reason TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
-      INSERT INTO stores VALUES (1);
+      INSERT INTO stores VALUES (1, NULL, NULL, 'qa-key', 'https://autolaris.example.test');
       INSERT INTO admin_credentials VALUES (10, 'owner.one', 'owner');
       INSERT INTO admin_credentials VALUES (11, 'admin.one', 'admin');
       INSERT INTO admin_credentials VALUES (12, 'cs.one', 'customer_service');
@@ -452,4 +457,93 @@ test("retired AutoLaris webhook always returns 410 without touching runtime stat
   } as never);
   assert.equal(response.status, 410);
   assert.equal((await response.json() as { code: string }).code, "AUTOLARIS_WEBHOOK_RETIRED");
+});
+
+test("a provider inquiry reports AutoLaris state without writing anything", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let requestedUrl = "";
+  globalThis.fetch = async (input) => {
+    requestedUrl = String(input);
+    return Response.json({ rc: "02", ket: "PENDING", data: { awb: "" } });
+  };
+
+  const database = new ReconciliationDatabase();
+  const id = seedPayment(database);
+  const before = count(database, "payment_transactions");
+
+  const result = await inquireAutoLarisPaymentStatus(
+    asD1(database),
+    {} as App.Locals,
+    owner,
+    id,
+  );
+
+  assert.equal(requestedUrl, "https://autolaris.example.test/api/h2h/advice");
+  assert.equal(result.provider.settlement, "pending");
+  assert.equal(result.localStatus, "pending");
+  assert.equal(result.contradictsLocalPaid, false);
+  assert.equal(count(database, "payment_transactions"), before);
+  assert.equal(count(database, "payment_reconciliation_audits"), 0);
+  assert.equal(
+    (
+      database.sqlite
+        .prepare("SELECT status FROM payment_transactions WHERE id = ?")
+        .get(id) as { status: string }
+    ).status,
+    "pending",
+  );
+});
+
+test("the provider contradicting a paid row is surfaced, not reconciled away", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () =>
+    Response.json({ rc: "02", ket: "PENDING", data: { awb: "" } });
+
+  const database = new ReconciliationDatabase();
+  const id = seedPayment(database, { transactionStatus: "paid" });
+
+  const result = await inquireAutoLarisPaymentStatus(
+    asD1(database),
+    {} as App.Locals,
+    owner,
+    id,
+  );
+
+  assert.equal(result.contradictsLocalPaid, true);
+  // Reading the provider must never repair the row it disagrees with.
+  assert.equal(
+    (
+      database.sqlite
+        .prepare("SELECT status FROM payment_transactions WHERE id = ?")
+        .get(id) as { status: string }
+    ).status,
+    "paid",
+  );
+});
+
+test("a scoped role cannot reach AutoLaris through the inquiry path", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let providerCalls = 0;
+  globalThis.fetch = async () => {
+    providerCalls += 1;
+    return new Response(null, { status: 500 });
+  };
+
+  const database = new ReconciliationDatabase();
+  const id = seedPayment(database);
+
+  await assert.rejects(
+    inquireAutoLarisPaymentStatus(asD1(database), {} as App.Locals, { username: "cs.one", role: "customer_service" as const }, id),
+    /owner atau admin/i,
+  );
+  assert.equal(providerCalls, 0);
 });

@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Loader2,
   RefreshCw,
+  Search,
   ShieldCheck,
   TriangleAlert,
 } from "lucide-react";
@@ -284,6 +285,17 @@ function TransactionDetails({
   );
 }
 
+type ProviderInquiryState = {
+  loading: boolean;
+  message: string;
+  tone: "muted" | "destructive";
+};
+
+type ProviderInquiryPayload = {
+  provider: { code: string; status: string; settlement: "pending" | "unproven" };
+  contradictsLocalPaid: boolean;
+};
+
 export default function PaymentReconciliationQueue() {
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [viewStatus, setViewStatus] = useState<"pending" | "paid">("pending");
@@ -302,7 +314,59 @@ export default function PaymentReconciliationQueue() {
   const [serverError, setServerError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [announcement, setAnnouncement] = useState("");
+  const [inquiries, setInquiries] = useState<Record<number, ProviderInquiryState>>({});
   const [now, setNow] = useState(() => Date.now());
+
+  /**
+   * Asks AutoLaris what it thinks of one transaction. This never changes local
+   * state: the provider has no observed "settled" response, so the operator
+   * still owns the decision. Its value is the opposite case — the provider
+   * saying "not paid" about a row this store already marked paid.
+   */
+  const runProviderInquiry = async (transaction: PaymentTransaction) => {
+    setInquiries((current) => ({
+      ...current,
+      [transaction.id]: { loading: true, message: "", tone: "muted" },
+    }));
+    try {
+      const response = await fetch("/api/admin/payment-reconciliation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "inquire", transaction_id: transaction.id }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { data?: ProviderInquiryPayload; error?: string }
+        | null;
+      if (!response.ok || !payload?.data) {
+        throw new Error(payload?.error || "Pemeriksaan status AutoLaris gagal.");
+      }
+      const { provider, contradictsLocalPaid } = payload.data;
+      const message = contradictsLocalPaid
+        ? `AutoLaris menyatakan ${provider.status || provider.code} — bertentangan dengan status lunas di sini. Periksa ulang sebelum mengirim barang.`
+        : provider.settlement === "pending"
+          ? `AutoLaris menyatakan belum dibayar (${provider.status || provider.code}).`
+          : `AutoLaris menjawab ${provider.status || provider.code}. Status ini belum pernah terbukti berarti lunas, jadi konfirmasi tetap manual.`;
+      setInquiries((current) => ({
+        ...current,
+        [transaction.id]: {
+          loading: false,
+          message,
+          tone: contradictsLocalPaid ? "destructive" : "muted",
+        },
+      }));
+      setAnnouncement(message);
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Pemeriksaan status AutoLaris gagal.";
+      setInquiries((current) => ({
+        ...current,
+        [transaction.id]: { loading: false, message, tone: "destructive" },
+      }));
+      setAnnouncement(message);
+    }
+  };
   const amountRef = useRef<HTMLInputElement>(null);
   const referenceRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -660,6 +724,35 @@ export default function PaymentReconciliationQueue() {
                               {(!transaction.confirmationEligible || !transaction.providerReference) && (
                                 <p className="mt-2 max-w-56 text-right text-xs leading-5 text-destructive">
                                   {formatBlockReason(transaction.confirmationBlockReason)}
+                                </p>
+                              )}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="mt-2"
+                                disabled={
+                                  !transaction.providerReference ||
+                                  inquiries[transaction.id]?.loading
+                                }
+                                onClick={() => void runProviderInquiry(transaction)}
+                              >
+                                {inquiries[transaction.id]?.loading ? (
+                                  <Loader2 className="animate-spin" aria-hidden="true" />
+                                ) : (
+                                  <Search aria-hidden="true" />
+                                )}
+                                Cek ke AutoLaris
+                              </Button>
+                              {inquiries[transaction.id]?.message && (
+                                <p
+                                  className={`mt-2 max-w-56 text-right text-xs leading-5 ${
+                                    inquiries[transaction.id].tone === "destructive"
+                                      ? "text-destructive"
+                                      : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {inquiries[transaction.id].message}
                                 </p>
                               )}
                             </TableCell>

@@ -1,3 +1,4 @@
+import { metaNameParts, normalizeMetaText, toE164Digits } from './meta-identity.ts';
 /**
  * Pinned in one place so a bump is a one-line change, never a grep across
  * trackers. Meta ships a version roughly quarterly and retires each after about
@@ -7,6 +8,8 @@
  * Verified current on 2026-08-14 (v26.0, released 2026-07-29).
  */
 export const META_GRAPH_API_VERSION = 'v26.0';
+
+export { toE164Digits } from './meta-identity.ts';
 
 export type MetaUserData = {
   phone?: string;
@@ -43,7 +46,7 @@ async function sha256(value: string): Promise<string> {
 
 /** Meta matches on lowercased, punctuation-free text. */
 function hashText(value?: string) {
-  const cleaned = value?.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleaned = normalizeMetaText(value);
   return cleaned ? sha256(cleaned) : undefined;
 }
 
@@ -52,34 +55,19 @@ function hashEmail(value?: string) {
   return cleaned ? sha256(cleaned) : undefined;
 }
 
-/**
- * Meta requires E.164 digits with no separators. Indonesian storefront input is
- * `08xxx`, which never matches a Meta profile stored as `628xxx` — so hashing
- * the raw form silently zeroes the best identifier the checkout form collects.
- */
-export function toE164Digits(value?: string): string | undefined {
-  let digits = value?.replace(/\D/g, '') || '';
-  if (!digits) return undefined;
-  if (digits.startsWith('00')) digits = digits.slice(2);
-  if (digits.startsWith('620')) digits = `62${digits.slice(3)}`;
-  else if (digits.startsWith('0')) digits = `62${digits.slice(1)}`;
-  else if (digits.startsWith('8')) digits = `62${digits}`;
-  return digits.length >= 8 && digits.length <= 15 ? digits : undefined;
-}
-
 function hashPhone(value?: string) {
   const digits = toE164Digits(value);
   return digits ? sha256(digits) : undefined;
 }
 
-/** Meta expects `fn` to be the first name only. */
 function hashFirstName(value?: string) {
-  return hashText(value?.trim().split(/\s+/)[0]);
+  const { firstName } = metaNameParts(value);
+  return firstName ? sha256(firstName) : undefined;
 }
 
 function hashLastName(value?: string) {
-  const parts = value?.trim().split(/\s+/) || [];
-  return parts.length > 1 ? hashText(parts.slice(1).join('')) : undefined;
+  const { lastName } = metaNameParts(value);
+  return lastName ? sha256(lastName) : undefined;
 }
 
 function cleanRawSignal(value?: string): string | undefined {

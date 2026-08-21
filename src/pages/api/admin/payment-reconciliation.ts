@@ -4,6 +4,7 @@ import { jsonError, jsonOk } from "../../../lib/api.ts";
 import { getRuntimeEnv } from "../../../lib/env.ts";
 import {
   confirmManualAutoLarisPayment,
+  inquireAutoLarisPaymentStatus,
   listManualAutoLarisPayments,
   ManualPaymentReconciliationError,
 } from "../../../lib/manual-payment-reconciliation.ts";
@@ -17,6 +18,15 @@ const confirmationSchema = z
     provider_reference: z.string().trim().min(1).max(160),
     note: z.string().trim().min(5).max(500),
     confirmed: z.literal(true),
+  })
+  .strict();
+
+// A provider read, not a state change: it writes nothing and cannot mark a
+// payment paid. It shares POST because it calls out to AutoLaris.
+const inquirySchema = z
+  .object({
+    action: z.literal("inquire"),
+    transaction_id: z.number().int().positive(),
   })
   .strict();
 
@@ -74,9 +84,41 @@ export const GET: APIRoute = async ({ request, locals }) => {
 export const POST: APIRoute = async ({ request, locals }) => {
   const database = databaseFrom(locals);
   if (!database) return jsonError("Database pembayaran belum tersedia.", 503);
-  const parsed = confirmationSchema.safeParse(
-    await request.json().catch(() => null),
-  );
+  const body = await request.json().catch(() => null);
+
+  const inquiry = inquirySchema.safeParse(body);
+  if (inquiry.success) {
+    try {
+      const data = await inquireAutoLarisPaymentStatus(
+        database,
+        locals,
+        locals.admin,
+        inquiry.data.transaction_id,
+      );
+      return jsonOk({ data });
+    } catch (error) {
+      if (error instanceof ManualPaymentReconciliationError) {
+        return reconciliationError(error);
+      }
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Pemeriksaan status AutoLaris gagal.";
+      return jsonError(message, message.includes("timeout") ? 504 : 502);
+    }
+  }
+
+  // Without this, a malformed inquiry falls through and is answered with the
+  // confirmation route's error, which names fields the caller never sent.
+  if (
+    body &&
+    typeof body === "object" &&
+    (body as { action?: unknown }).action === "inquire"
+  ) {
+    return jsonError("Pemeriksaan provider wajib memuat transaction_id.", 422);
+  }
+
+  const parsed = confirmationSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(
       "Konfirmasi wajib memuat transaksi, nominal, referensi provider, dan persetujuan eksplisit.",

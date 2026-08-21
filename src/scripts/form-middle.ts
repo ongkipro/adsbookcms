@@ -1,3 +1,5 @@
+import { metaNameParts, toE164Digits } from "../lib/meta-identity.ts";
+import { normalizePhone } from "../lib/validation";
 import { formatIdr } from "../lib/format-idr";
 import { pushGtmEcomEvent } from "../lib/gtm";
 import { isValidWa62 } from "../lib/validation";
@@ -78,15 +80,6 @@ export function initMiddleOrderForm(
   if (!parsedConfig) return;
   const { productSlug, productId, productName, province } = parsedConfig;
   const fmt = formatIdr;
-  const normalizePhone = (raw: string) => {
-    const digits = String(raw || "").replace(/\D/g, "");
-    if (!digits) return "";
-    if (digits.startsWith("620")) return `62${digits.slice(3)}`;
-    if (digits.startsWith("0")) return `62${digits.slice(1)}`;
-    if (digits.startsWith("8")) return `62${digits}`;
-    if (digits.startsWith("62")) return digits;
-    return digits;
-  };
   const isValidName = (value: string) =>
     /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'.-]{2,119}$/.test(value) &&
     /[A-Za-zÀ-ÿ]{2}/.test(value);
@@ -114,13 +107,14 @@ export function initMiddleOrderForm(
   const buildAdvancedMatching = async (
     extraUserData?: Record<string, unknown>,
   ) => {
-    const normalizedPhone = String(extraUserData?.customer_phone || "").replace(
-      /\D/g,
-      "",
+    // Normalised exactly as the server CAPI leg does. Both legs describe one
+    // person; a difference here means Meta matches neither.
+    const normalizedPhone = toE164Digits(
+      String(extraUserData?.customer_phone || ""),
     );
-    const normalizedName = String(extraUserData?.customer_name || "").trim();
-    const firstName = normalizedName.split(/\s+/)[0] || "";
-    const lastName = normalizedName.split(/\s+/).slice(1).join(" ");
+    const { firstName, lastName } = metaNameParts(
+      String(extraUserData?.customer_name || ""),
+    );
     return {
       ph: normalizedPhone ? await hashSha256Hex(normalizedPhone) : undefined,
       fn: firstName ? await hashSha256Hex(firstName) : undefined,

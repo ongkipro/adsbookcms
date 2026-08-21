@@ -306,6 +306,22 @@ if (database) {
             </div>
           </div>
 
+          <div class="space-y-1.5 sm:w-56">
+            <label for="codInput" class="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
+              Nilai COD (opsional)
+            </label>
+            <input
+              type="number"
+              id="codInput"
+              min="0"
+              step="1000"
+              placeholder="0"
+              aria-describedby="codInputHint"
+              class="w-full min-w-0 rounded-lg border border-slate-300 px-3.5 py-2 text-sm font-mono font-bold text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+            <p id="codInputHint" class="text-[11px] text-slate-500">Isi untuk melihat biaya COD yang ditagih provider.</p>
+          </div>
+
           <div class="flex items-center justify-end gap-3 pt-2">
             <button id="checkOngkirBtn" type="submit" class="btn-blue min-h-11 px-7 text-xs font-bold disabled:cursor-wait disabled:opacity-60 flex items-center justify-center gap-2">
               <span>Cek Tarif Kurir</span>
@@ -358,6 +374,7 @@ if (database) {
                   <th class="px-4 py-3">Ekspedisi</th>
                   <th class="px-4 py-3">Layanan</th>
                   <th class="px-4 py-3 text-right">Tarif Ongkir</th>
+                  <th class="px-4 py-3 text-right">Biaya COD</th>
                   <th class="px-4 py-3 text-center">Estimasi Tiba</th>
                   <th class="px-4 py-3 text-center">Status COD</th>
                 </tr>
@@ -707,7 +724,7 @@ if (database) {
       }
 
       if (filtered.length === 0) {
-        ongkirTableBody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-sm text-slate-500">Tidak ada kurir yang sesuai dengan filter.</td></tr>`;
+        ongkirTableBody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-sm text-slate-500">Tidak ada kurir yang sesuai dengan filter.</td></tr>`;
         return;
       }
 
@@ -725,6 +742,7 @@ if (database) {
             </td>
             <td class="whitespace-nowrap px-4 py-3.5 text-xs text-slate-700">${rate.courier_service}</td>
             <td class="whitespace-nowrap px-4 py-3.5 text-right font-mono font-bold text-slate-900">${formatIdr(rate.price)}</td>
+            <td class="whitespace-nowrap px-4 py-3.5 text-right font-mono text-xs text-slate-700">${rate.cod_fee > 0 ? formatIdr(rate.cod_fee) : '-'}</td>
             <td class="whitespace-nowrap px-4 py-3.5 text-center text-xs text-slate-600">${rate.estimated_days ? `${rate.estimated_days} Hari` : '-'}</td>
             <td class="whitespace-nowrap px-4 py-3.5 text-center">
               ${rate.unsupported_cod 
@@ -787,7 +805,9 @@ if (database) {
       }
 
       try {
-        const res = await fetch(`/api/admin/ongkir?action=estimate&origin=${originId}&destination=${destinationId}&weight=${weight}`);
+        const codValue = Number((document.getElementById('codInput') as HTMLInputElement | null)?.value || 0);
+        const codQuery = Number.isFinite(codValue) && codValue > 0 ? `&cod=${Math.round(codValue)}` : '';
+        const res = await fetch(`/api/admin/ongkir?action=estimate&origin=${originId}&destination=${destinationId}&weight=${weight}${codQuery}`);
         const json = await res.json();
         
         if (json.success !== false && json.data) {

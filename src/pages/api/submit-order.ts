@@ -229,9 +229,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
         409,
       );
     }
-    trustedShippingCost =
-      selectedRate.price +
-      (data.payment_method === "cod" ? Number(selectedRate.cod_fee || 0) : 0);
+    // See the COD fee note in `shipping-quote.ts`. `cod_service_fee` is added
+    // by `persistOrder`, so folding the provider figure in here would double it.
+    trustedShippingCost = selectedRate.price;
     if (trustedShippingCost !== submittedShippingCost) {
       return json(
         {

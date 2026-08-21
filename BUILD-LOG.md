@@ -2911,3 +2911,194 @@ the Cloudflare server build complete, all 44 migrations applying to an empty
 local D1, and full-page screenshots of the storefront, product list, checkout
 form and admin login at 390 CSS px before and after the split differing by zero
 pixels on all four. No production deployment happened from this repository.
+
+---
+
+### 2026-08-19 — Storefront boundary and homepage availability cutover
+
+- Isolated public components under `src/components/storefront/` and split surface CSS into `global.css`, `storefront.css`, `admin.css`, and route-owned `form-hybrid.css`.
+- Added source-owned directories for future native Astro landing routes, components, and styles.
+- Replaced the unpublished-home setup gate with a neutral fallback content model so `/` remains a usable automatic catalog when optional home content is absent.
+- Removed the JSON/Workers-AI content workbench from admin navigation. A local draft of this change also redirected `/admin/content` itself to the catalog; that redirect did not survive integration with `feat/admin-access-dashboard` — the route stays reachable and unchanged, matching ADR-018 and the later `feat/content-door-in-store-settings` work that gives it a deliberate entry point from Pengaturan → Toko instead of the deleted setup-required banner.
+
+### 2026-08-19 — AutoLaris was never connected; moved to the payment-gateway contract
+
+An audit of both provider integrations, then the repair the audit found.
+
+**The defect.** Every online QRIS/VA checkout failed at the provider and could
+never have succeeded. `orders.destination_area_id` and
+`warehouses.origin_area_id` hold Mengantar area `_id` values — 24-character
+Mongo ObjectIds sourced from `searchAddress()` — and those were fed to
+AutoLaris' `/api/h2h/submit`, whose `origin`/`destination` are numeric
+`id_area` district identifiers of at most 20 characters. The payload builder
+threw before any request left the Worker, `payment_transactions` was written
+`failed`, `orders.payment_status` was set `failed`, and `submit-order` still
+answered `success: true` with no virtual account and no QR. The buyer received
+an order that could not be paid, with stock already reserved. It survived
+review because the tests used synthetic numeric area IDs (`3517100`) and no
+live AutoLaris request had ever been made — every prior claim rested on a
+mocked `fetch`.
+
+**The contract, read from the provider rather than assumed.** The published H2H
+collection has eight endpoints. `POST /api/h2h/submit` is the combined
+shipping-and-payment path; `POST /api/h2h/create_payment` is the payment
+gateway, and it takes no shipping data at all. Since shipping here is
+Mengantar's, the gateway path is the correct one, and the area-identifier
+problem disappears with it rather than being mapped around.
+
+Three request constraints were established against the provider's published
+development key by isolating one field at a time against a payload it had
+already accepted. Each returns an undifferentiated `rc: "01" / Invalid
+parameter`, so each is now enforced locally instead of being discovered by a
+customer at checkout: `reff_id` accepts digits only (the store's `INV-10041` is
+rejected, so the numeric part is sent), `customer_id` must be non-empty, and
+`callback_url` must be non-empty. The callback registered is this install's own
+retired webhook route, which answers `410`: the install names an address and
+declines callbacks rather than leaving the field blank.
+
+**Two register corrections.** `POST /api/h2h/advice` exists and takes
+`{ transaction_id }`; the repository had recorded that no read-only inquiry
+endpoint existed. An unpaid transaction returns
+`{"rc":"02","ket":"PENDING","data":{"awb":""}}`, observed directly.
+`AutoLarisClient.inquirePayment` implements that read and classifies **only**
+`rc: "02"` as pending — every other code stays `unproven` and cannot move
+payment state, because capturing a settled response means paying a real virtual
+account. Separately, AutoLaris production access requires an IP allowlist of at
+most five addresses, which Cloudflare Workers cannot satisfy with a fixed
+egress address; that is now a recorded release blocker.
+
+**Verification.** `npm run check` 353 files / 0 errors. `npm test` 422 / 422,
+including a failing navigation expectation left behind by the A18 working tree.
+The repository's own clients were then run against the real providers:
+Mengantar `searchAddress` + `estimateRates` returned ten couriers with real
+prices, read-only; AutoLaris `createPayment` on the published development key
+returned a real virtual account and `inquirePayment` read it back as `PENDING`.
+No production AutoLaris credential was used, no Mengantar order, pickup or
+wallet call was made, and no deployment, remote D1 mutation, commit, or push
+occurred.
+
+### 2026-08-19 — Provider route pass: COD fee ownership and a provider-side payment read
+
+Follow-on to the AutoLaris cutover, covering the Mengantar shipping and rate
+routes and the AutoLaris gateway surface.
+
+**A double-charge that had not fired yet.** Three code paths added the
+provider's COD fee to the shipping cost — `shipping-rates.ts`, `submit-order.ts`
+and the city-average fallback in `shipping-quote.ts`. None of them ever fired,
+because the quote path never sends `COD_AMOUNT`, so Mengantar always returned
+`codFee: 0`. The store bills its own COD service fee separately through
+`payment-fee-policy.ts` and persists it as `cod_service_fee`, so the moment
+anyone passed a COD amount for any reason the buyer would have been charged for
+the same service twice. The arithmetic is removed, the reason is written where
+the quote is built, and `shipping-quote.test.ts` now fails if a checkout quote
+ever asks the provider for `COD_AMOUNT`.
+
+**The operator can now see the provider's COD fee.** `/api/admin/ongkir?cod=`
+passes the amount through and `/admin/check` gained a COD value field and a
+"Biaya COD" column. This is the one caller allowed to ask, because it displays
+the figure rather than billing it.
+
+**The two COD figures do not agree.** Measured live on 2026-08-19, Mengantar
+charges exactly one rupiah less than the local policy at Rp50.000, Rp100.000,
+Rp199.000, Rp333.333 and Rp1.000.000. The buyer is billed the local number.
+Whether the local policy is a deliberate markup or a mirror of the provider is a
+pricing decision, so nothing was changed — recorded as **COD1**.
+
+**AutoLaris state can now be read from the provider.** `inquirePayment` had no
+caller. `inquireAutoLarisPaymentStatus` gives it one: owner/admin only, it reads
+one transaction through `POST /api/h2h/advice` and returns provider evidence
+without writing a single row. It cannot mark a payment paid — only the pending
+response has an observed contract. Its real value is the inverse case, so the
+result carries `contradictsLocalPaid`: the provider saying the money never
+arrived for a row this store already marked paid, which can only come from a
+mistaken manual confirmation. The reconciliation queue exposes it as "Cek ke
+AutoLaris" with the answer announced to assistive technology.
+
+**Documentation.** `INSTALLATION.md` claimed 42 migrations (there are 44), named
+a claim gap that `INSTALL_TOKEN` already closes, and told a fresh install to
+publish home content at a route that now redirects. All three corrected against
+disk.
+
+**Verification.** `npm run check` 353 files / 0 errors · `npm test` 426 / 426 ·
+`npm run build` complete. The COD figures above came from read-only Mengantar
+estimates on the live account; no order, pickup, wallet call, AutoLaris
+production credential, deployment, remote D1 mutation, commit or push occurred.
+
+### 2026-08-19 — Meta and Google identity: the hashes that matched nobody
+
+An audit of the Pixel/CAPI and Google Ads conversion legs against both vendors'
+current documentation. The event plumbing was sound — server-authoritative
+Purchase, token-verified orders, order-derived `event_id`, D1-sourced value,
+outbox-before-transmit. The **identity** on the browser leg was not.
+
+**One buyer, hashed as two people.** A Purchase reaches Meta twice and is
+deduplicated by `event_id`; the match keys are not deduplicated, so both legs
+must normalize identically. They did not:
+
+- `form-hybrid.ts` and `form-middle.ts` hashed the raw digits of the phone. An
+  Indonesian `08123…` was hashed as `08123…` while the server hashed `628123…`.
+  Every hosted-form Advanced Matching event missed on its strongest key.
+- `MetaThanksTracker.astro` converted a leading zero only, so `8123…` and
+  `+62…` input still diverged from the server.
+- All three hashed names with their original casing, while the server lowercased
+  and stripped punctuation. Meta's documented rule for `fn`/`ln` is lowercase
+  with no punctuation, so the browser values conformed to nothing.
+
+`src/lib/meta-identity.ts` is now the single implementation. The server CAPI leg
+and both bundled form scripts import it; the thanks tracker cannot — `define:vars`
+forces `is:inline`, which Astro never bundles — so it carries a copy and
+`meta-identity.test.ts` fails if that copy drifts.
+
+**Google's enhanced conversions were sending name hashes into a field gtag does
+not read.** `sha256_first_name` and `sha256_last_name` sat at the top level of
+`user_data`; they belong inside `address`, beside the unhashed `postal_code` and
+`country` that Google treats as part of the same match key. They are now nested,
+and the address fields the order already holds travel with them.
+
+Google also normalizes names differently from Meta — trim and lowercase, no
+punctuation stripping — so reusing the Meta values collapsed a multi-word
+Indonesian family name (`Nur Aisyah` → `nuraisyah`) into something no Google
+account carries. The Google leg now normalizes its own way.
+
+**Version drift.** `META_GRAPH_API_VERSION` is `v26.0` and was verified current
+against the Graph API changelog. The admin Meta page had a heading reading
+"CAPI v20.0"; it now renders the pinned constant, so it cannot drift again. The
+admin Google page's payload example showed the same wrong `user_data` shape the
+code had, and was corrected with it.
+
+`TRACKING_SPECS.md` claimed names were "trimmed, lowercased and split before
+hashing", which was not true of the code it described. Rewritten against the tree.
+
+**Verification.** `npm run check` 354 files / 0 errors · `npm test` 430 / 430 ·
+`npm run build` complete, and the built client bundle was checked to carry the
+E.164 branches and the built thanks page to carry the nested `address`. No live
+Meta or Google request, deployment, remote D1 mutation, commit, or push occurred.
+
+### 2026-08-19 — One phone normaliser, and a valid number the checkout refused
+
+Follow-up to the tracking identity work, asked as a scope question: was the form
+input itself covered? It was not, so it was checked.
+
+The trust boundary held — `orderSubmitSchema` rejects a malformed number rather
+than storing it — but the normaliser behind it mishandled one real input. A buyer
+writing the international prefix as `0062812…`, which is what a phone keyboard
+produces, had the leading zero read as the local trunk prefix: the number became
+`620062812…`, failed the submit regex, and the buyer was told a valid number was
+invalid. On a COD funnel that is a bounced customer, not a cosmetic bug.
+`normalizePhone` now strips a `00` prefix first, matching `toE164Digits`.
+
+Both hosted form scripts carried their own byte-identical copy of that function.
+They now import the one in `validation.ts`, so the fix reached all three call
+sites instead of one. `meta-identity.ts` keeps a separate `toE164Digits`
+deliberately, and the reason is now written down: the input normaliser must
+tolerate a half-typed number so a live input event does not erase what the buyer
+is still typing, while the hashing one must return nothing rather than hash a
+number it cannot vouch for.
+
+`validation.test.ts` pins all of it, including the property that matters to the
+Pixel work: a number stored by the checkout hashes to itself, so the browser and
+server legs cannot diverge at the database boundary.
+
+**Verification.** `npm run check` 355 files / 0 errors · `npm test` 433 / 433 ·
+`npm run build` complete. No live provider request, deployment, remote D1
+mutation, commit, or push occurred.

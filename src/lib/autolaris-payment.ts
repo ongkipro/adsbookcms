@@ -33,35 +33,12 @@ export type AutoLarisPaymentRecord = {
 type PaymentOrderRow = {
   id: number;
   order_number: string;
-  store_id: number;
   customer_name: string;
   customer_phone: string;
   customer_email: string | null;
-  address: string;
-  province: string;
-  city: string;
-  district: string;
-  postal_code: string | null;
-  destination_area_id: string | null;
   total_amount: number;
   payment_method: string;
   payment_fee_bearer: string | null;
-  store_name: string;
-  warehouse_name: string | null;
-  origin_area_id: string | null;
-  warehouse_contact_name: string | null;
-  warehouse_contact_phone: string | null;
-  warehouse_address: string | null;
-  warehouse_city: string | null;
-  warehouse_province: string | null;
-};
-
-type PaymentOrderItemRow = {
-  quantity: number;
-  unit_price: number;
-  weight_grams: number;
-  product_title: string;
-  variant_title: string;
 };
 
 type PaymentTransactionRow = {
@@ -84,6 +61,35 @@ type PaymentTransactionRow = {
 };
 
 const cleanOptional = (value: string | null) => value?.trim() || undefined;
+
+/**
+ * AutoLaris rejects any `reff_id` that is not digits, so the store's own
+ * `INV-10001` cannot be sent verbatim. The numeric part is the store-wide
+ * order sequence, which is already unique and never reused, and it keeps the
+ * provider reference readable against the order number during reconciliation.
+ */
+export function autoLarisReferenceId(orderNumber: string) {
+  const digits = orderNumber.replace(/\D/g, "");
+  if (!digits) {
+    throw new Error("Nomor order tidak dapat dijadikan referensi AutoLaris.");
+  }
+  return digits.slice(0, 30);
+}
+
+/**
+ * A buyer email is mandatory at the provider. COD checkouts do not collect one,
+ * so an order converted to an online payment later still needs a deliverable-
+ * looking address that belongs to this store rather than to a stranger.
+ */
+export function buyerEmail(
+  storedEmail: string | null,
+  customerPhone: string,
+  siteUrl: string,
+) {
+  const stored = storedEmail?.trim();
+  if (stored) return stored;
+  return `${customerPhone.replace(/\D/g, "")}@${new URL(siteUrl).hostname}`;
+}
 
 function mapPaymentRecord(row: PaymentTransactionRow): AutoLarisPaymentRecord {
   return {
@@ -138,19 +144,11 @@ export async function createAutoLarisPaymentForOrder(
 
   const order = await database
     .prepare(
-      `SELECT o.id, o.order_number, o.store_id, o.customer_name,
-        o.customer_phone, o.customer_email, o.address, o.province, o.city,
-        o.district, o.postal_code, o.destination_area_id, o.total_amount,
-        o.payment_method, s.payment_fee_bearer, s.name AS store_name,
-        w.name AS warehouse_name, w.origin_area_id,
-        w.contact_name AS warehouse_contact_name,
-        w.contact_phone AS warehouse_contact_phone,
-        w.address AS warehouse_address, w.city AS warehouse_city,
-        w.province AS warehouse_province
+      `SELECT o.id, o.order_number, o.customer_name, o.customer_phone,
+        o.customer_email, o.total_amount, o.payment_method,
+        s.payment_fee_bearer
       FROM orders o
       INNER JOIN stores s ON s.id = o.store_id
-      LEFT JOIN warehouses w ON w.id = o.warehouse_id
-        AND w.store_id = o.store_id
       WHERE o.id = ?
       LIMIT 1`,
     )
@@ -160,21 +158,7 @@ export async function createAutoLarisPaymentForOrder(
   if (!["bank_transfer", "qris"].includes(order.payment_method)) {
     throw new Error("Metode pembayaran order tidak menggunakan AutoLaris.");
   }
-  const itemsResult = await database
-    .prepare(
-      `SELECT oi.quantity, oi.unit_price, pv.weight_grams,
-        p.title AS product_title, pv.title AS variant_title
-      FROM order_items oi
-      INNER JOIN product_variants pv ON pv.id = oi.variant_id
-      INNER JOIN products p ON p.id = pv.product_id
-      WHERE oi.order_id = ? AND p.store_id = ?
-      ORDER BY oi.id`,
-    )
-    .bind(order.id, order.store_id)
-    .all<PaymentOrderItemRow>();
-  const items = itemsResult.results || [];
-
-
+  const siteUrl = locals.tenant?.siteUrl || "https://example.com";
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const createdAt = now.toISOString();
@@ -240,45 +224,16 @@ export async function createAutoLarisPaymentForOrder(
     const payment: AutoLarisPayment = await new AutoLarisClient(
       config.apiKey,
       config.baseUrl,
-    ).createOrder({
-      reffId: order.order_number,
+    ).createPayment({
+      reffId: autoLarisReferenceId(order.order_number),
       channelCode: input.channelCode,
-      originAreaId: order.origin_area_id || "",
-      destinationAreaId: order.destination_area_id || "",
-      weightGrams: items.reduce(
-        (total, item) => total + Number(item.weight_grams) * Number(item.quantity),
-        0,
-      ),
-      shipperName:
-        order.warehouse_contact_name || order.warehouse_name || order.store_name,
-      shipperPhone: order.warehouse_contact_phone || "",
-      shipperAddress: [
-        order.warehouse_address,
-        order.warehouse_city,
-        order.warehouse_province,
-      ]
-        .filter(Boolean)
-        .join(", "),
-      receiverName: order.customer_name,
-      receiverPhone: order.customer_phone,
-      receiverEmail: order.customer_email || "",
-      receiverAddress: [
-        order.address,
-        order.district,
-        order.city,
-        order.province,
-        order.postal_code,
-      ]
-        .filter(Boolean)
-        .join(", "),
-      orderDetails: items.map((item) => ({
-        name: [item.product_title, item.variant_title]
-          .filter(Boolean)
-          .join(" - "),
-        quantity: Number(item.quantity),
-        unitPrice: Number(item.unit_price),
-      })),
+      customerId: String(order.id),
+      customerName: order.customer_name,
+      customerPhone: order.customer_phone,
+      customerEmail: buyerEmail(order.customer_email, order.customer_phone, siteUrl),
+      expiresAt,
       amount: requestAmount,
+      callbackUrl: new URL("/api/webhooks/autolaris", siteUrl).toString(),
     });
 
     await database

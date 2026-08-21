@@ -76,8 +76,9 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
       courier_service: rate.courier_service,
       name: rate.is_fallback ? "ICO · Estimasi rata-rata kota" : rate.courier_code,
       shipment_provider_code: rate.courier_code,
-      shipping_cost:
-        rate.price + (paymentMethod === "cod" ? Number(rate.cod_fee || 0) : 0),
+      // See the COD fee note in `shipping-quote.ts`: the provider figure is
+      // displayed, never billed here.
+      shipping_cost: rate.price,
       estimated_days: rate.estimated_days,
       unsupported: rate.unsupported,
       unsupported_cod: rate.unsupported_cod,

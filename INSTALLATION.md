@@ -1,6 +1,6 @@
 # Installing AdsBookCMS
 
-> Verified against disk: 2026-08-18 @ `0af225b` on `feat/admin-access-dashboard`
+> Verified against disk: 2026-08-19 @ `3666a1d` + the working tree on `feat/admin-access-dashboard`
 
 This document describes how an install is actually stood up today, and where that process is still rougher than the product intends to be. It contains no commands that do not exist. Where a step is manual because the tooling has not been built yet, it says so and points at the gap.
 
@@ -137,7 +137,7 @@ For local development the same keys go in `.dev.vars`, which is never committed.
 
 ## 7. Verify the schema path
 
-The Worker bundles all 42 checked-in migrations and applies a valid missing suffix
+The Worker bundles all 44 checked-in migrations (`0000`–`0043`) and applies a valid missing suffix
 automatically before serving a database-backed request. No terminal migration step
 is required for first run. Invalid, unknown, or ahead migration history returns a
 labelled 503 instead of running the application against an indeterminate schema.
@@ -199,9 +199,13 @@ Pushing to `main` in **this** repository deploys nothing — CI runs check, test
    - `/admin/ads/meta` and `/admin/ads/google` — pixel, CAPI token, GTM, conversion ids
    - `/admin/settings/crm` — WhatsApp follow-up templates
    - `/admin/products` — the real catalog
-   - `/admin/content` — publish home content
 
-**Publish home content before announcing the store.** Until a home row exists, the storefront falls back to copy compiled into the bundle rather than showing a setup state. That is gap **G5** and it is how another merchant's marketing copy once reached a live storefront.
+The storefront does not wait for home content. With no published home row it
+renders a neutral automatic catalogue of the store's own active products, so an
+install is usable the moment products exist. The JSON/AI content workbench is
+off the main navigation (ADR-018), but `/admin/content` itself stays reachable
+and unchanged; the bounded banner, slider, and supporting-copy editor that
+replaces it is **A-134** in `TASKS.md`.
 
 ---
 
@@ -245,6 +249,11 @@ then applies its bundled schema automatically, redirects to `/install`, stores
 runtime identity plus the operator credential, renders an explicit content setup
 state, and supports runtime storefront definitions without a rebuild.
 
-Infrastructure provisioning itself is not automated. The highest-priority product
-gap after provisioning is **I1** in `UNIMPLEMENTED_SPECS.md`: an exposed
-uninstalled Worker can still be claimed by the first direct `/api/install` caller.
+Infrastructure provisioning itself is not automated, and it is the whole of what
+stands between this and a WordPress-style install. The claim gap this section
+used to name — an exposed uninstalled Worker being taken by the first direct
+`/api/install` caller — is closed: `src/pages/api/install.ts` requires the
+`INSTALL_TOKEN` secret, refuses anything shorter than 16 characters, and compares
+it in constant time. The open decisions are **A-50** (how a second install is
+created), **A-51** (how an install learns it is behind) and **A-52** (whether the
+product ships as a versioned artifact) in `TASKS.md`.

@@ -41,6 +41,14 @@ export const GET: APIRoute = async ({ url, locals }) => {
         url.searchParams.get("destination") || "",
       ).trim();
       const weight = Number(url.searchParams.get("weight") || 1);
+      // The operator checker is the one caller allowed to ask for the COD fee.
+      // Passing it on a checkout quote would bill the buyer twice: the COD
+      // service fee is owned by `payment-fee-policy.ts` and charged separately.
+      const rawCodAmount = Number(url.searchParams.get("cod") || 0);
+      const codAmount =
+        Number.isFinite(rawCodAmount) && rawCodAmount > 0
+          ? Math.min(Math.round(rawCodAmount), 100_000_000)
+          : undefined;
 
       if (!originId || !destinationId) {
         return jsonError("origin dan destination wajib diisi", 400);
@@ -51,6 +59,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
         destinationId,
         weight,
         courier: "all",
+        codAmount,
       });
 
       return jsonOk({ data: rates });

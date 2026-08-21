@@ -2,7 +2,7 @@
 import HeroSection from '../home/HeroSection.astro';
 import { dailySeed, pickDaily } from '../../../lib/daily-rotation';
 import ProductsSection from '../home/ProductsSection.astro';
-import ProofsSection from '../home/ProofsSection.astro';
+import LandingPagesSection from '../home/LandingPagesSection.astro';
 import type { TenantHomeContent } from '../../../lib/tenant-content';
 
 interface ProductCard {
@@ -26,7 +26,10 @@ interface Props {
   sections: {
     hero: boolean;
     catalog: true;
-    proofs: boolean;
+    // `proofs` is still accepted so a template saved before this change keeps
+    // parsing; the third slot lists landing pages now.
+    proofs?: boolean;
+    landingPages?: boolean;
   };
 }
 
@@ -57,7 +60,7 @@ const heroSlides =
   >
     {sections.hero && <HeroSection slides={heroSlides} highlights={content.heroHighlights} content={content.hero} />}
     {sections.catalog && <ProductsSection products={products} heading={content.catalog} />}
-    {sections.proofs && <ProofsSection proofs={content.proofs} heading={content.proofsHeading} />}
+    {sections.landingPages !== false && <LandingPagesSection pages={content.solutions} heading={content.solutionsHeading} />}
   </div>
 </main>
 

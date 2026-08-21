@@ -24,14 +24,6 @@ export const GET: APIRoute = async ({ request, locals }) => {
       loadStoreCodDisabledProvinceCodes(database),
     ]);
 
-    if (homeContent.state === 'setup-required') {
-      return validation.finalize(headlessError(
-        'Konten storefront belum dipublikasikan. Selesaikan pengaturan toko terlebih dahulu.',
-        409,
-        { code: 'STOREFRONT_SETUP_REQUIRED' },
-        validation.corsHeaders,
-      ));
-    }
     if (homeContent.state === 'unavailable') {
       return validation.finalize(headlessError(
         'Konten storefront sedang tidak tersedia.',

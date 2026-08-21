@@ -60,7 +60,10 @@ export const homeContentSchema = z
           })
           .strict(),
       )
-      .min(1)
+      // A store with no landing pages is a valid store. This used to demand one,
+      // which is why a fresh install could not hold valid home content at all and
+      // had to be walked through a setup screen first.
+      .min(0)
       .max(12),
     proofs: z
       .array(

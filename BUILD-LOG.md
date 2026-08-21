@@ -3102,3 +3102,53 @@ server legs cannot diverge at the database boundary.
 **Verification.** `npm run check` 355 files / 0 errors · `npm test` 433 / 433 ·
 `npm run build` complete. No live provider request, deployment, remote D1
 mutation, commit, or push occurred.
+
+### 2026-08-21 — Kecamatan search hit Mengantar on every keystroke; now it doesn't
+
+Prompted by comparing this store's Mengantar checkout against `petanisejahtera`'s
+Scalev checkout, which resolves the same kind of kecamatan-to-provider-id
+problem and was suspected of doing it more tidily. It wasn't, structurally —
+the local district catalogue (`district-catalog.ts`, `indonesia-districts.ts`)
+and the provider-name-matching layer (`location-search.ts`, with its hand-built
+alias table for real administrative renamings) are equal to or more thorough
+than Scalev's equivalent. The actual gap was narrower and specific to
+`/api/locations.ts`, the endpoint the checkout form calls.
+
+**The bug.** `form-hybrid.ts` already sends `level=district` while the buyer is
+typing, meaning "search the local catalogue, not the provider" — and the
+headless `/api/v1/geo/districts.ts` honours exactly that contract. But the
+storefront-facing `/api/locations.ts` never checked `level` for that case; it
+called `MengantarClient.searchAddress` on every debounced keystroke regardless.
+Two endpoints in the same repository disagreed about what their own shared
+parameter meant. Confirmed safe to fix by reading the click handler: selecting
+any suggestion — from the provider or, after this fix, from the local
+catalogue — always fires a fresh `level=resolve` call before a destination id
+is ever used, so typing-phase results were never the source of the submitted
+id and switching their source changes nothing on the path that matters.
+
+**The second gap: no cache at all.** `petanisejahtera`'s `runtime-cache.ts`
+caches a Scalev location resolution for 24h and a free search for 10 minutes.
+`adsbookcms` had no caching module anywhere in `src/`. Copying
+`runtime-cache.ts`'s approach verbatim would have been wrong, not just
+incomplete: it is a module-level `Map`, and this repository's own
+`rate-limit.ts` already documents why that fails on Workers — every isolate
+holds its own copy and isolates are recycled constantly, so an in-memory cache
+looks like it works in dev and does almost nothing in production. `rate-limit.ts`
+was already fixed off that pattern onto the shared `SESSION` KV binding; this
+fix follows the same binding rather than reintroducing the bug class.
+
+**The fix.** `location-cache.ts` is new: KV-backed `getCachedLocation` /
+`cacheResolvedLocation` (24h) / `cacheSearchResult` (10 min), keyed by
+normalized district/city/province. `/api/locations.ts` now returns the local
+catalogue immediately for `level=district` — no database, no provider config,
+no network, and it stays correct if Mengantar is slow or down — and checks the
+KV cache before calling Mengantar for `level=resolve` or a raw provider search,
+writing the result back afterward. Explicitly not cached: an empty result from
+a genuine provider error, since that path throws before reaching the cache
+write and returns `success: false` instead.
+
+**Verification.** `npm run check` 362 files / 0 errors · `npm test` 452 / 452
+(7 new: cache round-trip, key-namespace separation, normalization,
+fail-open-on-missing-KV, fail-open-on-corrupt-value, TTL floor) ·
+`npm run build` complete. No live Mengantar request, deployment, remote D1
+mutation, commit, or push occurred.

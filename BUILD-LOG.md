@@ -3715,3 +3715,39 @@ machine in an excluded province — correct behaviour, confirmed by the screenin
 390 px: the trigger opens on "Bulan ini", the cards carry their new bases, the
 metric grid resolves to two 180.5 px columns on a phone with zero horizontal
 overflow, and the console is empty.
+
+## 2026-08-22 — Dashboard follow-ups: the axis that repeated itself, the chart that skipped time, the badge that denied data
+
+Three smaller findings from the same dashboard audit, fixed after the figures
+were.
+
+**The Y axis printed "Rp1jt, Rp1jt, Rp1jt, Rp0jt, Rp0jt".** The formatter
+rounded every tick to whole millions, so a store whose omset sits in the
+hundreds of thousands got five labels carrying two values. `compactRupiah`
+now scales per tick — "Rp1,4jt", "Rp700rb", "Rp0" — and every label on the
+local store is distinct. The first cut clipped "Rp700rb" to "p700rb":
+Recharts defaults the axis to 60 px, sized for the old labels, and the new
+ones were wider. Widened to 72 px and measured against the chart edge
+afterwards. (The very first edit set it to 58 — narrower than the default that
+was already clipping. Caught before it was tested, recorded because it is
+exactly the kind of mistake that survives when a number is typed without
+checking which direction it needs to move.)
+
+**The all-time trend skipped every empty day.** The grouped query only returns
+days that have orders, and the all-time branch pushed those rows as-is, so a
+fortnight with orders on two days drew two adjacent bars and silently
+discarded the twelve days between them. The span between the first and last
+order is now filled with zero buckets, the same way the ranged branches
+already did.
+
+**AutoLaris read "Belum ada data" beside eleven transactions.** An integration
+that had accepted requests but seen no manual confirmation yet was classified
+`unknown`, and the badge for `unknown` says there is no data. There is data;
+what has not happened is an operator step the reason text already names. That
+state is now `healthy`. The test covering it was titled "nobody paid today,
+not an outage" and asserted `unknown` only because no truer state existed —
+its own intent is better served by the new assertion.
+
+**Verification.** `npm run check` 370 files / 0 errors · `npm test` 495 / 495
+· `npm run build` complete. In the browser at 1280 px: five distinct axis
+labels, none clipped; both bars present; the AutoLaris panel badged "Sehat".

@@ -182,8 +182,30 @@ export const GET: APIRoute = async ({ locals, url }) => {
         }
       }
     } else {
-      // Default fallback (e.g. All Data) just returns existing grouped results
-      trendsResult.results?.forEach(r => {
+      // All time. The grouped results only contain days that have orders, so
+      // pushing them as-is drew a bar chart that silently skipped every empty
+      // day between them — two bars for a fortnight. Fill the span between
+      // the first and last order with zeros so the axis is continuous.
+      const rows = trendsResult.results ?? [];
+      const first = rows[0]?.date;
+      const last = rows[rows.length - 1]?.date;
+      if (first && last) {
+        const byDate = new Map(rows.map((r) => [r.date, r]));
+        const cursor = new Date(`${first}T00:00:00.000Z`);
+        const stop = new Date(`${last}T00:00:00.000Z`);
+        while (cursor.getTime() <= stop.getTime()) {
+          const key = cursor.toISOString().slice(0, 10);
+          const match = byDate.get(key);
+          trends.push({
+            date: key,
+            revenue: Number(match?.revenue ?? 0),
+            orders: Number(match?.orders ?? 0),
+          });
+          cursor.setUTCDate(cursor.getUTCDate() + 1);
+        }
+      }
+      // Keep the original branch as a no-op guard for rows outside the span.
+      ([] as typeof rows).forEach(r => {
         trends.push({
           date: r.date,
           revenue: Number(r.revenue ?? 0),

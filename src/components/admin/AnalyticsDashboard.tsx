@@ -80,6 +80,15 @@ const currency = new Intl.NumberFormat("id-ID", {
   currency: "IDR",
   maximumFractionDigits: 0,
 }).format;
+/** Axis ticks: "Rp1,2jt", "Rp450rb", "Rp0" — never five identical labels. */
+const compactRupiah = (value: number) => {
+  if (value >= 1_000_000) {
+    const m = value / 1_000_000;
+    return `Rp${m.toLocaleString("id-ID", { maximumFractionDigits: m < 10 ? 1 : 0 })}jt`;
+  }
+  if (value >= 1_000) return `Rp${Math.round(value / 1_000)}rb`;
+  return `Rp${Math.round(value)}`;
+};
 const percentage = (value: number) =>
   `${value.toLocaleString("id-ID", { maximumFractionDigits: 1 })}%`;
 
@@ -439,9 +448,11 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
                         dy={10}
                       />
                       <YAxis
-                        tickFormatter={(value) =>
-                          `Rp${(value / 1_000_000).toFixed(0)}jt`
-                        }
+                        // Recharts defaults the axis to 60px, sized for the old
+                        // "Rp1jt" ticks; "Rp1,4jt" and "Rp700rb" clipped to
+                        // "p700rb" at that width. Widened, not narrowed.
+                        width={72}
+                        tickFormatter={(value) => compactRupiah(Number(value))}
                         tickLine={false}
                         axisLine={false}
                         tick={{ fontSize: 10, fill: "#64748b" }}

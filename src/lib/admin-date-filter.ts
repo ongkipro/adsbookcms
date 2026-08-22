@@ -1,5 +1,5 @@
 export const ADMIN_DATE_FILTER_OPTIONS = [
-  { value: "7d", label: "7 hari terakhir (Default)" },
+  { value: "7d", label: "7 hari terakhir" },
   { value: "today", label: "Hari ini" },
   { value: "yesterday", label: "Kemarin" },
   { value: "30d", label: "30 hari terakhir" },
@@ -11,6 +11,13 @@ export const ADMIN_DATE_FILTER_OPTIONS = [
 ] as const;
 
 export type AdminDateFilter = (typeof ADMIN_DATE_FILTER_OPTIONS)[number]["value"];
+
+/**
+ * What a reporting surface opens on. This month, because the question an
+ * operator opens the dashboard with is "how is this month going", and a
+ * rolling seven days answers a different one and changes shape every day.
+ */
+export const ADMIN_DEFAULT_DATE_FILTER: AdminDateFilter = "this_month";
 export type AdminDateInterval = "hour" | "day";
 
 /** An explicit start/end period, distinct from every named preset. */
@@ -63,7 +70,8 @@ export function isAdminDateFilter(value: string): value is AdminDateFilter {
 export function getAdminDateFilterLabel(value: string) {
   return (
     ADMIN_DATE_FILTER_OPTIONS.find((option) => option.value === value)?.label ??
-    "7 hari terakhir (Default)"
+    ADMIN_DATE_FILTER_OPTIONS.find((option) => option.value === ADMIN_DEFAULT_DATE_FILTER)?.label ??
+    value
   );
 }
 

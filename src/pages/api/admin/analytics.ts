@@ -7,6 +7,10 @@ export const prerender = false;
 type AnalyticsRow = {
   total_orders: number | string | null;
   total_revenue: number | string | null;
+  collected_revenue: number | string | null;
+  live_orders: number | string | null;
+  online_orders: number | string | null;
+  delivered_orders: number | string | null;
   returned_orders: number | string | null;
   paid_orders: number | string | null;
   cod_orders: number | string | null;
@@ -78,7 +82,27 @@ export const GET: APIRoute = async ({ locals, url }) => {
     const row = await (database as D1Database).prepare(`
       SELECT
         COUNT(*) AS total_orders,
-        COALESCE(SUM(total_amount), 0) AS total_revenue,
+        -- Order value of orders still in play. A cancelled order or a failed
+        -- online payment is not revenue in any sense an operator means, and
+        -- summing it under "Omset" reported Rp 1.67M on a store with zero paid
+        -- orders. Released statuses match order-lifecycle.ts.
+        COALESCE(SUM(CASE
+          WHEN shipping_status = 'cancelled'
+            OR payment_status IN ('cancelled', 'refunded', 'failed')
+          THEN 0 ELSE total_amount END), 0) AS total_revenue,
+        -- Money actually received: paid orders only.
+        COALESCE(SUM(CASE
+          WHEN payment_status IN ('paid', 'settled', 'success')
+          THEN total_amount ELSE 0 END), 0) AS collected_revenue,
+        COALESCE(SUM(CASE
+          WHEN shipping_status = 'cancelled'
+            OR payment_status IN ('cancelled', 'refunded', 'failed')
+          THEN 0 ELSE 1 END), 0) AS live_orders,
+        -- COD is paid on delivery, so it can never count as a successful
+        -- prepayment; measuring payment success over all orders made a
+        -- COD-heavy store read as a failing gateway forever.
+        COALESCE(SUM(CASE WHEN payment_method <> 'cod' THEN 1 ELSE 0 END), 0) AS online_orders,
+        COALESCE(SUM(CASE WHEN shipping_status = 'delivered' THEN 1 ELSE 0 END), 0) AS delivered_orders,
         COALESCE(SUM(CASE WHEN shipping_status = 'returned' THEN 1 ELSE 0 END), 0) AS returned_orders,
         COALESCE(SUM(CASE WHEN payment_status IN ('paid', 'settled', 'success') THEN 1 ELSE 0 END), 0) AS paid_orders,
         COALESCE(SUM(CASE WHEN payment_method = 'cod' THEN 1 ELSE 0 END), 0) AS cod_orders,
@@ -92,6 +116,10 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
     const totalOrders = Number(row?.total_orders ?? 0);
     const totalRevenue = Number(row?.total_revenue ?? 0);
+    const collectedRevenue = Number(row?.collected_revenue ?? 0);
+    const liveOrders = Number(row?.live_orders ?? 0);
+    const onlineOrders = Number(row?.online_orders ?? 0);
+    const deliveredOrders = Number(row?.delivered_orders ?? 0);
     const returnedOrders = Number(row?.returned_orders ?? 0);
     const paidOrders = Number(row?.paid_orders ?? 0);
     const codOrders = Number(row?.cod_orders ?? 0);
@@ -100,6 +128,11 @@ export const GET: APIRoute = async ({ locals, url }) => {
     const qrisOrders = Number(row?.qris_orders ?? 0);
     const unknownPaymentOrders = Number(row?.unknown_payment_orders ?? 0);
     const ratio = (value: number) => (totalOrders > 0 ? Number(((value / totalOrders) * 100).toFixed(2)) : 0);
+    const pct = (value: number, base: number) => (base > 0 ? Number(((value / base) * 100).toFixed(2)) : 0);
+    // Returns only make sense against shipments that reached an outcome. An
+    // order never dispatched cannot be returned, so counting it in the base
+    // reported 0% RTS on any store that had not shipped yet.
+    const rtsBase = deliveredOrders + returnedOrders;
 
     const groupBy = interval === 'hour' ? "STRFTIME('%Y-%m-%d %H:00:00', created_at, '+7 hours')" : "DATE(created_at, '+7 hours')";
     const trendsResult = await (database as D1Database).prepare(`
@@ -162,9 +195,13 @@ export const GET: APIRoute = async ({ locals, url }) => {
     return jsonOk({
       data: {
         total_revenue: totalRevenue,
+        collected_revenue: collectedRevenue,
         total_orders: totalOrders,
-        conversion_rate: ratio(paidOrders),
-        rts_rate: ratio(returnedOrders),
+        live_orders: liveOrders,
+        online_orders: onlineOrders,
+        conversion_rate: pct(paidOrders, onlineOrders),
+        rts_rate: pct(returnedOrders, rtsBase),
+        rts_base: rtsBase,
         cod_percentage: ratio(codOrders),
         transfer_percentage: ratio(virtualAccountOrders),
         qris_percentage: ratio(qrisOrders),

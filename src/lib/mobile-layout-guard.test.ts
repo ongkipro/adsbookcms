@@ -166,7 +166,12 @@ test("dashboard overview leads with truthful role-safe analytics", () => {
     "business analytics must precede secondary operational diagnostics",
   );
   assert.match(dashboard, /showPaymentsLink=\{mayManagePayments\}/);
-  assert.match(analytics, /Pembayaran berhasil/);
+  // Renamed from "Pembayaran berhasil": that card divided prepaid success by
+  // every order including COD, which is paid on delivery and can never
+  // prepay, so a COD-heavy store read as a failing gateway. The card now names
+  // its base.
+  assert.match(analytics, /Pembayaran online lunas/);
+  assert.doesNotMatch(analytics, /Pembayaran berhasil/);
   assert.doesNotMatch(analytics, /Konversi Ads/);
   // The dashboard charts every day in the period, so it must keep capping how
   // much history it will answer for. The cap moved out of a hand-rolled

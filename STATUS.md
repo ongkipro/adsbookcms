@@ -31,13 +31,16 @@ The previous version of this file described a different repository — it opened
 Verified 2026-08-23 from outside: each host serves Astro 7.2 and answers `401`
 on `/api/admin/health`, so the admin boundary holds on every one.
 
-| Install | Repository | Notes |
-| --- | --- | --- |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | Largest install — 34 products, 33 landing pages, its own deep-blue palette re-applied on every sync by a store-owned script. The audit reports in `docs/` are measured against it |
-| `carukesi.com` | `ongkipro/carukesi` | |
-| `skincarebpom.shop` | `ongkipro/skincarebpom` | |
-| `taniniaga.shop` | `ongkipro/taniniaga` | |
-| `zvara.shop` | `ongkipro/zvarashop` | |
+All five were rolled forward to `fb1218d` on 2026-08-23 except `zvara.shop`,
+which is held frozen by its owner.
+
+| Install | Repository | Adopts the product by | State |
+| --- | --- | --- | --- |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh` — **no shared history**, the sync replaces the tree and re-applies a store palette | on `fb1218d`. Largest install: 34 products, 33 landing pages. The audit reports in `docs/` are measured against it, and it is the only install with ad tracking configured |
+| `carukesi.com` | *local only* | `git merge product/main` | on `fb1218d`. **No git remote** — the only copy is one disk |
+| `skincarebpom.shop` | *local only* | `git merge product/main` | on `fb1218d`. **No git remote.** Cron trigger deliberately released to `zanobyshop` (Workers Free caps the account at five) |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `fb1218d`, after reconciling a 2026-08-19 draft snapshot that had left it 106 commits behind |
+| `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` | **Frozen.** Not deployed, not migrated, not touched |
 | ~~`permatamall.shop`~~ | `ongkipro/permatamall` | First install, and the only one this table listed until 2026-08-23. **The hostname no longer resolves** — no DNS record at all — so it is recorded as history, not as a place to adopt a fix |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more

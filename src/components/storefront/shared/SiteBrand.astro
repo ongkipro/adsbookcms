@@ -49,7 +49,11 @@ const monogram = (leadWord[0] ?? 'A').toUpperCase();
       class={`whitespace-nowrap text-[15px] font-bold uppercase tracking-[0.2em] leading-none ${textClass}`}
       style="font-family: 'Cinzel', 'Playfair Display', Georgia, serif;"
     >
-      {leadWord}{trailingWords && <span class={`ml-1.5 font-normal ${goldClass}`}>{trailingWords}</span>}
+      {/* The separator is a real space, not just the `ml-1.5` gap. Rendered as
+          two adjacent spans the accessible text computed as "ZanobyShop" while
+          `aria-label` said "Zanoby Shop", so the visible text was not contained
+          in the accessible name — `label-content-name-mismatch`. */}
+      {leadWord}{trailingWords && <> <span class={`font-normal ${goldClass}`}>{trailingWords}</span></>}
     </span>
     {
       showTagline && tagline && (

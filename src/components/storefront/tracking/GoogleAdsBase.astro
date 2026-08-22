@@ -58,6 +58,9 @@ const shouldRenderGoogleAds = Boolean(String(googleAdsId || '').trim() && String
         window.__GOOGLE_ADS_LABEL__ = googleAdsLabel;
         window.__PS_PUSH_GOOGLE_CONVERSION__ = function (value, transactionId, userData) {
           if (!googleAdsId || !googleAdsLabel) return;
+          // gtag.js is deferred; a conversion is the one event that cannot wait
+          // for the timer, so it pulls the library forward itself.
+          if (typeof window.__PS_LOAD_GOOGLE_TAG__ === 'function') window.__PS_LOAD_GOOGLE_TAG__();
           var payload = {
             send_to: googleAdsId + '/' + googleAdsLabel,
             value: Number(value || 0),
@@ -75,13 +78,36 @@ const shouldRenderGoogleAds = Boolean(String(googleAdsId || '').trim() && String
       })();
     </script>
     <script is:inline define:vars={{ googleAdsId }}>
-      (function (d, s, i) {
-        var f = d.getElementsByTagName(s)[0],
-          j = d.createElement(s);
-        j.async = true;
-        j.src = 'https://www.googletagmanager.com/gtag/js?id=' + i;
-        f.parentNode.insertBefore(j, f);
-      })(document, 'script', googleAdsId);
+      (() => {
+        // Same deferral the Meta pixel takes, for the same reason and at a
+        // similar size: gtag.js is ~153 KB and cost 228 ms of blocking time on
+        // a product page whose total was 750 ms. `window.gtag` above is already
+        // a `dataLayer.push` shim, so the consent, `js` and `config` calls have
+        // run and queued by the time the library arrives — order and semantics
+        // are unchanged, only the download moves off the critical path.
+        //
+        // The conversion is untouched by this: it fires on the thanks page
+        // minutes later. Only remarketing `page_view` moves, and only for a
+        // visitor who leaves inside the timeout — which is why there is a
+        // timeout at all rather than interaction alone.
+        let requested = false;
+        const loadGtag = () => {
+          if (requested) return;
+          requested = true;
+          const script = document.createElement('script');
+          script.async = true;
+          script.src = 'https://www.googletagmanager.com/gtag/js?id=' + googleAdsId;
+          document.head.appendChild(script);
+        };
+        for (const type of ['pointerdown', 'keydown', 'touchstart', 'scroll']) {
+          window.addEventListener(type, loadGtag, { once: true, passive: true });
+        }
+        window.setTimeout(loadGtag, 2500);
+        // A conversion must never wait on a timer. The thanks page calls this
+        // before pushing, so the library is already on its way by the time the
+        // event is queued.
+        window.__PS_LOAD_GOOGLE_TAG__ = loadGtag;
+      })();
     </script>
   </>
 )}

@@ -5,6 +5,7 @@ import { validateMetaEventPayload } from '../../lib/meta-event-contract';
 import { getRuntimeEnv } from '../../lib/env';
 import { toE164Digits } from '../../lib/meta-capi';
 import { getClientIp } from '../../lib/rate-limit';
+import { readMetaBrowserIds } from '../../lib/click-ids';
 
 export const prerender = false;
 
@@ -133,6 +134,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const purchaseExternalId = purchaseOrder
       ? toE164Digits(purchaseOrder.customer_phone)
       : undefined;
+    // The request carries `_fbp` and `_fbc` on its own — they are first-party
+    // cookies on this origin and every tracker posts here same-origin. Reading
+    // them here rather than trusting each tracker to include them is what gives
+    // `ViewContent` and `PageView` an identity at all: those two send no
+    // `user_data`, and on a live install they were 96% of the CAPI volume,
+    // reaching Meta with nothing but an IP and a user agent. A value the
+    // browser did send still wins, because the pixel's own copy is the one
+    // Meta minted.
+    const browserIds = readMetaBrowserIds(request);
     const event = {
       eventName: payload.eventName,
       eventId,
@@ -145,8 +155,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
         province: purchaseOrder?.province || payload.province,
         postalCode: purchaseOrder?.postal_code || payload.postalCode,
         externalId: purchaseExternalId || payload.externalId,
-        fbp: payload.fbp,
-        fbc: payload.fbc,
+        fbp: payload.fbp || browserIds.fbp,
+        fbc: payload.fbc || browserIds.fbc,
         clientIp: getClientIp(request.headers),
         userAgent: request.headers.get('user-agent') || undefined,
       },

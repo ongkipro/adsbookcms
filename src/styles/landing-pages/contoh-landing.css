@@ -1,0 +1,215 @@
+/*
+ * Route-specific styles for the sample landing page.
+ *
+ * This is the pattern to copy: one stylesheet per landing route, imported only
+ * by that route, prefixed so its rules cannot leak. Shared landing rules live
+ * in `landing.css`; tokens live in `foundation.css`. Never put either here.
+ *
+ * Type ramp and weights follow the public contract: sizes from
+ * 10 · 11 · 12 · 13 · 14 · 15 · 16 · 18 · 20 · 24 · 28 only, weights 400 / 600
+ * / 700 only, one accent (#C5A880), one ink (#111111). The 480 px column is
+ * BaseLayout's; nothing here sets a width.
+ */
+
+.cl-hero {
+  padding: 24px 20px 28px;
+  background: #ffffff;
+  text-align: center;
+}
+
+.cl-tag {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f8f7f4;
+  color: #6b5c43;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cl-headline {
+  margin: 0;
+  color: #111111;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.cl-sub {
+  margin: 10px 0 0;
+  color: #3f3f46;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.cl-hero-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 18px 0 0;
+  border-radius: 14px;
+  background: #f8f7f4;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
+.cl-price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.cl-price {
+  color: #111111;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.cl-price-was {
+  color: #a1a1aa;
+  font-size: 14px;
+  text-decoration: line-through;
+}
+
+.cl-badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #111111;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cl-proof-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+  color: #52525b;
+  font-size: 12px;
+}
+
+.cl-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  color: #111111;
+}
+
+/* 48 px so the primary action clears the touch-target floor on a phone. */
+.cl-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  margin-top: 20px;
+  padding-inline: 20px;
+  border-radius: 12px;
+  background: #111111;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  text-wrap: balance;
+}
+
+.cl-cta:hover {
+  background: #27272a;
+}
+
+.cl-note {
+  margin: 10px 0 0;
+  color: #71717a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cl-block {
+  padding: 24px 20px;
+  border-top: 1px solid #e4e4e7;
+  background: #ffffff;
+}
+
+.cl-block--tint {
+  background: #f8f7f4;
+}
+
+.cl-h2 {
+  margin: 0 0 12px;
+  color: #111111;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.cl-list {
+  margin: 0;
+  padding-inline-start: 20px;
+  color: #3f3f46;
+  font-size: 14px;
+  line-height: 1.6;
+  list-style: disc;
+}
+
+.cl-list--plain {
+  padding-inline-start: 0;
+  list-style: none;
+}
+
+.cl-list--plain li {
+  position: relative;
+  padding-inline-start: 22px;
+}
+
+/* A check drawn in CSS rather than shipped as an icon per bullet. */
+.cl-list--plain li::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 6px;
+  inset-inline-start: 2px;
+  width: 6px;
+  height: 10px;
+  border: solid #c5a880;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.cl-list li + li {
+  margin-block-start: 8px;
+}
+
+.cl-review {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.cl-review + .cl-review {
+  margin-block-start: 10px;
+}
+
+.cl-review blockquote {
+  margin: 8px 0 0;
+  color: #3f3f46;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.cl-review figcaption {
+  margin-block-start: 8px;
+  color: #71717a;
+  font-size: 12px;
+  font-weight: 600;
+}

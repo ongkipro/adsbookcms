@@ -3190,3 +3190,113 @@ would fail the existing completeness check rather than ship. Not exercised as
 a live authenticated HTTP round-trip — that route requires an admin session,
 and forging one rather than logging in was out of scope here. No live
 Mengantar request, deployment, remote D1 mutation, commit, or push occurred.
+
+## 2026-08-22 — A19: the operator finds out an order arrived
+
+Asked for as "notifikasi kalau ada lead atau order masuk", scoped to in-CMS and
+browser only after establishing that both are free and need no third-party
+account. WhatsApp and Telegram were considered and declined for this phase:
+each adds a per-install credential, and WhatsApp a per-message cost, to solve a
+problem the admin the operator already has open can solve.
+
+**What ships.** Three events — a new order, a missed-order lead, a payment that
+cleared — become one row each in a new `notifications` table, surfaced as a bell
+with an unread badge and a panel in the admin topbar, plus a browser
+notification while an admin page is open.
+
+**Exactly-once is the store's job, not the caller's.** Retries, replayed
+submits, and a payment confirmable from two different paths are all expected
+here, so a unique index on `(type, order_id)` enforces it and every write is an
+`INSERT OR IGNORE`. A missed-order lead is an `orders` row with
+`shipping_status = 'abandoned'`, so one `order_id` column addresses all three
+event types. No `store_id` column: one installer is one Worker is one store
+(ADR-001), so it would carry one value forever.
+
+**Recording never endangers the sale.** `recordNotification` catches everything
+and returns a boolean nobody has to check. The order is already committed when
+it runs, and a buyer must never see a checkout fail because an operator
+convenience could not be stored. A test injects a store failure and asserts the
+caller is unaffected.
+
+**Placed where a future entry point cannot forget it.** The order notification
+lives inside `persistOrder`, which all three checkout routes already call,
+rather than being pasted into each. The lead notification lives in its route,
+which has a single exit; its 2-hour dedupe window returns the existing row, so
+the unique constraint collapses a repeat capture on its own.
+
+**Polling, not SSE.** An open stream would pin a Worker isolate per open admin
+tab. The bell polls only while the tab is visible.
+
+**Copy records what was true then.** `title` and `body` are stored, not derived
+at read time: the order behind a notification can still be edited afterwards —
+an operator correcting a kecamatan, for instance — and deriving would silently
+rewrite history while putting a join on every list read.
+
+**Verification.** `npm run check` 366 files / 0 errors · `npm test` 466 / 466
+(14 new) · `npm run build` complete. Then exercised in a real browser against a
+local install at 390 px and 1280 px: the badge showed 2, the panel listed both
+events newest-first with per-type icons and relative timestamps, "Tandai semua
+dibaca" cleared the badge, the cleared state survived a reload — proving the
+read state is server-side and per operator — and the console was empty at both
+widths. The local D1's unique index was also exercised directly: a second
+insert for the same `(type, order_id)` was rejected.
+
+**Not proven, and not ticked: A-142.** The browser-notification path is
+implemented, including a bounded `localStorage` set so an event is announced at
+most once per browser and a clean degrade when permission is absent or denied.
+But the automation profile never grants Notification permission, so no
+OS-level toast was actually observed. It needs one manual check in a normal
+browser. `REQ-153` (Web Push while no tab is open) is specified and deliberately
+unbuilt; note that iOS only delivers Web Push to a home-screen-installed app,
+which the operator UI will have to state rather than fail silently.
+
+No live provider request, deployment, remote D1 mutation, or production
+credential was involved.
+
+### 2026-08-22 — The fail-open recorder hid its own call sites from the tests
+
+An adversarial review of the A19 work above, run before it was committed. It
+found that the feature's headline property was also its blind spot.
+
+**466 passing tests were proving less than they looked.** `recordNotification`
+catches everything by design, so when a test fixture had no `notifications`
+table — or a hand-rolled D1 fake had no `run()` — the write failed, logged, and
+returned `false`, and every surrounding assertion still passed. Nine writes were
+being swallowed across four files. The three call sites the A19 tasks had
+already been ticked for were, in fact, completely unexercised: a swapped
+argument, a wrong `type`, or a wrong subject id at any of them would have been
+invisible. `notifications.test.ts` only ever proved the recorder against its own
+fixture.
+
+That is a traceability failure as much as a coverage one, and the tick marks
+were corrected along with the fixtures. The fix is not clever: `e2e-full-funnel`
+and `manual-payment-reconciliation` now load migration `0045` itself rather than
+a hand-rolled subset, the two `order-persistence` fakes and the abandoned-order
+fake grew a `run()` that captures the insert, and each call site now asserts the
+recorded type, order id, order number and copy. Zero swallowed writes remain.
+
+**Three smaller defects, all real.** `z.coerce.boolean()` on `count_only` meant
+`Boolean("false") === true`, so `?count_only=false` requested exactly what it
+said it did not want — no caller sent it, but the endpoint's contract was
+wrong; it is a string enum now. The bell re-requested notification permission on
+every open, and a dismissed prompt leaves permission at `"default"`, so it would
+nag until the browser blocked the origin outright; it is asked once per browser.
+And the poll discarded the result that hides the bell on a 403, so an operator
+downgraded mid-session would have polled a refusal every thirty seconds forever.
+
+**One design correction.** A converted lead kept pointing at the abandoned
+workspace. Conversion reuses the same order row and renumbers it ABN→INV, and
+that workspace excludes converted orders, so CS would have landed on a list the
+order was no longer in. Navigation now reads the order's current number and
+status through a join, while `title` and `body` stay the historical record —
+where the operator is sent is a live question; what the event said is not.
+
+**Accepted, not fixed: NOT1.** There is no unread floor, so an operator added to
+a store with a long history would see the whole backlog unread. Every install
+ships this table empty and operator sets are small, so a floor table would be
+speculative work for a problem no store has; it is recorded in
+`UNIMPLEMENTED_SPECS.md` with its completion boundary instead.
+
+**Verification.** `npm run check` 366 files / 0 errors · `npm test` 466 / 466,
+now with zero swallowed notification writes (grepped for, not assumed) ·
+`npm run build` complete.

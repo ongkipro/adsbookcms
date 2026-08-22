@@ -1,5 +1,9 @@
 import { AutoLarisClient } from "./autolaris-client.ts";
 import type { AdminRole } from "./auth.ts";
+import {
+  buildPaymentNotification,
+  recordNotification,
+} from "./notifications.ts";
 import { getProviderConfig } from "./provider-config.ts";
 
 const ONLINE_METHODS_SQL = "('bank_transfer', 'qris')";
@@ -43,6 +47,7 @@ type PaymentRow = {
   transaction_id: number;
   order_id: number;
   order_number: string;
+  customer_name: string;
   payment_method: string;
   order_payment_status: string;
   shipping_status: string;
@@ -106,6 +111,7 @@ const PAYMENT_SELECT = `SELECT
   pt.id AS transaction_id,
   pt.order_id,
   o.order_number,
+  o.customer_name,
   o.payment_method,
   o.payment_status AS order_payment_status,
   o.shipping_status,
@@ -281,6 +287,16 @@ export async function confirmManualAutoLarisPayment(
       "Pembayaran berubah saat dikonfirmasi. Muat ulang antrean.",
     );
   }
+  await recordNotification(database, {
+    type: "payment",
+    orderId: confirmed.order_id,
+    orderNumber: confirmed.order_number,
+    ...buildPaymentNotification({
+      orderNumber: confirmed.order_number,
+      customerName: confirmed.customer_name,
+      totalAmount: confirmed.total_amount,
+    }),
+  });
   return {
     transaction: confirmed,
     transitioned: Number(results[1]?.meta?.changes || 0) > 0,

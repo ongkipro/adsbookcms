@@ -1,5 +1,37 @@
 # PRD — AdsBookCMS (single)
 
+## A19 — Operator notifications for revenue events
+
+### Goals
+
+- An operator learns that an order arrived, a lead was left behind, or a payment cleared without watching the dashboard.
+- Notification state is server-owned and per-install, so it survives a reload, a second device, and a different browser.
+- No third-party messaging account, credential, or per-message cost is introduced.
+
+### Non-goals
+
+- Outbound messaging channels (WhatsApp gateway, Telegram, email). They carry a per-install credential and, for WhatsApp, a per-message cost; none is required to solve "the operator did not notice".
+- Customer-facing notifications. This phase is operator-only.
+- Delivery while no admin page is open anywhere. That needs Web Push and is specified as REQ-153, deliberately deferred rather than implied.
+
+### Requirements
+
+- **REQ-146** — When a checkout creates an order, the system shall record exactly one `order` notification for that order, and a repeated or replayed write shall not produce a second one.
+- **REQ-147** — When a qualified missed-order lead is captured, the system shall record exactly one `lead` notification for that lead.
+- **REQ-148** — When an order's payment becomes paid, the system shall record exactly one `payment` notification for that order, whichever confirmation path set it.
+- **REQ-149** — Notification recording shall never fail, delay, or roll back the commerce write that triggered it; a notification store that is unavailable shall be logged and skipped, not surfaced to the buyer.
+- **REQ-150** — The system shall expose to an authenticated operator an unread count and a reverse-chronological notification list scoped to roles that own commerce work; `advertiser` shall not receive commerce notifications.
+- **REQ-151** — An operator shall be able to mark one notification read and to mark all read; read state shall be per operator, so one operator reading does not blind another.
+- **REQ-152** — Where an admin page is open and the browser has granted permission, the system shall raise a browser notification for an unread event at most once per event per browser, and the absence or denial of that permission shall degrade to the in-app list without an error state.
+- **REQ-153** *(Planned)* — Where no admin page is open, the system shall deliver the same events through Web Push using VAPID and a service worker. On iOS this requires the operator to install the admin to the home screen first, a platform restriction that shall be stated in the operator UI rather than silently failing.
+
+### Technical decisions
+
+- **D1, not KV, for the notification store.** The feature needs ordering, an unread count, and per-operator read state — all queries. KV holds the alert-transition state in `operational-alerts.ts` because that is one value per signal; this is a list.
+- **Polling, not SSE or WebSocket.** An open SSE stream pins a Worker isolate per open admin tab for as long as it stays open. The admin page is already loaded and already makes requests; a bounded poll on an open page costs less and cannot leak isolates.
+- **Recording is inline with the commerce write, wrapped fail-open.** A queue would need its own delivery guarantee to solve a problem the write itself already orders correctly. REQ-149 makes the failure mode explicit instead.
+- **Dedupe is a stored uniqueness constraint keyed by event type plus subject id**, the same discipline the CAPI outbox uses for `event_id` — retries and replays are expected, so exactly-once is enforced by the store rather than by the caller remembering.
+
 ## A18 — Deterministic storefront home and structured content editor
 
 ### Goals

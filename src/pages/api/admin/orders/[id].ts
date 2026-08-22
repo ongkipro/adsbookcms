@@ -6,6 +6,7 @@ import { normalizePhoneNumber } from '../../../../lib/order-schema';
 import { getMengantarDispatchEligibility } from '../../../../lib/payment-dispatch-policy';
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from '../../../../lib/payment-fee-policy';
 import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch';
+import { buildPaymentNotification, recordNotification } from '../../../../lib/notifications';
 import { getReceiverPerformance, scheduleReceiverPerformanceRefresh } from '../../../../lib/rts-scoring';
 import type { ReceiverPerformance } from '../../../../lib/receiver-performance';
 import {
@@ -672,6 +673,24 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
           nextCustomerPhone,
           locals,
         );
+      }
+      // An operator marking payment received is the other path that can reach
+      // paid. The unique constraint keeps this and the AutoLaris reconciliation
+      // path from both notifying for the same order (REQ-148).
+      if (
+        PAID_STATUSES.has(resolvedPaymentStatus) &&
+        !PAID_STATUSES.has(current.payment_status)
+      ) {
+        await recordNotification(db, {
+          type: 'payment',
+          orderId: current.id,
+          orderNumber: current.order_number,
+          ...buildPaymentNotification({
+            orderNumber: current.order_number,
+            customerName: nextCustomerName ?? current.customer_name,
+            totalAmount: resolvedTotalAmount,
+          }),
+        });
       }
     }
 

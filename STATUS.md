@@ -1,12 +1,12 @@
 # STATUS — AdsBookCMS
 
-> Last executed baseline: 2026-08-21 @ `36bd42b` + the admin destination-id
-> invalidation working tree merged in. `main` was re-founded as AdsBookCMS and
-> its history rewritten (ADR-012), so the commit range this document once
-> cited no longer exists on this branch; the previous 61 commits are preserved
-> on `backup/pre-history-rewrite`. Gates re-run on the current tree, not
-> inherited: `npm run check` 362 files / 0 errors / 0 warnings / 0 hints ·
-> `npm test` 452 / 452 · `npm run build` Cloudflare server bundle complete.
+> Last executed baseline: 2026-08-22 @ `359a1e2` + the A19 operator-notification
+> working tree merged in. `main` was re-founded as AdsBookCMS and its history
+> rewritten (ADR-012), so the commit range this document once cited no longer
+> exists on this branch; the previous 61 commits are preserved on
+> `backup/pre-history-rewrite`. Gates re-run on the current tree, not
+> inherited: `npm run check` 366 files / 0 errors / 0 warnings / 0 hints ·
+> `npm test` 467 / 467 · `npm run build` Cloudflare server bundle complete.
 
 Current state of the system. Implemented behaviour lives here; history lives in `BUILD-LOG.md`; remaining work lives in `UNIMPLEMENTED_SPECS.md`; structure lives in `ARCHITECTURE.md`.
 
@@ -22,7 +22,7 @@ The previous version of this file described a different repository — it opened
 | Repository role | **Product.** Deploys nothing; CI runs check, test and build only |
 | Install model | 1 installer = 1 Worker = 1 store (ADR-001) |
 | Version | `1.2.0` / `2026.08-hardened` (`src/lib/version.ts`) |
-| Schema | 44 migration files, `0000`-`0043` |
+| Schema | 46 migration files, `0000`-`0045` |
 | Bindings | `OMS_DB` (D1), `SESSION` (KV), `ASSET_BUCKET` (R2), `AI`, `ASSETS` — names fixed across installs |
 | `wrangler.jsonc` | template of placeholders; each install supplies its own resources |
 
@@ -40,9 +40,9 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **445 / 445 passing** |
-| `npm run check` | 360 files · 0 errors · 0 warnings · 0 hints |
-| `npm run build` | Cloudflare server bundle complete; 44 bundled migrations |
+| `npm test` | **467 / 467 passing**, with zero notification writes failing open unnoticed (grepped for after the A19 review found four fixtures swallowing them) |
+| `npm run check` | 366 files · 0 errors · 0 warnings · 0 hints |
+| `npm run build` | Cloudflare server bundle complete; 46 bundled migrations |
 | Browser smoke | A fresh isolated install exposed all ten default couriers through `/api/admin/expeditions`. `/admin/orders/abandoned` rendered its shadcn Card/Badge/Button/Dialog composition at 390, 768, and 1280 CSS px with zero overflow, no stuck busy state, no failed request, and no console error. A populated lead opened the conversion Dialog, focused the invalid address, and returned focus after `Escape`. A separate isolated owner session on `/admin/balance` rendered pending and locked AutoLaris rows, blocked blank manual-confirmation submission with focused inline errors, and an already-confirmed payment redirected `/payment` to `/thanks` with zero console errors. No live provider request, deployment, or remote D1 mutation occurred. |
 | Live provider read | On 2026-08-19 the repository's own clients were exercised against the real providers. Mengantar: `searchAddress("Cihapit")` resolved one area and `estimateRates` returned ten couriers with real prices (JNE Rp11.000, SiCepat Rp8.500, SAP Rp10.500). Read-only; no order, pickup, or D1 write. AutoLaris: `createPayment` on the provider's **published development key** returned a real virtual account for a Rp118.400 order, and `inquirePayment` read it back as `PENDING`. No production AutoLaris credential was used, no deployment occurred, and no remote D1 was touched. |
 
@@ -61,6 +61,8 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 **Orders and shipping** — one shared lifecycle validates every single/bulk status transition, restores reserved stock exactly once on cancellation or deletion, and prevents destructive removal after provider dispatch. **Pesanan tertinggal** has a dedicated product-first lead workspace and is excluded from normal order lists, summaries, details, bulk actions, and shipping. CS can record follow-up and explicitly convert one ABN lead into one complete pending INV with a current server-side rate and exactly-once stock reservation. Checkout, conversion, and payment confirmation only persist or change eligibility. Mengantar dispatch runs solely after an explicit authenticated single/bulk operator action under a single-flight lease; provider acceptance rechecks the claim and dispatch-critical snapshot so concurrent cancellation or buyer edits cannot be overwritten. Accepted provider identifiers and provider-supplied waybills persist, duplicates are suppressed, and bounded failures remain pending and retryable. The Shipping workspace exposes exactly **Semua Pengiriman**, **Perlu Dibuatkan Resi**, **Perlu Pickup**, and **Sampai Tujuan**, with responsive state-valid actions and explicit sequential provider polling by waybill. `/order/pay-unpaid` recovery remains provider-blocked.
 
 **Admin** — 27 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker with an optional COD value that reveals the provider's own COD fee for comparison, payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. The JSON/AI content workbench is off the main navigation (ADR-018); `/admin/content` itself stays reachable and unchanged — it is no longer gated behind the storefront's setup-required state, since the home page now always renders. Warehouse settings create the required single-row origin on a fresh install and update it thereafter. Fresh installation also creates the neutral ten-courier policy; migration `0042` repairs only installed stores with no courier rows and never overwrites an existing policy. Navigation and route authorization share one deny-by-default role policy. Phones use role-aware bottom navigation and sheets, tablet starts with a 48 px rail, desktop uses a 256 px sidebar, and first-run sessions expose only password rotation and logout.
+
+**Operator notifications** — a new order, a missed-order lead, and a cleared payment each record exactly one notification, enforced by a unique index on `(type, order_id)` rather than by the caller. Recording is fail-open and can never affect the commerce write that triggered it. The admin topbar carries an unread badge and a panel, newest first, with read state per operator so one person clearing the badge does not blind the team; `advertiser` is refused the endpoint entirely. A browser notification is raised while an admin page is open, at most once per event per browser. Delivery while no admin page is open needs Web Push and is specified (`REQ-153`) but unbuilt.
 
 **Headless API** — nine `/api/v1/*` routes authenticated by API key and independently origin-checked. Every operation has a minimum scope; origin denials occur before quota, minute denials do not spend daily quota, and D1 records the final handler status exactly once without request payloads. The order-status route requires the order number plus its public status token and returns no customer PII.
 

@@ -66,6 +66,7 @@ const ADMIN_API_ROUTES = [
   '/api/admin/upload-r2',
   '/api/admin/seller-bank-accounts',
   '/api/admin/payment-reconciliation',
+  '/api/admin/notifications',
   '/api/admin/profile',
   '/api/admin/logout',
 ] as const;
@@ -107,6 +108,7 @@ const ROLE_API_ROUTES: Record<Exclude<AdminRole, 'owner' | 'admin'>, readonly st
     '/api/admin/shipping',
     '/api/admin/check',
     '/api/admin/ongkir',
+    '/api/admin/notifications',
     '/api/admin/profile',
     '/api/admin/logout',
   ],

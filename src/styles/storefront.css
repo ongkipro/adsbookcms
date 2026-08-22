@@ -13,6 +13,11 @@
 @source "../pages";
 @source not "../pages/admin";
 @source not "../pages/api";
+/* Landing content lives in D1, where the scanner cannot reach it. This file is
+   generated from that content by scripts/generate-landing-safelist.mjs so the
+   utilities it uses are emitted; without it a landing page renders its markup
+   with almost none of its styling. */
+@source "./landing-safelist.html";
 
 /* No src file references these. They are kept on the public side rather than
    deleted because merchant-authored landing HTML lives in D1, where grep

@@ -8,6 +8,7 @@ import { getStoreSupportWhatsapp } from '../lib/public-store';
 import { getSessionCookie, verifyJwt } from '../lib/auth';
 import { getEnvValue, getRuntimeEnv } from '../lib/env';
 import '../styles/form-hybrid.css';
+import '../styles/landing-pages/landing.css';
 import { defaultCatalogContentId } from '../lib/catalog-feed';
 
 export const prerender = false;
@@ -76,6 +77,21 @@ if (!product) {
   return Astro.rewrite('/404');
 }
 
+// When this page has taken over the product's page, the product URL is its
+// only address, so a direct visit to the landing slug is sent there.
+//
+// The hand-off is detected by a header the product route sets, NOT by
+// `Astro.url`: a rewrite does not carry the original path here, so this route
+// sees the landing slug either way. Reading `Astro.url` made `/produk/<slug>`
+// rewrite here, redirect straight back, and loop until the browser gave up —
+// measured at 50 redirects before it was changed.
+const productPagePath = `/produk/${product.slug}`;
+const servedAsProductPage =
+  Astro.request.headers.get('x-adsbook-product-page') === product.slug;
+if (page.is_product_page && !servedAsProductPage && !isPreview) {
+  return Astro.redirect(productPagePath, 308);
+}
+
 const csPhone = await getStoreSupportWhatsapp(Astro.locals);
 const formSections = page.sections.filter((section) => section.type === 'form');
 const firstFormSectionId = formSections[0]?.id;
@@ -85,7 +101,9 @@ const rawTitle = page.meta_title || page.title || product.seoTitle || product.pr
 const metaTitle = rawTitle.replace(/\s*\(?\s*landing\s*page\s*\)?/gi, '').trim();
 const rawDesc = page.meta_description || product.seoDescription || `Lihat pilihan varian, harga, dan ketersediaan ${product.productName}.`;
 const metaDescription = rawDesc.replace(/\s*landing\s*page\s*/gi, ' ').trim();
-const canonical = `${Astro.locals.tenant.siteUrl}/${page.slug}`;
+// Canonical follows the address that is actually live for this page.
+const canonicalPath = page.is_product_page ? productPagePath : `/${page.slug}`;
+const canonical = `${Astro.locals.tenant.siteUrl}${canonicalPath}`;
 
 const productSchema = {
   '@context': 'https://schema.org',

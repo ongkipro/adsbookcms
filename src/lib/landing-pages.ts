@@ -29,7 +29,10 @@ export type LandingPage = {
   title: string;
   product_id: string;
   product_title?: string | null;
+  product_slug?: string | null;
   is_active: number;
+  /** 1 when this page has taken over `/produk/<product-slug>` (A21). */
+  is_product_page: number;
   meta_title: string | null;
   meta_description: string | null;
   created_at: string;
@@ -44,6 +47,8 @@ const staticLandingPages: LandingPage[] = solutionEntries.map((entry) => ({
   product_id: "",
   product_title: null,
   is_active: entry.isAvailable === false ? 0 : 1,
+  // A hand-authored static page has no product to take over.
+  is_product_page: 0,
   meta_title: entry.title,
   meta_description: entry.excerpt,
   created_at: "",
@@ -133,7 +138,7 @@ type LocalsWithDatabase = {
 };
 
 const PAGE_COLUMNS = `
-  id, slug, title, product_id, is_active,
+  id, slug, title, product_id, is_active, is_product_page,
   meta_title, meta_description, created_at, updated_at
 `;
 
@@ -252,15 +257,20 @@ export async function listLandingPages(
     ),
   ]);
   const productMap = new Map<string, string>();
-
+  // The slug is what a claimed page's real URL is built from, so the admin can
+  // show and copy `/produk/<slug>` rather than an address that only redirects.
+  const productSlugMap = new Map<string, string>();
 
   try {
     const productResult = await database
-      .prepare(`SELECT id, title FROM products`)
-      .all<{ id: number | string; title: string }>();
+      .prepare(`SELECT id, title, slug FROM products`)
+      .all<{ id: number | string; title: string; slug: string }>();
     for (const prod of productResult.results ?? []) {
       if (prod?.id && prod?.title) {
         productMap.set(String(prod.id), prod.title);
+      }
+      if (prod?.id && prod?.slug) {
+        productSlugMap.set(String(prod.id), prod.slug);
       }
     }
   } catch {
@@ -276,6 +286,7 @@ export async function listLandingPages(
     ...pages.map((page) => ({
       ...page,
       product_title: productMap.get(String(page.product_id)) || null,
+      product_slug: productSlugMap.get(String(page.product_id)) || null,
     })),
     ...staticLandingPages.map((page) => ({ ...page, sections: [] })),
   ];
@@ -556,4 +567,88 @@ export function validateLandingPageSlug(
     };
   }
   return { valid: true };
+}
+
+/**
+ * The landing page that has taken over a product's page, if any.
+ *
+ * Only an active page counts: unpublishing a claimed landing page must return
+ * `/produk/<slug>` to the normal product template rather than 404 the product.
+ */
+export async function getProductPageLanding(
+  locals: App.Locals,
+  productId: string,
+): Promise<LandingPage | null> {
+  const trimmed = String(productId || "").trim();
+  if (!trimmed) return null;
+  const database = getDatabase(locals);
+  const page = await database
+    .prepare(
+      `SELECT ${PAGE_COLUMNS}
+       FROM landing_pages
+       WHERE product_id = ? AND is_product_page = 1 AND is_active = 1
+       LIMIT 1`,
+    )
+    .bind(trimmed)
+    .first<LandingPageRow>();
+  if (!page) return null;
+
+  return { ...page, sections: await loadSections(database, page.id) };
+}
+
+export class LandingProductPageConflictError extends Error {
+  readonly conflictingSlug: string;
+  constructor(conflictingSlug: string) {
+    super(
+      `Produk ini sudah dipakai oleh landing page /${conflictingSlug}. Lepaskan dulu dari sana.`,
+    );
+    this.conflictingSlug = conflictingSlug;
+  }
+}
+
+/**
+ * Claims or releases a product's page for one landing page.
+ *
+ * The partial unique index is the real guard; this reads the current holder
+ * first only so the operator gets the offending slug instead of a constraint
+ * error they cannot act on.
+ */
+export async function setLandingPageAsProductPage(
+  locals: App.Locals,
+  id: string,
+  claim: boolean,
+): Promise<LandingPage | null> {
+  const database = getDatabase(locals);
+  const page = await database
+    .prepare(`SELECT ${PAGE_COLUMNS} FROM landing_pages WHERE id = ? LIMIT 1`)
+    .bind(id)
+    .first<LandingPageRow>();
+  if (!page) return null;
+
+  if (claim) {
+    const holder = await database
+      .prepare(
+        `SELECT slug FROM landing_pages
+         WHERE product_id = ? AND is_product_page = 1 AND id <> ?
+         LIMIT 1`,
+      )
+      .bind(page.product_id, id)
+      .first<{ slug: string }>();
+    if (holder) throw new LandingProductPageConflictError(holder.slug);
+  }
+
+  await database
+    .prepare(
+      `UPDATE landing_pages
+       SET is_product_page = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(claim ? 1 : 0, new Date().toISOString(), id)
+    .run();
+
+  return {
+    ...page,
+    is_product_page: claim ? 1 : 0,
+    sections: await loadSections(database, page.id),
+  };
 }

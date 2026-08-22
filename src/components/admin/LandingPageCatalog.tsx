@@ -6,6 +6,7 @@ import {
   Globe,
   Loader2,
   MoreHorizontal,
+  Package,
   Pencil,
   Plus,
   Search,
@@ -41,6 +42,9 @@ type LandingPageRow = {
   product_id: string;
   product_title?: string | null;
   is_active: number | boolean;
+  /** 1 when this page serves `/produk/<product-slug>` instead of its own slug. */
+  is_product_page?: number | boolean;
+  product_slug?: string | null;
   created_at: string;
   updated_at?: string;
 };
@@ -57,6 +61,9 @@ export default function LandingPageCatalog() {
     null
   );
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [productPagePageId, setProductPagePageId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     fetchPages();
@@ -91,6 +98,57 @@ export default function LandingPageCatalog() {
     } finally {
       setIsDeleting(false);
       setPageToDelete(null);
+    }
+  }
+
+  async function handleToggleProductPage(page: LandingPageRow) {
+    if (productPagePageId || page.id.startsWith("static:")) return;
+    const claim = !Number(page.is_product_page);
+
+    setProductPagePageId(page.id);
+    try {
+      const response = await fetch("/api/admin/landing-pages", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "set-product-page",
+          id: page.id,
+          is_product_page: claim,
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        message?: string;
+        data?: LandingPageRow;
+      };
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || "Status halaman produk gagal diubah.");
+      }
+      // Only one landing page may hold a product's page, so releasing the
+      // claim locally on every other page for the same product keeps the list
+      // honest without a refetch.
+      setPages((current) =>
+        current.map((row) =>
+          row.id === page.id
+            ? { ...row, is_product_page: claim ? 1 : 0 }
+            : row.product_id === page.product_id && claim
+              ? { ...row, is_product_page: 0 }
+              : row,
+        ),
+      );
+      toast.success(payload.message || "Status halaman produk diperbarui.");
+    } catch (reason) {
+      toast.error(
+        reason instanceof Error
+          ? reason.message
+          : "Status halaman produk gagal diubah.",
+      );
+    } finally {
+      setProductPagePageId(null);
     }
   }
 
@@ -137,10 +195,18 @@ export default function LandingPageCatalog() {
     }
   }
 
-  function handleCopyLink(slug: string) {
-    const fullUrl = `${window.location.origin}/${slug}`;
-    navigator.clipboard.writeText(fullUrl);
-    setCopiedSlug(slug);
+  /** The address a page actually answers on — see `publicPathOf`. */
+  function publicPathOf(page: LandingPageRow) {
+    return Number(page.is_product_page) && page.product_slug
+      ? `/produk/${page.product_slug}`
+      : `/${page.slug}`;
+  }
+
+  function handleCopyLink(page: LandingPageRow) {
+    // A claimed page's own slug only redirects; copy the canonical one.
+    const path = publicPathOf(page);
+    navigator.clipboard.writeText(`${window.location.origin}${path}`);
+    setCopiedSlug(page.slug);
     toast.success("URL Landing Page disalin ke clipboard!");
     setTimeout(() => setCopiedSlug(null), 2000);
   }
@@ -442,7 +508,7 @@ export default function LandingPageCatalog() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleCopyLink(page.slug)}
+                          onClick={() => handleCopyLink(page)}
                           title="Salin URL lengkap"
                           aria-label={`Salin URL /${page.slug}`}
                           className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
@@ -535,7 +601,18 @@ export default function LandingPageCatalog() {
                                 </a>
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuItem onClick={() => handleCopyLink(page.slug)}>
+                            {!isStatic && (
+                              <DropdownMenuItem
+                                disabled={productPagePageId === page.id}
+                                onClick={() => handleToggleProductPage(page)}
+                              >
+                                <Package className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                                {Number(page.is_product_page)
+                                  ? "Lepas dari halaman produk"
+                                  : "Jadikan halaman produk"}
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={() => handleCopyLink(page)}>
                               <Copy className="w-3.5 h-3.5 mr-2 text-slate-500" />
                               Salin Link
                             </DropdownMenuItem>
@@ -614,7 +691,7 @@ export default function LandingPageCatalog() {
                                   </span>
                                   <button
                                     type="button"
-                                    onClick={() => handleCopyLink(page.slug)}
+                                    onClick={() => handleCopyLink(page)}
                                     title="Salin URL lengkap"
                                     className="text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
                                   >
@@ -731,7 +808,18 @@ export default function LandingPageCatalog() {
                                         </a>
                                       </DropdownMenuItem>
                                     )}
-                                    <DropdownMenuItem onClick={() => handleCopyLink(page.slug)}>
+                                    {!isStatic && (
+                                      <DropdownMenuItem
+                                        disabled={productPagePageId === page.id}
+                                        onClick={() => handleToggleProductPage(page)}
+                                      >
+                                        <Package className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                                        {Number(page.is_product_page)
+                                          ? "Lepas dari halaman produk"
+                                          : "Jadikan halaman produk"}
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem onClick={() => handleCopyLink(page)}>
                                       <Copy className="w-3.5 h-3.5 mr-2 text-slate-500" />
                                       Salin Link
                                     </DropdownMenuItem>

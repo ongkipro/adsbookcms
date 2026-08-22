@@ -4,8 +4,10 @@ import {
   buildLandingPageDuplicateInput,
   createLandingPage,
   getLandingPageById,
+  LandingProductPageConflictError,
   listLandingPages,
   parseLandingPageDuplicatePayload,
+  setLandingPageAsProductPage,
   type CreateLandingPageInput,
 } from "../../../../lib/landing-pages";
 
@@ -27,6 +29,38 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if (!locals.admin) return jsonError("Unauthorized", 401);
 
   const body = await request.json().catch(() => null);
+
+  const record = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  if (record.action === "set-product-page") {
+    const id = String(record.id || "").trim();
+    if (!id || id.startsWith("static:")) {
+      return jsonError("Landing page tidak valid.", 400);
+    }
+    if (typeof record.is_product_page !== "boolean") {
+      return jsonError("Nilai halaman produk tidak valid.", 400);
+    }
+    try {
+      const updated = await setLandingPageAsProductPage(
+        locals,
+        id,
+        record.is_product_page,
+      );
+      if (!updated) return jsonError("Landing page not found", 404);
+      return jsonOk({
+        message: updated.is_product_page
+          ? `Landing page /${updated.slug} kini menjadi halaman produk.`
+          : `Landing page /${updated.slug} kembali berdiri sendiri.`,
+        data: updated,
+      });
+    } catch (error: unknown) {
+      if (error instanceof LandingProductPageConflictError) {
+        return jsonError(error.message, 409);
+      }
+      console.error("POST set-product-page landing-page", error);
+      return jsonError("Gagal mengubah status halaman produk.", 500);
+    }
+  }
+
   const duplicatePayload = parseLandingPageDuplicatePayload(body);
   if (duplicatePayload) {
     if ("error" in duplicatePayload) {

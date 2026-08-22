@@ -1,5 +1,31 @@
 # PRD — AdsBookCMS (single)
 
+## A21 — A landing page may become the product page
+
+### Goals
+
+- One product can be sold through a purpose-built landing page without that page becoming a second competing URL.
+- The operator decides it from the landing-page list, and can undo it.
+
+### Non-goals
+
+- Listing native Astro landing routes in the CMS. That needs the typed manifest in `REQ-143`/`A-133` and is unbuilt; `docs/LANDING-PAGES.md` states the contract so a page written before then already fits it.
+- Letting a native Astro route claim a product page. The claim is a database fact on `landing_pages`; a file has no row.
+
+### Requirements
+
+- **REQ-159** — An operator shall be able to make one active CMS landing page serve its product's page, and to release it again.
+- **REQ-160** — Where a landing page serves the product page, `/produk/<product-slug>` shall render it and be its canonical address, and the landing page's own slug shall permanently redirect there, so exactly one URL is live.
+- **REQ-161** — At most one landing page may serve a given product's page, enforced by the database rather than by the interface.
+- **REQ-162** — If the claiming landing page becomes inactive or releases the claim, then `/produk/<product-slug>` shall return to the standard product template; a product shall never 404 because a landing page changed.
+- **REQ-163** — Every landing page, CMS or native, shall answer at `domain/<slug>` with no path prefix, except where `REQ-160` moves it to the product URL.
+
+### Technical decisions
+
+- **The product route hands off by rewrite, signalled on the request.** A rewrite does not carry the original path, so the landing route cannot tell a hand-off from a direct visit by reading `Astro.url` — doing so put the two routes in an endless redirect loop. An `x-adsbook-product-page` header carries the fact instead.
+- **A partial unique index, not application logic.** `WHERE is_product_page = 1` leaves unclaimed drafts out of the index entirely, so any number may target one product while only one may hold it.
+- **Copy stays historical, navigation stays live.** The admin list builds its link from the product slug when a page is claimed, so an operator never copies an address that merely redirects.
+
 ## A20 — One date-range control across every reporting surface
 
 ### Goals

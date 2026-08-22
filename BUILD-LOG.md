@@ -3793,3 +3793,44 @@ ranged series and one bar.
 **Verification.** `npm run check` 370 files / 0 errors · `npm test` 496 / 496
 (1 new) · `npm run build` complete · live: chart total equals card total,
 9 of 13 orders active.
+
+## 2026-08-22 — The date filter became a two-month calendar
+
+Asked for with a screenshot of Facebook Ads Manager's date picker and "make it
+precise like this, everywhere, default this month". The default had already
+moved; this is the calendar.
+
+**A custom two-month grid, no library.** The repository carries no date
+dependency and the earlier `AdminDateRangeFilter` used native `<input
+type="date">` — the right default when nobody had asked for a calendar. Having
+been shown the exact reference, that trade is reversed here: the picker now
+renders two adjacent months of a real day grid. The calendar arithmetic —
+month grids, month shifting with year rollover, inclusive range membership —
+is pure string math in the Jakarta calendar, added to `admin-date-filter.ts`
+and unit-tested (no DOM, no timezone touches a value), so the component stays
+thin over tested logic.
+
+**Nothing downstream changed.** The `onChange` contract is still
+`{filter, start, end}`, so the dashboard, order list and shipping workspace —
+all three already consuming the component — got the calendar with no wiring
+edit and no API change. Verified live on all three: the same two-month grid,
+Sunday-first weekday headers, the preset rail with the active one checked,
+today ringed, future days disabled, and the span cap enforced per-day while an
+end is being chosen.
+
+**Faithful to the reference, minus Compare.** Preset rail left, two months
+right, prev/next navigation, the picked range shown as two read-only date
+boxes, Batal/Terapkan, and a "waktu Jakarta (WIB)" note. Compare (period vs.
+period) was deliberately skipped — the order and shipping lists have no
+period-comparison to show and the dashboard's would need the API to return two
+periods; it is a phase of its own, not dead UI here.
+
+**Mobile shows one month.** Two months do not fit 390 px, so the second is
+`hidden sm:block` and the arrows navigate — verified at 390 px with the range
+highlighting intact and zero horizontal overflow.
+
+**Verification.** `npm run check` 375 files / 0 errors · `npm test` 499 / 499
+(3 new on the calendar helpers) · `npm run build` complete. Driven in a real
+browser: selecting 10–18 Agu highlighted exactly nine cells with filled
+endpoints, the boxes read "10 Agu 2026 – 18 Agu 2026", Terapkan set the trigger
+to "10/08/2026 – 18/08/2026", and the console was empty at 1280 px and 390 px.

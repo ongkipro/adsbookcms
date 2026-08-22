@@ -219,3 +219,64 @@ export function formatAdminDateRangeLabel(start: string, end: string) {
   const short = (value: string) => value.split("-").reverse().join("/");
   return start === end ? short(start) : `${short(start)} – ${short(end)}`;
 }
+
+/** Calendar-grid helpers for the two-month range picker. All pure string
+ * arithmetic in the Jakarta calendar — no timezone conversion touches a value,
+ * so a date is the same date on every machine. */
+
+export const ADMIN_MONTH_NAMES = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+] as const;
+
+/** Sunday-first, to match the Facebook-Ads grid the picker mirrors. */
+export const ADMIN_WEEKDAY_NAMES = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"] as const;
+
+const pad2 = (value: number) => String(value).padStart(2, "0");
+
+/** `"2026-08"` → its human month/year, e.g. `{ label: "Agustus 2026" }`. */
+export function adminMonthLabel(ym: string) {
+  const [year, month] = ym.split("-").map(Number);
+  return `${ADMIN_MONTH_NAMES[(month || 1) - 1]} ${year}`;
+}
+
+export function adminMonthOf(date: string) {
+  return date.slice(0, 7);
+}
+
+/** Shift a `"YYYY-MM"` view by whole months, rolling the year over correctly. */
+export function shiftAdminMonth(ym: string, months: number) {
+  const [year, month] = ym.split("-").map(Number);
+  const base = new Date(Date.UTC(year, month - 1 + months, 1));
+  return `${base.getUTCFullYear()}-${pad2(base.getUTCMonth() + 1)}`;
+}
+
+/**
+ * Weeks of a month as a 7-column grid. Cells before the first and after the
+ * last day are `null` — the picker leaves them blank rather than bleeding in
+ * adjacent-month numbers, matching the reference.
+ */
+export function adminMonthGrid(ym: string): (string | null)[][] {
+  const [year, month] = ym.split("-").map(Number);
+  const monthIndex = month - 1;
+  const leading = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
+  const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+
+  const cells: (string | null)[] = [];
+  for (let i = 0; i < leading; i += 1) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    cells.push(`${year}-${pad2(month)}-${pad2(day)}`);
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const weeks: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}
+
+/** Inclusive membership: is `date` within `[start, end]`? Empty ends → false. */
+export function isWithinAdminRange(date: string, start: string, end: string) {
+  if (!start || !end) return false;
+  const [lo, hi] = start <= end ? [start, end] : [end, start];
+  return date >= lo && date <= hi;
+}

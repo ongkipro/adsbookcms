@@ -31,7 +31,7 @@ The previous version of this file described a different repository — it opened
 Verified 2026-08-23 from outside: each host serves Astro 7.2 and answers `401`
 on `/api/admin/health`, so the admin boundary holds on every one.
 
-All five were rolled forward to `fb1218d` on 2026-08-23 except `zvara.shop`,
+All six were rolled forward to `05778a1` on 2026-08-23 except `zvara.shop`,
 which is held frozen by its owner.
 
 | Install | Repository | Adopts the product by | State |
@@ -41,7 +41,7 @@ which is held frozen by its owner.
 | `skincarebpom.shop` | *local only* | `git merge product/main` | on `fb1218d`. **No git remote.** Cron trigger deliberately released to `zanobyshop` (Workers Free caps the account at five) |
 | `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `fb1218d`, after reconciling a 2026-08-19 draft snapshot that had left it 106 commits behind |
 | `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` | **Frozen.** Not deployed, not migrated, not touched |
-| ~~`permatamall.shop`~~ | `ongkipro/permatamall` | First install, and the only one this table listed until 2026-08-23. **The hostname no longer resolves** — no DNS record at all — so it is recorded as history, not as a place to adopt a fix |
+| `permatamall.shop` | `ongkipro/permatamall` | First install. Was down — no DNS record, and its D1 had been deleted from the account — and was rebuilt on `05778a1` on 2026-08-23 against a new database, the original KV namespace and the original R2 bucket. Shares no history with the product (it is the codebase the product was extracted from), so it syncs the way `zanobyshop` does rather than merging. Cron released, like `skincarebpom` |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more
 (ADR-016). Older installs keep legacy `cmsads-*` names on their Cloudflare

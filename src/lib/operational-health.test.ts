@@ -173,7 +173,11 @@ test("payments created but not yet paid is nobody paid today, not an outage", ()
     },
     NOW,
   );
-  assert.equal(health.state, "unknown");
+  // The test's own title says it: this is not an outage. The provider has
+  // accepted requests, so there is data; "unknown" rendered as "Belum ada
+  // data" beside a column of real transactions. Healthy, awaiting an operator
+  // step the reason already names.
+  assert.equal(health.state, "healthy");
   assert.equal(health.reason, "awaiting-first-manual-confirmation");
   assert.equal(health.ageMinutes, 10, "outbound contact is still reported");
 });

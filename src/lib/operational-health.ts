@@ -210,9 +210,14 @@ export function classifyAutoLaris(
       : signal("autolaris", "unknown", "no-accepted-request", null, now, metrics);
   }
   if (!window.lastManualConfirmationAt) {
+    // Not "unknown": the provider has accepted requests, so there IS data and
+    // the badge must not say "Belum ada data" beside eleven transactions.
+    // What has not happened yet is a manual confirmation, which the reason
+    // text already states. That is a healthy integration awaiting an
+    // operator step, not a missing one.
     return signal(
       "autolaris",
-      "unknown",
+      "healthy",
       "awaiting-first-manual-confirmation",
       window.lastOutboundAt,
       now,

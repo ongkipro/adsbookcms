@@ -3834,3 +3834,41 @@ highlighting intact and zero horizontal overflow.
 browser: selecting 10–18 Agu highlighted exactly nine cells with filled
 endpoints, the boxes read "10 Agu 2026 – 18 Agu 2026", Terapkan set the trigger
 to "10/08/2026 – 18/08/2026", and the console was empty at 1280 px and 390 px.
+
+## 2026-08-23 — A valid phone number the checkout called invalid
+
+Reported: a real Indonesian mobile of 13 digits in 0-form was rejected. It was,
+and the length rule was split across two disagreeing validators.
+
+**The numbering, stated once.** An Indonesian mobile is `62` `8`
+`<operator><subscriber>`. In 62-form it is 9–14 digits; in 0-form 8–13 (the
+0-form is always one shorter, since `0` expands to `62`). Thirteen-digit
+0-form numbers are current and common.
+
+**Two rules, neither right.** `isValidWa62` — the check the browser forms and
+the abandoned-lead capture call — was `628(operator)\d{5,8}`, which tops out at
+a 12-digit 0-form and refused the 13-digit one before the buyer could even
+submit. The checkout schema and the admin order edit used a different regex,
+`(08|628)\d{8,11}`, which reached 13 digits but performed no operator-prefix
+check at all. So the two boundaries disagreed on length and on whether the
+carrier was even validated.
+
+**One rule now.** `INDONESIAN_WA_REGEX` becomes `628(operator)\d{4,9}` —
+0-form 8–13, 62-form 9–14 — keeping the operator allowlist, which already
+covers every Indonesian carrier (Telkomsel, Indosat, XL, Axis, Three,
+Smartfren). The checkout schema and the admin edit now call `isValidWa62` on
+the already-normalized value instead of their own regex, so checkout, the
+browser forms, lead capture and admin edits validate one way. Checkout gains
+the operator check it never had; every path gains the 13-digit length.
+
+**Verified live.** At the checkout endpoint: a 13-digit 0-form order
+succeeded and stored as its 14-digit 62-form (`0812345678901` →
+`62812345678901`); an 8-digit number (the floor) succeeded; a 7-digit one and
+a bad operator prefix (`0800…`) and a 15-digit one were each refused with the
+phone message. On the browser form the 13- and 12-digit numbers showed no
+error where the 7-digit one did — the submit path no longer dies on a real
+number.
+
+**Verification.** `npm run check` 375 files / 0 errors · `npm test` 503 / 503
+(4 new: the 13-digit fix, the 8–13 boundary, per-carrier samples, cross-path
+agreement) · `npm run build` complete. Test orders removed and stock restored.

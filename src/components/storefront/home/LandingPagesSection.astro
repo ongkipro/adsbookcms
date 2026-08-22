@@ -21,6 +21,12 @@ const { pages, heading } = Astro.props;
 // Only the ones that go somewhere. A landing page with no href is a row the
 // visitor can read but not open, which is worse than not listing it.
 const linked = pages.filter((page) => Boolean(page.href));
+// A store can accumulate dozens of landing pages, and every one of them was
+// rendering into the home page - 41 entries in a 30KB section on the store this
+// was found on. The rest are hidden by script rather than left out of the HTML,
+// so a visitor without JavaScript still gets the whole list and the crawler
+// still sees every link.
+const INITIAL = 6;
 ---
 
 {
@@ -35,8 +41,8 @@ const linked = pages.filter((page) => Boolean(page.href));
       </div>
 
       <ul class="flex flex-col">
-        {linked.map((page) => (
-          <li class="border-t border-[#E5E5E5] first:border-t-0">
+        {linked.map((page, index) => (
+          <li class="border-t border-[#E5E5E5] first:border-t-0" data-lp-extra={index >= INITIAL ? "true" : undefined}>
             <a
               href={page.href}
               class="flex min-h-14 items-center justify-between gap-3 py-3.5 transition-colors hover:bg-[#F5F5F5]"
@@ -64,6 +70,34 @@ const linked = pages.filter((page) => Boolean(page.href));
           </li>
         ))}
       </ul>
+
+      {linked.length > INITIAL && (
+        <button
+          type="button"
+          data-lp-more
+          hidden
+          class="mt-4 inline-flex min-h-11 w-full items-center justify-center border border-[#E5E5E5] bg-[#FCFEFF] px-4 text-xs font-semibold text-[#111111] transition-colors hover:bg-[#F5F5F5]"
+        >
+          Lihat semua ({linked.length})
+        </button>
+      )}
     </section>
   )
 }
+
+<script>
+  // Runs only if scripting is on: the extra rows ship visible, so nothing is
+  // lost without it. Collapsing here rather than in the markup keeps every link
+  // in the HTML for a crawler.
+  const section = document.getElementById('halaman');
+  const button = section?.querySelector<HTMLButtonElement>('[data-lp-more]');
+  const extra = section?.querySelectorAll<HTMLElement>('[data-lp-extra]');
+  if (button && extra && extra.length > 0) {
+    extra.forEach((row) => { row.hidden = true; });
+    button.hidden = false;
+    button.addEventListener('click', () => {
+      extra.forEach((row) => { row.hidden = false; });
+      button.hidden = true;
+    }, { once: true });
+  }
+</script>

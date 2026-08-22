@@ -3664,3 +3664,54 @@ Restarting the dev server with `node_modules/.vite` cleared fixed all three.
 (2 new) · `npm run build` complete, plus everything above against the running
 install. No production credential, deployment or remote D1 was touched; the
 QRIS order used the install's configured AutoLaris key and was deleted.
+
+## 2026-08-22 — The dashboard's "Omset" was not revenue, and the default period moved to this month
+
+An adversarial audit of the dashboard, run after the full-system screening,
+found that its headline number could not be trusted.
+
+**"Omset Rp 1.668.642 — Pendapatan pada periode aktif" on a store with zero
+paid orders.** `analytics.ts` summed `total_amount` over every non-abandoned
+order: the one that was cancelled (Rp 135.000), three whose online payment
+had failed (Rp 405.000), seven still pending, and all of their shipping
+(Rp 107.550) and COD fees. The label said revenue; the number was order intent
+plus courier fees including orders that would never pay. An operator reading
+it as money in the bank would have been wrong by the whole amount.
+
+**Two ratios had the wrong base.** "Pembayaran berhasil" divided prepaid
+success by *every* order, COD included — and COD is paid on delivery, so it
+can never prepay. A COD-heavy store read as a failing gateway forever.
+"Return to Sender" divided returns by every order including ones never
+dispatched, which cannot be returned, so it read 0% on any store that had not
+shipped yet.
+
+**The fix is to say what each number is, not to pick a flattering one.**
+`total_revenue` now excludes cancelled orders and released payments
+(`cancelled`/`refunded`/`failed`, matching `order-lifecycle.ts`) and the card
+calls it order value, beside a new `collected_revenue` that counts paid orders
+only — on the local store: Rp 1.128.642 in play, Rp 0 received. "Pesanan"
+states how many of its count were cancelled or failed. The payment card is now
+"Pembayaran online lunas" with its base shown ("dari 11 order non-COD"), and
+RTS is returned ÷ (delivered + returned) with the base shown or "Belum ada
+kiriman yang selesai". Three tests pin each definition with the before and
+after number in the assertion.
+
+**Default period is this month.** The question an operator opens the dashboard
+with is "how is this month going"; a rolling seven days answers a different one
+and changes shape every day. `ADMIN_DEFAULT_DATE_FILTER` is the single source;
+the "(Default)" suffix baked into the 7-day preset label was removed, because a
+label that names the default lies the moment the default moves — the control
+marks the active preset itself.
+
+**Two things that looked broken and were not.** Every island on the dashboard
+failed to hydrate and the page rendered empty: a stale Vite pre-bundle after the
+day's import changes, fixed by restarting with `--force`, and recorded here so
+the next person does not debug the product for it. And the hybrid form
+resolving to `full` for every request was Cloudflare geo placing the dev
+machine in an excluded province — correct behaviour, confirmed by the screening.
+
+**Verification.** `npm run check` 370 files / 0 errors · `npm test` 495 / 495
+(3 new) · `npm run build` complete. Driven in a real browser at 1280 px and
+390 px: the trigger opens on "Bulan ini", the cards carry their new bases, the
+metric grid resolves to two 180.5 px columns on a phone with zero horizontal
+overflow, and the console is empty.

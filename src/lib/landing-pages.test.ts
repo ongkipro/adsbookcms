@@ -286,3 +286,35 @@ test("claiming an unknown landing page reports not-found rather than throwing", 
   const { locals } = createLocals();
   assert.equal(await setLandingPageAsProductPage(locals, "missing", true), null);
 });
+
+test("a claimed page is excluded from the addresses a sitemap may advertise", async () => {
+  const { locals } = createLocals();
+  const standalone = await createLandingPage(locals, {
+    slug: "promo-berdiri-sendiri",
+    title: "Berdiri Sendiri",
+    product_id: "20001",
+  });
+  const claimed = await createLandingPage(locals, {
+    slug: "promo-jadi-produk",
+    title: "Jadi Produk",
+    product_id: "20002",
+  });
+  await setLandingPageAsProductPage(locals, claimed.id, true);
+
+  // This is the filter both sitemaps apply. A claimed page answers 308 on its
+  // own slug and the product URL is listed separately, so advertising it here
+  // would hand out exactly the duplicate pair the takeover prevents.
+  const advertised = (await listLandingPages(locals))
+    .filter((page) => page.is_active && !page.is_product_page)
+    .map((page) => page.slug);
+
+  assert.ok(advertised.includes(standalone.slug));
+  assert.ok(!advertised.includes(claimed.slug));
+
+  // Releasing it puts the slug back in circulation.
+  await setLandingPageAsProductPage(locals, claimed.id, false);
+  const afterRelease = (await listLandingPages(locals))
+    .filter((page) => page.is_active && !page.is_product_page)
+    .map((page) => page.slug);
+  assert.ok(afterRelease.includes(claimed.slug));
+});

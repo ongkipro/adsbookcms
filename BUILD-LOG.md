@@ -3396,3 +3396,60 @@ written today already fits it.
 (3 new on the claim invariant) · `npm run build` complete, plus the four live
 URL states above. Test data was removed from the local database afterwards. No
 deployment or remote D1 mutation occurred.
+
+## 2026-08-22 — Audit pass over A20 and A21, and the guarantee that was not true
+
+Two adversarial reviews of the work merged earlier the same day, run before
+anything else was built on top of it. One headline hypothesis was refuted; five
+real defects were found and fixed, and the most serious was a claim the A21 pull
+request had already made in writing.
+
+**A21 advertised both URLs after promising one.** `sitemap.xml.ts` and
+`sitemap.astro` both filtered landing pages on `is_active` alone. A page that
+had taken over its product's page was therefore listed under its own slug —
+which answers `308` — beside the product URL it redirects to. The machine-
+readable sitemap handed Google exactly the duplicate pair the takeover exists to
+prevent, and the HTML sitemap badged a bouncing link "Live". Both now exclude
+`is_product_page`, and a test pins the rule so a future edit cannot quietly drop
+it. Verified live in both directions: claimed, the slug is absent from both
+sitemaps; released, it returns.
+
+**`advertiser` could change what every visitor sees.** The new
+`set-product-page` action checked only `locals.admin`, and `/api/admin/
+landing-pages` is granted to `advertiser` — the role deliberately kept out of
+orders, shipping, settings and, in A19, commerce notifications. It could seize
+or release any product page. Restricted to owner and admin; verified from a real
+advertiser session, which now gets `403` on both claim and release while still
+listing and editing landing pages as before.
+
+**The order summary answered a different question than the table.** Found by the
+A20 review and older than A20: the summary cards and status chips hardcoded
+`WHERE shipping_status <> 'abandoned'` and ignored every filter. With a one-day
+range the table showed that day's three orders while TOTAL ORDER read 13 and
+NILAI ORDER summed the whole store — an operator reconciling a day's takings
+read an all-time figure as the day's. The cards now follow every filter; the
+chips follow all of them except the status they let you pick, because scoping
+them to it would zero the others and destroy the control. The "Semua" chip
+follows the chip scope for the same reason. Measured after: 17 Aug 10, 18 Aug 3,
+both 13, and the values sum exactly.
+
+**Two smaller ones.** A half-open analytics range (`?startDate=` with no end)
+skipped the 31-day cap and built an unbounded scan; both ends are now required.
+And `publicPathOf` fell back to the landing slug when `product_slug` was
+missing — `listLandingPages` swallows a products-table read failure, so that was
+reachable — handing the operator a redirecting address with no sign it was not
+canonical. It now refuses and says so.
+
+**Refuted, and worth recording.** The suspicion that the dashboard's 31-day cap
+was UI-only was wrong: `analytics.ts` enforces it server-side and gates
+`interval=hour` to a single day, so a crafted ten-year hourly request is already
+refused. Jakarta date handling was checked at the UTC boundary and is correct.
+The `x-adsbook-product-page` spoof lets a visitor skip the `308`, but canonical
+still resolves to the product URL and the route sets no CDN cache header — 
+untidy, not exploitable.
+
+**Verification.** `npm run check` 368 files / 0 errors · `npm test` 479 / 479
+(2 new: the sitemap exclusion, and the summary/chip scoping asserted on the SQL
+and bindings actually used) · `npm run build` complete. Every fix was also
+exercised against a running install, and the test landing page and advertiser
+account were removed from the local database afterwards.

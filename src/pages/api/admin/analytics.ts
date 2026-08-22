@@ -44,6 +44,13 @@ export const GET: APIRoute = async ({ locals, url }) => {
   ) {
     return jsonError('Rentang tanggal tidak valid.', 400);
   }
+  // A half-open range escaped the cap: `?startDate=1970-01-01` alone fell
+  // through to an unbounded `>= ?` scan. Requiring both ends keeps every dated
+  // request inside the 31-day ceiling; omitting both is still the "all time"
+  // request the dashboard's own preset makes.
+  if (Boolean(startParam) !== Boolean(endParam)) {
+    return jsonError('Tanggal mulai dan akhir harus diisi bersama.', 400);
+  }
   if (startParam && endParam) {
     const startTime = Date.parse(`${startParam}T00:00:00.000Z`);
     const endTime = Date.parse(`${endParam}T00:00:00.000Z`);
@@ -64,12 +71,6 @@ export const GET: APIRoute = async ({ locals, url }) => {
   if (startParam && endParam) {
     conditions.push("date(created_at, '+7 hours') BETWEEN ? AND ?");
     params.push(startParam, endParam);
-  } else if (startParam) {
-    conditions.push("date(created_at, '+7 hours') >= ?");
-    params.push(startParam);
-  } else if (endParam) {
-    conditions.push("date(created_at, '+7 hours') <= ?");
-    params.push(endParam);
   }
   const dateFilter = `WHERE ${conditions.join(' AND ')}`;
 

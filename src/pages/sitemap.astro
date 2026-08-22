@@ -11,7 +11,15 @@ const mainLinks = [{ label: 'Beranda (Halaman Depan)', href: '/' }, ...footerNav
 // arrays that are now empty, so it listed no products at all.
 const products = await getStorefrontProducts(Astro.locals);
 const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
-  .filter((page) => Boolean(page.is_active) && !page.id.startsWith('static:'));
+  // A claimed page's own slug only redirects to the product URL, which the
+  // product list on this page already carries; listing it here would badge a
+  // bouncing link as "Live".
+  .filter(
+    (page) =>
+      Boolean(page.is_active) &&
+      !page.is_product_page &&
+      !page.id.startsWith('static:'),
+  );
 ---
 
 <BaseLayout

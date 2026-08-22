@@ -242,18 +242,20 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
       value: currency(data.total_revenue),
       // Not "pendapatan": this is order value still in play, before payment.
       // Cancelled orders and failed payments are already excluded.
-      note: `Nilai ${data.live_orders.toLocaleString("id-ID")} order aktif · diterima ${currency(data.collected_revenue)}`,
+      note: `Nilai ${data.live_orders.toLocaleString("id-ID")} order aktif · bersih diterima ${currency(data.collected_revenue)}`,
       icon: BadgeDollarSign,
       tone: "text-emerald-700",
       iconTone: "bg-blue-50 text-blue-700",
     },
     {
       label: "Pesanan",
-      value: data.total_orders.toLocaleString("id-ID"),
+      // The big number is orders still in play, consistent with Omset above
+      // it. What came in and then dropped out is the note, not the headline.
+      value: data.live_orders.toLocaleString("id-ID"),
       note:
         data.total_orders === data.live_orders
-          ? "Order masuk pada periode ini"
-          : `Order masuk · ${(data.total_orders - data.live_orders).toLocaleString("id-ID")} batal/gagal`,
+          ? "Order aktif pada periode ini"
+          : `Dari ${data.total_orders.toLocaleString("id-ID")} masuk · ${(data.total_orders - data.live_orders).toLocaleString("id-ID")} batal/gagal/retur`,
       icon: PackageCheck,
       tone: "text-slate-950",
       iconTone: "bg-blue-50 text-blue-700",

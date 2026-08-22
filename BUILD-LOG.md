@@ -3751,3 +3751,45 @@ its own intent is better served by the new assertion.
 **Verification.** `npm run check` 370 files / 0 errors · `npm test` 495 / 495
 · `npm run build` complete. In the browser at 1280 px: five distinct axis
 labels, none clipped; both bars present; the AutoLaris panel badged "Sehat".
+
+## 2026-08-22 — The chart disagreed with the card above it
+
+An adversarial review of the dashboard PRs, run the moment they merged, found
+that #46 had fixed half of a number.
+
+**"Omset" said Rp 1.128.642; the bars beneath it summed to Rp 1.668.642.** The
+summary query had been given the released-order exclusion and the trends
+query had not, so the chart still drew the cancelled order and the three
+failed payments the card was fixed to leave out — Rp 540.000 of disagreement
+between two figures six centimetres apart. An operator adding up the bars got
+the number the previous entry declared untrustworthy. The rule now lives in
+one expression, `RELEASED_ORDER`, read by both queries, and a test asserts
+`sum(trends) === total_revenue` so the two cannot drift again. Proven live
+after: both read 1.128.642.
+
+**A returned order still counted as omset.** `order-lifecycle.ts` releases
+stock on `returned` as well as `cancelled` — the goods came back and the COD
+money never arrived — but the exclusion only named `cancelled`. On a COD
+store RTS is the whole reason the dashboard exists; ten orders with four
+returned would have overstated omset by 40% and called all ten "aktif".
+`returned` is in the predicate now, and the test seeds one.
+
+**"Diterima" was gross.** `collected_revenue` summed `total_amount`, which
+carries shipping and the COD service fee — courier pass-through, not the
+merchant's. It is now net of both, and the card says "bersih diterima".
+
+**"Pesanan" now headlines active orders.** Asked and decided: the big number
+is orders still in play, consistent with Omset beside it; what came in and
+dropped out is the note ("Dari 13 masuk · 4 batal/gagal/retur").
+
+**Refuted and recorded.** The all-time zero-fill has no timezone seam — the
+walker does calendar arithmetic on the Jakarta-bucket string and never
+converts it. `healthy` for an accepting AutoLaris hides nothing: alert
+webhooks only ever carried `schema` and `capi-outbox`, the failed-in-window
+count renders regardless of state, and all-requests-failing still reads
+`degraded`. Opening on the 1st of the month at 00:30 WIB yields a one-day
+ranged series and one bar.
+
+**Verification.** `npm run check` 370 files / 0 errors · `npm test` 496 / 496
+(1 new) · `npm run build` complete · live: chart total equals card total,
+9 of 13 orders active.

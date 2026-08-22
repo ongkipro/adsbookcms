@@ -3518,3 +3518,38 @@ answered exactly one `308` and left both sitemaps; released, both URLs stood
 alone again; withdrawing the register entry removed the row with no manual step.
 Edit and delete were refused `409`. The temporary entry and every test row were
 removed afterwards.
+
+## 2026-08-22 — Release 1.3.0 `2026.08-landing`
+
+The version had not moved since `1.2.0` while four features and a round of audit
+fixes landed on top of it, so the number the admin sidebar shows an operator was
+no longer the software they were running. Bumped per `RELEASE.md` §4.
+
+Minor, not major: everything below adds behaviour, and no install has to change
+anything it already does. Migrations `0045`–`0047` apply forward on their own.
+
+- **A19** operator notifications for a new order, a missed-order lead, and a
+  cleared payment, with per-operator read state.
+- **A20** one date-range control across the dashboard, order list, and shipping
+  workspace, with an explicit start/end range and no date-picker dependency.
+- **A21** a landing page may become the product page, answering at
+  `/produk/<product-slug>` while its own slug redirects there.
+- **A-133** native Astro landing pages recorded in the CMS: listed, linkable,
+  claimable, never editable.
+- Fixes: kecamatan search no longer calls the provider on every keystroke; an
+  address text edit invalidates a stale `destination_area_id`; both sitemaps
+  stop advertising a claimed page's redirecting slug; only owner and admin may
+  claim a product page; the order summary and chips follow the active filters;
+  a half-open analytics range can no longer skip the 31-day cap.
+
+`releaseTag` moves from `2026.08-hardened` to `2026.08-landing` because the tag
+names what a release is about and this one is about landing pages.
+
+**Correction made while bumping.** `RELEASE.md` §4 still recorded
+`schemaVersion` as `44` and described the tree as holding `0000`–`0043`; it holds
+48 and `0000`–`0047`. The section carries a warning about a previous version of
+itself declaring a false drift, which is exactly the failure it had drifted back
+into — a stale registry is the one that gets trusted and acted on.
+
+**Verification.** `npm run check` 369 files / 0 errors · `npm test` 489 / 489 ·
+`npm run build` complete. `src/lib/version.ts` and `package.json` are in step.

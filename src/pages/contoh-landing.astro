@@ -22,6 +22,7 @@ import MetaLandingTracker from '../components/storefront/tracking/MetaLandingTra
 import GeoIpResolvedForm from '../components/storefront/forms/GeoIpResolvedForm.astro';
 import RatingStars from '../components/storefront/shared/RatingStars.astro';
 import { getStorefrontProducts } from '../lib/catalog';
+import { nativeLandingCanonicalPath } from '../lib/landing-pages';
 import { defaultCatalogContentId } from '../lib/catalog-feed';
 import '../styles/landing-pages/landing.css';
 import '../styles/landing-pages/contoh-landing.css';
@@ -51,7 +52,10 @@ const hasRating =
   typeof product.reviewCount === 'number' &&
   product.reviewCount > 0;
 
-const canonical = `${Astro.locals.tenant.siteUrl}/${SLUG}`;
+// Not `/${SLUG}`: once an operator hands this page a product page it answers
+// on the product URL and its own slug redirects there, so declaring the slug
+// would point at a URL that bounces back here.
+const canonical = `${Astro.locals.tenant.siteUrl}${await nativeLandingCanonicalPath(Astro.locals, SLUG)}`;
 
 // `noindex` below is deliberate: a demo route ships to every clone of this
 // repository, and even if an operator forgets to delete it, it must never be

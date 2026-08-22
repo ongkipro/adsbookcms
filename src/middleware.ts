@@ -13,6 +13,7 @@ import {
   type AdminRole,
 } from './lib/auth';
 import { getEnvValue, getRuntimeEnv } from './lib/env';
+import { isRegisteredNativeSlug } from './lib/native-landing-pages';
 import { readStoreIdentity, resolveTenantConfig } from './lib/tenant';
 import {
   buildEmbedFrameAncestors,
@@ -121,6 +122,39 @@ async function loadStoredEmbedAllowedOrigins(
  * unreachable until the wizard has run, because everything else assumes a store
  * row that is not there yet.
  */
+/**
+ * The product slug a native landing page has taken over, or null.
+ *
+ * Reads only when the caller has already established the path is a registered
+ * native slug, so this is not a per-request database hit.
+ */
+async function readNativeProductPageSlug(
+  database: D1Database | undefined,
+  slug: string,
+): Promise<string | null> {
+  if (!database?.prepare || !slug) return null;
+  try {
+    const row = await database
+      .prepare(
+        `SELECT p.slug AS product_slug
+           FROM landing_pages lp
+           INNER JOIN products p ON CAST(p.id AS TEXT) = lp.product_id
+          WHERE lp.slug = ?
+            AND lp.source = 'native'
+            AND lp.is_product_page = 1
+            AND lp.is_active = 1
+          LIMIT 1`,
+      )
+      .bind(slug)
+      .first<{ product_slug: string }>();
+    return row?.product_slug || null;
+  } catch (error) {
+    // Never take a live landing page down because the claim could not be read.
+    console.error('native-landing-claim-read-failed', error);
+    return null;
+  }
+}
+
 function isInstallerRoute(pathname: string): boolean {
   return (
     pathname === '/install' ||
@@ -265,6 +299,33 @@ export function createMiddleware(
   // must not linger as a re-runnable surface.
   if (identity.state === 'installed' && isInstallerRoute(url.pathname)) {
     return applySecurityHeaders(context.redirect('/hello'), true);
+  }
+
+  // A native landing page that has taken over a product page must answer on
+  // the product URL only. Its route is a real file, so it never reaches the
+  // `[slug].astro` catch-all that redirects CMS pages — this is the only place
+  // that sees it.
+  //
+  // Ordered to stay cheap: the register is compiled in, so a path that is not
+  // a registered native slug is ruled out in memory and never touches D1. The
+  // header check comes first because `/produk/<slug>` rewrites here, and
+  // redirecting a rewrite would put the two routes in the loop A21 already
+  // paid for once.
+  if (
+    identity.state === 'installed' &&
+    !context.request.headers.get('x-adsbook-product-page') &&
+    isRegisteredNativeSlug(url.pathname.replace(/^\/|\/$/g, ''))
+  ) {
+    const claimedProductSlug = await readNativeProductPageSlug(
+      identityDb,
+      url.pathname.replace(/^\/|\/$/g, ''),
+    );
+    if (claimedProductSlug) {
+      return applySecurityHeaders(
+        context.redirect(`/produk/${claimedProductSlug}`, 308),
+        false,
+      );
+    }
   }
   const isEmbedForm =
     url.pathname === '/embed/form' || url.pathname === '/embed/form/';

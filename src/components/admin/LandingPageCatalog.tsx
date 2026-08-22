@@ -54,7 +54,7 @@ export default function LandingPageCatalog() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "static" | "manual" | "ai" | "injected">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "native" | "static" | "manual" | "ai" | "injected">("all");
   const [pageToDelete, setPageToDelete] = useState<LandingPageRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [duplicatingPageId, setDuplicatingPageId] = useState<string | null>(
@@ -223,7 +223,19 @@ export default function LandingPageCatalog() {
     setTimeout(() => setCopiedSlug(null), 2000);
   }
 
+  /** Content lives in a deployed file, so the CMS may record but not edit it. */
+  function isFileBacked(page: LandingPageRow) {
+    return page.id.startsWith("static:") || page.id.startsWith("native:");
+  }
+
   function getSourceType(id: string, slug: string, title: string) {
+    if (id.startsWith("native:")) {
+      return {
+        type: "native",
+        label: "Native Astro",
+        color: "bg-sky-50 text-sky-700 border-sky-200",
+      };
+    }
     if (id.startsWith("static:")) {
       return { type: "static", label: "Static Astro", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
     }
@@ -382,6 +394,15 @@ export default function LandingPageCatalog() {
             </button>
             <button
               type="button"
+              onClick={() => setSourceFilter("native")}
+              className={`px-2 py-0.5 rounded transition-all ${
+                sourceFilter === "native" ? "bg-white text-sky-700 shadow-xs font-bold" : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              Native Astro
+            </button>
+            <button
+              type="button"
               onClick={() => setSourceFilter("static")}
               className={`px-2 py-0.5 rounded transition-all ${
                 sourceFilter === "static" ? "bg-white text-emerald-700 shadow-xs font-bold" : "text-slate-500 hover:text-slate-800"
@@ -482,7 +503,7 @@ export default function LandingPageCatalog() {
               >
                 {paginated.map((page) => {
                   const isActive = Boolean(page.is_active);
-                  const isStatic = page.id.startsWith("static:");
+                  const isStatic = isFileBacked(page);
                   const srcBadge = getSourceType(page.id, page.slug, page.title);
 
                   return (
@@ -613,7 +634,7 @@ export default function LandingPageCatalog() {
                                 </a>
                               </DropdownMenuItem>
                             )}
-                            {!isStatic && (
+                            {!page.id.startsWith("static:") && (
                               <DropdownMenuItem
                                 disabled={productPagePageId === page.id}
                                 onClick={() => handleToggleProductPage(page)}
@@ -683,7 +704,7 @@ export default function LandingPageCatalog() {
                   <TableBody>
                     {paginated.map((page) => {
                         const isActive = Boolean(page.is_active);
-                        const isStatic = page.id.startsWith("static:");
+                        const isStatic = isFileBacked(page);
                         const srcBadge = getSourceType(page.id, page.slug, page.title);
 
                         return (
@@ -820,7 +841,7 @@ export default function LandingPageCatalog() {
                                         </a>
                                       </DropdownMenuItem>
                                     )}
-                                    {!isStatic && (
+                                    {!page.id.startsWith("static:") && (
                                       <DropdownMenuItem
                                         disabled={productPagePageId === page.id}
                                         onClick={() => handleToggleProductPage(page)}

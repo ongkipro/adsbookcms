@@ -8,9 +8,10 @@ interchangeable. Pick the right one before writing anything.
 | | CMS landing page | Native Astro landing page |
 | --- | --- | --- |
 | Author | an operator, in `/admin/landing-pages` | a developer or an AI terminal, in the repo |
-| Lives in | D1, table `landing_pages` | `src/pages/<slug>.astro` |
+| Lives in | D1, table `landing_pages` | `src/pages/<slug>.astro`, registered in `src/data/native-landing-pages.ts` |
 | Served by | the `[slug].astro` catch-all | its own route |
 | Changes need | nothing — saved and live | a build and a deploy |
+| In the CMS | fully editable | listed, linkable, claimable — never editable |
 | Use it when | the operator owns the copy and wants to iterate | the page needs layout or logic the builder cannot express |
 
 ## The URL contract
@@ -173,35 +174,71 @@ that is slightly prettier.
 
 ---
 
-## Listing a native page in the CMS — the contract, not yet the code
+## Registering a native page in the CMS
 
-**Status: not implemented.** `/admin/landing-pages` lists what is in D1 plus the
-hand-authored static entries in `src/data/`. A native route you add today
-answers on its URL but does **not** appear in that list, and the operator has no
-way to see it exists. That gap is task **A-133**.
+Add an entry to `src/data/native-landing-pages.ts` and deploy. The CMS records
+it on the next landing-page list load — no sync step, no admin action.
 
-When it is built it must work this way, and a native page written before then
-should already carry what the registry will read:
+```ts
+export const nativeLandingPages: NativeLandingPage[] = [
+  {
+    slug: 'promo-lebaran',        // must equal the route filename
+    title: 'Promo Lebaran',       // shown in the CMS list
+    productSlug: 'pupuk-organik', // the product this page sells
+    description: 'Landing khusus kampanye Lebaran.',
+    // isActive: false,           // registered, not yet linked
+  },
+];
+```
 
-- **A typed source manifest, not filesystem discovery.** Cloudflare Workers
-  bundles routes; it cannot enumerate `src/pages/` at runtime. The manifest is
-  a checked-in TypeScript file that a native route registers itself in.
-- **Each entry declares** its slug, its title, its product slug, its meta
-  description, and whether it is active. The slug must match the filename, and
-  the build fails on a duplicate or an incomplete entry rather than shipping a
-  page the CMS misrepresents.
-- **The list is read-only for native entries.** An operator can see one, open
-  it, and copy its URL; they cannot edit or delete it, because the file is the
-  source of truth and a deploy is the only way to change it. The existing
-  static entries already behave this way — reuse that shape rather than
-  inventing a second one.
-- **Taking over a product page stays a database fact.** `is_product_page` lives
-  on `landing_pages`, so a native page cannot claim `/produk/<slug>` until it
-  has a row. Decide that deliberately when A-133 lands; do not quietly widen
-  the claim to files.
+**The file owns the page; the database owns only the operational state.** The
+manifest decides that the page exists and what it says. `landing_pages` holds
+one mirrored row per entry so the CMS can list it, link to it, and let an
+operator hand it a product page — nothing more.
 
-Until then: a native landing page is a route and a URL. Tell the operator its
-address, because the CMS will not.
+What follows from that:
+
+- **The CMS cannot edit or delete a native page.** Both are refused with `409`
+  and a message saying to change the file and redeploy. Deleting the row would
+  only make it reappear on the next reconcile.
+- **Removing the entry removes the row, and any product page it held.** A
+  register entry without a file is a listing that 404s, so the reconcile drops
+  it — and `/produk/<slug>` returns to the normal product template rather than
+  pointing at nothing. Delete the entry and the file together.
+- **An entry naming a product this store does not carry is skipped**, not
+  inserted against an empty product, which would make the takeover unresolvable
+  later.
+- **The build refuses a register that misrepresents the site.** A duplicate
+  slug, a slug that cannot match a filename, or a missing title, product, or
+  description each fail `validateNativeLandingPages`.
+- **Registering closes the shadowing hazard.** `landing_pages.slug` is UNIQUE,
+  so once a native page is recorded an operator can no longer create a CMS page
+  on the same slug and have Astro silently resolve it to the file instead.
+
+### A native page as the product page
+
+Same action as a CMS page — **⋯ → Jadikan halaman produk** — and the same
+rules: `/produk/<product-slug>` renders it, its own slug answers `308` there,
+and neither sitemap advertises the redirecting address. Only owner and admin
+may set it.
+
+The redirect for a native page lives in `src/middleware.ts`, not in the
+catch-all: a native route is a real file and never reaches `[slug].astro`. The
+middleware rules a request out in memory against the compiled register before
+it touches the database, and skips the check when the request carries
+`x-adsbook-product-page` — that header is how `/produk/<slug>` hands off, and
+redirecting a hand-off is what put the two routes in a loop the first time A21
+was built.
+
+**Your canonical must come from `nativeLandingCanonicalPath`**, not from your
+slug. A route cannot know on its own whether an operator has handed it a
+product page, and declaring its own slug in that state points search engines at
+a URL that bounces back to the page they are already on:
+
+```astro
+import { nativeLandingCanonicalPath } from '../lib/landing-pages';
+const canonical = `${Astro.locals.tenant.siteUrl}${await nativeLandingCanonicalPath(Astro.locals, SLUG)}`;
+```
 
 ---
 
@@ -220,8 +257,10 @@ Copy it, then make it yours:
 2. Replace the `getStorefrontProducts` lookup with
    `getStorefrontProduct(Astro.locals, 'your-product-slug')`.
 3. Rewrite the sections and the copy.
-4. **Delete `contoh-landing.astro`** before the store goes live, or it stays a
-   public URL.
+4. Register it in `src/data/native-landing-pages.ts` so the CMS records it.
+5. **Delete `contoh-landing.astro`** before the store goes live, or it stays a
+   public URL. It ships `noindex`, so a forgotten copy is at least never
+   indexed as a real offer.
 
 It deliberately shows the conditional pattern: benefit, key-point and review
 sections render only when the product actually has that content, so a sparse
@@ -232,7 +271,9 @@ product produces a shorter page instead of empty headings.
 Give this file to the assistant. The parts it will get wrong unprompted:
 
 1. **Slug at the root.** `src/pages/<slug>.astro`, no prefix directory. Check
-   `/admin/landing-pages` first so it does not shadow an operator's page.
+   `/admin/landing-pages` first so it does not shadow an operator's page, then
+   add the entry to `src/data/native-landing-pages.ts` — a route without an
+   entry answers on its URL but is invisible to the operator.
 2. **The form follows the product, not the page.**
    `<GeoIpResolvedForm mode="hybrid" productSlug={product.slug} />` — the
    product is resolved server-side and everything downstream keys off it.
@@ -241,5 +282,6 @@ Give this file to the assistant. The parts it will get wrong unprompted:
 4. **No React on the public surface.** A gallery is `scroll-snap`; a countdown
    is a `<script>` tag.
 5. **Three weights, one ramp, one accent.** Anything else is invented.
-6. **Verify by opening it at 390 px**, not by a green build. `npm run check`,
+6. **Canonical from `nativeLandingCanonicalPath`**, never from the slug.
+7. **Verify by opening it at 390 px**, not by a green build. `npm run check`,
    `npm test`, `npm run build`, then look at the page and the console.

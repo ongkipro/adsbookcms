@@ -11,6 +11,8 @@ import {
   LandingProductPageConflictError,
   listLandingPages,
   parseShortcodes,
+  NativeLandingReadOnlyError,
+  reconcileNativeLandingPages,
   setLandingPageAsProductPage,
   updateLandingPage,
   validateLandingPageSlug,
@@ -82,11 +84,22 @@ class SqliteD1Database {
   readonly #database = new DatabaseSync(":memory:");
 
   constructor() {
+    this.#database.exec(`
+      CREATE TABLE IF NOT EXISTS products (
+        id INTEGER PRIMARY KEY,
+        slug TEXT NOT NULL,
+        title TEXT NOT NULL
+      );
+      INSERT INTO products (id, slug, title) VALUES (20001, 'pupuk-organik', 'Pupuk Organik');
+      INSERT INTO products (id, slug, title) VALUES (20002, 'benih-jagung', 'Benih Jagung');
+    `);
     for (const file of [
       "0027_landing_page_builder.sql",
       // A landing page may take over its product's page (A21); without this
       // the fixture would not carry the column the queries now read.
       "0046_landing_page_as_product_page.sql",
+      // Native Astro pages are recorded in the same table (A-133).
+      "0047_native_landing_pages.sql",
     ]) {
       this.#database.exec(
         readFileSync(
@@ -317,4 +330,73 @@ test("a claimed page is excluded from the addresses a sitemap may advertise", as
     .filter((page) => page.is_active && !page.is_product_page)
     .map((page) => page.slug);
   assert.ok(afterRelease.includes(claimed.slug));
+});
+
+const nativeEntry = {
+  slug: "promo-native",
+  title: "Promo Native",
+  productSlug: "pupuk-organik",
+  description: "Dibuat di Astro.",
+};
+
+test("the register is mirrored into the table, and a claim survives a re-sync", async () => {
+  const { database, locals } = createLocals();
+  const d1 = database as unknown as D1Database;
+
+  await reconcileNativeLandingPages(d1, [nativeEntry]);
+  // Read by id, not through `listLandingPages`: that reconciles against the
+  // register the build actually ships, which would correctly delete a row this
+  // test injected by hand.
+  const native = await getLandingPageById(locals, "native:promo-native");
+  assert.ok(native, "a registered native page must be recorded in the table");
+  assert.equal(native?.source, "native");
+  assert.equal(native?.slug, "promo-native");
+
+  // A native page can hold a product page like any other.
+  await setLandingPageAsProductPage(locals, native!.id, true);
+  assert.equal((await getProductPageLanding(locals, "20001"))?.slug, "promo-native");
+
+  // Re-syncing writes identity and metadata but must not undo the operator's
+  // decision — the file does not own the claim.
+  await reconcileNativeLandingPages(d1, [{ ...nativeEntry, title: "Judul Baru" }]);
+  const stillClaimed = await getProductPageLanding(locals, "20001");
+  assert.equal(stillClaimed?.slug, "promo-native");
+  assert.equal(stillClaimed?.title, "Judul Baru");
+});
+
+test("removing the register entry removes the row, and with it any claim", async () => {
+  const { database, locals } = createLocals();
+  const d1 = database as unknown as D1Database;
+  await reconcileNativeLandingPages(d1, [nativeEntry]);
+  await setLandingPageAsProductPage(locals, "native:promo-native", true);
+  assert.ok(await getProductPageLanding(locals, "20001"));
+
+  // The file is gone, so the listing must go too; a claim held by a page that
+  // no longer exists would leave /produk/<slug> pointing at nothing.
+  await reconcileNativeLandingPages(d1, []);
+  assert.equal(await getProductPageLanding(locals, "20001"), null);
+  assert.equal(await getLandingPageById(locals, "native:promo-native"), null);
+});
+
+test("an entry naming a product this store does not carry is skipped, not faked", async () => {
+  const { database, locals } = createLocals();
+  await reconcileNativeLandingPages(database as unknown as D1Database, [
+    { ...nativeEntry, productSlug: "produk-yang-tidak-ada" },
+  ]);
+  assert.equal(await getLandingPageById(locals, "native:promo-native"), null);
+});
+
+test("the CMS refuses to edit or delete a page whose content is a file", async () => {
+  const { database, locals } = createLocals();
+  await reconcileNativeLandingPages(database as unknown as D1Database, [nativeEntry]);
+
+  await assert.rejects(
+    () => updateLandingPage(locals, "native:promo-native", { title: "Diubah" }),
+    NativeLandingReadOnlyError,
+  );
+  // Deleting the row would only make it reappear on the next reconcile.
+  await assert.rejects(
+    () => deleteLandingPage(locals, "native:promo-native"),
+    NativeLandingReadOnlyError,
+  );
 });

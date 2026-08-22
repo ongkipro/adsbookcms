@@ -3453,3 +3453,68 @@ untidy, not exploitable.
 and bindings actually used) · `npm run build` complete. Every fix was also
 exercised against a running install, and the test landing page and advertiser
 account were removed from the local database afterwards.
+
+## 2026-08-22 — A-133: native Astro landing pages, recorded in the CMS
+
+Asked for as the petanisejahtera model: build a landing page in Astro, deploy
+it, and still have the CMS know about it — its link listed, and available to
+become a product's default page.
+
+**One system, not two.** The obvious shape was a second table holding native
+product-page claims. That would have split the invariant that matters:
+`landing_pages` already carries a partial unique index guaranteeing at most one
+holder per product page, and a second claim path means checking two places and
+trusting them to agree. Native pages get a row in the same table, marked
+`source = 'native'`, so one index stays in charge and the A21 machinery works
+unchanged.
+
+**The file owns the page; the row owns only the operational state.**
+`src/data/native-landing-pages.ts` is a compiled manifest — Workers bundles
+routes and cannot enumerate `src/pages/` at runtime, so discovery was never an
+option. A reconcile runs on every landing-page list load and writes identity and
+metadata but never `is_product_page`: the claim is the operator's decision, not
+the file's. Withdrawing an entry deletes its row, and with it any claim, because
+a register entry without a file is a listing that 404s and a claim held by a page
+that no longer exists would leave `/produk/<slug>` pointing at nothing.
+
+**It closed a hazard documented the day before.** `landing_pages.slug` is
+UNIQUE, so a registered native page can no longer be shadowed by an operator
+creating a CMS page on the same slug — which Astro would have resolved to the
+file, silently, with no warning anywhere.
+
+**The redirect had to live in middleware.** A native route is a real file and
+never reaches the `[slug].astro` catch-all that redirects a claimed CMS page, so
+that is the only place that sees it. It is ordered to stay cheap: the compiled
+register rules a path out in memory before any database read. It also skips when
+the request carries `x-adsbook-product-page`, because that header is how
+`/produk/<slug>` hands off — redirecting a hand-off is exactly the loop A21 paid
+for once already.
+
+**Two things the UI would have got wrong.** A native row's id does not start
+with `static:`, so the list offered Edit and Delete buttons that the API refuses
+with `409` — actions that could only fail. Read-only is now keyed on
+file-backed, not on the static prefix. But the same predicate gated the
+product-page toggle, which would have hidden the one action a native page most
+needs; that stayed on its own condition. Native pages also got their own source
+badge and filter rather than being invisible under every existing one.
+
+**Canonical is a database question.** A native route cannot know whether an
+operator has handed it a product page, and declaring its own slug in that state
+points search engines at a URL that bounces back to the page they are on.
+`nativeLandingCanonicalPath` answers it; the sample uses it and the doc requires
+it.
+
+**A test of mine was wrong, and the code was right.** The first reconcile test
+asserted through `listLandingPages`, which reconciles against the register the
+build actually ships — correctly deleting a row the test had injected by hand.
+The tests now read by id.
+
+**Verification.** `npm run check` 369 files / 0 errors · `npm test` 489 / 489
+(10 new) · `npm run build` complete. Exercised end to end against a running
+install with a temporarily registered page: listed in the admin with its product
+resolved from `productSlug` and a Native Astro badge; claimed, `/produk/<slug>`
+rendered it with the product canonical and no redirect while its own slug
+answered exactly one `308` and left both sitemaps; released, both URLs stood
+alone again; withdrawing the register entry removed the row with no manual step.
+Edit and delete were refused `409`. The temporary entry and every test row were
+removed afterwards.

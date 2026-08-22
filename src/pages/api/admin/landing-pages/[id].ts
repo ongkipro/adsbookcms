@@ -1,6 +1,11 @@
 import type { APIRoute } from "astro";
 import { jsonError, jsonOk } from "../../../../lib/api";
-import { getLandingPageById, updateLandingPage, deleteLandingPage } from "../../../../lib/landing-pages";
+import {
+  deleteLandingPage,
+  getLandingPageById,
+  NativeLandingReadOnlyError,
+  updateLandingPage,
+} from "../../../../lib/landing-pages";
 
 export const prerender = false;
 
@@ -29,6 +34,9 @@ export const PUT: APIRoute = async ({ request, params, locals }) => {
     const result = await updateLandingPage(locals, id, body);
     return jsonOk({ data: result });
   } catch (error: unknown) {
+    if (error instanceof NativeLandingReadOnlyError) {
+      return jsonError(error.message, 409, { code: "NATIVE_LANDING_READ_ONLY" });
+    }
     console.error("PUT landing-pages/[id]", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return jsonError("Failed to update landing page: " + message, 500);
@@ -44,6 +52,9 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
     await deleteLandingPage(locals, id);
     return jsonOk({ message: "Deleted successfully" });
   } catch (error: unknown) {
+    if (error instanceof NativeLandingReadOnlyError) {
+      return jsonError(error.message, 409, { code: "NATIVE_LANDING_READ_ONLY" });
+    }
     console.error("DELETE landing-pages/[id]", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return jsonError("Failed to delete landing page: " + message, 500);

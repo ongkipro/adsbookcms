@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  adminMonthGrid,
+  adminMonthLabel,
+  adminMonthOf,
   daysBetweenAdminDates,
   formatAdminDateRangeLabel,
   formatJakartaDate,
   isAdminDateFilter,
   parseAdminDateSelection,
   resolveAdminDateRange,
+  isWithinAdminRange,
   resolveAdminDateSelection,
+  shiftAdminMonth,
 } from "./admin-date-filter.ts";
 
 const jakartaTuesday = new Date("2026-08-10T17:30:00.000Z");
@@ -159,4 +164,34 @@ test("the query parser reads one parameter contract for every route", () => {
 test("a range label stays readable when both dates are the same day", () => {
   assert.equal(formatAdminDateRangeLabel("2026-08-01", "2026-08-11"), "01/08/2026 – 11/08/2026");
   assert.equal(formatAdminDateRangeLabel("2026-08-11", "2026-08-11"), "11/08/2026");
+});
+
+test("a month grid is 7 columns, blank-padded, with no adjacent-month bleed", () => {
+  // August 2026: the 1st is a Saturday, so the first week is six blanks then 1.
+  const grid = adminMonthGrid("2026-08");
+  assert.ok(grid.every((week) => week.length === 7));
+  assert.deepEqual(grid[0], [null, null, null, null, null, null, "2026-08-01"]);
+  const flat = grid.flat().filter(Boolean);
+  assert.equal(flat[0], "2026-08-01");
+  assert.equal(flat[flat.length - 1], "2026-08-31");
+  assert.equal(flat.length, 31);
+});
+
+test("shifting a month view rolls the year over", () => {
+  assert.equal(shiftAdminMonth("2026-08", 1), "2026-09");
+  assert.equal(shiftAdminMonth("2026-12", 1), "2027-01");
+  assert.equal(shiftAdminMonth("2026-01", -1), "2025-12");
+  assert.equal(adminMonthOf("2026-08-22"), "2026-08");
+  assert.equal(adminMonthLabel("2026-08"), "Agustus 2026");
+});
+
+test("range membership is inclusive and order-insensitive", () => {
+  assert.equal(isWithinAdminRange("2026-08-15", "2026-08-10", "2026-08-20"), true);
+  assert.equal(isWithinAdminRange("2026-08-10", "2026-08-10", "2026-08-20"), true);
+  assert.equal(isWithinAdminRange("2026-08-20", "2026-08-10", "2026-08-20"), true);
+  assert.equal(isWithinAdminRange("2026-08-21", "2026-08-10", "2026-08-20"), false);
+  // A half-open selection (start picked, end not yet) highlights nothing.
+  assert.equal(isWithinAdminRange("2026-08-15", "2026-08-10", ""), false);
+  // Same value backwards still works while the user is mid-drag.
+  assert.equal(isWithinAdminRange("2026-08-15", "2026-08-20", "2026-08-10"), true);
 });

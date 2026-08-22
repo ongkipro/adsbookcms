@@ -67,10 +67,6 @@ const heroSlides =
 <script>
   const heroTrack = document.getElementById('hero-track');
   const heroDots = document.getElementById('hero-dots');
-  const heroCount = heroTrack?.children.length ?? 0;
-  let heroIndex = 0;
-  let heroTimer: number | undefined;
-
   const setHeroSlide = (index: number) => {
     if (!heroTrack || !heroDots) return;
     heroTrack.style.transform = `translateX(-${index * 100}%)`;
@@ -80,41 +76,25 @@ const heroSlides =
           ? 'h-11 w-7 border-b-2 border-white bg-transparent transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
           : 'h-11 w-4 border-b border-white/55 bg-transparent transition-colors hover:border-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
     });
-    heroIndex = index;
   };
 
-  const startHero = () => {
-    if (heroTimer || heroCount <= 1) return;
-    heroTimer = window.setInterval(() => {
-      setHeroSlide((heroIndex + 1) % heroCount);
-    }, 4000);
-  };
-
-  const stopHero = () => {
-    if (!heroTimer) return;
-    window.clearInterval(heroTimer);
-    heroTimer = undefined;
-  };
-
+  // The hero does not advance by itself. It used to, every 4000 ms, and that
+  // was the home page's largest measured cost: each advance paints a new
+  // full-width image, so every one is a fresh LCP candidate. Two Lighthouse
+  // runs of one unchanged build measured LCP 1.8 s and 6.3 s, the slow one
+  // resolving to an off-screen `loading="lazy"` slide.
+  //
+  // Deferring the start to `load` was tried first and did not fix it: LCP
+  // stayed at a 3.2 s median and Speed Index did not move from 6.0 s, because
+  // Speed Index integrates visual completeness over the whole trace and a page
+  // that keeps changing never reaches it. Deferring moves the cost; only
+  // stopping removes it.
+  //
+  // The dots stay, and every slide is still reachable in one tap on a 44px
+  // target. What is gone is the page rearranging itself under a reader who did
+  // not ask it to — which is also the accessible behaviour, and is why
+  // `prefers-reduced-motion` no longer has anything here to suppress.
   [...(heroDots?.children ?? [])].forEach((dot, index) => {
-    dot.addEventListener('click', () => {
-      setHeroSlide(index);
-      stopHero();
-      startHero();
-    });
+    dot.addEventListener('click', () => setHeroSlide(index));
   });
-
-  const heroContainer = document.getElementById('home');
-  heroContainer?.addEventListener('mouseenter', stopHero);
-  heroContainer?.addEventListener('mouseleave', startHero);
-
-  // After `load`, not at parse time. Every advance paints a new full-width
-  // image, and each one is a fresh LCP candidate, so starting the timer here
-  // used to let the metric be decided by wherever the trace happened to end:
-  // two runs of the same build measured 1.8 s and 6.3 s, the slow one resolving
-  // to an off-screen `loading="lazy"` slide. Nobody sees a difference — the
-  // first advance already sat 4 s out — but the page now stops changing while
-  // it is still settling, which is also what Speed Index was reading.
-  if (document.readyState === 'complete') startHero();
-  else window.addEventListener('load', startHero, { once: true });
 </script>

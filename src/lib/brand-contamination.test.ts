@@ -91,7 +91,21 @@ test("product code carries no reference-store branding", () => {
  * wordmark indirectly, because removing the last hardcoded reference to a
  * store-specific asset is what makes it an orphan.
  */
-test("no image asset ships without something referencing it", () => {
+test("no image asset ships without something referencing it", (t) => {
+  // Only the product ships a fixed asset set. In an install `public/images` is
+  // the merchant's own catalogue, referenced from D1 — `products.image_url` and
+  // landing `content_html` — which this test cannot read, so every install
+  // reported its live catalogue as unreferenced and ran permanently red. A red
+  // test nobody can make green is worse than no test: a real contamination
+  // stops standing out.
+  //
+  // The discriminator is the one INSTALLATION.md already documents: the product
+  // commits all-zero placeholder resource ids, an install replaces them.
+  if (!safeRead("wrangler.jsonc").includes("00000000-0000-0000-0000-000000000000")) {
+    t.skip("install tree: public/images is the merchant catalogue, referenced from D1");
+    return;
+  }
+
   const base = "public/images";
   const haystack = ["src", "scripts", "public", "wrangler.jsonc"]
     .flatMap((root) => collect(root))

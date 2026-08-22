@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { z } from 'zod';
 import { jsonError, jsonOk } from '../../../lib/api.ts';
 import { getRuntimeEnv } from '../../../lib/env.ts';
+import { invalidateStoreConfigCache } from '../../../lib/store-config-cache.ts';
 import {
   parseProvinceCodeList,
   validateProvinceCodeList,
@@ -141,6 +142,11 @@ export const PATCH: APIRoute = async ({ locals, request }) => {
       if (!result.meta?.changes) {
         return jsonError('Toko belum dikonfigurasi.', 400);
       }
+      // The public form-config endpoint caches this policy in KV. Drop it now
+      // so the change is live immediately instead of after the cache TTL.
+      await invalidateStoreConfigCache(
+        getRuntimeEnv(locals)?.SESSION as KVNamespace | undefined,
+      );
       return jsonOk({
         message: 'Kebijakan wilayah COD berhasil disimpan.',
         data: { codDisabledProvinceCodes: validation.codes },

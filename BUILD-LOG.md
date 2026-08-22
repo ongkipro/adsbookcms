@@ -3594,3 +3594,73 @@ Also in this pass, for local development only: the dev server now binds to the
 Tailscale address so the admin can be opened from a phone on the tailnet, and
 the local owner account is `ongki`. Neither touches the product; the local D1
 under `.wrangler/` is not tracked.
+
+## 2026-08-22 — Full-system screening: every form, the hybrid decision, the payment gateway
+
+Asked for after the day's merges: prove the forms work, the hybrid logic works,
+the payment gateway works, and the system as a whole runs. Two review agents
+took the checkout paths and the admin surfaces in parallel; the payment gateway
+and the hybrid decision were driven by hand against the running install on the
+Tailscale address. Every row created was removed afterwards, with reserved stock
+restored.
+
+**The payment gateway works end to end.** A real QRIS order went through
+`/api/submit-order`, reached AutoLaris, and came back: the order landed in D1 as
+`payment_status = pending`, a `payment_transactions` row was written with the
+provider's transaction id **set**, the fee policy computed 15.392 + 108 admin
+fee = 15.500 with the seller bearing it, and one `order` notification was
+recorded. `/api/order-status` then returned the pending QR payload for the
+right order and status token, refused a wrong token with `404`, and exposed no
+customer phone or address. `/payment` is deliberately stateless in its URL: it
+`303`s to itself to strip `order`/`token` from the address bar and loads the
+order from `sessionStorage` plus that endpoint — which looked like a redirect
+bug for one minute and is the opposite.
+
+**Every submit guard held.** Honeypot → `HONEYPOT_TRIGGERED`. Stale
+`shipping_cost` → `SHIPPING_QUOTE_CHANGED` with the real fare. Invalid phone →
+`VALIDATION_ERROR`. A replayed `submit_token` → `DUPLICATE_SUBMIT`, and D1 held
+exactly one row for it. COD addressed to Papua → `COD_NOT_AVAILABLE_FOR_REGION`
+**server-side**, ignoring whatever the browser sent. The short form refused an
+excluded-province visitor with `AREA_REQUIRES_FULL` and — the layer that
+matters — refused a Java visitor whose address text mentioned Papua, because
+the address is what gets delivered, not the geo-IP. Headless `/api/v1/checkout`
+refused a missing key (`API_KEY_REQUIRED`) and a bogus one (`API_KEY_INVALID`).
+Abandoned leads: created once, updated on repeat, one `lead` notification.
+
+**The hybrid decision works, and the dev box is an excluded province.** Every
+page request resolved to `full` regardless of the geo headers sent, which read
+as a defect until the resolver was traced: `request.cf` outranks headers, the
+dev server fills it from the machine's real IP, that is Jawa Timur, and this
+store's policy excludes `JI`. Removing `JI` from the policy flipped the page to
+`middle` at once. The pure resolver was also checked directly: `JK/JB/JT →
+middle`, `PA/AC/JI → full`, unknown → `full`, failing closed.
+
+**Admin: every page and API answered, every role gate held.** Owner reached all
+pages and APIs; `advertiser` got `403` on orders, shipping, notifications,
+reconciliation and the product-page claim; `customer_service` got `403` on
+settings and reconciliation and `200` on orders; unauthenticated got `401` on
+every API and a redirect on every page. Health reported `1.3.0`,
+`2026.08-landing`, schema 48 applied and matched. Cancelling an order restored
+stock exactly once; cancelling it again changed nothing.
+
+**One real defect, fixed.** `/api/form-config` cached the COD-province policy in
+KV for five minutes while the storefront page read it from D1 on every request.
+An operator's change was live on the page at once and stale on the endpoint —
+two surfaces disagreeing about one setting. Not a safety issue (the submit-time
+guard is uncached and authoritative), but wrong. The policy's write route now
+drops the cache entry on save; verified live, the endpoint flipped from `full`
+to `middle` the instant `JI` was removed. The key moved to its own module,
+`store-config-cache.ts`, because importing it from the page route pulled that
+route's dependency graph into the admin route and into its test — which is how
+a latent extension-less import in `form-config.ts` surfaced and broke
+`courier-bootstrap.test.ts` for one commit.
+
+**Three `500`s that were not defects.** `/admin/orders`, `/admin/shipping` and
+`/admin/payments` failed on a stale Vite dependency cache after A20 changed
+which components import `ui/select`; `npm run build` passed on the same tree.
+Restarting the dev server with `node_modules/.vite` cleared fixed all three.
+
+**Verification.** `npm run check` 370 files / 0 errors · `npm test` 492 / 492
+(2 new) · `npm run build` complete, plus everything above against the running
+install. No production credential, deployment or remote D1 was touched; the
+QRIS order used the install's configured AutoLaris key and was deleted.

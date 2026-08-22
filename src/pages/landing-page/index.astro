@@ -1,0 +1,119 @@
+---
+import PageIntro from '../../components/storefront/shared/PageIntro.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { listPublicLandingPages } from '../../lib/landing-pages';
+
+export const prerender = false;
+
+// Read-only: unlike the admin list this never reconciles the native register,
+// because a storefront request must not write to the store.
+const pages = await listPublicLandingPages(Astro.locals);
+const INITIAL_COUNT = 10;
+---
+
+<BaseLayout
+  title={`Halaman - ${Astro.locals.tenant.name}`}
+  description={`Daftar halaman penawaran ${Astro.locals.tenant.name}.`}
+  breadcrumbs={[
+    { name: 'Beranda', url: '/' },
+    { name: 'Halaman', url: '/landing-page' },
+  ]}
+>
+  <main id="konten-utama" class="min-h-screen bg-white text-[#111111]">
+    <PageIntro
+      badge="Semua Halaman"
+      title={`Halaman ${Astro.locals.tenant.name}`}
+      description="Halaman penawaran yang sedang aktif. Pilih satu untuk melihat detail dan memesan."
+      breadcrumbs={[{ label: 'Beranda', href: '/' }, { label: 'Halaman' }]}
+    />
+
+    <section aria-label="Daftar halaman" class="mx-auto max-w-[480px] px-4 py-8">
+      {pages.length > 0 ? (
+        <>
+          <ul class="flex flex-col" id="landing-list">
+            {pages.map((page, index) => (
+              <li
+                class={`landing-list-item border-t border-[#E5E5E5] first:border-t-0 ${index >= INITIAL_COUNT ? 'hidden' : ''}`}
+                data-index={index}
+              >
+                <a
+                  href={page.href}
+                  class="flex min-h-14 items-center justify-between gap-3 py-3.5 transition-colors hover:bg-[#F5F5F5]"
+                >
+                  <span class="min-w-0">
+                    <span class="block truncate text-sm font-semibold text-[#111111]">
+                      {page.title}
+                    </span>
+                    {page.excerpt && (
+                      <span class="mt-0.5 block truncate text-xs font-normal text-[#555555]">
+                        {page.excerpt}
+                      </span>
+                    )}
+                  </span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="size-4 shrink-0 text-[#767676]"
+                    aria-hidden="true"
+                  >
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </a>
+              </li>
+            ))}
+          </ul>
+
+          {pages.length > INITIAL_COUNT && (
+            <div class="mt-8 text-center" id="load-more-container">
+              <p class="mb-3 text-xs font-normal text-[#555555]">
+                Menampilkan <span id="visible-count">{Math.min(INITIAL_COUNT, pages.length)}</span> dari{' '}
+                <span id="total-count">{pages.length}</span> halaman
+              </p>
+              <button
+                id="load-more-btn"
+                type="button"
+                class="inline-flex min-h-11 w-full items-center justify-center rounded-none border border-[#111111] bg-white px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-[#111111] transition-colors hover:bg-[#111111] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
+              >
+                Muat Lebih Banyak
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div class="border-y border-[#E5E5E5] py-10 text-center">
+          <h2 class="text-lg font-semibold text-[#111111]">Belum ada halaman</h2>
+          <p class="mt-2 text-sm leading-6 text-[#555555]">
+            Halaman penawaran akan muncul di sini setelah diterbitkan.
+          </p>
+        </div>
+      )}
+    </section>
+  </main>
+
+  <script>
+    const INITIAL_COUNT = 10;
+    const STEP = 10;
+    let visibleCount = INITIAL_COUNT;
+
+    const items = document.querySelectorAll<HTMLElement>('.landing-list-item');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const visibleCountEl = document.getElementById('visible-count');
+
+    if (loadMoreBtn && items.length > 0) {
+      loadMoreBtn.addEventListener('click', () => {
+        const nextCount = Math.min(visibleCount + STEP, items.length);
+        for (let i = visibleCount; i < nextCount; i++) {
+          items[i]?.classList.remove('hidden');
+        }
+        visibleCount = nextCount;
+        if (visibleCountEl) visibleCountEl.textContent = String(visibleCount);
+        if (visibleCount >= items.length) loadMoreBtn.classList.add('hidden');
+      });
+    }
+  </script>
+</BaseLayout>

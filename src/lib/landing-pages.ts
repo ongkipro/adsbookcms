@@ -810,3 +810,53 @@ export async function nativeLandingCanonicalPath(
     return fallback;
   }
 }
+
+export type PublicLandingPage = {
+  slug: string;
+  title: string;
+  excerpt: string;
+  /** Where the page actually answers, honouring a product-page takeover. */
+  href: string;
+};
+
+/**
+ * Active landing pages for a public listing, CMS and native alike.
+ *
+ * Deliberately does **not** reconcile the native register: that is a write, and
+ * a storefront read must not mutate the store. The admin list already keeps the
+ * register in step, so a page deployed but never opened in the CMS is the only
+ * gap, and it closes the moment an operator loads the landing-page list.
+ *
+ * `href` follows the takeover rather than the slug, so a claimed page links to
+ * the product URL it actually answers on instead of one that redirects.
+ */
+export async function listPublicLandingPages(
+  locals: App.Locals,
+): Promise<PublicLandingPage[]> {
+  const result = await getDatabase(locals)
+    .prepare(
+      `SELECT lp.slug, lp.title, lp.meta_description, lp.is_product_page,
+              p.slug AS product_slug
+         FROM landing_pages lp
+         LEFT JOIN products p ON CAST(p.id AS TEXT) = lp.product_id
+        WHERE lp.is_active = 1
+        ORDER BY lp.updated_at DESC, lp.created_at DESC`,
+    )
+    .all<{
+      slug: string;
+      title: string;
+      meta_description: string | null;
+      is_product_page: number;
+      product_slug: string | null;
+    }>();
+
+  return (result.results ?? []).map((row) => ({
+    slug: row.slug,
+    title: row.title,
+    excerpt: (row.meta_description || "").trim(),
+    href:
+      row.is_product_page && row.product_slug
+        ? `/produk/${row.product_slug}`
+        : `/${row.slug}`,
+  }));
+}

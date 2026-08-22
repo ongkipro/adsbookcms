@@ -10,6 +10,7 @@ import {
   getProductPageLanding,
   LandingProductPageConflictError,
   listLandingPages,
+  listPublicLandingPages,
   parseShortcodes,
   NativeLandingReadOnlyError,
   reconcileNativeLandingPages,
@@ -399,4 +400,37 @@ test("the CMS refuses to edit or delete a page whose content is a file", async (
     () => deleteLandingPage(locals, "native:promo-native"),
     NativeLandingReadOnlyError,
   );
+});
+
+test("the public listing links a claimed page to the product URL it answers on", async () => {
+  const { locals } = createLocals();
+  const standalone = await createLandingPage(locals, {
+    slug: "promo-sendiri",
+    title: "Promo Sendiri",
+    product_id: "20001",
+    meta_description: "Ringkasan promo sendiri",
+  });
+  const claimed = await createLandingPage(locals, {
+    slug: "promo-diklaim",
+    title: "Promo Diklaim",
+    product_id: "20002",
+  });
+  await setLandingPageAsProductPage(locals, claimed.id, true);
+  // An inactive page must not be listed publicly.
+  const draft = await createLandingPage(locals, {
+    slug: "promo-draft",
+    title: "Draft",
+    product_id: "20001",
+    is_active: false,
+  });
+
+  const listed = await listPublicLandingPages(locals);
+  const bySlug = new Map(listed.map((page) => [page.slug, page]));
+
+  assert.equal(bySlug.get(standalone.slug)?.href, "/promo-sendiri");
+  assert.equal(bySlug.get(standalone.slug)?.excerpt, "Ringkasan promo sendiri");
+  // A claimed page's own slug only redirects; the public list must send the
+  // visitor where the page actually answers.
+  assert.equal(bySlug.get(claimed.slug)?.href, "/produk/benih-jagung");
+  assert.equal(bySlug.has(draft.slug), false);
 });

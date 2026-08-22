@@ -3553,3 +3553,44 @@ into — a stale registry is the one that gets trusted and acted on.
 
 **Verification.** `npm run check` 369 files / 0 errors · `npm test` 489 / 489 ·
 `npm run build` complete. `src/lib/version.ts` and `package.json` are in step.
+
+## 2026-08-22 — A landing-page index, and a home page that stops listing everything
+
+Asked for together: cap the landing-page list on the home page, and give
+landing pages an index of their own shaped like `/produk`, with load-more.
+
+**The home page is a summary, not an index.** `LandingPagesSection` rendered
+every active landing page with no ceiling, so a store running fifteen
+campaigns had fifteen rows stacked under the catalogue. It now shows five and
+hands off to `/landing-page` with a "Lihat semua halaman" link when there are
+more. Five is the component's default; the template can pass another.
+
+**`/landing-page` mirrors `/produk`.** Ten initially, load-more in steps of ten,
+the same intro, the same empty state, the same button. Not a new pattern — the
+product index already had the right one, so it was copied rather than
+reinvented.
+
+**It must not write.** The admin list calls `listLandingPages`, which reconciles
+the native register into the table — a write — before reading. A storefront
+request must not mutate the store, so `listPublicLandingPages` is a separate,
+read-only reader. The cost is one gap: a native page deployed but never opened
+in the CMS is unlisted until an operator loads the landing-page list once. That
+is the right trade; the alternative was every public page view touching the
+database.
+
+**The link follows the takeover.** A claimed page's own slug answers `308`, so
+listing it would send every visitor through a redirect. The public reader joins
+`products` and emits `/produk/<slug>` for a claimed page, its own slug
+otherwise, and a test pins both.
+
+**Verification.** `npm run check` 370 files / 0 errors · `npm test` 490 / 490
+(1 new) · `npm run build` complete. Exercised against a running install seeded
+with thirteen landing pages: `/landing-page` rendered all thirteen with three
+hidden, the counter read 10 of 13, and the load-more button was present; the
+home page listed exactly five with the "Lihat semua halaman" link to
+`/landing-page`. Seed rows removed afterwards.
+
+Also in this pass, for local development only: the dev server now binds to the
+Tailscale address so the admin can be opened from a phone on the tailnet, and
+the local owner account is `ongki`. Neither touches the product; the local D1
+under `.wrangler/` is not tracked.

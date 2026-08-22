@@ -15,12 +15,16 @@ interface Heading {
 interface Props {
   pages: LandingPage[];
   heading: Heading;
+  /** The home page is a summary, not an index; the full list lives at /landing-page. */
+  limit?: number;
 }
 
-const { pages, heading } = Astro.props;
+const { pages, heading, limit = 5 } = Astro.props;
 // Only the ones that go somewhere. A landing page with no href is a row the
 // visitor can read but not open, which is worse than not listing it.
 const linked = pages.filter((page) => Boolean(page.href));
+const visible = linked.slice(0, limit);
+const hasMore = linked.length > visible.length;
 ---
 
 {
@@ -35,7 +39,7 @@ const linked = pages.filter((page) => Boolean(page.href));
       </div>
 
       <ul class="flex flex-col">
-        {linked.map((page) => (
+        {visible.map((page) => (
           <li class="border-t border-[#E5E5E5] first:border-t-0">
             <a
               href={page.href}
@@ -64,6 +68,15 @@ const linked = pages.filter((page) => Boolean(page.href));
           </li>
         ))}
       </ul>
+
+      {hasMore && (
+        <a
+          href="/landing-page"
+          class="mt-4 inline-flex min-h-11 w-full items-center justify-center border border-[#111111] bg-white px-6 text-xs font-bold uppercase tracking-wider text-[#111111] transition-colors hover:bg-[#111111] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
+        >
+          Lihat semua halaman
+        </a>
+      )}
     </section>
   )
 }

@@ -173,7 +173,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
       ]}
     />
     <!-- Product Hero Gallery Component -->
-    <div class="border-b border-[#E5E5E5] bg-white p-3 sm:p-4">
+    <div class="bg-white p-3 sm:p-4">
       <ProductImageGallery
         images={productImages}
         productName={product.productName}
@@ -183,21 +183,8 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     </div>
 
     <!-- Main Header & Pricing Surface -->
-    <section class="border-b border-[#E5E5E5] bg-white px-5 py-5">
-      <div class="flex items-center justify-between gap-3">
-        <span class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#767676]">
-          {product.category}
-        </span>
-        {
-          displayDiscount > 0 && (
-            <span class="rounded-none bg-[#111111] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
-              Hemat {displayDiscount}%
-            </span>
-          )
-        }
-      </div>
-
-      <h1 class="mt-2 text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-[#111111]">
+    <section class="border-fade-b bg-white px-5 py-5">
+      <h1 class="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-[#111111]">
         {product.productName}
       </h1>
       <p class="mt-1 text-[13px] leading-relaxed text-[#555555]">
@@ -226,7 +213,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
       </div>
 
       <!-- Pricing Display -->
-      <div class="mt-4 flex items-baseline gap-3 border-t border-[#E5E5E5] pt-4">
+      <div class="mt-4 flex items-baseline gap-3 border-fade-t pt-4">
         <span class="text-[24px] font-bold leading-none tracking-tight text-[#111111]">
           Rp{Math.round(displayPrice).toLocaleString('id-ID')}
         </span>
@@ -241,7 +228,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     </section>
 
     <!-- Variant Offer Matrix -->
-    <section class="border-b border-[#E5E5E5] bg-white px-5 py-6">
+    <section class="border-fade-b bg-white px-5 py-6">
       <h2 class="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#111111]">
         Pilihan Varian ({product.variants.length})
       </h2>
@@ -275,12 +262,12 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     </section>
 
     <!-- Detailed Specifications -->
-    <section class="border-b border-[#E5E5E5] bg-white px-5 py-6">
-      <h2 class="border-b border-[#E5E5E5] pb-3 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#111111]">Informasi Produk</h2>
+    <section class="border-fade-b bg-white px-5 py-6">
+      <h2 class="border-fade-b pb-3 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#111111]">Informasi Produk</h2>
       <div class="mt-4 grid gap-5 text-[14px] leading-6 text-[#555555]">
         <p>{product.description}</p>
 
-        <div class="grid gap-3 border-b border-[#E5E5E5] pb-4">
+        <div class="grid gap-3 border-fade-b pb-4">
           <div class="flex items-start gap-3">
             <Icon
               name="lucide:pencil"
@@ -320,7 +307,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
         </div>
 
         {product.benefits && product.benefits.length > 0 && (
-          <div class="grid gap-4 border-b border-[#E5E5E5] pb-4">
+          <div class="grid gap-4 border-fade-b pb-4">
             <div class="flex items-center gap-2">
               <Icon name="lucide:check" class="h-[17px] w-[17px]" style={`color: ${productAccent}`} aria-hidden="true" />
               <h3 class="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#111111]">Manfaat Utama</h3>
@@ -342,7 +329,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
         )}
 
         {product.keyPoints && product.keyPoints.length > 0 && (
-          <div class="grid gap-4 border-b border-[#E5E5E5] pb-4">
+          <div class="grid gap-4 border-fade-b pb-4">
             <div class="flex items-center gap-2">
               <Icon name="lucide:plus" class="h-[17px] w-[17px]" style={`color: ${productAccent}`} aria-hidden="true" />
               <h3 class="text-[13px] font-semibold uppercase tracking-[0.08em] text-[#111111]">Poin Penting Produk</h3>
@@ -395,15 +382,15 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     <!-- Product Reviews -->
     {
       (hasAggregateRating || product.reviews.length > 0) && (
-        <section class="border-b border-[#E5E5E5] bg-white px-5 py-6">
-          <div class="border-b border-[#E5E5E5] pb-3.5">
+        <section class="border-fade-b bg-white px-5 py-6">
+          <div class="border-fade-b pb-3.5">
             <div class="flex items-center gap-2">
               <RatingStars max={1} starClass="h-[17px] w-[17px]" label="Penilaian produk" />
               <h2 class="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#111111]">Ulasan Produk</h2>
             </div>
 
             {hasAggregateRating && (
-              <div class="mt-2.5 flex items-center gap-1.5 border-t border-[#E5E5E5] pt-2.5 text-[12px] font-bold text-[#111111]">
+              <div class="mt-2.5 flex items-center gap-1.5 border-fade-t pt-2.5 text-[12px] font-bold text-[#111111]">
                 <span class="text-[#111111]">★ {formattedRating} / 5.0</span>
                 <span class="text-[#555555]">• {reviewCount} ulasan</span>
               </div>
@@ -413,7 +400,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
           {product.reviews.length > 0 && (
             <div class="mt-4 space-y-4">
               {product.reviews.map((review) => (
-                <div class="border-b border-[#E5E5E5] pb-4 last:border-0 last:pb-0">
+                <div class="border-fade-b pb-4 last:border-0 last:pb-0">
                   <div class="flex items-center gap-3">
                     <div 
                       class="flex h-10 w-10 shrink-0 items-center justify-center border border-[#111111] bg-[#111111] text-[13px] font-bold uppercase text-white"
@@ -444,7 +431,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     }
 
     <!-- Shipping Information Notice Card -->
-    <section class="border-b border-[#E5E5E5] bg-white px-5 py-5">
+    <section class="border-fade-b bg-white px-5 py-5">
       <div class="flex items-start gap-3.5 text-[12px] leading-relaxed text-[#555555]">
         <Icon name="lucide:truck" class="mt-0.5 h-5 w-5 shrink-0" style={`color: ${productAccent}`} aria-hidden="true" />
         <div>
@@ -460,7 +447,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     </section>
 
     <!-- Sticky Mobile Purchase Bar (Auto-hides when order form is visible) -->
-    <div id="sticky-purchase-bar" class="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-[480px] items-center justify-between border-t border-[#E5E5E5] bg-white/95 px-5 py-3 shadow-[0_-8px_24px_rgba(17,17,17,0.08)] backdrop-blur-md transition-all duration-300 lg:hidden">
+    <div id="sticky-purchase-bar" class="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-[480px] items-center justify-between border-fade-t bg-white/95 px-5 py-3 shadow-[0_-8px_24px_rgba(17,17,17,0.08)] backdrop-blur-md transition-all duration-300 lg:hidden">
       <div>
         <p class="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#555555]">Harga Promo</p>
         <p class="text-base font-bold text-[#111111]">Rp{Math.round(displayPrice).toLocaleString('id-ID')}</p>

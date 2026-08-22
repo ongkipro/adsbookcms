@@ -29,7 +29,7 @@ const hasMore = linked.length > visible.length;
 
 {
   linked.length > 0 && (
-    <section id="halaman" class="border-t border-[#E5E5E5] bg-white px-5 py-8">
+    <section id="halaman" class="bg-white px-5 py-8">
       <div class="mb-5 text-left">
         <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#767676]">
           {heading.eyebrow}
@@ -40,7 +40,7 @@ const hasMore = linked.length > visible.length;
 
       <ul class="flex flex-col">
         {visible.map((page) => (
-          <li class="border-t border-[#E5E5E5] first:border-t-0">
+          <li class="border-fade-t first:border-t-0">
             <a
               href={page.href}
               class="flex min-h-14 items-center justify-between gap-3 py-3.5 transition-colors hover:bg-[#F5F5F5]"
@@ -72,7 +72,7 @@ const hasMore = linked.length > visible.length;
       {hasMore && (
         <a
           href="/landing-page"
-          class="mt-4 inline-flex min-h-11 w-full items-center justify-center border border-[#111111] bg-white px-6 text-xs font-bold uppercase tracking-wider text-[#111111] transition-colors hover:bg-[#111111] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
+          class="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-none border border-[#111111] bg-white px-6 text-xs font-bold uppercase tracking-wider text-[#111111] transition-colors hover:bg-[#111111] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
         >
           Lihat semua halaman
         </a>

@@ -72,6 +72,29 @@
   }
 }
 
+/* Fading hairline: a separator that dissolves to transparent at both ends, so a
+   divider can sit inside the column without a hard rule running edge to edge.
+   The header and breadcrumb keep a solid full-width line on purpose; every
+   other separator (footer, section rules) uses one of these. */
+.border-fade-t {
+  border-top: 1px solid transparent;
+  border-image: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent) 1;
+}
+.border-fade-b {
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent) 1;
+}
+.border-fade-y {
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent) 1;
+}
+.divider-fade {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent);
+}
+
 
 @media (prefers-reduced-motion: reduce) {
   *,

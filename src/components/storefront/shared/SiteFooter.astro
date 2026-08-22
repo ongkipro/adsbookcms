@@ -1,6 +1,4 @@
 ---
-import SiteBrand from './SiteBrand.astro';
-
 const footerLegal = [
   // Four policies plus one way into the catalogue. Meta and Google both want a
   // reachable contact, privacy policy, terms, and a shipping/returns policy
@@ -9,6 +7,7 @@ const footerLegal = [
   // sitemap.xml and can still be linked from anywhere - they just no longer
   // ride along on every page.
   { label: 'Produk', href: '/produk' },
+  { label: 'Halaman', href: '/landing-page' },
   { label: 'Kontak', href: '/kontak' },
   { label: 'Kebijakan Privasi', href: '/kebijakan-privasi' },
   { label: 'Syarat & Ketentuan', href: '/syarat-ketentuan' },
@@ -16,25 +15,24 @@ const footerLegal = [
 ];
 ---
 
-<footer class="border-t border-[#E5E5E5] bg-white px-5 py-12 text-[#111111]">
-  <div class="mx-auto max-w-[480px] space-y-10 text-center">
-    <!-- Brand Logo -->
-    <div class="flex justify-center">
-      <SiteBrand href="/" tone="dark" />
-    </div>
-
-
-
+<footer class="border-fade-t bg-white px-5 py-12 text-[#111111]">
+  <div class="mx-auto max-w-[480px] space-y-6 text-center">
     <!-- Policy Links -->
-    <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-4 border-t border-[#E5E5E5] pt-8 text-[10px] font-semibold tracking-widest uppercase text-[#111111]">
+    <nav
+      aria-label="Tautan footer"
+      class="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[10px] font-semibold uppercase tracking-widest text-[#555555]"
+    >
       {
         footerLegal.map((item) => (
-          <a href={item.href} class="transition-colors hover:text-[#111111] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111111]">
+          <a
+            href={item.href}
+            class="underline-offset-4 transition-colors hover:text-[#111111] hover:underline focus-visible:text-[#111111] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111111] focus-visible:ring-offset-2"
+          >
             {item.label}
           </a>
         ))
       }
-    </div>
+    </nav>
 
     <!-- Copyright -->
     <p class="text-[10px] uppercase tracking-wider text-[#767676]">

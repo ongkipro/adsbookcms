@@ -6,7 +6,7 @@
 > exists on this branch; the previous 61 commits are preserved on
 > `backup/pre-history-rewrite`. Gates re-run on the current tree, not
 > inherited: `npm run check` 367 files / 0 errors / 0 warnings / 0 hints ·
-> `npm test` 490 / 490 · `npm run build` Cloudflare server bundle complete.
+> `npm test` 492 / 492 · `npm run build` Cloudflare server bundle complete.
 
 Current state of the system. Implemented behaviour lives here; history lives in `BUILD-LOG.md`; remaining work lives in `UNIMPLEMENTED_SPECS.md`; structure lives in `ARCHITECTURE.md`.
 
@@ -40,10 +40,11 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **490 / 490 passing**, with zero notification writes failing open unnoticed (grepped for after the A19 review found four fixtures swallowing them) |
+| `npm test` | **492 / 492 passing**, with zero notification writes failing open unnoticed (grepped for after the A19 review found four fixtures swallowing them) |
 | `npm run check` | 370 files · 0 errors · 0 warnings · 0 hints |
 | `npm run build` | Cloudflare server bundle complete; 48 bundled migrations |
 | Browser smoke | A fresh isolated install exposed all ten default couriers through `/api/admin/expeditions`. `/admin/orders/abandoned` rendered its shadcn Card/Badge/Button/Dialog composition at 390, 768, and 1280 CSS px with zero overflow, no stuck busy state, no failed request, and no console error. A populated lead opened the conversion Dialog, focused the invalid address, and returned focus after `Escape`. A separate isolated owner session on `/admin/balance` rendered pending and locked AutoLaris rows, blocked blank manual-confirmation submission with focused inline errors, and an already-confirmed payment redirected `/payment` to `/thanks` with zero console errors. No live provider request, deployment, or remote D1 mutation occurred. |
+| Full-system screening | On 2026-08-22 every checkout path, the hybrid form decision, the payment gateway, and every admin surface and role gate were exercised against a running install (see `BUILD-LOG.md`). A real QRIS order reached AutoLaris and came back with a provider transaction id; every submit guard (honeypot, stale fare, bad phone, replayed token, COD to an excluded province, excluded-area address text) refused correctly; the order-status endpoint exposed no PII and refused a wrong token. One defect found and fixed: the public form-config endpoint served a stale COD-province policy for up to five minutes after an operator changed it. All rows created were removed and reserved stock restored. |
 | Live provider read | On 2026-08-19 the repository's own clients were exercised against the real providers. Mengantar: `searchAddress("Cihapit")` resolved one area and `estimateRates` returned ten couriers with real prices (JNE Rp11.000, SiCepat Rp8.500, SAP Rp10.500). Read-only; no order, pickup, or D1 write. AutoLaris: `createPayment` on the provider's **published development key** returned a real virtual account for a Rp118.400 order, and `inquirePayment` read it back as `PENDING`. No production AutoLaris credential was used, no deployment occurred, and no remote D1 was touched. |
 
 ---

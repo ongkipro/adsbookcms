@@ -3,6 +3,7 @@ import { jsonError, jsonOk } from '../../../../lib/api';
 import { getRuntimeEnv } from '../../../../lib/env';
 import { selectQuotedRate } from '../../../../lib/courier-rules';
 import { normalizePhoneNumber } from '../../../../lib/order-schema';
+import { isValidWa62 } from '../../../../lib/validation';
 import { getMengantarDispatchEligibility } from '../../../../lib/payment-dispatch-policy';
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from '../../../../lib/payment-fee-policy';
 import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch';
@@ -449,8 +450,10 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     if (nextCustomerName !== undefined && nextCustomerName.length < 2) {
       return jsonError('Nama minimal 2 karakter.', 422);
     }
-    if (nextCustomerPhone !== undefined && !/^(08|628)\d{8,11}$/.test(nextCustomerPhone)) {
-      return jsonError('Nomor HP harus berisi 10-13 digit (contoh: 081234567890).', 422);
+    // Value is already normalized to 62-form above; the one canonical check
+    // covers operator prefix and the real 0-form 8-13 / 62-form 9-14 length.
+    if (nextCustomerPhone !== undefined && !isValidWa62(nextCustomerPhone)) {
+      return jsonError('Nomor HP tidak valid (contoh: 081234567890).', 422);
     }
     if (nextAddress !== undefined && nextAddress.length < 10) {
       return jsonError('Alamat lengkap minimal 10 karakter.', 422);
@@ -605,7 +608,7 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
       }
       if (
         resolvedCustomerName.length < 2 ||
-        !/^(08|628)\d{8,11}$/.test(resolvedCustomerPhone) ||
+        !isValidWa62(resolvedCustomerPhone) ||
         resolvedAddress.length < 10 ||
         resolvedDistrict.length < 2 ||
         resolvedCity.length < 2 ||

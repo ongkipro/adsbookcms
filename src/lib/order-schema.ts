@@ -4,13 +4,17 @@ import {
   autoLarisChannelLockReason,
 } from './autolaris-client.ts';
 
-import { normalizePhone } from './validation.ts';
+import { isValidWa62, normalizePhone } from './validation.ts';
 export const normalizePhoneNumber = normalizePhone;
 
 export const orderSubmitSchema = z.object({
   customer_name: z.string().min(2, 'Nama minimal 2 karakter').max(100),
+  // Normalize first, then run the one canonical operator+length check, so
+  // checkout, the browser forms, lead capture and admin edits all agree.
   customer_phone: z.string().transform(normalizePhone).pipe(
-    z.string().regex(/^(08|628)\d{8,11}$/, 'Nomor WhatsApp / HP tidak valid. Contoh: 081234567890'),
+    z.string().refine(isValidWa62, {
+      message: 'Nomor WhatsApp / HP tidak valid. Contoh: 081234567890',
+    }),
   ),
   customer_email: z.string().trim().email('Email pembayaran tidak valid').max(160).optional().or(z.literal('')),
   address: z.string().trim().min(10, 'Alamat lengkap minimal 10 karakter').max(500),

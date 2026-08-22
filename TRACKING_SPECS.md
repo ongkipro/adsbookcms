@@ -168,6 +168,21 @@ Preserve `_fbp` and `_fbc` exactly as issued when present. They are attribution 
 
 Client IP and user agent are derived at the server boundary (`getClientIp(request.headers)` and the `user-agent` header) rather than trusted from arbitrary browser fields.
 
+`_fbp` and `_fbc` are derived the same way. `readMetaBrowserIds(request)` in
+`src/lib/click-ids.ts` reads them off the request cookie header — both are
+first-party on the storefront origin and every tracker posts same-origin, so
+they arrive without a tracker having to include them. A value the browser *did*
+send still wins; the server read is the floor, not a replacement.
+
+This is deliberate rather than defensive. Before it, `ViewContent` and
+`PageView` posted no `user_data` at all, and on a live install that was 2992 of
+3115 delivered events — 96% of the CAPI volume — reaching Meta with nothing but
+an IP and a user agent. `fbc` was absent from all 3115, Purchases included. The
+server read also holds in the cases a browser read cannot: the pixel deferred,
+blocked by an extension, or simply not loaded when the event fires. For `fbc`
+specifically it falls back to the `_fbc` synthesized into the click-ID cookie by
+the middleware at landing, which exists on ad traffic *before* the pixel runs.
+
 ### Click identifier capture and persistence
 
 Click-ID preservation is owned by `src/lib/click-ids.ts`, `src/middleware.ts`, and the `orders.ad_click_ids` column — **not** by `src/lib/order-schema.ts`, which carries no click-ID fields.
@@ -185,7 +200,7 @@ Flow:
 
 1. **Capture.** `src/middleware.ts` runs `parseClickIdsFromUrl(url)` on every non-private request. Values must match `/^[A-Za-z0-9._-]{1,256}$/` or they are dropped. When `fbclid` arrives without `_fbc`, the library synthesizes `_fbc` as `fb.1.<timestamp>.<fbclid>`.
 2. **Store.** Matching values are JSON-serialized into the cookie named by `CLICK_ID_COOKIE` — currently `adsbook_click_ids` — with `Max-Age` of 90 days, `Path=/`, and `SameSite=None; Secure` on HTTPS (`SameSite=Lax` otherwise). `_fbp` and `_fbc` are additionally re-issued as their own first-party cookies so Meta's own readers find them.
-3. **Read back.** `readClickIdCookie(request)` is called by `src/pages/api/submit-order.ts`, `src/pages/api/submit-middle-order.ts`, and `src/pages/api/v1/checkout.ts`. Cookies ride along with the submit request, so no hidden form fields are needed. Malformed or hand-edited cookie values parse to `{}` rather than throwing inside the order path.
+3. **Read back.** `readClickIdCookie(request)` is called by `src/pages/api/submit-order.ts`, `src/pages/api/submit-middle-order.ts`, and `src/pages/api/v1/checkout.ts`; `readMetaBrowserIds(request)` wraps it for `src/pages/api/meta-event.ts`. Cookies ride along with the submit request, so no hidden form fields are needed. Malformed or hand-edited cookie values parse to `{}` rather than throwing inside the order path.
 4. **Persist.** The serialized value is written to `orders.ad_click_ids` (migration `0024_daily_typhoid_mary.sql`).
 5. **Classify.** `src/lib/traffic-source.ts` reads that stored JSON and derives a `TrafficSourceType` of `meta`, `google`, `tiktok`, `organic`, or `custom`, precedence Meta → Google → TikTok → UTM heuristics. The admin surfaces it through `TrafficSourceBadge` in `OrdersTable.tsx` and `OrderDetail.tsx`.
 
@@ -230,7 +245,7 @@ An embed pasted before 2026-08-16 must be re-copied from `/admin/products`. The 
 
 ### Tag integration
 
-1. **Google Tag (`gtag.js`)**: loaded by `GoogleAdsBase.astro` when a valid `google_ads_conversion_id` (`AW-XXXXXXXXX`) and `google_ads_conversion_label` are configured. Both must be present; the component renders nothing otherwise.
+1. **Google Tag (`gtag.js`)**: loaded by `GoogleAdsBase.astro` when a valid `google_ads_conversion_id` (`AW-XXXXXXXXX`) and `google_ads_conversion_label` are configured. Both must be present; the component renders nothing otherwise. The 153 KB library download is **deferred** to first interaction or 2500 ms, whichever comes first — the same trade `MetaPixelBase.astro` takes, made after it measured 228 ms of a product page's 750 ms blocking time. `window.gtag` is a `dataLayer.push` shim declared inline, so the consent, `js` and `config` calls queue in their original order and only the download moves. A conversion never waits on the timer: `__PS_PUSH_GOOGLE_CONVERSION__` calls `window.__PS_LOAD_GOOGLE_TAG__()` before pushing. Only remarketing `page_view` is affected, and only for a visitor who leaves inside the timeout.
 2. **Google Tag Manager**: loaded by `GtmBase.astro` when `google_tag_manager_id` (`GTM-XXXXXXX`) is defined. Pushes `page_view`, `view_item`, `add_to_cart`, `begin_checkout`, and `purchase` to `window.dataLayer` using the GA4/GTM ecommerce schema.
 3. **Global execution helper**: `window.__PS_PUSH_GOOGLE_CONVERSION__(value, transactionId, userData)` builds `{ send_to: id + '/' + label, value, currency: 'IDR' }`, appends `transaction_id` **only when truthy** (an empty string would make every order collide instead of dedupe), attaches `user_data` when supplied, and calls `gtag('event', 'conversion', payload)`.
 

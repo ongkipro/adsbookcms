@@ -107,5 +107,14 @@ const heroSlides =
   const heroContainer = document.getElementById('home');
   heroContainer?.addEventListener('mouseenter', stopHero);
   heroContainer?.addEventListener('mouseleave', startHero);
-  startHero();
+
+  // After `load`, not at parse time. Every advance paints a new full-width
+  // image, and each one is a fresh LCP candidate, so starting the timer here
+  // used to let the metric be decided by wherever the trace happened to end:
+  // two runs of the same build measured 1.8 s and 6.3 s, the slow one resolving
+  // to an off-screen `loading="lazy"` slide. Nobody sees a difference — the
+  // first advance already sat 4 s out — but the page now stops changing while
+  // it is still settling, which is also what Speed Index was reading.
+  if (document.readyState === 'complete') startHero();
+  else window.addEventListener('load', startHero, { once: true });
 </script>

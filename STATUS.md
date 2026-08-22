@@ -28,9 +28,21 @@ The previous version of this file described a different repository — it opened
 
 ### Known installs
 
+Verified 2026-08-23 from outside: each host serves Astro 7.2 and answers `401`
+on `/api/admin/health`, so the admin boundary holds on every one.
+
 | Install | Repository | Notes |
 | --- | --- | --- |
-| `permatamall.shop` | `ongkipro/permatamall` | First install. Holds its own catalogue in its own database; nothing is bundled here any more (ADR-016). Its Cloudflare resources keep legacy `cmsads-*` names |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | Largest install — 34 products, 33 landing pages, its own deep-blue palette re-applied on every sync by a store-owned script. The audit reports in `docs/` are measured against it |
+| `carukesi.com` | `ongkipro/carukesi` | |
+| `skincarebpom.shop` | `ongkipro/skincarebpom` | |
+| `taniniaga.shop` | `ongkipro/taniniaga` | |
+| `zvara.shop` | `ongkipro/zvarashop` | |
+| ~~`permatamall.shop`~~ | `ongkipro/permatamall` | First install, and the only one this table listed until 2026-08-23. **The hostname no longer resolves** — no DNS record at all — so it is recorded as history, not as a place to adopt a fix |
+
+Holding a catalogue is each install's own job; nothing is bundled here any more
+(ADR-016). Older installs keep legacy `cmsads-*` names on their Cloudflare
+resources.
 
 As of the split on 2026-08-16, the fixes recorded below live in this repository. Whether and when an install adopts them is that install's own deploy decision.
 

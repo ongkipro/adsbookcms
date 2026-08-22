@@ -1,6 +1,10 @@
 import type { APIRoute } from 'astro';
 import { getRuntimeEnv } from '../../lib/env.ts';
 import { json, jsonError, jsonOk } from '../../lib/api.ts';
+import {
+  buildLeadNotification,
+  recordNotification,
+} from '../../lib/notifications.ts';
 import { recordAbandonedOrder } from '../../lib/order-persistence.ts';
 import {
   checkRateLimit,
@@ -83,6 +87,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
         : undefined,
       variantId:
         Number.isInteger(variantId) && variantId > 0 ? variantId : undefined,
+    });
+    // A repeat capture within the dedupe window returns the same row, so the
+    // unique constraint on (type, order_id) collapses it to the one
+    // notification the operator already has.
+    await recordNotification(database as D1Database, {
+      type: 'lead',
+      orderId: recorded.id,
+      orderNumber: recorded.orderNumber,
+      ...buildLeadNotification({
+        orderNumber: recorded.orderNumber,
+        customerName,
+        productTitle: String(body.product_title || ''),
+      }),
     });
     return jsonOk({
       success: true,

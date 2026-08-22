@@ -30,6 +30,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { AppSidebar } from "./AppSidebar";
+import { NotificationBell } from "./NotificationBell";
 import {
   ADMIN_ACCENT,
   getSearchableNavItems,
@@ -233,6 +234,9 @@ export function AdminShell({
               {!mustChangePassword && <a href="/" target="_blank" rel="noopener noreferrer" className="hidden min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 xl:inline-flex">
                 Lihat storefront <ArrowUpRight className="size-3.5" aria-hidden="true" />
               </a>}
+              {/* A first-run session may only rotate its password; the bell
+                  hides itself for roles the endpoint refuses. */}
+              {!mustChangePassword && <NotificationBell />}
               <a
                 href="/admin/profile"
                 aria-current={activeMenu === "profile" ? "page" : undefined}

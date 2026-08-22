@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { DatabaseSync, type StatementSync } from "node:sqlite";
 import test from "node:test";
 import { enqueueCapiEvent } from "./capi-outbox.ts";
@@ -206,6 +207,15 @@ class SqliteD1Database {
       INSERT INTO product_variants (id, product_id, sku, price, stock)
       VALUES (20001, 10001, 'AUS-500', 150000, 12);
     `);
+    // Loaded from the shipped migration rather than hand-rolled: `persistOrder`
+    // records an order notification, and without the real table that write
+    // fails open and silently proves nothing.
+    this.#database.exec(
+      readFileSync(
+        new URL("../db/migrations/0045_operator_notifications.sql", import.meta.url),
+        "utf8",
+      ).replaceAll("--> statement-breakpoint", ""),
+    );
   }
 
   prepare(sql: string): SqliteD1Statement {
@@ -490,6 +500,25 @@ test("non-COD checkout stays pending until payment confirmation", async () => {
 
     assert.equal(stored.payment_status, "pending");
     assert.equal(stored.shipping_status, "pending");
+
+    // The checkout write must actually reach the notification store with the
+    // right subject and copy. Recording is fail-open, so without this the call
+    // site could be silently broken and every other assertion would still pass.
+    const notification = await readRow<{
+      type: string;
+      order_number: string;
+      title: string;
+      body: string;
+    }>(
+      database,
+      "SELECT type, order_number, title, body FROM notifications WHERE order_id = ?",
+      order.id,
+    );
+    assert.equal(notification.type, "order");
+    assert.equal(notification.order_number, order.orderNumber);
+    assert.match(notification.title, /^Order baru /);
+    assert.match(notification.body, /Siti Rahayu/);
+    assert.match(notification.body, /Wonokromo, Surabaya/);
   }
 });
 

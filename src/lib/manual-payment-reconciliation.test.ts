@@ -118,6 +118,14 @@ class ReconciliationDatabase {
         "utf8",
       ).replaceAll("--> statement-breakpoint", ""),
     );
+    // Confirming a payment records an operator notification. Without the real
+    // table that write fails open, so the call site would prove nothing.
+    this.sqlite.exec(
+      readFileSync(
+        new URL("../db/migrations/0045_operator_notifications.sql", import.meta.url),
+        "utf8",
+      ).replaceAll("--> statement-breakpoint", ""),
+    );
   }
 
   prepare(sql: string) {
@@ -265,6 +273,14 @@ test("duplicate confirmation is idempotent and creates one audit", async () => {
   assert.equal(first.transitioned, true);
   assert.equal(duplicate.transitioned, false);
   assert.equal(count(database, "payment_reconciliation_audits"), 1);
+  // The confirmation must reach the notification store, and confirming twice
+  // must still leave the operator with exactly one.
+  assert.equal(count(database, "notifications"), 1);
+  const notification = database.sqlite
+    .prepare("SELECT type, order_number, title FROM notifications")
+    .get() as { type: string; order_number: string; title: string };
+  assert.equal(notification.type, "payment");
+  assert.equal(notification.title, `Pembayaran lunas ${notification.order_number}`);
 });
 
 test("simultaneous confirmations produce one transition and one audit", async () => {

@@ -3,6 +3,8 @@ import test from "node:test";
 import { POST } from "../pages/api/record-abandoned-order.ts";
 import { POST as POST_RETENTION } from "../pages/api/admin/orders/retention.ts";
 
+type QueryValue = null | number | string | Uint8Array;
+
 function abandonedRequest(body: Record<string, unknown>) {
   return new Request("https://shop.example/api/record-abandoned-order", {
     method: "POST",
@@ -53,11 +55,23 @@ test("abandoned capture rejects a filled honeypot before any KV or D1 operation"
 
 test("a qualified human lead inside the KV window is recorded", async () => {
   let spentSlots = 0;
+  // Captures the operator-notification write. Without a `run()` here the
+  // fail-open recorder swallowed its own failure and the lead call site was
+  // never actually exercised.
+  const notificationWrites: QueryValue[][] = [];
   const database = {
     prepare(sql: string) {
       const statement = {
-        bind() {
+        bound: [] as QueryValue[],
+        bind(...values: QueryValue[]) {
+          statement.bound = values;
           return statement;
+        },
+        async run() {
+          if (sql.includes("INSERT OR IGNORE INTO notifications")) {
+            notificationWrites.push(statement.bound);
+          }
+          return { success: true, meta: { changes: 1 } };
         },
         async first() {
           if (
@@ -108,6 +122,14 @@ test("a qualified human lead inside the KV window is recorded", async () => {
     order_number: "ABN-10001",
   });
   assert.equal(spentSlots, 1);
+
+  assert.equal(notificationWrites.length, 1);
+  const [type, orderId, orderNumber, title, body] = notificationWrites[0];
+  assert.equal(type, "lead");
+  assert.equal(orderId, 1);
+  assert.equal(orderNumber, "ABN-10001");
+  assert.match(String(title), /^Pesanan tertinggal ABN-10001$/);
+  assert.match(String(body), /Perlu follow-up/);
 });
 
 test("abandoned capture is rejected when the shared KV window is exhausted", async () => {

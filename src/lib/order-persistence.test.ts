@@ -7,12 +7,24 @@ import {
 } from "./order-persistence.ts";
 
 test("persistOrder returns the newly inserted order data", async () => {
+  // Captures the order notification. Recording is fail-open, so without a
+  // `run()` here the write would swallow its own failure and this call site
+  // would prove nothing.
+  const notificationWrites: unknown[][] = [];
   const mockDb = {
     prepare(sql: string) {
       const statementSql = sql;
+      let bound: unknown[] = [];
       const stmt = {
-        bind(..._args: unknown[]) {
+        bind(...args: unknown[]) {
+          bound = args;
           return stmt;
+        },
+        async run() {
+          if (statementSql.includes("INSERT OR IGNORE INTO notifications")) {
+            notificationWrites.push(bound);
+          }
+          return { success: true, meta: { changes: 1 } };
         },
         async first() {
           if (statementSql.includes("FROM product_variants")) {
@@ -53,6 +65,15 @@ test("persistOrder returns the newly inserted order data", async () => {
   assert.equal(result.id, 18);
   assert.equal(result.orderNumber, "INV-10018");
   assert.equal(result.totalAmount, 60000 + Math.round(60000 * 0.03 * 1.11)); // COD fee applied
+
+  assert.equal(notificationWrites.length, 1);
+  const [type, orderId, orderNumber, title, body] = notificationWrites[0];
+  assert.equal(type, "order");
+  assert.equal(orderId, 18);
+  assert.equal(orderNumber, "INV-10018");
+  assert.equal(title, "Order baru INV-10018");
+  assert.match(String(body), /Paduka Ongki/);
+  assert.match(String(body), /Coblong, Bandung/);
 });
 
 test("persistOrder promotes the recent abandoned row and replaces its items", async () => {
@@ -88,6 +109,9 @@ test("persistOrder promotes the recent abandoned row and replaces its items", as
             };
           }
           throw new Error(`Unexpected first query: ${sql}`);
+        },
+        async run() {
+          return { success: true, meta: { changes: 1 } };
         },
       };
       return stmt;
@@ -220,6 +244,9 @@ test("recordAbandonedOrder upserts the matching recent lead", async () => {
             id: 22,
             order_number: "ABN-EXISTING",
           };
+        },
+        async run() {
+          return { success: true, meta: { changes: 1 } };
         },
       };
       return stmt;

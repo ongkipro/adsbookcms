@@ -5,6 +5,7 @@ import {
   type PaymentFeeBearer,
 } from "./payment-fee-policy.ts";
 import { paymentBrandLabel } from "./payment-brand.ts";
+import { buildOrderNotification, recordNotification } from "./notifications.ts";
 import { isValidWa62, normalizePhone } from "./validation.ts";
 
 export type PersistOrderInput = {
@@ -576,6 +577,22 @@ export async function persistOrder(
     const results = await database.batch(statements);
     const row = results.at(-1)?.results?.[0] as { id?: number } | undefined;
     if (!row?.id) throw new Error("Order gagal disimpan.");
+    // Recorded here rather than in each of the three checkout routes that call
+    // this, so a new entry point cannot forget it. Fail-open by contract: the
+    // order is already committed and a buyer must never see a checkout fail
+    // because an operator convenience could not be stored (REQ-149).
+    await recordNotification(database, {
+      type: "order",
+      orderId: row.id,
+      orderNumber,
+      ...buildOrderNotification({
+        orderNumber,
+        customerName: input.customerName,
+        totalAmount,
+        district: input.district,
+        city: input.city,
+      }),
+    });
     return {
       id: row.id,
       orderNumber,

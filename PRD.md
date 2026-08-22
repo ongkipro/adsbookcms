@@ -1,5 +1,31 @@
 # PRD — AdsBookCMS (single)
 
+## A20 — One date-range control across every reporting surface
+
+### Goals
+
+- An operator picks a reporting period the same way on the dashboard, the order list, and the shipping workspace.
+- A period can be an explicit start and end date, not only a named preset.
+
+### Non-goals
+
+- A new date-picker dependency. The platform's own `<input type="date">` already renders a real calendar, and on a phone it renders the OS picker, which beats any in-page grid.
+- Per-surface period semantics. One resolver already exists (`admin-date-filter.ts`); this phase extends it rather than growing a second.
+
+### Requirements
+
+- **REQ-154** — The dashboard, order list, and shipping workspace shall present one shared period control offering the same presets plus an explicit custom range.
+- **REQ-155** — A custom range shall be expressed as an inclusive start and end date in Asia/Jakarta, and shall be rejected — not silently reinterpreted — when the start is after the end, either date is unparseable, or the span exceeds that surface's documented maximum.
+- **REQ-156** — Where a surface caps how much history it can report on, the control shall state the cap and prevent selecting past it rather than truncating the answer silently.
+- **REQ-157** — A request naming a period the server cannot resolve shall be refused with a stated reason; it shall not fall back to a different period and present the result as the one that was asked for.
+- **REQ-158** — The active period shall be legible without opening the control, including which custom dates are in force.
+
+### Technical decisions
+
+- **`<input type="date">`, not a calendar library.** It is a real date picker, it is the native one on mobile, it needs no bundle, and the repository currently carries no date dependency at all. A two-month drag-select grid would be the only reason to add one, and no requirement here asks for that.
+- **One resolver, extended.** `resolveAdminDateRange` gains an optional custom range and a validating parser shared by all three APIs, because two of them currently pass an unvalidated string into a typed parameter and silently receive the 7-day default for anything unrecognised — including `custom`.
+- **The cap stays per surface.** The dashboard already limits custom ranges to 30 days and hides the 90/180-day presets; the order and shipping lists do not have that constraint. The control takes the cap as input rather than imposing one number on surfaces with different costs.
+
 ## A19 — Operator notifications for revenue events
 
 ### Goals

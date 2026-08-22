@@ -30,10 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import { ADMIN_CUSTOM_DATE_FILTER } from "../../lib/admin-date-filter";
 import {
-  ADMIN_DATE_FILTER_OPTIONS,
-  getAdminDateFilterLabel,
-} from "../../lib/admin-date-filter";
+  AdminDateRangeFilter,
+  type AdminDateSelection,
+} from "./AdminDateRangeFilter";
 import {
   matchesShippingQueue,
   type ShippingQueueId,
@@ -243,7 +244,11 @@ export function ShippingOperations() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [courierFilter, setCourierFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateSelection, setDateSelection] = useState<AdminDateSelection>({
+    filter: "all",
+    start: "",
+    end: "",
+  });
   const [activeQueue, setActiveQueue] = useState<ShippingQueueId>("all");
   const [syncing, setSyncing] = useState(false);
   const [pickupOpen, setPickupOpen] = useState(false);
@@ -260,8 +265,13 @@ export function ShippingOperations() {
       setLoadError("");
       try {
         const url = new URL("/api/admin/shipping", window.location.href);
-        if (dateFilter && dateFilter !== "all")
-          url.searchParams.set("date_filter", dateFilter);
+        if (dateSelection.filter && dateSelection.filter !== "all") {
+          url.searchParams.set("date_filter", dateSelection.filter);
+          if (dateSelection.filter === ADMIN_CUSTOM_DATE_FILTER) {
+            url.searchParams.set("date_start", dateSelection.start);
+            url.searchParams.set("date_end", dateSelection.end);
+          }
+        }
         const response = await fetch(url.toString(), {
           headers: { Accept: "application/json" },
         });
@@ -287,7 +297,7 @@ export function ShippingOperations() {
         if (showLoading) setLoading(false);
       }
     },
-    [dateFilter],
+    [dateSelection],
   );
 
   useEffect(() => {
@@ -374,7 +384,7 @@ export function ShippingOperations() {
   const hasFilters =
     activeQueue !== "all" ||
     search.trim() !== "" ||
-    dateFilter !== "all" ||
+    dateSelection.filter !== "all" ||
     statusFilter !== "all" ||
     courierFilter !== "all";
 
@@ -746,26 +756,11 @@ export function ShippingOperations() {
                 >
                   Periode order
                 </label>
-                <Select
-                  value={dateFilter}
-                  onValueChange={(val) => setDateFilter(val ?? "all")}
-                >
-                  <SelectTrigger
-                    id="shipping-date"
-                    className="h-11 w-full rounded-lg bg-white px-3 text-sm shadow-sm border-slate-200"
-                  >
-                    <SelectValue>
-                      {getAdminDateFilterLabel(dateFilter)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ADMIN_DATE_FILTER_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <AdminDateRangeFilter
+                  value={dateSelection}
+                  onChange={setDateSelection}
+                  className="w-full rounded-lg shadow-sm"
+                />
               </div>
 
               <div className="w-full sm:w-[150px]">
@@ -838,7 +833,7 @@ export function ShippingOperations() {
                   setStatusFilter("all");
                   setActiveQueue("all");
                   setCourierFilter("all");
-                  setDateFilter("all");
+                  setDateSelection({ filter: "all", start: "", end: "" });
                 }}
                 disabled={!hasFilters}
                 size="xl"
@@ -879,7 +874,7 @@ export function ShippingOperations() {
                     setStatusFilter("all");
                     setActiveQueue("all");
                     setCourierFilter("all");
-                    setDateFilter("all");
+                    setDateSelection({ filter: "all", start: "", end: "" });
                   }}
                   size="lg"
                   className="mt-4"

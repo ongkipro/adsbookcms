@@ -168,6 +168,13 @@ test("dashboard overview leads with truthful role-safe analytics", () => {
   assert.match(dashboard, /showPaymentsLink=\{mayManagePayments\}/);
   assert.match(analytics, /Pembayaran berhasil/);
   assert.doesNotMatch(analytics, /Konversi Ads/);
-  assert.match(analytics, /shiftAdminDate\(customStart, 30\)/);
+  // The dashboard charts every day in the period, so it must keep capping how
+  // much history it will answer for. The cap moved out of a hand-rolled
+  // `shiftAdminDate(customStart, 30)` and into the shared period control, but
+  // the guarantee is the same one: this surface states a maximum and hides the
+  // presets that would exceed it.
+  assert.match(analytics, /DASHBOARD_MAX_RANGE_DAYS = \d+/);
+  assert.match(analytics, /maxCustomRangeDays=\{DASHBOARD_MAX_RANGE_DAYS\}/);
+  assert.match(analytics, /hiddenPresets=\{DASHBOARD_HIDDEN_PRESETS\}/);
   assert.match(analytics, /showPaymentsLink &&/);
 });

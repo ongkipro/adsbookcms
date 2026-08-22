@@ -8,10 +8,11 @@ import {
   defaultCrmTemplates,
   renderCrmMessage,
 } from "../../lib/crm-template";
+import { ADMIN_CUSTOM_DATE_FILTER } from "../../lib/admin-date-filter";
 import {
-  ADMIN_DATE_FILTER_OPTIONS,
-  getAdminDateFilterLabel,
-} from "../../lib/admin-date-filter";
+  AdminDateRangeFilter,
+  type AdminDateSelection,
+} from "./AdminDateRangeFilter";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -512,7 +513,11 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
     return params.get("status") || params.get("shipping_status") || "all";
   });
   const [paymentFilter, setPaymentFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateSelection, setDateSelection] = useState<AdminDateSelection>({
+    filter: "all",
+    start: "",
+    end: "",
+  });
   const [sourceFilter, setSourceFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<OrdersPagination>({
@@ -566,7 +571,13 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
         if (shippingFilter !== "all")
           query.set("shipping_status", shippingFilter);
         if (paymentFilter !== "all") query.set("payment_status", paymentFilter);
-        if (dateFilter !== "all") query.set("date_filter", dateFilter);
+        if (dateSelection.filter !== "all") {
+          query.set("date_filter", dateSelection.filter);
+          if (dateSelection.filter === ADMIN_CUSTOM_DATE_FILTER) {
+            query.set("date_start", dateSelection.start);
+            query.set("date_end", dateSelection.end);
+          }
+        }
         if (sourceFilter !== "all") query.set("source", sourceFilter);
         const response = await fetch(`/api/admin/orders?${query}`, {
           headers: { Accept: "application/json" },
@@ -635,7 +646,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
     requestVersion,
     searchTerm,
     shippingFilter,
-    dateFilter,
+    dateSelection,
     sourceFilter,
   ]);
 
@@ -650,7 +661,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
       : firstVisibleOrder + filteredOrders.length - 1;
   const hasFilters =
     searchTerm.trim() !== "" ||
-    dateFilter !== "all" ||
+    dateSelection.filter !== "all" ||
     shippingFilter !== "all" ||
     paymentFilter !== "all" ||
     sourceFilter !== "all";
@@ -877,7 +888,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
     setSearchTerm("");
     setShippingFilter("all");
     setPaymentFilter("all");
-    setDateFilter("all");
+    setDateSelection({ filter: "all", start: "", end: "" });
     setSourceFilter("all");
     setPage(1);
   };
@@ -1202,29 +1213,14 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                 >
                   Periode order
                 </label>
-                <Select
-                  value={dateFilter}
-                  onValueChange={(val) => {
-                    setDateFilter(val ?? "all");
+                <AdminDateRangeFilter
+                  value={dateSelection}
+                  onChange={(next) => {
+                    setDateSelection(next);
                     setPage(1);
                   }}
-                >
-                  <SelectTrigger
-                    id="filter-date"
-                    className="h-11 w-full rounded-lg bg-white shadow-sm border-slate-200"
-                  >
-                    <SelectValue>
-                      {getAdminDateFilterLabel(dateFilter)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ADMIN_DATE_FILTER_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  className="w-full rounded-lg shadow-sm"
+                />
               </div>
 
               <div className="w-full sm:w-[150px]">

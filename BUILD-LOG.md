@@ -3300,3 +3300,47 @@ speculative work for a problem no store has; it is recorded in
 **Verification.** `npm run check` 366 files / 0 errors · `npm test` 466 / 466,
 now with zero swallowed notification writes (grepped for, not assumed) ·
 `npm run build` complete.
+
+## 2026-08-22 — A20: one period control, and a default that was pretending to be an answer
+
+Asked for as a Facebook-Ads-style date filter on the dashboard, the order list
+and the shipping workspace.
+
+**No date library.** `<input type="date">` is a real picker, it is the OS picker
+on a phone, and the repository carried no date dependency at all. A two-month
+drag-select grid is the only thing that would justify adding one, and nothing
+here needs that. The Facebook-Ads shape — presets down one side, an explicit
+range beside them — is layout, not a library.
+
+**The defect this uncovered.** The order and shipping routes passed an
+unvalidated string straight into `resolveAdminDateRange`, whose final branch is
+`return 7d`. Anything unrecognised — a typo, a stale client, and `custom`
+itself — silently became "last 7 days" and was presented as the period the
+operator had asked for. Two of the three surfaces were therefore incapable of
+ever honouring a custom range, and would have answered a different question
+without saying so. `resolveAdminDateSelection` now returns a refusal carrying a
+reason, and `parseAdminDateSelection` gives all three routes one parameter
+contract so they cannot drift apart again.
+
+**The cap belongs to the surface, not the resolver.** The dashboard charts every
+day in the period, so it keeps its 31-day ceiling and hides the 90- and
+180-day presets; the lists read further back and default to 180. The control
+takes the number as input and states it in its own copy, so the limit is
+visible before it is hit rather than discovered by an error.
+
+**Two guards caught real mistakes.** The repository's mobile-layout test
+rejected three grids in the new component whose implicit tracks size to
+`min-content` — the failure mode that has clipped admin controls off a phone
+screen three times before. And a dashboard guard pinned the old
+`shiftAdminDate(customStart, 30)`; its intent (this surface must cap itself)
+still holds, so it was rewritten against the new mechanism rather than deleted.
+
+**Verification.** `npm run check` 367 files / 0 errors · `npm test` 474 / 474
+(10 in the date resolver) · `npm run build` complete. Exercised against a
+running install: both routes refused an inverted range, a future end, missing
+dates and an unknown preset with a stated 422/400, and the order list returned
+10 for 17 Aug, 3 for 18 Aug, 13 for both and 0 for July — consistent with the
+13 orders the store holds. The control was driven at 1280px and 390px with the
+active period legible on the closed trigger, the panel stacking on the phone,
+the dashboard's 31-day cap stated where the lists say 180, and an empty console
+at both widths.

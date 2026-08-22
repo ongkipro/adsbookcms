@@ -16,8 +16,9 @@ import {
 } from "../../../lib/order-lifecycle";
 import type { AdminShippingStatus } from "../../../lib/order-lifecycle";
 import {
+  ADMIN_CUSTOM_DATE_FILTER,
   isAdminDateFilter,
-  resolveAdminDateRange,
+  parseAdminDateSelection,
 } from "../../../lib/admin-date-filter";
 
 export const prerender = false;
@@ -96,7 +97,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
   if (!database || typeof database !== "object") {
     return jsonError("Database pengiriman belum tersedia.", 503);
   }
-  if (!isAdminDateFilter(dateFilter)) {
+  if (dateFilter !== ADMIN_CUSTOM_DATE_FILTER && !isAdminDateFilter(dateFilter)) {
     return jsonError("Filter periode order tidak valid.", 400);
   }
 
@@ -113,9 +114,14 @@ export const GET: APIRoute = async ({ locals, url }) => {
     let dateClause = " WHERE o.shipping_status IN ('processing', 'shipped', 'delivered', 'returned') AND o.provider_order_id IS NOT NULL ";
     const dateParams: string[] = [];
     if (dateFilter !== "all") {
-      const { start, end } = resolveAdminDateRange(dateFilter);
+      // Refuses an unresolvable period instead of answering for a different
+      // one; see the same note in the order list route.
+      const { resolution } = parseAdminDateSelection(url.searchParams);
+      if (!resolution.ok) {
+        return jsonError(resolution.reason, 422, { code: "DATE_RANGE_INVALID" });
+      }
       dateClause += " AND date(o.created_at, '+7 hours') BETWEEN ? AND ? ";
-      dateParams.push(start, end);
+      dateParams.push(resolution.start, resolution.end);
     }
 
     const [shipmentResult, pickupResult, warehouseResult] = await db.batch([

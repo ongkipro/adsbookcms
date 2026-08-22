@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-08-18 @ `09812c7` + the A16 working tree on `feat/admin-access-dashboard`
+> Verified against disk: 2026-08-22 @ `5550a61` on `main`
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -107,15 +107,15 @@ Two registries, currently in step:
 
 | Source | Field | Value |
 | --- | --- | --- |
-| `src/lib/version.ts` | `version` | `1.2.0` |
-| `src/lib/version.ts` | `releaseTag` | `2026.08-hardened` |
-| `src/lib/version.ts` | `schemaVersion` | `44` |
-| `package.json` | `version` | `1.2.0` |
+| `src/lib/version.ts` | `version` | `1.3.0` |
+| `src/lib/version.ts` | `releaseTag` | `2026.08-landing` |
+| `src/lib/version.ts` | `schemaVersion` | `48` |
+| `package.json` | `version` | `1.3.0` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration files, and the tree holds 44 (`0000`–`0043`).
+`schemaVersion` counts migration files, and the tree holds 48 (`0000`–`0047`).
 `schema-version.test.ts` fails CI on drift; middleware enforces the same chain at
 runtime; `operational-health.ts` and the dashboard expose applied version.
 

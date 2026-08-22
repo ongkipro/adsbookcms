@@ -8,9 +8,9 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.2.0",
+  version: "1.3.0",
   channel: "production",
-  releaseTag: "2026.08-hardened",
+  releaseTag: "2026.08-landing",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
   schemaVersion: 48,
   lastUpdated: "2026-08-22",

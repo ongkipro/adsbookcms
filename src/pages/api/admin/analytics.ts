@@ -77,27 +77,35 @@ export const GET: APIRoute = async ({ locals, url }) => {
     params.push(startParam, endParam);
   }
   const dateFilter = `WHERE ${conditions.join(' AND ')}`;
+  // An order that no longer represents money in play. Matches the releasing
+  // sets in order-lifecycle.ts: a cancelled or returned shipment gives its
+  // stock back and its COD money never arrives; a cancelled, refunded or
+  // failed payment is not coming. One expression, used by the summary AND
+  // the trends query, so a card and the chart beneath it cannot drift apart.
+  const RELEASED_ORDER =
+    "shipping_status IN ('cancelled', 'returned') OR payment_status IN ('cancelled', 'refunded', 'failed')";
 
   try {
     const row = await (database as D1Database).prepare(`
       SELECT
         COUNT(*) AS total_orders,
-        -- Order value of orders still in play. A cancelled order or a failed
-        -- online payment is not revenue in any sense an operator means, and
-        -- summing it under "Omset" reported Rp 1.67M on a store with zero paid
-        -- orders. Released statuses match order-lifecycle.ts.
-        COALESCE(SUM(CASE
-          WHEN shipping_status = 'cancelled'
-            OR payment_status IN ('cancelled', 'refunded', 'failed')
-          THEN 0 ELSE total_amount END), 0) AS total_revenue,
-        -- Money actually received: paid orders only.
+        -- Order value of orders still in play. A cancelled order, a returned
+        -- one, or a failed online payment is not revenue in any sense an
+        -- operator means, and summing it under "Omset" reported Rp 1.67M on a
+        -- store with zero paid orders. RELEASED_ORDER is shared with the trends
+        -- query below so the chart can never disagree with this card again.
+        COALESCE(SUM(CASE WHEN ${RELEASED_ORDER} THEN 0 ELSE total_amount END), 0) AS total_revenue,
+        -- Money the merchant actually keeps: paid orders only, net of shipping
+        -- and the COD service fee, both of which pass through to the courier.
+        -- total_amount alone would have labelled courier money "diterima".
         COALESCE(SUM(CASE
           WHEN payment_status IN ('paid', 'settled', 'success')
-          THEN total_amount ELSE 0 END), 0) AS collected_revenue,
-        COALESCE(SUM(CASE
-          WHEN shipping_status = 'cancelled'
-            OR payment_status IN ('cancelled', 'refunded', 'failed')
-          THEN 0 ELSE 1 END), 0) AS live_orders,
+          THEN total_amount
+            - COALESCE(shipping_cost, 0)
+            - COALESCE(cod_service_fee, 0)
+            - COALESCE(cod_service_fee_vat, 0)
+          ELSE 0 END), 0) AS collected_revenue,
+        COALESCE(SUM(CASE WHEN ${RELEASED_ORDER} THEN 0 ELSE 1 END), 0) AS live_orders,
         -- COD is paid on delivery, so it can never count as a successful
         -- prepayment; measuring payment success over all orders made a
         -- COD-heavy store read as a failing gateway forever.
@@ -138,7 +146,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
     const trendsResult = await (database as D1Database).prepare(`
       SELECT 
         ${groupBy} as date,
-        COALESCE(SUM(total_amount), 0) as revenue,
+        COALESCE(SUM(CASE WHEN ${RELEASED_ORDER} THEN 0 ELSE total_amount END), 0) as revenue,
         COUNT(*) as orders
       FROM orders
       ${dateFilter}

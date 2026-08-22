@@ -22,6 +22,21 @@
 /* No src file references these. They are kept on the public side rather than
    deleted because merchant-authored landing HTML lives in D1, where grep
    cannot see it, and that content renders here. */
+/* A brush-stroke underline used throughout merchant landing copy. It arrived
+   with imported content that defined it in a per-page <style> block, which does
+   not survive the move into D1 - the class is not a Tailwind utility, so the
+   safelist cannot generate it either. It lives here for the same reason as the
+   highlight classes below. */
+.hl-brush {
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding-bottom: 0.14em;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20320%2024'%20preserveAspectRatio='none'%3E%3Cpath%20d='M3%2013C55%206%20120%2016%20182%2011S292%208%20317%2012L315%2020C252%2015%20150%2023%2072%2019S13%2021%205%2020C2%2017%202%2016%203%2013Z'%20fill='%23FF9900'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center 100%;
+  background-size: 100% 0.32em;
+}
+
 /* High-Trust Unified Blue & Slate Highlights */
 .text-highlight-blue {
   background-color: rgba(37, 99, 235, 0.12);

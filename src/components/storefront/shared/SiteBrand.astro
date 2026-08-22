@@ -35,24 +35,28 @@ const monogram = (leadWord[0] ?? 'A').toUpperCase();
   aria-label={Astro.locals.tenant.name}
   title={`${Astro.locals.tenant.name} - ${Astro.locals.tenant.tagline}`}
 >
-  <!-- Elegant Monogram Luxury Emblem Icon without border -->
+  <!-- Elegant Monogram Luxury Emblem Icon without border.
+       The letter is drawn by CSS rather than written as a text node. As markup
+       it was a second visible string inside the link that the accessible name
+       did not contain, which is `label-content-name-mismatch` (WCAG 2.5.3) —
+       `aria-hidden` keeps it out of the accessible name but not out of what an
+       auditor reads as the link's visible text. Generated content is not text
+       either way, and a decorative duplicate of a letter that is already
+       spelled out beside it should never have been a text node. -->
   <span
     aria-hidden="true"
-    class={`flex h-7 w-7 items-center justify-center bg-transparent text-[14px] font-bold tracking-widest ${goldClass} transition-colors group-hover:text-[#111111]`}
+    data-monogram={monogram}
+    class={`site-brand-monogram flex h-7 w-7 items-center justify-center bg-transparent text-[14px] font-bold tracking-widest ${goldClass} transition-colors group-hover:text-[#111111]`}
     style="font-family: 'Cinzel', serif;"
-  >
-    {monogram}
-  </span>
+  ></span>
 
   <span class="flex flex-col justify-center">
     <span
       class={`whitespace-nowrap text-[15px] font-bold uppercase tracking-[0.2em] leading-none ${textClass}`}
       style="font-family: 'Cinzel', 'Playfair Display', Georgia, serif;"
     >
-      {/* The separator is a real space, not just the `ml-1.5` gap. Rendered as
-          two adjacent spans the accessible text computed as "ZanobyShop" while
-          `aria-label` said "Zanoby Shop", so the visible text was not contained
-          in the accessible name — `label-content-name-mismatch`. */}
+      {/* The separator is a real space, not just a margin: rendered as two
+          adjacent spans the text computed as "ZanobyShop", one word. */}
       {leadWord}{trailingWords && <> <span class={`font-normal ${goldClass}`}>{trailingWords}</span></>}
     </span>
     {
@@ -67,3 +71,9 @@ const monogram = (leadWord[0] ?? 'A').toUpperCase();
     }
   </span>
 </a>
+
+<style>
+  .site-brand-monogram::before {
+    content: attr(data-monogram);
+  }
+</style>

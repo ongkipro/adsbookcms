@@ -1,5 +1,6 @@
 ---
 import PageIntro from '../../components/storefront/shared/PageIntro.astro';
+import Icon from '../../components/storefront/shared/Icon.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { listPublicLandingPages } from '../../lib/landing-pages';
 
@@ -33,7 +34,7 @@ const INITIAL_COUNT = 10;
           <ul class="flex flex-col" id="landing-list">
             {pages.map((page, index) => (
               <li
-                class={`landing-list-item border-t border-[#E5E5E5] first:border-t-0 ${index >= INITIAL_COUNT ? 'hidden' : ''}`}
+                class={`landing-list-item border-fade-t first:border-t-0 ${index >= INITIAL_COUNT ? 'hidden' : ''}`}
                 data-index={index}
               >
                 <a
@@ -69,23 +70,24 @@ const INITIAL_COUNT = 10;
           </ul>
 
           {pages.length > INITIAL_COUNT && (
-            <div class="mt-8 text-center" id="load-more-container">
-              <p class="mb-3 text-xs font-normal text-[#555555]">
-                Menampilkan <span id="visible-count">{Math.min(INITIAL_COUNT, pages.length)}</span> dari{' '}
-                <span id="total-count">{pages.length}</span> halaman
+            <div class="mt-8 flex flex-col items-center gap-3" id="load-more-container">
+              <p class="text-[11px] font-normal text-[#555555]">
+                Menampilkan <span id="visible-count" class="font-semibold text-[#111111]">{Math.min(INITIAL_COUNT, pages.length)}</span> dari{' '}
+                <span id="total-count" class="font-semibold text-[#111111]">{pages.length}</span> halaman
               </p>
               <button
                 id="load-more-btn"
                 type="button"
-                class="inline-flex min-h-11 w-full items-center justify-center rounded-none border border-[#111111] bg-white px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-[#111111] transition-colors hover:bg-[#111111] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
+                class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-none border border-[#111111] bg-[#111111] px-6 py-2.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-[#000000] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
               >
-                Muat Lebih Banyak
+                <span>Lihat Halaman Lainnya</span>
+                <Icon name="lucide:chevron-down" class="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
           )}
         </>
       ) : (
-        <div class="border-y border-[#E5E5E5] py-10 text-center">
+        <div class="border-fade-y py-10 text-center">
           <h2 class="text-lg font-semibold text-[#111111]">Belum ada halaman</h2>
           <p class="mt-2 text-sm leading-6 text-[#555555]">
             Halaman penawaran akan muncul di sini setelah diterbitkan.

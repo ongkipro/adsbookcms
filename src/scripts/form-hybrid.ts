@@ -342,9 +342,8 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
   );
   const summaryLabel = formRoot.querySelector("#summary-label");
   const summaryCompare = formRoot.querySelector("#summary-compare");
-  const summaryDiscount = formRoot.querySelector("#summary-discount");
+  const summaryPriceValue = formRoot.querySelector("#summary-price-value");
   const summaryCompareRow = formRoot.querySelector<HTMLElement>("#summary-compare-row");
-  const summaryDiscountRow = formRoot.querySelector<HTMLElement>("#summary-discount-row");
   const summaryShipping = formRoot.querySelector("#summary-shipping");
   const summaryAdminFeeRow = formRoot.querySelector<HTMLElement>("#summary-admin-fee-row");
   const summaryAdminFeeLabel = formRoot.querySelector("#summary-admin-fee-label");
@@ -968,13 +967,11 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
     const checked = getSelectedVariant();
     const productPrice = getSelectedPrice();
     const comparePrice = Number(checked?.dataset.compare || productPrice);
-    const discount = Math.max(0, comparePrice - productPrice);
     const hasDiscount = comparePrice > productPrice;
     summaryCompareRow?.toggleAttribute("hidden", !hasDiscount);
-    summaryDiscountRow?.toggleAttribute("hidden", !hasDiscount);
     setNodeText(summaryLabel, checked?.dataset.label || config.productName);
     setNodeText(summaryCompare, fmt(comparePrice));
-    setNodeText(summaryDiscount, `- ${fmt(discount)}`);
+    setNodeText(summaryPriceValue, fmt(productPrice));
     const shippingLabel = state.shippingLoading
       ? "Menghitung..."
       : state.shipping

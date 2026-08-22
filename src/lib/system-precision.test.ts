@@ -96,6 +96,7 @@ test("landing duplication generates a copy slug and independently clones section
     slug: "promo-asahan",
     title: "Promo Asahan",
     product_id: "10001",
+    is_product_page: 0,
     is_active: 0,
     meta_title: "Promo Asahan Hemat",
     meta_description: "Deskripsi promo",

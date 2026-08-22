@@ -3,6 +3,7 @@ import Breadcrumb from '../../components/storefront/shared/Breadcrumb.astro';
 import MetaViewContentTracker from '../../components/storefront/tracking/MetaViewContentTracker.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getStorefrontProduct } from '../../lib/catalog';
+import { getProductPageLanding } from '../../lib/landing-pages';
 import Icon from '../../components/storefront/shared/Icon.astro';
 import RatingStars from '../../components/storefront/shared/RatingStars.astro';
 import GeoIpResolvedForm from '../../components/storefront/forms/GeoIpResolvedForm.astro';
@@ -17,6 +18,30 @@ const product = await getStorefrontProduct(Astro.locals, Astro.params.slug || ''
 const formContext = await resolveFormModeContext(Astro.request);
 if (!product) {
   return Astro.rewrite('/404');
+}
+
+// A landing page may have taken this product's page over (A21). The landing
+// route owns the whole rendering path already, so this hands off to it rather
+// than growing a second copy here. The URL stays `/produk/<slug>`: that is the
+// product's address, and the landing page's own slug redirects to it, so the
+// two never compete as duplicate content.
+const productPageLanding = await getProductPageLanding(
+  Astro.locals,
+  String(product.productId),
+);
+if (productPageLanding) {
+  // The rewritten route does NOT see this route's `Astro.url` — it sees the
+  // landing slug — so the hand-off is signalled on the request itself.
+  // Without it the landing route reads a direct visit, redirects back here,
+  // and the two bounce forever.
+  return Astro.rewrite(
+    new Request(new URL(`/${productPageLanding.slug}`, Astro.url), {
+      headers: new Headers({
+        ...Object.fromEntries(Astro.request.headers),
+        'x-adsbook-product-page': product.slug,
+      }),
+    }),
+  );
 }
 
 const cheapestVariant = [...product.variants].sort((a, b) => a.price - b.price)[0] ?? null;

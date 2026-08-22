@@ -1,5 +1,16 @@
 # Tasks: AdsBookCMS
 
+## A21 — A landing page may become the product page
+
+- [x] **A-147** — Add the product-page claim to `landing_pages`, enforced by a partial unique index. **Done 2026-08-22** — migration `0046`, schema 47. Focused tests prove a second page targeting the same product is refused with the holding slug, that releasing frees it, and that an unknown page reports not-found instead of throwing.
+      -> REQ: REQ-159, REQ-161 · deps: [] · Done when: the migration applies to an empty local D1 and a focused test proves only one landing page can hold a product page.
+- [x] **A-148** — Serve a claimed landing page at the product URL, and redirect its own slug there. **Done 2026-08-22** — verified live in all four states: claimed renders at `/produk/<slug>` with that canonical and no redirect; the landing slug answers exactly one `308` to it; unpublishing returns the product template; releasing the claim restores both independent URLs.
+      -> REQ: REQ-160, REQ-162, REQ-163 · deps: [A-147] · Done when: a running install proves one live URL per claimed page and a product that never 404s when the claim goes away.
+- [x] **A-149** — Add the operator action and keep the copied link canonical. **Done 2026-08-22** — "Jadikan halaman produk" / "Lepas dari halaman produk" in both the card and table menus; a conflict returns `409` with the holding slug; the list carries `product_slug` so a claimed page copies `/produk/<slug>` rather than an address that only redirects.
+      -> REQ: REQ-159 · deps: [A-147] · Done when: the action round-trips through the API and the list shows the address the page actually answers on.
+- [x] **A-150** — Give the landing surface a real stylesheet and write the authoring contract. **Done 2026-08-22** — `.lp-section` was used by every operator-authored HTML block and styled nowhere, so those sections had no rhythm or type contract at all; `src/styles/landing-pages/landing.css` now owns it. `docs/LANDING-PAGES.md` is corrected to the no-prefix URL contract, documents the product-page takeover, states the slug-collision hazard, and records what the unbuilt native registry (A-133) must read.
+      -> REQ: REQ-163 · deps: [] · Done when: the shared landing stylesheet is imported by the surface that needs it and the doc matches disk.
+
 ## A20 — One date-range control across every reporting surface
 
 - [x] **A-143** — Extend `admin-date-filter.ts` with a validated custom range and one shared query-parameter parser. **Done 2026-08-22** — `resolveAdminDateSelection` returns a refusal with a reason instead of a range it cannot justify, and `parseAdminDateSelection` gives all three routes one parameter contract.

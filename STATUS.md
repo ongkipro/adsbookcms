@@ -6,7 +6,7 @@
 > exists on this branch; the previous 61 commits are preserved on
 > `backup/pre-history-rewrite`. Gates re-run on the current tree, not
 > inherited: `npm run check` 367 files / 0 errors / 0 warnings / 0 hints ·
-> `npm test` 474 / 474 · `npm run build` Cloudflare server bundle complete.
+> `npm test` 477 / 477 · `npm run build` Cloudflare server bundle complete.
 
 Current state of the system. Implemented behaviour lives here; history lives in `BUILD-LOG.md`; remaining work lives in `UNIMPLEMENTED_SPECS.md`; structure lives in `ARCHITECTURE.md`.
 
@@ -22,7 +22,7 @@ The previous version of this file described a different repository — it opened
 | Repository role | **Product.** Deploys nothing; CI runs check, test and build only |
 | Install model | 1 installer = 1 Worker = 1 store (ADR-001) |
 | Version | `1.2.0` / `2026.08-hardened` (`src/lib/version.ts`) |
-| Schema | 46 migration files, `0000`-`0045` |
+| Schema | 47 migration files, `0000`-`0046` |
 | Bindings | `OMS_DB` (D1), `SESSION` (KV), `ASSET_BUCKET` (R2), `AI`, `ASSETS` — names fixed across installs |
 | `wrangler.jsonc` | template of placeholders; each install supplies its own resources |
 
@@ -40,9 +40,9 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **474 / 474 passing**, with zero notification writes failing open unnoticed (grepped for after the A19 review found four fixtures swallowing them) |
+| `npm test` | **477 / 477 passing**, with zero notification writes failing open unnoticed (grepped for after the A19 review found four fixtures swallowing them) |
 | `npm run check` | 367 files · 0 errors · 0 warnings · 0 hints |
-| `npm run build` | Cloudflare server bundle complete; 46 bundled migrations |
+| `npm run build` | Cloudflare server bundle complete; 47 bundled migrations |
 | Browser smoke | A fresh isolated install exposed all ten default couriers through `/api/admin/expeditions`. `/admin/orders/abandoned` rendered its shadcn Card/Badge/Button/Dialog composition at 390, 768, and 1280 CSS px with zero overflow, no stuck busy state, no failed request, and no console error. A populated lead opened the conversion Dialog, focused the invalid address, and returned focus after `Escape`. A separate isolated owner session on `/admin/balance` rendered pending and locked AutoLaris rows, blocked blank manual-confirmation submission with focused inline errors, and an already-confirmed payment redirected `/payment` to `/thanks` with zero console errors. No live provider request, deployment, or remote D1 mutation occurred. |
 | Live provider read | On 2026-08-19 the repository's own clients were exercised against the real providers. Mengantar: `searchAddress("Cihapit")` resolved one area and `estimateRates` returned ten couriers with real prices (JNE Rp11.000, SiCepat Rp8.500, SAP Rp10.500). Read-only; no order, pickup, or D1 write. AutoLaris: `createPayment` on the provider's **published development key** returned a real virtual account for a Rp118.400 order, and `inquirePayment` read it back as `PENDING`. No production AutoLaris credential was used, no deployment occurred, and no remote D1 was touched. |
 
@@ -52,7 +52,7 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 **Storefront** — SSR home that remains available when optional homepage content is unpublished, product listing with progressive load-more, product detail with variant selection and sticky mobile CTA, custom 404 with related products, hand-authored `sitemap.xml`, Google and Meta catalog feeds, JSON-LD (Organization, WebSite, Product, ItemList, Breadcrumb). The public component and CSS boundaries are isolated under `components/storefront/` and `styles/storefront.css`.
 
-**Landing pages** — D1-backed builder with ordered `html` and `form` sections, drag reorder, shortcode pills, 480px mobile canvas preview, rendered through the `/[slug]` catch-all with admin-gated `?preview=1`.
+**Landing pages** — D1-backed builder with ordered `html` and `form` sections, drag reorder, shortcode pills, 480px mobile canvas preview, rendered through the `/[slug]` catch-all with admin-gated `?preview=1`. Every landing page answers at `domain/<slug>` with no path prefix. One active landing page may take over its product's page: `/produk/<product-slug>` then renders it and is its canonical address while its own slug answers `308` there, so exactly one URL is live. A partial unique index allows only one holder per product, and releasing or unpublishing the claim returns the product URL to the standard product template rather than 404ing it. Operator-authored HTML renders into `.lp-section`, whose rhythm, type contract, and overflow safety live in `styles/landing-pages/landing.css`.
 
 **Checkout** — three form modes (hybrid, middle, full) plus a geo-resolved variant and a cross-origin embed. Province-based COD gating from trusted Cloudflare geo, district autocomplete over a 7,285-district index served entirely from the local catalogue (no provider call per keystroke), with a separate KV-cached `level=resolve` step (24h) that maps the picked district to Mengantar's real destination id only once a candidate is selected, live Mengantar rate quotes that never request the provider COD fee, so the store's own COD service fee cannot be billed twice, honeypot and rate-limit guards, `submit_token` idempotency, atomic order + items + stock reservation, one atomic order-number allocator, and scheduled abandoned-order retention. Qualified unsubmitted leads retain a per-tab set of successful normalized identity/product fingerprints: identical combinations are suppressed across blur and reload, changed combinations may capture, and failed capture or unavailable storage fails open. Submitted non-COD checkouts remain real orders with pending shipping; successfully-created unpaid VA/QRIS and bank transfer remain payment-pending, while an explicit AutoLaris creation failure may be payment-failed.
 

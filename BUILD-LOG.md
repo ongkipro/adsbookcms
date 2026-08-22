@@ -3344,3 +3344,55 @@ dates and an unknown preset with a stated 422/400, and the order list returned
 active period legible on the closed trigger, the panel stacking on the phone,
 the dashboard's 31-day cap stated where the lists say 180, and an empty console
 at both widths.
+
+## 2026-08-22 — A21: a landing page that becomes the product page, and the loop that proved the design wrong
+
+Asked for as a toggle on the landing-page list: let a landing page replace a
+product page. Refined mid-build to "when it does, its slug follows
+`/produk/<namaproduk>`" — which is a stronger requirement than it sounds,
+because it means the landing page's own URL has to stop being live.
+
+**The shape.** `landing_pages.is_product_page`, with a partial unique index
+`WHERE is_product_page = 1`. Unclaimed drafts are not in the index at all, so
+any number may target one product while only one may hold its page. The
+interface does not have to remember the rule.
+
+**The loop.** The first implementation had `/produk/<slug>` rewrite to the
+landing route, and the landing route decide "am I being handed off?" by reading
+`Astro.url.pathname`. That assumption was wrong: a rewrite does not carry the
+original path, so the landing route saw its own slug, concluded it was a direct
+visit, and redirected back to the product URL — which rewrote again. Measured
+with `curl -L`: fifty redirects before the client gave up, on the store's
+product page. It was caught because the flow was exercised against a running
+install rather than reasoned about; every unit test and the build were green
+throughout. The hand-off is now carried by an `x-adsbook-product-page` header
+on the rewritten request, and the old assumption is written into the code as a
+warning rather than deleted silently.
+
+**Four states, all verified live.** Claimed: `/produk/<slug>` renders the
+landing page, canonical points at the product URL, no redirect. The landing
+slug: exactly one `308` to the product URL. Unpublished: the product URL falls
+back to the normal product template — a product must never 404 because a
+landing page went away. Released: the landing page stands alone again on its
+own slug with its own canonical, and the product URL returns to its template.
+
+**A gap found on the way.** `.lp-section` is the wrapper every operator-authored
+HTML block renders into, and it was styled nowhere in the repository — those
+sections had no vertical rhythm, no type contract, and no protection against a
+pasted image or table breaking the 480 px column.
+`src/styles/landing-pages/landing.css` now owns that surface and is imported by
+the catch-all, so it is a real fix rather than scaffolding.
+
+**The doc was wrong about URLs.** `docs/LANDING-PAGES.md` told authors to put
+native routes at `src/pages/landing/<slug>.astro`, answering `/landing/promo`.
+Landing pages answer at `domain/<slug>` with no prefix. It now states that, the
+static-beats-dynamic route precedence that makes it work, and the hazard it
+creates: a native file silently shadows a CMS page of the same slug, with no
+warning anywhere. It also records the product-page takeover rules and what the
+still-unbuilt native registry (A-133) will have to read, so a native page
+written today already fits it.
+
+**Verification.** `npm run check` 367 files / 0 errors · `npm test` 477 / 477
+(3 new on the claim invariant) · `npm run build` complete, plus the four live
+URL states above. Test data was removed from the local database afterwards. No
+deployment or remote D1 mutation occurred.

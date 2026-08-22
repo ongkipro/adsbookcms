@@ -1,0 +1,148 @@
+/*
+ * Shared landing-page surface — compact, single 480 px column.
+ *
+ * Imported by the CMS catch-all (`src/pages/[slug].astro`) and available to
+ * any native Astro landing route. `BaseLayout` already owns the 480 px column
+ * itself; this file owns what goes *inside* it.
+ *
+ * Why it exists: `.lp-section` is the wrapper every operator-authored HTML
+ * block renders into, and it had no rule anywhere, so a landing page's own
+ * copy had no vertical rhythm and no type contract at all.
+ *
+ * Constraints repeated here because they are load-bearing, not decoration:
+ *  - type ramp 10 · 11 · 12 · 13 · 14 · 15 · 16 · 18 · 20 · 24 · 28 px only;
+ *  - weights 400 / 600 / 700 only — those are the three Inter faces that ship,
+ *    so `font-medium` and `font-black` are lies in the source;
+ *  - one accent (#C5A880), one ink (#111111).
+ * Route-specific rules belong in a sibling `<slug>.css`, never here.
+ */
+
+.lp-section {
+  display: block;
+  padding-inline: 20px;
+  padding-block: 28px;
+  color: #111111;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+/* Sections butt against each other, so the first and last trim their edge. */
+.lp-section:first-child {
+  padding-block-start: 20px;
+}
+.lp-section:last-child {
+  padding-block-end: 32px;
+}
+
+.lp-section > * + * {
+  margin-block-start: 14px;
+}
+
+.lp-section h1,
+.lp-section h2,
+.lp-section h3 {
+  color: #111111;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.lp-section h1 {
+  font-size: 24px;
+}
+.lp-section h2 {
+  font-size: 20px;
+}
+.lp-section h3 {
+  font-size: 16px;
+}
+
+.lp-section p {
+  color: #3f3f46;
+}
+
+.lp-section strong,
+.lp-section b {
+  font-weight: 700;
+  color: #111111;
+}
+
+.lp-section a {
+  color: #111111;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lp-section ul,
+.lp-section ol {
+  padding-inline-start: 20px;
+}
+.lp-section ul {
+  list-style: disc;
+}
+.lp-section ol {
+  list-style: decimal;
+}
+.lp-section li + li {
+  margin-block-start: 6px;
+}
+
+/* An operator pastes whatever they have; nothing may break the column. */
+.lp-section img,
+.lp-section video,
+.lp-section iframe {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.lp-section table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.lp-section th,
+.lp-section td {
+  border: 1px solid #e4e4e7;
+  padding: 8px 10px;
+  text-align: start;
+}
+.lp-section th {
+  font-weight: 600;
+  background: #f8f7f4;
+}
+
+.lp-section blockquote {
+  border-inline-start: 3px solid #c5a880;
+  padding-inline-start: 14px;
+  color: #52525b;
+}
+
+.lp-section hr {
+  border: 0;
+  border-block-start: 1px solid #e4e4e7;
+}
+
+/* The one accent, for a CTA an operator writes as a link. */
+.lp-section .lp-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding-inline: 20px;
+  border-radius: 12px;
+  background: #111111;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.lp-section .lp-note {
+  font-size: 12px;
+  color: #71717a;
+}

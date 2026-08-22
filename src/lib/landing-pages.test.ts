@@ -7,8 +7,11 @@ import {
   deleteLandingPage,
   getLandingPageById,
   getLandingPageBySlug,
+  getProductPageLanding,
+  LandingProductPageConflictError,
   listLandingPages,
   parseShortcodes,
+  setLandingPageAsProductPage,
   updateLandingPage,
   validateLandingPageSlug,
 } from "./landing-pages.ts";
@@ -79,11 +82,19 @@ class SqliteD1Database {
   readonly #database = new DatabaseSync(":memory:");
 
   constructor() {
-    const migration = readFileSync(
-      new URL("../db/migrations/0027_landing_page_builder.sql", import.meta.url),
-      "utf8",
-    );
-    this.#database.exec(migration);
+    for (const file of [
+      "0027_landing_page_builder.sql",
+      // A landing page may take over its product's page (A21); without this
+      // the fixture would not carry the column the queries now read.
+      "0046_landing_page_as_product_page.sql",
+    ]) {
+      this.#database.exec(
+        readFileSync(
+          new URL(`../db/migrations/${file}`, import.meta.url),
+          "utf8",
+        ).replaceAll("--> statement-breakpoint", ""),
+      );
+    }
   }
 
   prepare(sql: string) {
@@ -217,4 +228,61 @@ test("validateLandingPageSlug accepts URL-safe lowercase slugs only", () => {
     assert.equal(result.valid, false, slug);
     assert.equal(typeof result.error, "string", slug);
   }
+});
+
+test("a landing page can take over its product's page, and only one may", async () => {
+  const { locals } = createLocals();
+  const first = await createLandingPage(locals, {
+    slug: "promo-satu",
+    title: "Promo Satu",
+    product_id: "10001",
+  });
+  const second = await createLandingPage(locals, {
+    slug: "promo-dua",
+    title: "Promo Dua",
+    product_id: "10001",
+  });
+
+  // Nothing claims the product page until someone is told to.
+  assert.equal(await getProductPageLanding(locals, "10001"), null);
+
+  const claimed = await setLandingPageAsProductPage(locals, first.id, true);
+  assert.equal(claimed?.is_product_page, 1);
+  assert.equal((await getProductPageLanding(locals, "10001"))?.slug, "promo-satu");
+
+  // The second page points at the same product, so it cannot also hold it.
+  await assert.rejects(
+    () => setLandingPageAsProductPage(locals, second.id, true),
+    (error: unknown) => {
+      assert.ok(error instanceof LandingProductPageConflictError);
+      assert.equal(error.conflictingSlug, "promo-satu");
+      return true;
+    },
+  );
+
+  // Releasing the first frees the product page for the second.
+  await setLandingPageAsProductPage(locals, first.id, false);
+  assert.equal(await getProductPageLanding(locals, "10001"), null);
+  await setLandingPageAsProductPage(locals, second.id, true);
+  assert.equal((await getProductPageLanding(locals, "10001"))?.slug, "promo-dua");
+});
+
+test("an unpublished claim hands the product page back to the product template", async () => {
+  const { locals } = createLocals();
+  const page = await createLandingPage(locals, {
+    slug: "promo-nonaktif",
+    title: "Promo Nonaktif",
+    product_id: "10002",
+  });
+  await setLandingPageAsProductPage(locals, page.id, true);
+  assert.ok(await getProductPageLanding(locals, "10002"));
+
+  // Unpublishing must not 404 the product; it must simply stop taking it over.
+  await updateLandingPage(locals, page.id, { is_active: false });
+  assert.equal(await getProductPageLanding(locals, "10002"), null);
+});
+
+test("claiming an unknown landing page reports not-found rather than throwing", async () => {
+  const { locals } = createLocals();
+  assert.equal(await setLandingPageAsProductPage(locals, "missing", true), null);
 });

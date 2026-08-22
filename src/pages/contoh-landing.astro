@@ -1,0 +1,193 @@
+---
+/*
+ * SAMPLE native Astro landing page — copy it, then delete this file.
+ *
+ * It exists to be read: it is the shape `docs/LANDING-PAGES.md` describes,
+ * written out in full so an author (human or AI) can start from something that
+ * already answers on a URL instead of from a snippet.
+ *
+ * Deliberately product-agnostic. This repository is the product, cloned into
+ * every install, so a hard-coded product slug would resolve on one store and
+ * 404 on the rest. It binds to the store's first active product instead, which
+ * makes it demonstrable anywhere. A real landing page names its product.
+ *
+ * To make your own: copy this to `src/pages/<slug>.astro`, replace the
+ * `getStorefrontProducts` lookup with `getStorefrontProduct(Astro.locals,
+ * 'your-product-slug')`, and rewrite the sections. Check
+ * `/admin/landing-pages` for the slug first — a file here silently shadows a
+ * CMS page of the same name.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import MetaLandingTracker from '../components/storefront/tracking/MetaLandingTracker.astro';
+import GeoIpResolvedForm from '../components/storefront/forms/GeoIpResolvedForm.astro';
+import RatingStars from '../components/storefront/shared/RatingStars.astro';
+import { getStorefrontProducts } from '../lib/catalog';
+import { defaultCatalogContentId } from '../lib/catalog-feed';
+import '../styles/landing-pages/landing.css';
+import '../styles/landing-pages/contoh-landing.css';
+
+export const prerender = false;
+
+const SLUG = 'contoh-landing';
+
+// A real landing page replaces this with one named product.
+const [product] = await getStorefrontProducts(Astro.locals);
+if (!product) return Astro.rewrite('/404');
+
+const rupiah = (value: number) =>
+  `Rp${Math.round(Number(value) || 0).toLocaleString('id-ID')}`;
+
+const cheapest = [...product.variants].sort((a, b) => a.price - b.price)[0] ?? null;
+const price = cheapest?.price ?? product.price;
+const comparePrice = cheapest?.comparePrice ?? product.comparePrice ?? 0;
+const discount =
+  comparePrice > price ? Math.round((1 - price / comparePrice) * 100) : 0;
+
+const benefits = product.benefits.slice(0, 4);
+const keyPoints = product.keyPoints.slice(0, 3);
+const reviews = product.reviews.slice(0, 2);
+const hasRating =
+  typeof product.ratingValue === 'number' &&
+  typeof product.reviewCount === 'number' &&
+  product.reviewCount > 0;
+
+const canonical = `${Astro.locals.tenant.siteUrl}/${SLUG}`;
+---
+
+<BaseLayout
+  title={`${product.productName} - ${Astro.locals.tenant.name}`}
+  description={product.seoDescription}
+  image={product.heroImage}
+  preloadImages={product.heroImage}
+  canonical={canonical}
+  hideHeader={true}
+  hideFooter={true}
+>
+  <MetaLandingTracker
+    slug={SLUG}
+    contentId={defaultCatalogContentId(product)}
+    contentName={product.contentName}
+    price={price}
+  />
+
+  <section class="cl-hero">
+    {product.tag && <span class="cl-tag">{product.tag}</span>}
+    <h1 class="cl-headline">{product.headline || product.productName}</h1>
+    <p class="cl-sub">{product.subheadline || product.description}</p>
+
+    <img
+      class="cl-hero-image"
+      src={product.heroImage}
+      alt={product.productName}
+      width="480"
+      height="480"
+      loading="eager"
+      fetchpriority="high"
+    />
+
+    <div class="cl-price-row">
+      <span class="cl-price">{rupiah(price)}</span>
+      {
+        discount > 0 && (
+          <>
+            <span class="cl-price-was">{rupiah(comparePrice)}</span>
+            <span class="cl-badge">Hemat {discount}%</span>
+          </>
+        )
+      }
+    </div>
+
+    {
+      (hasRating || product.soldCount) && (
+        <div class="cl-proof-row">
+          {hasRating && (
+            <span class="cl-stars">
+              <RatingStars
+                rating={product.ratingValue as number}
+                starClass="h-[13px] w-[13px]"
+                label={`Rating ${product.ratingValue} dari 5`}
+              />
+              <span>{(product.ratingValue as number).toFixed(1)}</span>
+            </span>
+          )}
+          {Boolean(product.soldCount) && <span>{product.soldCount} terjual</span>}
+        </div>
+      )
+    }
+
+    <a class="cl-cta" href="#checkout-form">
+      {product.ctaText || 'Pesan sekarang — bayar di tempat'}
+    </a>
+    <p class="cl-note">Gratis ongkir tersedia · Dikirim dari gudang resmi</p>
+  </section>
+
+  {
+    benefits.length > 0 && (
+      <section class="cl-block">
+        <h2 class="cl-h2">Kenapa memilih ini</h2>
+        <ul class="cl-list">
+          {benefits.map((benefit) => (
+            <li>{benefit}</li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  {
+    keyPoints.length > 0 && (
+      <section class="cl-block cl-block--tint">
+        <h2 class="cl-h2">Yang Anda dapat</h2>
+        <ul class="cl-list cl-list--plain">
+          {keyPoints.map((point) => (
+            <li>{point}</li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  {
+    reviews.length > 0 && (
+      <section class="cl-block">
+        <h2 class="cl-h2">Kata pembeli</h2>
+        {reviews.map((review) => (
+          <figure class="cl-review">
+            <RatingStars
+              rating={review.rating}
+              starClass="h-[12px] w-[12px]"
+              label={`Rating ${review.rating} dari 5`}
+            />
+            <blockquote>{review.comment}</blockquote>
+            <figcaption>{review.name}</figcaption>
+          </figure>
+        ))}
+      </section>
+    )
+  }
+
+  <section class="cl-block cl-block--tint">
+    <h2 class="cl-h2">Lengkapi data pengiriman</h2>
+    <p class="cl-note">
+      Pesanan diproses setelah data lengkap. Bayar saat barang diterima.
+    </p>
+  </section>
+
+  <div id="checkout-form" class="scroll-mt-8">
+    <GeoIpResolvedForm productSlug={product.slug} mode="hybrid" embedded={true} />
+  </div>
+
+  <script slot="head" is:inline>
+    document.addEventListener('click', (e) => {
+      const target =
+        e.target instanceof Element
+          ? e.target.closest('a[href="#checkout-form"]')
+          : null;
+      if (!target) return;
+      e.preventDefault();
+      document
+        .getElementById('checkout-form')
+        ?.scrollIntoView({ behavior: 'smooth' });
+    });
+  </script>
+</BaseLayout>

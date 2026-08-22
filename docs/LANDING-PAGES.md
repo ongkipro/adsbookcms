@@ -205,6 +205,28 @@ address, because the CMS will not.
 
 ---
 
+## Start from the sample
+
+`src/pages/contoh-landing.astro` is a complete working native landing page, with
+its own `src/styles/landing-pages/contoh-landing.css`. It answers at
+`/contoh-landing` on any install, because it binds to the store's **first
+active product** rather than a hard-coded slug — this repository is cloned into
+every store, so a named product would resolve on one and 404 on the rest.
+
+Copy it, then make it yours:
+
+1. `cp src/pages/contoh-landing.astro src/pages/<slug>.astro` and the stylesheet
+   beside it.
+2. Replace the `getStorefrontProducts` lookup with
+   `getStorefrontProduct(Astro.locals, 'your-product-slug')`.
+3. Rewrite the sections and the copy.
+4. **Delete `contoh-landing.astro`** before the store goes live, or it stays a
+   public URL.
+
+It deliberately shows the conditional pattern: benefit, key-point and review
+sections render only when the product actually has that content, so a sparse
+product produces a shorter page instead of empty headings.
+
 ## Writing one with an AI — the short version
 
 Give this file to the assistant. The parts it will get wrong unprompted:

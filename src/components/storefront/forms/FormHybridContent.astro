@@ -178,20 +178,17 @@ const formId = embedded ? `${instanceId}-form` : 'checkout-form';
             <p class="section-lead">Periksa kembali detail pesanan sebelum melanjutkan ke proses order.</p>
           </div>
           <div class="summary-card">
-            <div class="summary-row">
-              <span>Produk</span>
+            <div class="summary-row summary-row-product">
               <strong class="summary-product-name">{product.productName}</strong>
-            </div>
-            <div class="summary-row">
-              <span>Varian</span><strong id="summary-label">{defaultVariant.label}</strong>
-            </div>
-            <div id="summary-compare-row" class="summary-row" hidden={!defaultHasDiscount}>
-              <span>Harga Normal</span><strong id="summary-compare">{formatIdr(defaultComparePrice)}</strong>
-            </div>
-            <div id="summary-discount-row" class="summary-row summary-row-discount" hidden={!defaultHasDiscount}>
-              <span>Potongan Harga</span><strong id="summary-discount"
-                >- {formatIdr(Math.max(0, defaultComparePrice - defaultVariant.price))}</strong
-              >
+              <div class="summary-price">
+                <span id="summary-label" class="summary-variant">{defaultVariant.label}</span>
+                <span class="summary-price-figures">
+                  <span id="summary-compare-row" class="summary-compare-wrap" hidden={!defaultHasDiscount}
+                    ><span id="summary-compare">{formatIdr(defaultComparePrice)}</span></span
+                  >
+                  <strong id="summary-price-value">{formatIdr(defaultVariant.price)}</strong>
+                </span>
+              </div>
             </div>
             <div class="summary-row"><span>Biaya Pengiriman</span><strong id="summary-shipping">-</strong></div>
             <div id="summary-admin-fee-row" class="summary-row" hidden><span id="summary-admin-fee-label">Biaya Pembayaran</span><strong id="summary-admin-fee">Rp0</strong></div>

@@ -318,9 +318,8 @@ export function initMiddleOrderForm(
   const submitButtonLabel = submitButton?.querySelector(".submit-main-label");
   const summaryLabel = formRoot?.querySelector("#summary-label");
   const summaryCompare = formRoot?.querySelector("#summary-compare");
-  const summaryDiscount = formRoot?.querySelector("#summary-discount");
+  const summaryPriceValue = formRoot?.querySelector("#summary-price-value");
   const summaryCompareRow = formRoot?.querySelector<HTMLElement>("#summary-compare-row");
-  const summaryDiscountRow = formRoot?.querySelector<HTMLElement>("#summary-discount-row");
   const summaryTotal = formRoot?.querySelector("#summary-total");
   const summaryTotalNote = formRoot?.querySelector("#summary-total-note");
 
@@ -507,10 +506,9 @@ export function initMiddleOrderForm(
     const hasDiscount = compare > price;
     const total = price;
     summaryCompareRow?.toggleAttribute("hidden", !hasDiscount);
-    summaryDiscountRow?.toggleAttribute("hidden", !hasDiscount);
     setNodeText(summaryLabel, checked.dataset.label || productName);
     setNodeText(summaryCompare, fmt(compare));
-    setNodeText(summaryDiscount, `- ${fmt(Math.max(0, compare - price))}`);
+    setNodeText(summaryPriceValue, fmt(price));
     setNodeText(
       summaryTotalNote,
       "Ongkir & admin dikonfirmasi via CS",

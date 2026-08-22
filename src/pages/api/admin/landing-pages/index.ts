@@ -32,6 +32,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   const record = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   if (record.action === "set-product-page") {
+    // Building a landing page is `advertiser` work; deciding what
+    // `/produk/<slug>` serves every visitor is not. A19 already excluded that
+    // role from commerce surfaces, and this changes the storefront itself.
+    if (locals.admin.role !== "owner" && locals.admin.role !== "admin") {
+      return jsonError(
+        "Hanya owner atau admin yang dapat mengubah halaman produk.",
+        403,
+      );
+    }
     const id = String(record.id || "").trim();
     if (!id || id.startsWith("static:")) {
       return jsonError("Landing page tidak valid.", 400);

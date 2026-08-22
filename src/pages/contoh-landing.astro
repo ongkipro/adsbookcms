@@ -52,6 +52,11 @@ const hasRating =
   product.reviewCount > 0;
 
 const canonical = `${Astro.locals.tenant.siteUrl}/${SLUG}`;
+
+// `noindex` below is deliberate: a demo route ships to every clone of this
+// repository, and even if an operator forgets to delete it, it must never be
+// indexed as if it were a real offer. A landing page you actually run removes
+// it — the page is otherwise indexable by default.
 ---
 
 <BaseLayout
@@ -62,6 +67,7 @@ const canonical = `${Astro.locals.tenant.siteUrl}/${SLUG}`;
   canonical={canonical}
   hideHeader={true}
   hideFooter={true}
+  noindex={true}
 >
   <MetaLandingTracker
     slug={SLUG}

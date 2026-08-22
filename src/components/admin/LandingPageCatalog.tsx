@@ -195,16 +195,28 @@ export default function LandingPageCatalog() {
     }
   }
 
-  /** The address a page actually answers on — see `publicPathOf`. */
-  function publicPathOf(page: LandingPageRow) {
-    return Number(page.is_product_page) && page.product_slug
-      ? `/produk/${page.product_slug}`
-      : `/${page.slug}`;
+  /**
+   * The address a page actually answers on, or null when it cannot be known.
+   *
+   * A claimed page lives at its product's URL, and `listLandingPages` swallows
+   * a products-table read failure — so `product_slug` can be missing. Falling
+   * back to the landing slug there would hand the operator an address that
+   * merely redirects, which is the exact thing this helper exists to prevent,
+   * and it would do so silently.
+   */
+  function publicPathOf(page: LandingPageRow): string | null {
+    if (!Number(page.is_product_page)) return `/${page.slug}`;
+    return page.product_slug ? `/produk/${page.product_slug}` : null;
   }
 
   function handleCopyLink(page: LandingPageRow) {
-    // A claimed page's own slug only redirects; copy the canonical one.
     const path = publicPathOf(page);
+    if (!path) {
+      toast.error(
+        "URL produk untuk halaman ini belum bisa dibaca. Muat ulang daftar dulu.",
+      );
+      return;
+    }
     navigator.clipboard.writeText(`${window.location.origin}${path}`);
     setCopiedSlug(page.slug);
     toast.success("URL Landing Page disalin ke clipboard!");

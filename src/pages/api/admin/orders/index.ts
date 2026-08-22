@@ -154,6 +154,13 @@ export const GET: APIRoute = async ({ url, locals }) => {
       params.push(term, term, term, term);
     }
 
+    // Recorded separately: the summary reads every filter, but the status
+    // chips must not filter by the status they let you pick, or selecting one
+    // would zero the others and break the control.
+    // The two indices differ: one search term pushes four params for a single
+    // clause, so the clause position is not the param position.
+    const shippingStatusIndex = shippingStatus !== 'all' ? whereParts.length : -1;
+    const statusParamIndex = shippingStatus !== 'all' ? params.length : -1;
     if (shippingStatus !== 'all') {
       whereParts.push('shipping_status = ?');
       params.push(shippingStatus);
@@ -184,6 +191,10 @@ export const GET: APIRoute = async ({ url, locals }) => {
     }
 
     whereClause = ` WHERE ${whereParts.join(' AND ')}`;
+    // Same filters minus the status predicate, for the chips.
+    const chipParts = whereParts.filter((_, index) => index !== shippingStatusIndex);
+    const chipParams = params.filter((_, index) => index !== statusParamIndex);
+    const chipWhereClause = ` WHERE ${chipParts.join(' AND ')}`;
     const offset = (page - 1) * limit;
     const db = database as D1Database;
 
@@ -261,22 +272,24 @@ export const GET: APIRoute = async ({ url, locals }) => {
     const [countResult, rowResult, summaryResult, crmResult, statusCountResult] = await db.batch([
       countStmt,
       ordersStmt,
+      // Scoped to the active filters. These cards used to answer for the whole
+      // store no matter what was selected, so a one-day range showed the day's
+      // rows in the table beside an all-time total in the card — an operator
+      // reconciling a day's takings read the wrong number.
       db.prepare(`
         SELECT
           COUNT(*) AS total_orders,
           SUM(CASE WHEN payment_status = 'unpaid' THEN 1 ELSE 0 END) AS unpaid_count,
           SUM(CASE WHEN UPPER(COALESCE(rts_risk_label, '')) LIKE '%HIGH%' THEN 1 ELSE 0 END) AS high_risk_count,
           COALESCE(SUM(total_amount), 0) AS total_value
-        FROM orders
-        WHERE shipping_status <> 'abandoned'
-      `),
+        FROM orders${whereClause}
+      `).bind(...params),
       db.prepare("SELECT crm_templates FROM stores ORDER BY id LIMIT 1"),
       db.prepare(`
         SELECT shipping_status, COUNT(*) AS count
-        FROM orders
-        WHERE shipping_status <> 'abandoned'
+        FROM orders${chipWhereClause}
         GROUP BY shipping_status
-      `),
+      `).bind(...chipParams),
     ]);
 
     const totalItems = Number((countResult.results?.[0] as { total_items?: number | string } | undefined)?.total_items ?? 0);
@@ -363,7 +376,14 @@ export const GET: APIRoute = async ({ url, locals }) => {
         total_value: Number(summary.total_value ?? 0),
       },
       status_counts: {
-        all: Number(summary.total_orders ?? 0),
+        // The "Semua" chip means "what you would see if you cleared the status
+        // filter", so it follows the chip scope — not the summary, which is
+        // now filtered by the selected status and would make this read 1 while
+        // the chip beside it reads 12.
+        all: Object.values(statusCounts).reduce(
+          (total, count) => total + Number(count || 0),
+          0,
+        ),
         pending: statusCounts.pending || 0,
         processing: statusCounts.processing || 0,
         shipped: statusCounts.shipped || 0,

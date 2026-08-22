@@ -372,3 +372,54 @@ test("normal orders GET excludes abandoned leads from rows, summary, and status 
   assert.equal(payload.status_counts.all, 1);
   assert.equal(payload.status_counts.abandoned, undefined);
 });
+
+test("the order summary follows every filter, and the chips follow all but status", async () => {
+  // Captures the SQL and bindings each statement in the batch actually used.
+  const captured: Statement[] = [];
+  const database = {
+    prepare(sql: string) {
+      const statement: Statement = { sql, args: [] };
+      const api = {
+        bind(...args: unknown[]) { statement.args = args; return api; },
+        statement,
+      };
+      return api;
+    },
+    async batch(raw: Array<{ statement: Statement }>) {
+      captured.length = 0;
+      captured.push(...raw.map(({ statement }) => statement));
+      return raw.map((_, index) => {
+        if (index === 0) return { results: [{ total_items: 0 }] };
+        if (index === 1) return { results: [] };
+        if (index === 2) {
+          return { results: [{ total_orders: 0, unpaid_count: 0, high_risk_count: 0, total_value: 0 }] };
+        }
+        if (index === 3) return { results: [{ crm_templates: null }] };
+        return { results: [] };
+      });
+    },
+  } as unknown as D1Database;
+
+  const response = await getOrders({
+    url: new URL(
+      "https://example.test/api/admin/orders?date_filter=custom&date_start=2026-08-18&date_end=2026-08-18&shipping_status=pending",
+    ),
+    locals: { runtimeEnv: { OMS_DB: database } },
+  } as never);
+  assert.equal(response.status, 200);
+
+  const [, , summaryStatement, , chipStatement] = captured;
+
+  // The cards used to answer for the whole store regardless of the filter, so
+  // a one-day range showed that day's rows beside an all-time total.
+  assert.match(summaryStatement.sql, /BETWEEN \? AND \?/);
+  assert.ok(summaryStatement.args.includes("2026-08-18"));
+  assert.match(summaryStatement.sql, /shipping_status = \?/);
+
+  // The chips are the control for picking a status, so they must stay scoped
+  // to everything except that status — otherwise choosing one zeroes the rest.
+  assert.match(chipStatement.sql, /BETWEEN \? AND \?/);
+  assert.ok(chipStatement.args.includes("2026-08-18"));
+  assert.doesNotMatch(chipStatement.sql, /shipping_status = \?/);
+  assert.ok(!chipStatement.args.includes("pending"));
+});

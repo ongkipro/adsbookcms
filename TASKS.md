@@ -1,5 +1,16 @@
 # Tasks: AdsBookCMS
 
+## A20 — One date-range control across every reporting surface
+
+- [x] **A-143** — Extend `admin-date-filter.ts` with a validated custom range and one shared query-parameter parser. **Done 2026-08-22** — `resolveAdminDateSelection` returns a refusal with a reason instead of a range it cannot justify, and `parseAdminDateSelection` gives all three routes one parameter contract.
+      -> REQ: REQ-155, REQ-157 · deps: [] · Done when: focused tests prove an inverted, unparseable, over-long, or future range is refused rather than coerced, and that `custom` no longer resolves to the 7-day default.
+- [x] **A-144** — Teach the order and shipping APIs to accept an explicit range and to refuse an unresolvable one. **Done 2026-08-22** — verified live against both routes: an inverted range, a future end, missing dates and an unknown preset each return a stated 422/400, while 17 Aug alone returned 10 orders, 18 Aug alone 3, both days 13, and July 0 — arithmetic consistent with the 13 the store holds.
+      -> REQ: REQ-155, REQ-157 · deps: [A-143] · Done when: focused tests prove both routes filter on a valid custom range and return a stated error for an invalid one instead of a different period's rows.
+- [x] **A-145** — Add the shared period control: presets plus an explicit range, with the surface's cap stated. **Done 2026-08-22** — verified at 1280px and 390px: preset list with the active one checked, range panel stacking below on a phone, the cap stated in the copy and enforced by the inputs' own `min`/`max`, and no horizontal overflow.
+      -> REQ: REQ-154, REQ-156, REQ-158 · deps: [A-143] · Done when: browser evidence at 390px and 1280px proves preset selection, custom-range entry, the cap being enforced in the inputs, the active period legible on the closed control, and no layout overflow.
+- [x] **A-146** — Adopt the shared control on the dashboard, order list, and shipping workspace, retiring the dashboard's own custom-range section. **Done 2026-08-22** — the dashboard shows a 31-day cap and hides the 90/180-day presets while the lists keep the 180-day default; the separate custom-range section below the dashboard filter is gone.
+      -> REQ: REQ-154, REQ-158 · deps: [A-144, A-145] · Done when: browser evidence proves all three surfaces filter by both a preset and a custom range, and the dashboard keeps its 30-day cap while the lists do not inherit it.
+
 ## A19 — Operator notifications for revenue events
 
 - [x] **A-136** — Add the `notifications` table plus its per-operator read state, with a uniqueness constraint on event type + subject id. **Done 2026-08-22** — migration `0045`, schema 46. No `store_id`: one Worker is one store (ADR-001), so it would be a column with one value forever. A live local D1 insert proved the unique index rejects the duplicate.

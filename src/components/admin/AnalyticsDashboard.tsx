@@ -10,13 +10,6 @@ import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../ui/chart';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import {
   Bar,
   BarChart,
   CartesianGrid,
@@ -33,14 +26,19 @@ import {
   RefreshCw,
   RotateCcw,
 } from "lucide-react";
+import { resolveAdminDateSelection } from "../../lib/admin-date-filter";
 import {
-  ADMIN_DATE_FILTER_OPTIONS,
-  formatJakartaDate,
-  getAdminDateFilterLabel,
-  isAdminDateFilter,
-  resolveAdminDateRange,
-  shiftAdminDate,
-} from "../../lib/admin-date-filter";
+  AdminDateRangeFilter,
+  type AdminDateSelection,
+} from "./AdminDateRangeFilter";
+
+/**
+ * The dashboard charts every day in the period and aggregates across it, so it
+ * reports on a shorter window than the order and shipping lists do, and hides
+ * the presets that would exceed it.
+ */
+const DASHBOARD_MAX_RANGE_DAYS = 31;
+const DASHBOARD_HIDDEN_PRESETS = ["90d", "180d"] as const;
 
 type AnalyticsData = {
   total_revenue: number;
@@ -100,42 +98,34 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [dateFilter, setDateFilter] = useState("7d");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState("");
+  const [dateSelection, setDateSelection] = useState<AdminDateSelection>({
+    filter: "7d",
+    start: "",
+    end: "",
+  });
   const requestSequence = useRef(0);
-  const today = formatJakartaDate(new Date());
-  const customEndMax = customStart
-    ? [shiftAdminDate(customStart, 30), today].sort()[0]
-    : today;
 
   const loadAnalytics = useCallback(
-    async (
-      filter: string,
-      showLoading = false,
-      customRange?: { start: string; end: string },
-    ) => {
+    async (selection: AdminDateSelection, showLoading = false) => {
       const sequence = ++requestSequence.current;
       if (showLoading) setLoading(true);
       else setRefreshing(true);
       setError("");
 
-      let start = "";
-      let end = "";
-      let interval: "hour" | "day" = "day";
-
-      if (filter === "custom") {
-        start = customRange?.start ?? "";
-        end = customRange?.end ?? "";
-        if (start === end && start !== "") interval = "hour";
-      } else {
-        const range = resolveAdminDateRange(
-          isAdminDateFilter(filter) ? filter : "7d",
-        );
-        start = range.start;
-        end = range.end;
-        interval = range.interval;
+      // One resolver for every period, named or explicit. A period this
+      // surface cannot answer for is reported, not quietly swapped for the
+      // default (REQ-157).
+      const resolved = resolveAdminDateSelection(selection.filter, {
+        customRange: { start: selection.start, end: selection.end },
+        maxCustomRangeDays: DASHBOARD_MAX_RANGE_DAYS,
+      });
+      if (!resolved.ok) {
+        setError(resolved.reason);
+        if (showLoading) setLoading(false);
+        else setRefreshing(false);
+        return;
       }
+      const { start, end, interval } = resolved;
 
       let url = "/api/admin/analytics";
       if (start && end) {
@@ -201,8 +191,8 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
   );
 
   useEffect(() => {
-    if (dateFilter !== "custom") void loadAnalytics(dateFilter, true);
-  }, [loadAnalytics, dateFilter]);
+    void loadAnalytics(dateSelection, true);
+  }, [loadAnalytics, dateSelection]);
 
   if (loading) return <LoadingState />;
   if (error && !data) {
@@ -216,7 +206,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
         </h2>
         <p className="mt-1.5 text-xs text-rose-700">{error}</p>
         <Button
-          onClick={() => void loadAnalytics(dateFilter, true)}
+          onClick={() => void loadAnalytics(dateSelection, true)}
           size="lg" className="mt-4"
         >
           Coba lagi
@@ -291,12 +281,6 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
     },
   ];
 
-  const customRangeValid = Boolean(
-    customStart &&
-    customEnd &&
-    customStart <= customEnd &&
-    customEnd <= customEndMax,
-  );
   const periodLabel = data.period.start_date && data.period.end_date
     ? `${data.period.start_date.split("-").reverse().join("/")}–${data.period.end_date.split("-").reverse().join("/")} · WIB`
     : "Semua pesanan checkout · WIB";
@@ -317,40 +301,19 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
           </div>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
-          <Select
-            value={dateFilter}
-            onValueChange={(value) => setDateFilter(value || "all")}
+          <AdminDateRangeFilter
+            value={dateSelection}
+            onChange={setDateSelection}
             disabled={loading || refreshing}
-          >
-            <SelectTrigger className="h-11 min-w-0 flex-1 border-slate-200 bg-white shadow-none sm:w-52">
-              <SelectValue>
-                {dateFilter === "custom"
-                  ? "Rentang tanggal"
-                  : getAdminDateFilterLabel(dateFilter)}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {ADMIN_DATE_FILTER_OPTIONS.filter((option) => option.value !== "90d" && option.value !== "180d").map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom">Rentang tanggal</SelectItem>
-            </SelectContent>
-          </Select>
+            hiddenPresets={DASHBOARD_HIDDEN_PRESETS}
+            maxCustomRangeDays={DASHBOARD_MAX_RANGE_DAYS}
+            className="min-w-0 flex-1 sm:w-64"
+          />
           <Button
             variant="secondary"
             size="icon"
-            onClick={() =>
-              void loadAnalytics(
-                dateFilter,
-                false,
-                dateFilter === "custom"
-                  ? { start: customStart, end: customEnd }
-                  : undefined,
-              )
-            }
-            disabled={refreshing || (dateFilter === "custom" && !customRangeValid)}
+            onClick={() => void loadAnalytics(dateSelection)}
+            disabled={refreshing}
             aria-label="Perbarui data dashboard"
             aria-busy={refreshing}
             className="size-11 shrink-0 border border-slate-200 bg-white shadow-none"
@@ -363,55 +326,6 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
         </div>
       </section>
 
-      {dateFilter === "custom" && (
-        <section className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-          <label className="grid-cols-1 grid gap-1.5">
-            <span className="text-xs font-bold text-slate-700">
-              Tanggal mulai
-            </span>
-            <input
-              type="date"
-              value={customStart}
-              max={customEnd || today}
-              onChange={(event) => setCustomStart(event.target.value)}
-              className="h-11 rounded-xl border border-slate-200 px-3 text-sm"
-            />
-          </label>
-          <label className="grid-cols-1 grid gap-1.5">
-            <span className="text-xs font-bold text-slate-700">
-              Tanggal akhir
-            </span>
-            <input
-              type="date"
-              value={customEnd}
-              min={customStart || undefined}
-              max={customEndMax}
-              onChange={(event) => setCustomEnd(event.target.value)}
-              className="h-11 rounded-xl border border-slate-200 px-3 text-sm"
-            />
-          </label>
-          <Button
-            onClick={() =>
-              void loadAnalytics("custom", true, {
-                start: customStart,
-                end: customEnd,
-              })
-            }
-            disabled={
-              !customRangeValid ||
-              loading ||
-              refreshing
-            }
-            size="lg"
-            className="h-11 w-full sm:w-auto"
-          >
-            Terapkan
-          </Button>
-          <p className="text-[11px] text-slate-500 sm:col-span-3">
-            Rentang khusus maksimal 31 hari dan tidak boleh melewati hari ini.
-          </p>
-        </section>
-      )}
 
       {error && (
         <div

@@ -17,8 +17,9 @@ import {
 import type { AdminShippingStatus } from '../../../../lib/order-lifecycle.ts';
 import { scheduleReceiverPerformanceRefresh } from '../../../../lib/rts-scoring.ts';
 import {
+  ADMIN_CUSTOM_DATE_FILTER,
   isAdminDateFilter,
-  resolveAdminDateRange,
+  parseAdminDateSelection,
 } from '../../../../lib/admin-date-filter.ts';
 
 export const prerender = false;
@@ -138,7 +139,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
   if (!PAYMENT_STATUSES.includes(paymentStatus as (typeof PAYMENT_STATUSES)[number])) {
     return jsonError('Filter status pembayaran tidak valid.', 400);
   }
-  if (!isAdminDateFilter(dateFilter)) {
+  if (dateFilter !== ADMIN_CUSTOM_DATE_FILTER && !isAdminDateFilter(dateFilter)) {
     return jsonError('Filter periode order tidak valid.', 400);
   }
 
@@ -162,9 +163,15 @@ export const GET: APIRoute = async ({ url, locals }) => {
       params.push(paymentStatus);
     }
     if (dateFilter !== 'all') {
-      const { start, end } = resolveAdminDateRange(dateFilter);
+      // Refuses an unresolvable period rather than answering for a different
+      // one — passing the raw string straight in used to make anything
+      // unrecognised, `custom` included, silently become the 7-day default.
+      const { resolution } = parseAdminDateSelection(url.searchParams);
+      if (!resolution.ok) {
+        return jsonError(resolution.reason, 422, { code: 'DATE_RANGE_INVALID' });
+      }
       whereParts.push("date(created_at, '+7 hours') BETWEEN ? AND ?");
-      params.push(start, end);
+      params.push(resolution.start, resolution.end);
     }
     if (sourceFilter === 'meta') {
       whereParts.push("(ad_click_ids LIKE '%fbclid%' OR ad_click_ids LIKE '%_fbc%' OR ad_click_ids LIKE '%meta%' OR ad_click_ids LIKE '%facebook%' OR ad_click_ids LIKE '%instagram%')");

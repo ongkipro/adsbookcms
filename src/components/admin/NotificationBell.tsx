@@ -4,7 +4,12 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, PackagePlus, UserPlus, Wallet } from "lucide-react";
+import { Bell, PackagePlus, UserPlus, Volume2, VolumeX, Wallet } from "lucide-react";
+import {
+  isNotificationMuted,
+  playNotificationChime,
+  setNotificationMuted,
+} from "@/lib/notification-chime";
 
 type NotificationType = "order" | "lead" | "payment";
 
@@ -69,23 +74,53 @@ export function NotificationBell() {
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [failed, setFailed] = React.useState(false);
+  // Starts audible and is corrected from storage after mount: reading
+  // localStorage while rendering would differ between server and client.
+  const [muted, setMuted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMuted(isNotificationMuted());
+  }, []);
+
+  const toggleMuted = React.useCallback(() => {
+    setMuted((current) => {
+      const next = !current;
+      setNotificationMuted(next);
+      // Unmuting is a user gesture, which is exactly what an autoplay-blocked
+      // AudioContext needs: play once so the operator hears what they enabled
+      // and the context is unlocked for the next order.
+      if (!next) playNotificationChime();
+      return next;
+    });
+  }, []);
 
   const announce = React.useCallback((list: NotificationItem[]) => {
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") {
-      return;
-    }
     const shown = new Set(readShown());
     const fresh = list.filter((item) => item.unread && !shown.has(item.id));
+    if (!fresh.length) return;
+
+    // The chime is not gated on the Notification permission: an operator who
+    // never granted desktop notifications — or who is on a tab where they are
+    // unavailable — still needs to hear an order land.
+    playNotificationChime();
+
+    const mayNotify =
+      typeof Notification !== "undefined" && Notification.permission === "granted";
     // Newest last so the most recent notification is the one left on screen.
     for (const item of fresh.slice(0, 5).reverse()) {
-      try {
-        new Notification(item.title, { body: item.body, tag: `adsbook-${item.id}` });
-      } catch {
-        /* the browser refused it; the in-app list still has it */
+      if (mayNotify) {
+        try {
+          new Notification(item.title, { body: item.body, tag: `adsbook-${item.id}` });
+        } catch {
+          /* the browser refused it; the in-app list still has it */
+        }
       }
-      shown.add(item.id);
     }
-    if (fresh.length) rememberShown([...shown]);
+    // Every fresh id is recorded, not just the five that were surfaced:
+    // `shown` means "already announced", and leaving the rest unmarked would
+    // re-ring the chime on the next poll for as long as they stayed unread.
+    for (const item of fresh) shown.add(item.id);
+    rememberShown([...shown]);
   }, []);
 
   const load = React.useCallback(
@@ -219,15 +254,31 @@ export function NotificationBell() {
       >
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2.5">
           <p className="text-xs font-bold text-slate-900">Notifikasi</p>
-          {unread > 0 && (
+          <div className="flex items-center gap-1">
+            {unread > 0 && (
+              <button
+                type="button"
+                onClick={markAllRead}
+                className="rounded-lg px-2 py-1 text-[11px] font-bold text-blue-600 transition hover:bg-blue-50"
+              >
+                Tandai semua dibaca
+              </button>
+            )}
             <button
               type="button"
-              onClick={markAllRead}
-              className="rounded-lg px-2 py-1 text-[11px] font-bold text-blue-600 transition hover:bg-blue-50"
+              onClick={toggleMuted}
+              aria-pressed={muted}
+              title={muted ? "Bunyikan notifikasi" : "Bisukan notifikasi"}
+              aria-label={muted ? "Bunyikan notifikasi" : "Bisukan notifikasi"}
+              className="grid size-7 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
             >
-              Tandai semua dibaca
+              {muted ? (
+                <VolumeX className="size-4" aria-hidden="true" />
+              ) : (
+                <Volume2 className="size-4" aria-hidden="true" />
+              )}
             </button>
-          )}
+          </div>
         </div>
         <div className="max-h-[min(26rem,60vh)] overflow-y-auto overscroll-contain">
           {loading && items.length === 0 && (

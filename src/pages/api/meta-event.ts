@@ -24,6 +24,8 @@ type PurchaseOrderRow = {
   city: string;
   postal_code: string | null;
   total_amount: number;
+  /** Variant price x quantity, summed from order_items. See the Purchase value. */
+  product_value: number;
 };
 
 type PurchaseReference = {
@@ -80,11 +82,16 @@ async function findPurchaseOrder(
   return database
     .prepare(
       `SELECT
-         order_number, customer_name, customer_phone, customer_email,
-         province, city, postal_code, total_amount
-       FROM orders
-       WHERE (CAST(id AS TEXT) = ? OR order_number = ?)
-         AND public_status_token = ?
+         o.order_number, o.customer_name, o.customer_phone, o.customer_email,
+         o.province, o.city, o.postal_code, o.total_amount,
+         (
+           SELECT COALESCE(SUM(oi.unit_price * oi.quantity), 0)
+           FROM order_items oi
+           WHERE oi.order_id = o.id
+         ) AS product_value
+       FROM orders o
+       WHERE (CAST(o.id AS TEXT) = ? OR o.order_number = ?)
+         AND o.public_status_token = ?
        LIMIT 1`,
     )
     .bind(reference.orderLocator, reference.orderLocator, reference.statusToken)
@@ -163,7 +170,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       customData: {
         contentName: payload.contentName,
         contentIds: payload.contentIds,
-        value: purchaseOrder?.total_amount ?? payload.value,
+        // The goods, not the invoice — the same figure the browser leg sends,
+        // read the same way, so the two legs of one Purchase never disagree on
+        // revenue. Shipping, the COD service fee and its VAT, and the payment
+        // channel's admin fee are all excluded: none is product revenue.
+        value: purchaseOrder?.product_value ?? payload.value,
         currency: payload.currency,
         orderNumber: purchaseOrderNumber,
       },

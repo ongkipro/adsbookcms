@@ -107,6 +107,11 @@ test("headless order status requires the checkout-issued identity and token with
     payment_status: "unpaid",
     status: "pending",
     total_amount: 175000,
+    // The goods alone. This fixture's D1 stub returns no order_items, so the
+    // COALESCE floor shows through — which is the point worth pinning: an order
+    // whose items cannot be read reports 0, never the invoice total, so a
+    // missing join can never inflate reported ad revenue with shipping and fees.
+    product_value: 0,
     payment: null,
   });
   assert.deepEqual(auditStatuses, [404, 200]);

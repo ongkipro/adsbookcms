@@ -1449,7 +1449,21 @@ YAGNI. Only A-151 (done), A-153-as-manifest, and A-159 (optional) remain.
   (`adsbookcms-dev` detached, `adsbookcms-lp`) into one canonical `main` without
   losing pre-existing work; removal or branch attachment only after explicit
   operator approval.
-      -> REQ: REQ-172 · deps: []
+      -> REQ: REQ-172 · deps: [] · **Inventory recorded 2026-08-23 (read-only;
+      nothing removed).** Both non-canonical worktrees are clean — zero
+      uncommitted entries — and neither holds work at risk:
+      · `adsbookcms-dev` — detached at `7883095` ("Merge pull request #26 …
+        retire-wide-catalog-ui"), a 1.2.0-era revision that is an **ancestor of
+        `origin/main`**, so it contains nothing main does not.
+      · `adsbookcms-lp` — branch `fix/adr-019-token-list`, upstream **gone**
+        (deleted after merge), at `7fbb600` ("the re-brand contract is eight
+        tokens, not five"). Its content reached main as `dcd42ba` (#64): a
+        file-by-file diff against `origin/main` shows **no line present in the
+        worktree and missing from main** — main only adds ADR-020 on top.
+      · The `ProductImageGallery.astro` change the audit told us to preserve was
+        in the canonical worktree and is merged (#63).
+      Remaining step is the destructive half — `git worktree remove` and/or
+      branch attachment — which stays pending explicit operator approval.
 - [x] **A-160** — Adopt audit §2.6: give the two untested modules that fail
   silently a direct test — `store-ads.ts` (resolves the pixel id, CAPI token and
   Google identifiers every tracking path depends on) and `rts-scoring.ts`

@@ -13,5 +13,9 @@
  * data crosses an HTML raw-text boundary.
  */
 export function jsonForScript(value: unknown): string {
-  return JSON.stringify(value).replace(/</g, "\\u003c");
+  // `JSON.stringify(undefined)` is `undefined`, not a string. Astro's own
+  // `stringifyForScript` guards the same way; a shared helper must not throw on
+  // the next caller that passes an optional value. `null` keeps the element
+  // parseable for a consumer doing `JSON.parse(el.textContent)`.
+  return JSON.stringify(value)?.replace(/</g, "\\u003c") ?? "null";
 }

@@ -1448,7 +1448,14 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
       ) {
         btn.dataset.exactMatch = "true";
       }
-      btn.innerHTML = `<strong>${group.district}</strong><small>${group.city}, ${group.province}</small>`;
+      // Built as nodes, not markup: these three fields come back from the
+      // shipping provider, and interpolating them into `innerHTML` put
+      // third-party text through an HTML parser on the public checkout page.
+      const districtName = document.createElement("strong");
+      districtName.textContent = group.district;
+      const districtArea = document.createElement("small");
+      districtArea.textContent = `${group.city}, ${group.province}`;
+      btn.replaceChildren(districtName, districtArea);
       btn.addEventListener("mousedown", (e) => {
         e.preventDefault();
       });

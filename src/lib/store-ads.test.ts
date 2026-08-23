@@ -25,6 +25,39 @@ function storeDatabase(row: StoreRow, options: { throws?: boolean } = {}) {
   } as unknown as D1Database;
 }
 
+/**
+ * `getEnvValue` falls back to `process.env`, and `wrangler.jsonc` declares
+ * these very names as dev secrets loaded from the shell — so a developer who
+ * exported one to run `wrangler dev` would otherwise fail this suite. Every
+ * test states its whole environment through `runtimeEnv`; nothing may leak in.
+ */
+const ADS_ENV_KEYS = [
+  "NEXT_PUBLIC_FB_PIXEL_ID",
+  "PUBLIC_FB_PIXEL_ID",
+  "FB_PIXEL_ID",
+  "META_PIXEL_ID",
+  "META_CAPI_ACCESS_TOKEN",
+  "META_CAPI_TOKEN",
+  "PUBLIC_GTM_ID",
+  "GTM_ID",
+  "GOOGLE_ADS_CONVERSION_ID",
+  "GOOGLE_ADS_CONVERSION_LABEL",
+] as const;
+
+function withoutAdsSecrets(context: { after: (fn: () => void) => void }) {
+  const saved = new Map<string, string | undefined>();
+  for (const key of ADS_ENV_KEYS) {
+    saved.set(key, process.env[key]);
+    delete process.env[key];
+  }
+  context.after(() => {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+}
+
 const CONFIGURED_ROW = {
   meta_pixel_id: "111111111111111",
   meta_capi_token: "db-capi-token",
@@ -33,7 +66,8 @@ const CONFIGURED_ROW = {
   google_ads_conversion_label: "db-label",
 };
 
-test("the store's own configuration wins over a leftover Worker secret", async () => {
+test("the store's own configuration wins over a leftover Worker secret", async (context) => {
+  withoutAdsSecrets(context);
   const config = await getStoreAdsConfig({
     runtimeEnv: {
       OMS_DB: storeDatabase(CONFIGURED_ROW),
@@ -56,7 +90,8 @@ test("the store's own configuration wins over a leftover Worker secret", async (
   });
 });
 
-test("a store row that leaves a field blank falls through to the environment", async () => {
+test("a store row that leaves a field blank falls through to the environment", async (context) => {
+  withoutAdsSecrets(context);
   const config = await getStoreAdsConfig({
     runtimeEnv: {
       OMS_DB: storeDatabase({
@@ -74,7 +109,8 @@ test("a store row that leaves a field blank falls through to the environment", a
   assert.equal(config.googleTagManagerId, "GTM-ENVONLY");
 });
 
-test("every documented pixel alias resolves, so one spelling does not silently disable tracking", async () => {
+test("every documented pixel alias resolves, so one spelling does not silently disable tracking", async (context) => {
+  withoutAdsSecrets(context);
   const aliases = [
     "NEXT_PUBLIC_FB_PIXEL_ID",
     "PUBLIC_FB_PIXEL_ID",
@@ -90,7 +126,8 @@ test("every documented pixel alias resolves, so one spelling does not silently d
   }
 });
 
-test("the first pixel alias wins when several are set", async () => {
+test("the first pixel alias wins when several are set", async (context) => {
+  withoutAdsSecrets(context);
   const config = await getStoreAdsConfig({
     runtimeEnv: {
       OMS_DB: storeDatabase(null),
@@ -103,7 +140,8 @@ test("the first pixel alias wins when several are set", async () => {
   assert.equal(config.metaPixelId, "111");
 });
 
-test("a failed store read degrades to the environment instead of throwing", async () => {
+test("a failed store read degrades to the environment instead of throwing", async (context) => {
+  withoutAdsSecrets(context);
   // The read is wrapped in a bare catch, so a schema problem must not take the
   // tracking path down with it — but it must also not invent a value.
   const config = await getStoreAdsConfig({
@@ -118,7 +156,8 @@ test("a failed store read degrades to the environment instead of throwing", asyn
   assert.equal(config.metaCapiToken, "env-capi-token");
 });
 
-test("an unconfigured store resolves to empty strings, never undefined", async () => {
+test("an unconfigured store resolves to empty strings, never undefined", async (context) => {
+  withoutAdsSecrets(context);
   // Callers gate on truthiness and interpolate these into tag payloads; a
   // literal "undefined" pixel id would be worse than none.
   const config = await getStoreAdsConfig({

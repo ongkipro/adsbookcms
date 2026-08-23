@@ -23,12 +23,24 @@ export type PublicOrderStatus = {
   payment_status: string;
   status: string;
   total_amount: number;
+  /**
+   * What the buyer paid for the goods themselves: the chosen variant's price
+   * times its quantity, summed over the order's items. It deliberately excludes
+   * shipping, the COD service fee and its VAT, and the payment channel's admin
+   * fee — none of those are product revenue, and an ad platform optimising on
+   * them would bid on the courier's price list as if it were margin.
+   *
+   * Read from `order_items`, which stores the unit price as it was at checkout,
+   * so a later catalogue edit cannot restate a past order's value.
+   */
+  product_value: number;
   payment: PublicPaymentStatus | null;
 };
 
 type PublicOrderStatusRow = {
   order_number?: string;
   total_amount?: number;
+  product_value?: number | null;
   payment_method?: string;
   payment_status?: string;
   shipping_status?: string;
@@ -61,6 +73,11 @@ export async function loadPublicOrderStatus(
       SELECT
         o.order_number,
         o.total_amount,
+        (
+          SELECT COALESCE(SUM(oi.unit_price * oi.quantity), 0)
+          FROM order_items oi
+          WHERE oi.order_id = o.id
+        ) AS product_value,
         o.payment_method,
         o.payment_status,
         o.shipping_status,
@@ -106,6 +123,7 @@ export async function loadPublicOrderStatus(
     payment_status: paymentStatus,
     status: orderRow.shipping_status || "pending",
     total_amount: Number(orderRow.total_amount ?? 0),
+    product_value: Number(orderRow.product_value ?? 0),
     payment:
       orderRow.channel_code ||
       orderRow.payment_method === "manual_transfer" ||

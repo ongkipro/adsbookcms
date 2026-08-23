@@ -136,15 +136,20 @@ const { tenantName, tenantSlug } = Astro.props;
         if (!finalEventId) return;
         verifiedPaymentStatus = String(statusData.payment_status || verifiedPaymentStatus).toLowerCase();
         if (paymentMethod !== 'cod' && !statusData.is_paid) return;
-        // Report what the customer actually owes, taken from the order we just
-        // verified. Browser state omits shipping and the COD service fee, and a
-        // tampered sessionStorage would otherwise dictate reported revenue.
-        const serverTotal = Number(statusData.total_amount || 0);
-        if (serverTotal > 0) {
-          conversionValue = serverTotal;
+        // Report the goods, not the invoice. `product_value` is the chosen
+        // variant's price times its quantity, summed from `order_items` — it
+        // excludes shipping, the COD service fee and its VAT, and the payment
+        // channel's admin fee. Optimising on those would have the platform
+        // bidding on the courier's price list as if it were margin.
+        //
+        // Still taken from the server rather than the browser: a tampered
+        // sessionStorage must not be able to dictate reported revenue.
+        const serverProductValue = Number(statusData.product_value || 0);
+        if (serverProductValue > 0) {
+          conversionValue = serverProductValue;
           // `data` was built before this fetch, so the pixel payload has to be
           // corrected too or the two legs would report different revenue.
-          data.value = serverTotal;
+          data.value = serverProductValue;
         }
       } catch {
         return;

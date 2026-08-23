@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
-  buildLeadNotification,
   buildOrderNotification,
   buildPaymentNotification,
   canReceiveCommerceNotifications,
@@ -341,14 +340,6 @@ test("notification copy states the money and the destination", () => {
   assert.match(order.body, /Budi Santoso/);
   assert.match(order.body, /Rp 118\.400/);
   assert.match(order.body, /Menteng, Jakarta Pusat/);
-
-  const lead = buildLeadNotification({
-    orderNumber: "ABN-10042",
-    customerName: "",
-    productTitle: "Pupuk Sawit",
-  });
-  assert.match(lead.body, /Tanpa nama/);
-  assert.match(lead.body, /Perlu follow-up/);
 
   const payment = buildPaymentNotification({
     orderNumber: "INV-10041",

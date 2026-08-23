@@ -123,13 +123,11 @@ test("a qualified human lead inside the KV window is recorded", async () => {
   });
   assert.equal(spentSlots, 1);
 
-  assert.equal(notificationWrites.length, 1);
-  const [type, orderId, orderNumber, title, body] = notificationWrites[0];
-  assert.equal(type, "lead");
-  assert.equal(orderId, 1);
-  assert.equal(orderNumber, "ABN-10001");
-  assert.match(String(title), /^Pesanan tertinggal ABN-10001$/);
-  assert.match(String(body), /Perlu follow-up/);
+  // An abandoned capture writes no notification. It is a lead to work through
+  // in the abandoned workspace, and it is the one type that arrives in volume —
+  // ringing for it buried the notifications that do matter, a new order and a
+  // payment landing. The row itself is still recorded; only the bell is silent.
+  assert.equal(notificationWrites.length, 0);
 });
 
 test("abandoned capture is rejected when the shared KV window is exhausted", async () => {

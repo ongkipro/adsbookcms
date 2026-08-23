@@ -343,7 +343,7 @@ export function ProductForm({ productId }: { productId?: string }) {
         <p className="mt-2 text-sm text-slate-600">{loadError}</p>
         <a
           href="/admin/products"
-          className="btn-primary mt-5 min-h-11 !bg-emerald-700 px-5 text-xs hover:!bg-emerald-800 focus-visible:!outline-emerald-700"
+          className="btn-primary mt-5 min-h-11 bg-emerald-700 px-5 text-xs hover:bg-emerald-800 focus-visible:outline-emerald-700"
         >
           Kembali ke katalog
         </a>
@@ -672,7 +672,7 @@ export function ProductForm({ productId }: { productId?: string }) {
             <button
               type="submit"
               disabled={saving || uploading}
-              className="btn-primary mt-6 min-h-11 w-full !bg-emerald-700 px-5 text-xs hover:!bg-emerald-800 focus-visible:!outline-emerald-700"
+              className="btn-primary mt-6 min-h-11 w-full bg-emerald-700 px-5 text-xs hover:bg-emerald-800 focus-visible:outline-emerald-700"
             >
               {saving ? "Menyimpan…" : "Simpan Produk"}
             </button>

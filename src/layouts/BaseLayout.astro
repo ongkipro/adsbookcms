@@ -1,6 +1,7 @@
 ---
 import type { ComponentProps } from 'astro/types';
 import { SEO } from 'astro-seo';
+import { escapeHtmlText } from '../lib/html-escape';
 // Font faces are imported by the shared token layer consumed by storefront.css.
 // Importing them here put them in this layout's own stylesheet, which the admin,
 // the login screen and the embedded checkout never request — see the note there.
@@ -56,6 +57,16 @@ const title = (rawTitle || Astro.locals.tenant.defaultTitle)
   .replace(/\s+-\s+-\s+/g, ' - ')
   .trim();
 
+// astro-seo renders its `title` prop through `<title set:html={...}>`
+// (node_modules/astro-seo/src/SEO.astro line 151), which skips Astro's
+// escaping — a merchant product title carrying `</title><script>…</script>`
+// closed the element and executed, reproduced live on 2026-08-23. The sink is
+// inside the library, so the value is escaped before it is handed over. The
+// openGraph and twitter titles below keep the raw `title`: those become
+// attribute values, which Astro escapes itself, and escaping twice would
+// double-encode every one of them.
+const titleForHead = escapeHtmlText(title);
+
 const publicSiteUrl = Astro.locals.tenant.siteUrl;
 const adsConfig = await getStoreAdsConfig(Astro.locals);
 const canonical = canonicalProp ?? new URL(Astro.url.pathname, publicSiteUrl).toString();
@@ -87,7 +98,7 @@ const preloadImageUrls =
       )
     }
     <SEO
-      title={title}
+      title={titleForHead}
       description={description}
       canonical={canonical}
       noindex={noindex}

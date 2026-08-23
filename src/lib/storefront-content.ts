@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Product } from "../data/products";
-import type { CatalogProductRow } from "./catalog-data";
+import type { CatalogProductRow } from "./catalog-data.ts";
 
 const shortText = z.string().trim().min(1).max(160);
 const bodyText = z.string().trim().min(1).max(1_200);

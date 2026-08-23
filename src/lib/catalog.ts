@@ -1,15 +1,15 @@
-import { type Product } from "../data/products";
-import { getRuntimeEnv } from "./env";
+import { type Product } from "../data/products.ts";
+import { getRuntimeEnv } from "./env.ts";
 import {
   mergeStorefrontCatalog,
   type CatalogProductRow,
   type CatalogVariantRow,
-} from "./catalog-data";
+} from "./catalog-data.ts";
 import {
   loadPublishedProductContent,
   mergeRuntimeProductContent,
-} from "./storefront-content";
-import { catalogProductId } from "./catalog-feed";
+} from "./storefront-content.ts";
+import { catalogProductId } from "./catalog-feed.ts";
 
 async function loadCatalogRows(database: D1Database) {
   const [products, variants] = await database.batch([

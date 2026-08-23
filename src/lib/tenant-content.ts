@@ -1,9 +1,9 @@
-import { getRuntimeEnv } from "./env";
+import { getRuntimeEnv } from "./env.ts";
 import {
   loadPublishedHomeContent,
   type HomeContent,
-} from "./storefront-content";
-import { listLandingPages } from "./landing-pages";
+} from "./storefront-content.ts";
+import { listLandingPages } from "./landing-pages.ts";
 
 export type TenantHomeContent = HomeContent;
 

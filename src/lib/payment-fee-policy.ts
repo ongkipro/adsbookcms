@@ -1,4 +1,4 @@
-import type { AutoLarisCheckoutChannel } from "./autolaris-client";
+import type { AutoLarisCheckoutChannel } from "./autolaris-client.ts";
 
 export type PaymentFeeBearer = "buyer" | "seller";
 

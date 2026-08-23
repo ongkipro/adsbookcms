@@ -68,7 +68,7 @@ const hasMany = gallery.length > 1;
       <div
         data-track
         class="no-scrollbar absolute inset-0 flex snap-x snap-mandatory overflow-x-auto scroll-smooth"
-        style="scrollbar-width: none; touch-action: pan-x; overscroll-behavior-x: contain;"
+        style="scrollbar-width: none; touch-action: pan-x; overscroll-behavior-x: contain; overflow-y: hidden;"
       >
         {gallery.map((imgUrl, idx) => (
           <img

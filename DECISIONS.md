@@ -451,13 +451,25 @@ install wizard and store settings offer one option.
 > | `--sf-accent` | `#2c6ecb` | primary action fill, active state |
 > | `--sf-accent-strong` | `#1f5199` | hover, pressed |
 > | `--sf-accent-soft` | `#eef4fc` | selected row fill, quiet emphasis |
+> | `--sf-accent-ring` | `rgba(44, 110, 203, 0.28)` | focus ring — derive it from the accent, never leave it behind |
+> | `--sf-field` | `#ffffff` | input background |
 > | `--sf-field-border` | `#c9cccf` | field hairline — border only, never text |
 > | `--sf-surface-alt` | `#f6f8fb` | wells and inset panels |
+> | `--sf-line` | `#e3e3e3` | separator hairline — 1.28:1, decorative only |
 >
-> An install re-brands by redeclaring these five. It does not fork the
+> An install re-brands by redeclaring these eight. It does not fork the
 > stylesheet, and a sync does not have to diff the product's CSS to discover
 > what moved — which is exactly what `zanobyshop` had to do, at a cost of seven
 > mappings in its own palette script, before this table existed.
+>
+> **This table said five for one day**, and the three it omitted are the
+> instructive part. `--sf-accent-ring` is an `rgba()` rather than a hex, so a
+> store palette script that matched on hex literals skipped it silently and
+> shipped an orange button wearing a blue focus ring — `zvarashop`, 2026-08-23.
+> `--sf-field` and `--sf-line` were omitted because they read as neutrals, but
+> a store that inverts its field background has to know they are here. The rule
+> the omission proves: **the table is the contract, so a token that is not in
+> it is a token an install cannot re-brand.**
 >
 > Text on `--sf-accent-soft` must clear 4.5:1 against it, not merely against
 > white. That surface is a fill with copy on it, and a store that missed it

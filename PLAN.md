@@ -25,8 +25,8 @@ revision into an install's own repo — nothing more.
 
 ## 3. The one artifact: path-ownership manifest (A-153)
 
-A reviewed list, derived from a real installation tree, of what a copy-paste
-update copies vs. never touches.
+Written: **`docs/UPDATE-PATH-OWNERSHIP.md`** — the full classification and the
+copy-paste checklist. Summary:
 
 - **Product-owned (copy on update):** `src/`, tests, `package.json` + lockfile,
   `src/db/migrations/`, product docs.

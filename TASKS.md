@@ -1434,14 +1434,17 @@ YAGNI. Only A-151 (done), A-153-as-manifest, and A-159 (optional) remain.
       `<`); `src/lib/json-script.test.ts` proves a `</script>` payload
       cannot terminate the JSON element and round-trips through `JSON.parse`;
       full `npm test` (511) / `npm run check` / `npm run build` pass.
-- [ ] **A-153** — Produce and maintain the **path-ownership manifest**: a
+- [x] **A-153** — Produce and maintain the **path-ownership manifest**: a
   documented list classifying every synchronized path as product-owned (copied
   on update) or install-owned (never overwritten — `wrangler` config, Cloudflare
   / D1 / KV / R2 ids, secrets/`.dev.vars`, domain, merchant assets, per-install
   `RELEASE.md`). Reduced from an enforced engine to a copy-paste checklist.
-      -> REQ: REQ-167 · deps: [] · Done when: the manifest names every install-
-      owned path a copy-paste update must skip, derived from a real inventory of
-      an installation tree, not examples.
+      -> REQ: REQ-167 · deps: [] · **Done 2026-08-23:**
+      `docs/UPDATE-PATH-OWNERSHIP.md` classifies every path, derived from the
+      real repo layout (`wrangler.jsonc` ids/domain/vars, `.gitignore` secrets,
+      `public/images/` brand assets), including the `wrangler.jsonc`
+      structural-fields-to-hand-merge case. Per-store values are confirmed when
+      a second real install exists; the path classification is complete.
 - [ ] **A-159** *(optional hygiene)* — Reconcile local product worktrees
   (`adsbookcms-dev` detached, `adsbookcms-lp`) into one canonical `main` without
   losing pre-existing work; removal or branch attachment only after explicit

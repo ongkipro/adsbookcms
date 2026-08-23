@@ -31,16 +31,29 @@ The previous version of this file described a different repository — it opened
 Verified 2026-08-23 from outside: each host serves Astro 7.2 and answers `401`
 on `/api/admin/health`, so the admin boundary holds on every one.
 
-All six were rolled forward to `05778a1` on 2026-08-23 except `zvara.shop`,
-which is held frozen by its owner.
+All six run **1.3.1** (product `3971eaf`) as of 2026-08-23, deployed and
+verified live: five answer `200` on `/` and `/produk` with `401` on
+`/api/admin/health`; `permatamall.shop` correctly redirects to its
+token-gated `/install` wizard, because its rebuilt database is not yet set up.
+`zvara.shop` was released from its freeze and adopted with the rest.
+
+This round closed a **stored XSS reachable on every storefront page**: a product
+title containing `</title><script>` executed, because `astro-seo` renders the
+title through `set:html` (BUILD-LOG 2026-08-23). Every install below carried it
+until this deployment.
+
+The GitHub deploy workflows in `zanobyshop` and `permatamall` did not run — the
+account's Actions billing blocks the job before it starts, and the same is true
+of the earlier sync that day. Both were deployed with `wrangler deploy` from a
+local build instead, as the other four always are.
 
 | Install | Repository | Adopts the product by | State |
 | --- | --- | --- | --- |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh` — **no shared history**, the sync replaces the tree and re-applies a store palette | on `fb1218d`. Largest install: 34 products, 33 landing pages. The audit reports in `docs/` are measured against it, and it is the only install with ad tracking configured |
-| `carukesi.com` | *local only* | `git merge product/main` | on `fb1218d`. **No git remote** — the only copy is one disk |
-| `skincarebpom.shop` | *local only* | `git merge product/main` | on `fb1218d`. **No git remote.** Cron trigger deliberately released to `zanobyshop` (Workers Free caps the account at five) |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `fb1218d`, after reconciling a 2026-08-19 draft snapshot that had left it 106 commits behind |
-| `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` | **Frozen.** Not deployed, not migrated, not touched |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh` — **no shared history**, the sync replaces the tree and re-applies a store palette | on `bf297c7` (1.3.1). Largest install: 34 products, 33 landing pages. The audit reports in `docs/` are measured against it, and it is the only install with ad tracking configured |
+| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on branch `install/carukesi` | on `2f7dcbc` (1.3.1). No longer local-only: it has an `origin` and was pushed on 2026-08-23. No deploy workflow — `wrangler deploy` is run by hand |
+| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on branch `install/skincarebpom` | on `2aa20ee` (1.3.1). No longer local-only: it has an `origin` and was pushed on 2026-08-23. Cron trigger deliberately released to `zanobyshop` (Workers Free caps the account at five). No deploy workflow |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `7411776` (1.3.1), after reconciling a 2026-08-19 draft snapshot that had left it 106 commits behind |
+| `zvara.shop` | `ongkipro/zvarashop` | `scripts/sync-from-product.sh` — its history diverged from the product, so it syncs rather than merges (the previous entry recorded a merge, which no longer matched the repository) | on `3705485` (1.3.1). **Freeze released 2026-08-23** by the owner and brought onto the security release with the rest; deployed by hand, it carries no deploy workflow |
 | `permatamall.shop` | `ongkipro/permatamall` | First install. Was down — no DNS record, and its D1 had been deleted from the account — and was rebuilt on `05778a1` on 2026-08-23 against a new database, the original KV namespace and the original R2 bucket. Shares no history with the product (it is the codebase the product was extracted from), so it syncs the way `zanobyshop` does rather than merging. Cron released, like `skincarebpom` |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more

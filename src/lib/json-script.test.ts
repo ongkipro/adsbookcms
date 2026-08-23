@@ -26,3 +26,10 @@ test("jsonForScript round-trips through JSON.parse unchanged", () => {
 test("jsonForScript escapes every < it is given", () => {
   assert.equal(jsonForScript("a<b<c"), '"a\\u003cb\\u003cc"');
 });
+
+test("jsonForScript survives an undefined value instead of throwing", () => {
+  // JSON.stringify(undefined) is undefined, not a string; a shared helper must
+  // not throw on the next caller that passes an optional value.
+  assert.equal(jsonForScript(undefined), "null");
+  assert.equal(JSON.parse(jsonForScript(undefined)), null);
+});

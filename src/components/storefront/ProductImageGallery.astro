@@ -42,6 +42,7 @@ const hasMany = gallery.length > 1;
             ]}
           >
             <img
+              draggable={false}
               src={imgUrl}
               alt={`${productName} thumbnail ${idx + 1}`}
               width={64}
@@ -72,6 +73,7 @@ const hasMany = gallery.length > 1;
       >
         {gallery.map((imgUrl, idx) => (
           <img
+            draggable={false}
             src={imgUrl}
             alt={`${productName} foto ${idx + 1}`}
             width={640}
@@ -191,3 +193,17 @@ const hasMany = gallery.length > 1;
     }
   })();
 </script>
+
+<style>
+  /* A held finger on the photo used to start an image drag or the long-press
+     callout, and that cancels the scroll gesture — so the page moved when a
+     finger landed beside the gallery but not on it, which is most of the target
+     on a phone. `touch-action` is not inherited either, so the track's `pan-x`
+     never reached the image the finger actually lands on. */
+  [data-gallery] img {
+    touch-action: pan-x;
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+</style>

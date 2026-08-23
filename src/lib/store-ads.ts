@@ -1,4 +1,7 @@
-import { getRuntimeEnv, getEnvValue } from './env';
+// Extension-qualified like every other module here: Vite resolves either form,
+// but `node --experimental-strip-types` does not, and the bare specifier is why
+// this module could not be unit-tested at all (audit 2026-08-23 §2.6).
+import { getRuntimeEnv, getEnvValue } from './env.ts';
 
 export type StoreAdsConfig = {
   metaPixelId: string;

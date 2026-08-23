@@ -1450,6 +1450,19 @@ YAGNI. Only A-151 (done), A-153-as-manifest, and A-159 (optional) remain.
   losing pre-existing work; removal or branch attachment only after explicit
   operator approval.
       -> REQ: REQ-172 · deps: []
+- [x] **A-160** — Adopt audit §2.6: give the two untested modules that fail
+  silently a direct test — `store-ads.ts` (resolves the pixel id, CAPI token and
+  Google identifiers every tracking path depends on) and `rts-scoring.ts`
+  (return-to-sender risk, i.e. money).
+      -> REQ: — · deps: [] · **Done 2026-08-23:** `src/lib/store-ads.test.ts`
+      pins dashboard-over-secret precedence, blank-field fallthrough, all four
+      pixel aliases, degrade-to-env on a failed store read, and empty-string
+      (never `undefined`) output; `src/lib/rts-scoring.test.ts` pins the
+      short-number and unconfigured-provider guards before any provider call,
+      and proves a failed background refresh is handed to `waitUntil` and can
+      never reject into the request. Fixing the bare `'./env'` specifier in
+      `store-ads.ts` was the precondition — it was why the module could not be
+      loaded by the test runner at all. Suite 511 -> 522.
 
 **Withdrawn per ADR-020 (fleet-automation engine — YAGNI at current scale):**
 ~~A-152~~ immutable release-identity check · ~~A-154~~ single-install update

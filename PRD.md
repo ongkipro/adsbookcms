@@ -1,5 +1,90 @@
 # PRD — AdsBookCMS (single)
 
+## A22 — Release-driven updates for isolated installs
+
+**Status:** Accepted, **revised 2026-08-23 per ADR-020** — updates are
+distributed by manual copy, not a fleet engine. Security gate A-151 is done; the
+engine requirements (REQ-165/166/168/169/171) are withdrawn as YAGNI. Pre-
+remediation evidence is in `docs/AUDIT-2026-08-23.md`; open execution is owned by
+`TASKS.md` A-151 (done), A-153 (manifest), A-159 (optional).
+
+### Goals
+
+- Update every installation from one tested AdsBookCMS release by copying the
+  product-owned paths into its own repo, guided by a path-ownership manifest so
+  install-owned config is never overwritten.
+- Preserve the existing isolation boundary: one repository, Worker, D1, KV, R2,
+  domain, and credential set per store.
+- Make every proposed installation update reviewable, reproducible, and
+  attributable to an immutable product revision.
+- Roll out progressively so one incompatible installation cannot turn a product
+  release into a fleet-wide incident.
+
+### Non-goals
+
+- A multi-tenant Worker, shared D1 database, tenant router, provisioning control
+  plane, or shared runtime credential store.
+- Copying customer, order, payment, catalog, or analytics data between installs.
+- Deploying every production store automatically when product `main` changes.
+- Replacing each installation repository with generated or unreviewable state.
+- Adding a package registry, GitHub App, queue, or hosted fleet service before a
+  terminal-first updater proves those components are necessary.
+
+### Requirements
+
+- **REQ-164** — Before a product release is eligible for installation, every
+  inline raw-text JSON payload shall escape HTML script terminators, and a
+  regression test containing a literal `</script>` payload shall prove it.
+- **REQ-165** — The product shall identify an update by an immutable Git release
+  reference whose package version, commit, and bundled migration suffix are
+  mutually consistent.
+- **REQ-166** — Given a registered installation and a product release, the
+  updater shall apply the product-owned diff without requiring an operator to
+  copy individual files.
+- **REQ-167** — The updater shall leave install-owned configuration, Cloudflare
+  resource identifiers, secrets, merchant assets, and local operational records
+  unchanged; an unclassified changed path shall fail the update before writing.
+- **REQ-168** — Each installation update shall be isolated on its own branch and
+  shall pass that installation's test, check, build, and fresh local D1 migration
+  gates before it is eligible for review.
+- **REQ-169** — A fleet rollout shall update one explicitly selected canary
+  first and shall require explicit production authorization before subsequent
+  installation deploys; a failed target shall not mutate another target.
+- **REQ-170** — Each installation shall retain its own database and apply only
+  the product's ordered forward migration suffix; no fleet command shall read or
+  copy customer rows between D1 databases.
+- **REQ-171** — Every update attempt shall report the source release, target
+  repository, before/after product version, schema version, validation results,
+  and final state without recording secrets or customer data.
+- **REQ-172** — Local product development shall use one canonical `main`
+  worktree plus task-named temporary worktrees; a generic persistent detached
+  worktree shall not be treated as a current development environment.
+
+> **Revision 2026-08-23 (ADR-020).** REQ-164 (security escaping) is met. REQ-167
+> and REQ-170 stand but are satisfied by a documented **path-ownership manifest**
+> plus the existing per-install migration contract — a copy-paste checklist, not
+> an automated updater. REQ-172 remains as worktree hygiene. **Withdrawn as
+> YAGNI:** REQ-165 (immutable release-identity engine), REQ-166 (automated
+> product-diff updater), REQ-168 (per-branch CI automation), REQ-169 (canary
+> fleet rollout), REQ-171 (automated fleet reporting). They return only if the
+> install count outgrows manual copy.
+
+### Technical decisions
+
+- **Git release, not a package.** Installations already contain the complete
+  Worker and migration chain. An immutable Git ref is the smallest artifact
+  that preserves deletions, migration history, and source provenance.
+- **Classified synchronization, not blind merge or copy.** The release diff is
+  applied only after every changed path is classified as product-owned or
+  install-owned. Unknown paths stop the run, preventing both silent omissions
+  and overwritten installation configuration.
+- **Private target registry, public generic tooling.** Target repository names
+  and local paths belong in `~/.config/ai-local/adsbookcms-fleet.json`; no token
+  or operational fleet inventory is committed to the product repository.
+- **Review before production.** The first implementation creates update
+  branches and evidence. Merge and deploy remain installation-owned actions
+  behind the existing production approval gate.
+
 ## A21 — A landing page may become the product page
 
 ### Goals

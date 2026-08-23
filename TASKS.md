@@ -1421,3 +1421,36 @@ Worker, and by reading the emitted stylesheets rather than the source.
 - [x] **A-129** — Verify and reconcile A17. **Done 2026-08-18.**
   -> Primary requirements: REQ-11, REQ-12, REQ-21, REQ-27, REQ-40, REQ-82, REQ-85 · Dependencies: A-126..A-128 · Done when: focused reconciliation/lifecycle/operational-health tests, full suite, repository check, production build, isolated browser queue validation, and isolated paid redirect proof pass; canonical docs match the executable tree; and no live provider call, remote mutation, deployment, commit, or push occurs.
   -> Evidence: the full suite passed 419/419; `npm run check` reported zero diagnostics across 353 files; the Cloudflare build completed; and the manual confirmation surface plus paid redirect were exercised on isolated local runtime only.
+## A22 — Release-driven updates for isolated installs
+
+**Execution status:** Revised 2026-08-23 per ADR-020. Updates are distributed by
+manual copy, not a fleet engine — the automation tasks below are withdrawn as
+YAGNI. Only A-151 (done), A-153-as-manifest, and A-159 (optional) remain.
+
+- [x] **A-151** — Close the audited raw-text JSON script breakout in both
+  canonical storefront forms and leave a literal `</script>` regression test.
+      -> REQ: REQ-164 · deps: [] · **Done 2026-08-23:** both form config scripts
+      render through `jsonForScript` (`src/lib/json-script.ts`, escapes `<` as
+      `<`); `src/lib/json-script.test.ts` proves a `</script>` payload
+      cannot terminate the JSON element and round-trips through `JSON.parse`;
+      full `npm test` (511) / `npm run check` / `npm run build` pass.
+- [ ] **A-153** — Produce and maintain the **path-ownership manifest**: a
+  documented list classifying every synchronized path as product-owned (copied
+  on update) or install-owned (never overwritten — `wrangler` config, Cloudflare
+  / D1 / KV / R2 ids, secrets/`.dev.vars`, domain, merchant assets, per-install
+  `RELEASE.md`). Reduced from an enforced engine to a copy-paste checklist.
+      -> REQ: REQ-167 · deps: [] · Done when: the manifest names every install-
+      owned path a copy-paste update must skip, derived from a real inventory of
+      an installation tree, not examples.
+- [ ] **A-159** *(optional hygiene)* — Reconcile local product worktrees
+  (`adsbookcms-dev` detached, `adsbookcms-lp`) into one canonical `main` without
+  losing pre-existing work; removal or branch attachment only after explicit
+  operator approval.
+      -> REQ: REQ-172 · deps: []
+
+**Withdrawn per ADR-020 (fleet-automation engine — YAGNI at current scale):**
+~~A-152~~ immutable release-identity check · ~~A-154~~ single-install update
+engine · ~~A-155~~ private target registry + fleet planner · ~~A-156~~ per-install
+CI/D1 gate engine · ~~A-157~~ canary-first rollout state · ~~A-158~~ redacted
+fleet reports. Reinstate only if the number of installs makes manual copy
+genuinely unmanageable.

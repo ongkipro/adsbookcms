@@ -3872,3 +3872,149 @@ number.
 **Verification.** `npm run check` 375 files / 0 errors · `npm test` 503 / 503
 (4 new: the 13-digit fix, the 8–13 boundary, per-carrier samples, cross-path
 agreement) · `npm run build` complete. Test orders removed and stock restored.
+
+## 2026-08-23 — The module that could not be tested at all
+
+The 2026-08-23 audit (§2.6) named two of the eighteen untested `src/lib`
+modules as worth a direct test on their merits rather than for the count:
+`store-ads.ts`, which resolves the pixel id, CAPI token and Google identifiers
+every tracking path depends on — a silent misresolution disables tracking
+store-wide and nothing fails loudly — and `rts-scoring.ts`, which scores
+return-to-sender risk, i.e. money.
+
+**Why there was no test.** Writing one for `store-ads.ts` failed immediately:
+`ERR_MODULE_NOT_FOUND` on `./env`. It was the only module in `src/lib`
+importing that bare. Vite resolves either form; `node
+--experimental-strip-types`, which is what `npm test` runs, does not. The
+coverage gap was not an oversight about what to test — the file was
+unreachable by the test runner. Extension-qualified to match its neighbours,
+no behaviour change.
+
+**What is pinned now.** For `store-ads.ts`: the store's dashboard config beats
+a stale Worker secret; a blank field falls through to the environment; all four
+documented pixel aliases resolve and their precedence holds; a failed store
+read degrades to the environment instead of throwing, and invents nothing; an
+unconfigured store yields empty strings, never `undefined` — callers
+interpolate these into tag payloads, and a literal `"undefined"` pixel id is
+worse than none. For `rts-scoring.ts`: a too-short receiver number is refused
+*before* any credential read or outbound call; formatting is stripped before
+that guard; an unconfigured provider fails loudly instead of scoring blind; and
+a failed background refresh is handed to `waitUntil` and settles rather than
+rejecting into the request an order rode in on.
+
+**A test that would have passed either way.** The first version of the
+`store-ads` suite was not hermetic. `getEnvValue` falls back to `process.env`,
+and `wrangler.jsonc` declares those very names as dev secrets loaded from the
+shell — so a developer who exported one to run `wrangler dev` would have failed
+the suite for no reason. Each test now states its whole environment; proven by
+running it with hostile values exported.
+
+**Verification.** `npm run check` 0 errors · `npm test` 511 (11 new) ·
+`npm run build` complete.
+
+## 2026-08-23 — Two script-injection sinks, and why the first fix was not enough
+
+The audit's one HIGH finding (§6.2): both canonical storefront forms rendered
+DB-backed product data into an inline `application/json` script using raw
+`set:html={JSON.stringify(...)}`. `JSON.stringify` escapes JSON syntax but not
+`<`, so a product name of `</script><script>…</script>` closed the element and
+what followed became an executable script. Fixed with a shared `jsonForScript`
+helper that escapes `<` as `<` — the invariant the JSON-LD blocks already
+applied, and, as it turns out, byte-identical to Astro's own
+`stringifyForScript` — plus a regression test carrying a literal `</script>`
+payload.
+
+**Then the fix was checked instead of trusted.** A green unit test proves the
+helper escapes; it proves nothing about the rest of the page. So the hostile
+title was written into a local install's catalogue and the rendered HTML read
+back. The config script was clean. The page was not: the same payload appeared
+twice more, unescaped, in `<title>` and in the `og:` meta tags.
+
+**The second sink was real.** `astro-seo` renders the document title through
+`<title set:html={updatedTitle} />` (`node_modules/astro-seo/src/SEO.astro`
+line 151), which bypasses Astro's automatic escaping. `<title>` is RCDATA, so
+`</script>` inside it is inert — but `</title>` is not. A title of
+`Pwn</title><script>globalThis.__xss=1</script>` was written to the same
+product, the page opened in a browser, and `globalThis.__xss === 1`: the script
+executed. This sink is in the `<head>` of every storefront page, not just the
+two checkout forms.
+
+**Escaped at the call site, because the sink is in the library.**
+`escapeHtmlText` (`src/lib/html-escape.ts`) escapes `&`, `<` and `>` and is
+applied to the value handed to `<SEO>`. The `openGraph` and `twitter` titles
+deliberately keep the raw string: those become attribute values, which Astro
+escapes itself, and escaping twice would double-encode every one of them.
+Quotes are left alone for the same reason.
+
+**Verified the same way it was found.** After the fix the title renders as
+entity-escaped text and `globalThis.__xss` is `undefined`. The injected
+catalogue rows were reverted.
+
+Two smaller sinks closed while the boundary was open: the district suggestions
+in `form-hybrid.ts` were built with `innerHTML`, putting the shipping
+provider's district, city and province text through an HTML parser on the
+public checkout page — built as text nodes now; and `jsonForScript(undefined)`
+threw, because `JSON.stringify(undefined)` is not a string, which a shared
+export must survive.
+
+**Verification.** `npm run check` 0 errors · `npm test` 527 · `npm run build`
+complete.
+
+## 2026-08-23 — Fade dividers outranked the resets they shipped with
+
+When the section rules became fading hairlines, the conversion kept the
+`first:border-t-0` and `last:border-0` modifiers the markup already carried,
+on the reasoning that a utility with higher specificity would still win. That
+reasoning was wrong, and an adversarial pass over the merged diff caught it.
+
+`.border-fade-*` was declared unlayered. Tailwind v4 emits its utilities inside
+`@layer utilities`, and an unlayered normal declaration beats every layer
+regardless of specificity — so the fade rule won and the reset was discarded.
+Confirmed in the built bundle: `.first\:border-t-0:first-child` sits inside the
+utilities layer at byte 625833; `.border-fade-t` sits outside it at 640586.
+Layers, not specificity, decide.
+
+The effect: a store with landing pages kept a rule above its first row, and a
+product with reviews kept one under its last. Neither renders on the QA
+tenant — it has no landing pages and no reviews — which is exactly why the
+browser check that followed the conversion did not show it.
+
+Moved into `@layer components`, which loses to utilities: the relationship the
+call sites already assumed. Verified against the real markup in the browser —
+first row `border-top: 0px`, second `1px`, last row `border-bottom: 0px`.
+
+## 2026-08-23 — A chime for a new order
+
+The admin already polled for order, lead and payment notifications and raised a
+desktop notification; it made no sound. Orders arrive while an operator is
+looking at something else.
+
+**Synthesised, not shipped.** The chime is three sine tones — an ascending A
+major triad, A5 880 Hz, C#6 1109 Hz, E6 1319 Hz — 70 ms apart, each with an
+8 ms attack and a bell-like exponential decay at low gain, about half a second
+in total. Soft attacks matter: a square edge on a sine is heard as a click.
+Built with the Web Audio API rather than an audio file, so it costs no request
+and no bytes on the install's asset binding and works offline; an mp3 of the
+same length would be tens of kilobytes on every admin page load.
+
+**Independent of the Notification permission.** The announce path used to
+return early when desktop notifications were not granted. An operator who never
+granted them still needs to hear an order land, so the chime and the desktop
+notification are now separate decisions.
+
+**It cannot nag.** Every fresh notification id is recorded as announced, not
+just the five that get a desktop notification — otherwise the sixth and beyond
+would re-ring the chime on every 30 s poll for as long as they stayed unread. A
+speaker toggle mutes it, persisted in `localStorage` and read after mount so
+server and client render the same markup. Unmuting plays the chime once, which
+doubles as the user gesture an autoplay-suspended `AudioContext` needs.
+
+**Verified in the browser with `AudioContext` instrumented.** Three unread
+notifications arriving on a poll started three oscillators at 880/1109/1319 Hz
+and recorded all three ids; the following poll started none. A muted install
+constructs no `AudioContext` at all. Muted, storage-blocked and no-Web-Audio
+paths are silent no-ops rather than throwing into the poll.
+
+**Verification.** `npm run check` 0 errors · `npm test` 531 (4 new) ·
+`npm run build` complete. The notification read markers changed for the test
+were restored.

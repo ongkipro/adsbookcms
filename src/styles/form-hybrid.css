@@ -11,6 +11,9 @@
   --sf-accent-soft: #eef4fc;
   --sf-accent-ring: rgba(44, 110, 203, 0.28);
   --sf-field: #ffffff;
+  /* The resting well of an empty input. Light enough to read as "not filled in
+     yet" beside the soft blue a completed one takes. */
+  --sf-field-empty: #f4f5f7;
   --sf-field-border: #c9cccf;
   --sf-surface-alt: #f6f8fb;
   --sf-line: #e3e3e3;
@@ -205,14 +208,20 @@
 .form-field input,
 .form-field textarea {
   width: 100%;
-  min-height: 2.9rem;
-  padding: 0.96rem 0.75rem 0.2rem;
+  /* Taller than the 2.9rem it used to be: on a phone these four fields are the
+     whole checkout, and the old height left the floating label crowding the
+     value. The extra room goes above the text, where the label sits. */
+  min-height: 3.4rem;
+  padding: 1.2rem 0.85rem 0.4rem;
   /* Shopify-style rounded frame: a full 1.5px border the whole way round, no
      ring or drop shadow. The frame is the only thing that changes colour -
      blue while typing, red on an error. */
   border: 1.5px solid var(--sf-field-border);
   border-radius: 0.5rem;
-  background: var(--sf-field);
+  /* Empty reads as a light grey well; a filled one turns the same soft blue the
+     rest of the checkout uses, so a buyer can see at a glance which fields are
+     still waiting. */
+  background: var(--sf-field-empty);
   color: #1a1a1a;
   font: inherit;
   font-size: 1rem;
@@ -222,9 +231,11 @@
   transition: border-color 0.15s ease;
 }
 .form-field textarea {
-  min-height: 4.4rem;
-  padding-top: 1.25rem;
-  padding-bottom: 0.38rem;
+  /* The address field carries the longest answer on the form; give it two
+     comfortable lines under the label instead of one and a half. */
+  min-height: 5.25rem;
+  padding-top: 1.3rem;
+  padding-bottom: 0.5rem;
   resize: vertical;
 }
 .form-field input::placeholder,
@@ -235,8 +246,11 @@
 .form-field > span {
   position: absolute;
   z-index: 1;
-  left: 0.75rem;
-  top: 1rem;
+  /* Matches the input's horizontal padding, so the resting label sits exactly
+     where the value will appear. */
+  left: 0.85rem;
+  /* Vertically centred in the taller well. */
+  top: 1.25rem;
   margin: 0;
   color: #555555;
   font-size: 0.75rem;
@@ -251,7 +265,9 @@
 }
 .form-field textarea ~ label,
 .form-field textarea ~ span {
-  top: 0.85rem;
+  /* A textarea's label rests near its top edge, not centred: the box is tall
+     because it holds several lines, and the label belongs above the first one. */
+  top: 1rem;
 }
 .form-field input:focus ~ label,
 .form-field input:not(:placeholder-shown) ~ label,
@@ -266,6 +282,15 @@
   font-size: 0.625rem;
   font-weight: 700;
 }
+/* Filled but not being edited: the soft blue that says "done". `placeholder=" "`
+   on every field is what makes `:placeholder-shown` a reliable emptiness test —
+   the same hook the floating label already uses. */
+.form-field input:not(:placeholder-shown),
+.form-field textarea:not(:placeholder-shown) {
+  background: var(--sf-accent-soft);
+}
+/* While typing the well goes white, so the caret and the value sit on the
+   plainest possible surface. Declared after the filled rule so it wins. */
 .form-field input:focus,
 .form-field textarea:focus {
   outline: none;
@@ -326,8 +351,10 @@
 .field-grid textarea.field-valid,
 .form-field input.field-valid,
 .form-field textarea.field-valid {
+  /* A validated field is by definition filled, so it keeps the filled blue
+     rather than reverting to white. */
   border-color: var(--sf-field-border);
-  background: var(--sf-field) !important;
+  background: var(--sf-accent-soft) !important;
   box-shadow: none !important;
 }
 .field-grid input.field-valid:focus,
@@ -819,6 +846,14 @@
   text-align: left !important;
   text-wrap: balance;
   max-width: 52%;
+  /* Capped at two lines: a long product name used to push the row taller than
+     the variant and price stacked beside it, so the row stopped reading as one
+     line item. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .summary-price {
   display: flex;

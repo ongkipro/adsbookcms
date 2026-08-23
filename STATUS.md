@@ -31,30 +31,41 @@ The previous version of this file described a different repository — it opened
 Verified 2026-08-23 from outside: each host serves Astro 7.2 and answers `401`
 on `/api/admin/health`, so the admin boundary holds on every one.
 
-All six run **1.3.1** (product `3971eaf`) as of 2026-08-23, deployed and
-verified live: five answer `200` on `/` and `/produk` with `401` on
-`/api/admin/health`; `permatamall.shop` correctly redirects to its
-token-gated `/install` wizard, because its rebuilt database is not yet set up.
-`zvara.shop` was released from its freeze and adopted with the rest.
+All six run **1.3.1** (product `729896d`) as of 2026-08-23, deployed and
+verified live: every one answers `200` on `/` and `/produk` with `401` on
+`/api/admin/health`. `zvara.shop` was released from its freeze and adopted with
+the rest, and `permatamall.shop` was installed through its token-gated wizard
+the same day, so its `/install` route now refuses to run again.
 
 This round closed a **stored XSS reachable on every storefront page**: a product
 title containing `</title><script>` executed, because `astro-seo` renders the
 title through `set:html` (BUILD-LOG 2026-08-23). Every install below carried it
 until this deployment.
 
-The GitHub deploy workflows in `zanobyshop` and `permatamall` did not run — the
-account's Actions billing blocks the job before it starts, and the same is true
-of the earlier sync that day. Both were deployed with `wrangler deploy` from a
-local build instead, as the other four always are.
+**Repository visibility and CI.** All seven repositories are public as of
+2026-08-23. That was not only a visibility change: the deploy workflows in
+`zanobyshop` and `permatamall` had been failing in under four seconds with an
+Actions **billing** error that stops the job before it starts — private
+repositories on this account were blocked. Public repositories get free Actions
+minutes, so both pipelines started working again and now deploy on push to
+`main`. The other four carry only the product's `ci.yml`, which deliberately
+deploys nothing, and are deployed by hand with `wrangler deploy`.
+
+The **system surface is byte-identical across all six** — `components/admin`,
+`components/ui`, `pages/admin`, `pages/api`, `styles/admin.css`, `db`,
+`middleware.ts`, `worker.ts` and the non-visual half of `lib`. Storefront look
+is deliberately per store: `zanobyshop` carries a navy accent, `zvarashop` an
+orange one, and `zanobyshop` also owns its `landing.css`. `landing-safelist.html`
+is generated per store from that store's own D1.
 
 | Install | Repository | Adopts the product by | State |
 | --- | --- | --- | --- |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh` — **no shared history**, the sync replaces the tree and re-applies a store palette | on `bf297c7` (1.3.1). Largest install: 34 products, 33 landing pages. The audit reports in `docs/` are measured against it, and it is the only install with ad tracking configured |
-| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on branch `install/carukesi` | on `2f7dcbc` (1.3.1). No longer local-only: it has an `origin` and was pushed on 2026-08-23. No deploy workflow — `wrangler deploy` is run by hand |
-| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on branch `install/skincarebpom` | on `2aa20ee` (1.3.1). No longer local-only: it has an `origin` and was pushed on 2026-08-23. Cron trigger deliberately released to `zanobyshop` (Workers Free caps the account at five). No deploy workflow |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `7411776` (1.3.1), after reconciling a 2026-08-19 draft snapshot that had left it 106 commits behind |
-| `zvara.shop` | `ongkipro/zvarashop` | `scripts/sync-from-product.sh` — its history diverged from the product, so it syncs rather than merges (the previous entry recorded a merge, which no longer matched the repository) | on `3705485` (1.3.1). **Freeze released 2026-08-23** by the owner and brought onto the security release with the rest; deployed by hand, it carries no deploy workflow |
-| `permatamall.shop` | `ongkipro/permatamall` | First install. Was down — no DNS record, and its D1 had been deleted from the account — and was rebuilt on `05778a1` on 2026-08-23 against a new database, the original KV namespace and the original R2 bucket. Shares no history with the product (it is the codebase the product was extracted from), so it syncs the way `zanobyshop` does rather than merging. Cron released, like `skincarebpom` |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh` — **no shared history**, the sync replaces the tree and re-applies a store palette | on `ba12a77` (1.3.1). Largest install: 34 products, 33 landing pages. The audit reports in `docs/` are measured against it, and it is the only install with ad tracking configured |
+| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on branch `install/carukesi` | on `6759cdb` (1.3.1). No longer local-only: it has an `origin` and was pushed on 2026-08-23. No deploy workflow — `wrangler deploy` is run by hand |
+| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on branch `install/skincarebpom` | on `d8b91be` (1.3.1). No longer local-only: it has an `origin` and was pushed on 2026-08-23. Cron trigger deliberately released to `zanobyshop` (Workers Free caps the account at five). No deploy workflow |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `66ab1f5` (1.3.1), after reconciling a 2026-08-19 draft snapshot that had left it 106 commits behind |
+| `zvara.shop` | `ongkipro/zvarashop` | `scripts/sync-from-product.sh` — its history diverged from the product, so it syncs rather than merges (the previous entry recorded a merge, which no longer matched the repository) | on `ac3b219` (1.3.1). **Freeze released 2026-08-23** by the owner and brought onto the security release with the rest; deployed by hand, it carries no deploy workflow |
+| `permatamall.shop` | `ongkipro/permatamall` | First install. Was down — no DNS record, and its D1 had been deleted from the account — and was rebuilt on `05778a1` on 2026-08-23 against a new database, the original KV namespace and the original R2 bucket. Shares no history with the product (it is the codebase the product was extracted from), so it syncs the way `zanobyshop` does rather than merging. Cron released, like `skincarebpom`. Installed through the wizard on 2026-08-23 and on `dbe21ab` (1.3.1); its `/install` route now refuses to run again |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more
 (ADR-016). Older installs keep legacy `cmsads-*` names on their Cloudflare

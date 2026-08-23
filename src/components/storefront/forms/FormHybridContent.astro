@@ -4,6 +4,7 @@ import { getStorefrontProduct } from '../../../lib/catalog';
 import { resolveFormVariant } from '../../../lib/form-config';
 import { getRuntimeEnv } from '../../../lib/env';
 import { loadStoreCodDisabledProvinceCodes } from '../../../lib/form-mode';
+import { jsonForScript } from '../../../lib/json-script';
 import Icon from '../shared/Icon.astro';
 
 interface Props {
@@ -250,7 +251,7 @@ const formId = embedded ? `${instanceId}-form` : 'checkout-form';
   type="application/json"
   id={`${instanceId}-config`}
   data-hybrid-form-config
-  set:html={JSON.stringify({
+  set:html={jsonForScript({
     instanceId,
     productSlug: product.slug,
     productId: product.productId,

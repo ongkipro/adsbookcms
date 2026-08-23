@@ -312,6 +312,118 @@ export function buildAutoLarisCreatePaymentPayload(
   };
 }
 
+function requiredPositiveIntString(value: number, field: string) {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`Data ${field} AutoLaris harus bilangan bulat positif.`);
+  }
+  return String(value);
+}
+
+function nonNegativeIntString(value: number, field: string) {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Data ${field} AutoLaris tidak boleh negatif.`);
+  }
+  return String(value);
+}
+
+export type AutoLarisOrderDetail = {
+  name: string;
+  qty: number;
+  unitPrice: number;
+};
+
+/**
+ * Create Order / `POST /api/h2h/submit`. In this repository AutoLaris is a
+ * money channel only: an order is submitted with `courirId: 1`, which the
+ * provider treats as a **digital product** — no courier is booked and no
+ * physical shipment is registered (physical delivery is Mengantar's, dispatched
+ * separately). For a prepaid QRIS/VA order the money is already collected, so
+ * `codValue` is 0; `grandTotal` is the order total. `origin`/`destination` are
+ * AutoLaris' own area codes and, with nothing to deliver, are supplied from
+ * configuration (the same code for both is fine) rather than the buyer address.
+ *
+ * The `/submit` response shape is NOT contract-verified here (only
+ * create_payment/advice/list_payment are — see the header note); `createOrder`
+ * therefore returns the raw provider fields and treats only `rc: "00"` as
+ * accepted, never inferring settlement beyond that.
+ */
+export type AutoLarisCreateOrderInput = {
+  /** Digits only, at most 30 — same rule the provider enforces on reff_id. */
+  reffId: string;
+  channelCode: string;
+  /** Defaults to 1 = digital product (no courier, no shipment). */
+  courirId?: number;
+  origin: string;
+  destination: string;
+  weight?: number;
+  length?: number;
+  width?: number;
+  height?: number;
+  shipperName: string;
+  shipperPhone: string;
+  shipperEmail: string;
+  shipperAddress: string;
+  receiverName: string;
+  receiverPhone: string;
+  receiverEmail: string;
+  receiverAddress: string;
+  grandTotal: number;
+  /** 0 for prepaid QRIS/VA — the balance is already in. */
+  codValue?: number;
+  callbackUrl?: string;
+  remark?: string;
+  orderDetails: AutoLarisOrderDetail[];
+};
+
+export type AutoLarisOrderResult = {
+  accepted: boolean;
+  code: string;
+  message: string;
+  orderId?: string;
+  awb?: string;
+};
+
+export function buildAutoLarisCreateOrderPayload(input: AutoLarisCreateOrderInput) {
+  if (!Array.isArray(input.orderDetails) || input.orderDetails.length === 0) {
+    throw new Error("Rincian order AutoLaris tidak boleh kosong.");
+  }
+  const courirId = input.courirId ?? 1;
+  if (!Number.isSafeInteger(courirId) || courirId <= 0) {
+    throw new Error("courir_id AutoLaris harus bilangan bulat positif.");
+  }
+
+  return {
+    reff_id: requiredDigits(input.reffId, "referensi", 30),
+    channel_code: requiredText(input.channelCode, "channel order", 30),
+    courir_id: courirId,
+    origin: requiredText(input.origin, "origin", 20),
+    destination: requiredText(input.destination, "destination", 20),
+    weight: nonNegativeIntString(input.weight ?? 1000, "berat"),
+    length: nonNegativeIntString(input.length ?? 1, "panjang"),
+    width: nonNegativeIntString(input.width ?? 1, "lebar"),
+    height: nonNegativeIntString(input.height ?? 1, "tinggi"),
+    shipper_name: requiredText(input.shipperName, "nama pengirim", 100),
+    shipper_phone: requiredPhone(input.shipperPhone, "telepon pengirim"),
+    shipper_email: requiredEmail(input.shipperEmail),
+    shipper_address: requiredText(input.shipperAddress, "alamat pengirim", 255),
+    receiver_name: requiredText(input.receiverName, "nama penerima", 100),
+    receiver_phone: requiredPhone(input.receiverPhone, "telepon penerima"),
+    receiver_email: requiredEmail(input.receiverEmail),
+    receiver_address: requiredText(input.receiverAddress, "alamat penerima", 255),
+    callback_url: input.callbackUrl ? requiredCallbackUrl(input.callbackUrl) : "",
+    grand_total: requiredPositiveIntString(input.grandTotal, "grand total"),
+    cod_value: nonNegativeIntString(input.codValue ?? 0, "nilai COD"),
+    longitude: "",
+    latitude: "",
+    remark: (input.remark ?? "").trim().slice(0, 255),
+    order_details: input.orderDetails.map((item) => ({
+      name: requiredText(item.name, "nama item", 100),
+      qty: requiredPositiveIntString(item.qty, "qty item"),
+      unit_price: nonNegativeIntString(item.unitPrice, "harga item"),
+    })),
+  };
+}
+
 export class AutoLarisClient {
   private apiKey: string;
   private baseUrl: string;
@@ -381,6 +493,33 @@ export class AutoLarisClient {
       buildAutoLarisCreatePaymentPayload(input),
     );
     return parseAutoLarisPaymentResponse(payload, input.amount);
+  }
+
+  /**
+   * Create Order (`/api/h2h/submit`) as a digital product (`courir_id: 1` — no
+   * courier, no shipment; physical delivery stays Mengantar's). This endpoint
+   * ISSUES ITS OWN PAYMENT (its body carries `channel_code`, like
+   * `createPayment`), so it must never run on top of a checkout that already
+   * called `createPayment` — that would mint a second VA/QRIS for one order.
+   * It is transport only and intentionally unwired; see the "AutoLaris Create
+   * Order" row in `UNIMPLEMENTED_SPECS.md` for when it would replace
+   * `createPayment` at checkout. Only `rc: "00"` is treated as accepted.
+   */
+  async createOrder(
+    input: AutoLarisCreateOrderInput,
+  ): Promise<AutoLarisOrderResult> {
+    const payload = await this.request(
+      "/api/h2h/submit",
+      buildAutoLarisCreateOrderPayload(input),
+    );
+    const code = String(payload.rc || "").trim();
+    return {
+      accepted: code === "00",
+      code,
+      message: nonEmpty(payload.ket) || "",
+      orderId: nonEmpty(payload.data?.transaction_id || payload.data?.trx_id),
+      awb: nonEmpty(payload.data?.awb),
+    };
   }
 
   /**

@@ -508,3 +508,68 @@ Tokens live in `design-tokens.md` at the repository root.
 - The focus ring consequence below is now the general rule rather than an
   exception: monochrome could not express state against a monochrome page, and
   the amendment simply names the colour that was always going to be needed.
+
+---
+
+## ADR-020 — Isolated installs are updated by manual copy, not a fleet engine
+
+**Date:** 2026-08-23 · **Revised:** 2026-08-23 · **Status:** Accepted. Security gate (A-151) done; fleet-automation engine withdrawn as YAGNI.
+
+**Context.** ADR-001 and ADR-012 established the correct runtime boundary: one
+store owns one repository, Worker, D1, KV namespace, R2 bucket, domain, and
+credential set. That isolation is valuable, but the update mechanism is not
+uniform. Some installations merge a `product` remote, one uses a sync script,
+and installation-owned decisions in `wrangler.jsonc` survive only when the
+incoming diff happens not to touch them. The 2026-08-23 audit also found local
+product worktrees at different revisions, proving that folder names alone do
+not identify product truth.
+
+Returning to a shared multi-tenant Worker would remove per-install rollout at
+the cost of reintroducing tenant routing and isolation into every query, cache,
+session, object key, provider credential, migration, domain, and failure path.
+That cost and blast radius are disproportionate to the actual problem, which is
+manual and inconsistent source distribution.
+
+**Decision.** Keep the single-install architecture and distribute product
+updates by **manual copy** of product-owned paths into each installation's own
+repository. This is the lightest mechanism that preserves isolation and stays
+maximal on Cloudflare: each install is one Worker + one D1 with zero
+tenant-routing overhead, and an update is a plain source copy an operator can
+read and reason about.
+
+The only supporting artifact is a **path-ownership manifest** — a documented
+list classifying every synchronized path as product-owned (copied on update:
+`src/`, tests, `package.json`/lockfile, `src/db/migrations/`) or install-owned
+(never overwritten: `wrangler` config, Cloudflare / D1 / KV / R2 identifiers,
+secrets and `.dev.vars`, custom domain, merchant assets, and each install's
+`RELEASE.md`). To update an install an operator copies the product-owned diff of
+a tested release ref onto a branch in that install's repo, applies the missing
+ordered migration suffix to that install's own D1, validates
+(`npm test` / `check` / `build` / `db:migrate:local`), reviews, and deploys —
+each install independently, no database or customer data ever copied between
+installs.
+
+**No fleet updater engine, target registry, canary runner, or automated
+rollout is built.** At the current scale — a handful of hand-deployed installs
+where copy-paste updates are acceptable — that automation is YAGNI and would
+reintroduce exactly the coordination weight this architecture exists to avoid.
+Returning to a shared multi-tenant Worker is likewise rejected: its per-query
+tenant routing, isolation, and blast radius are disproportionate to a
+distribution problem. Both are revisited only if the number of installs makes
+manual copy genuinely unmanageable.
+
+**Consequences.** Updates stay a manual, per-install operator action, which is
+acceptable at this scale and keeps the product free of any coordination runtime
+or hosted control plane. A broken install cannot touch another store's runtime
+or database. The path-ownership manifest becomes the one thing that must be
+correct: overwrite an install-owned path and a store's identity is clobbered;
+miss a product-owned path and the update is incomplete — so it is maintained as
+a reviewed list and copy-paste follows it exactly.
+
+The security release gate (A-151) is implemented: the raw-text JSON script
+breakout is closed in both storefront form config scripts with a shared
+`jsonForScript` helper (`src/lib/json-script.ts`) and a `</script>`-payload
+regression test. The fleet-automation tasks (A-152, A-154 through A-158) are
+withdrawn under this decision; A-153 is reduced to producing and maintaining
+the path-ownership manifest, and A-159 (local worktree hygiene) remains an
+optional cleanup. Open work is owned only by `TASKS.md`.

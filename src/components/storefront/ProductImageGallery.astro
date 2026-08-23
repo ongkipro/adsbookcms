@@ -45,7 +45,7 @@ const hasMany = gallery.length > 1;
               src={imgUrl}
               alt={`${productName} thumbnail ${idx + 1}`}
               width={64}
-              height={85}
+              height={64}
               sizes="(max-width: 480px) 64px, 80px"
               class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               loading={idx < 3 ? 'eager' : 'lazy'}
@@ -61,18 +61,22 @@ const hasMany = gallery.length > 1;
     )}
 
     <div class="group relative flex flex-1 aspect-square items-center justify-center overflow-hidden rounded-none bg-[#F5F5F5]">
+      {/* touch-action: pan-x keeps this horizontal photo carousel from swallowing
+          a vertical swipe - the page keeps scrolling when a finger drags up over
+          the image, only a sideways drag moves the track. overscroll-x contain
+          stops a horizontal fling from chaining out to the page. */}
       <div
         data-track
         class="no-scrollbar absolute inset-0 flex snap-x snap-mandatory overflow-x-auto scroll-smooth"
-        style="scrollbar-width: none;"
+        style="scrollbar-width: none; touch-action: pan-x; overscroll-behavior-x: contain;"
       >
         {gallery.map((imgUrl, idx) => (
           <img
             src={imgUrl}
             alt={`${productName} foto ${idx + 1}`}
-            width={480}
+            width={640}
             height={640}
-            class="h-full w-full shrink-0 snap-start object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+            class="h-full w-full shrink-0 snap-start object-cover"
             loading={idx === 0 ? 'eager' : 'lazy'}
             decoding="async"
             fetchpriority={idx === 0 ? 'high' : undefined}

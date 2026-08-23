@@ -172,8 +172,10 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
         { label: product.productName },
       ]}
     />
-    <!-- Product Hero Gallery Component -->
-    <div class="bg-white p-3 sm:p-4">
+    <!-- Product Hero Gallery Component. Edge to edge on purpose: the photo is
+         the first thing the page says, and padding around it only made the
+         column feel narrower than it is. -->
+    <div class="bg-white">
       <ProductImageGallery
         images={productImages}
         productName={product.productName}

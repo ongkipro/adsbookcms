@@ -75,24 +75,33 @@
 /* Fading hairline: a separator that dissolves to transparent at both ends, so a
    divider can sit inside the column without a hard rule running edge to edge.
    The header and breadcrumb keep a solid full-width line on purpose; every
-   other separator (footer, section rules) uses one of these. */
-.border-fade-t {
-  border-top: 1px solid transparent;
-  border-image: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent) 1;
-}
-.border-fade-b {
-  border-bottom: 1px solid transparent;
-  border-image: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent) 1;
-}
-.border-fade-y {
-  border-top: 1px solid transparent;
-  border-bottom: 1px solid transparent;
-  border-image: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent) 1;
-}
-.divider-fade {
-  height: 1px;
-  border: 0;
-  background: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent);
+   other separator (footer, section rules) uses one of these.
+
+   These live in `@layer components` on purpose. Declared unlayered they beat
+   every Tailwind utility regardless of specificity — unlayered normal
+   declarations outrank all layers — which silently disabled the
+   `first:border-t-0` / `last:border-0` resets the markup pairs them with. In
+   the components layer a utility wins, which is the relationship the call
+   sites assume. */
+@layer components {
+  .border-fade-t {
+    border-top: 1px solid transparent;
+    border-image: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent) 1;
+  }
+  .border-fade-b {
+    border-bottom: 1px solid transparent;
+    border-image: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent) 1;
+  }
+  .border-fade-y {
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+    border-image: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent) 1;
+  }
+  .divider-fade {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(to right, transparent, #e5e5e5 18%, #e5e5e5 82%, transparent);
+  }
 }
 
 

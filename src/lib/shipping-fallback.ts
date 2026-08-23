@@ -1,4 +1,4 @@
-import type { CourierRateResult } from "./mengantar-client";
+import type { CourierRateResult } from "./mengantar-client.ts";
 
 export function calculateCityAverageShippingRate(samples: number[]) {
   const valid = samples.filter(

@@ -1,5 +1,5 @@
 import type { Product, ProductVariant } from "../data/products";
-import type { FormMode } from "./form-mode";
+import type { FormMode } from "./form-mode.ts";
 
 const FORM_PATHS: Record<FormMode, string> = {
   middle: "/middle-form",

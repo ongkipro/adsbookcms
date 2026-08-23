@@ -1,4 +1,4 @@
-import { getRuntimeEnv } from "./env";
+import { getRuntimeEnv } from "./env.ts";
 
 export async function getStoreSupportWhatsapp(
   locals?: App.Locals,

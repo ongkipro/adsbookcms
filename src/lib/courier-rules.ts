@@ -1,4 +1,4 @@
-import type { CourierRateResult } from "./mengantar-client";
+import type { CourierRateResult } from "./mengantar-client.ts";
 export type CourierAvailabilityRule = {
   courier_code: string;
   is_enabled: number;

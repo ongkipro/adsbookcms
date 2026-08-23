@@ -1,4 +1,4 @@
-import type { FormMode } from "./form-mode";
+import type { FormMode } from "./form-mode.ts";
 
 /**
  * Bumped whenever the behaviour of a *pasted* snippet changes. A snippet lives on

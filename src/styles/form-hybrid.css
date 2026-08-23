@@ -211,8 +211,8 @@
   /* Taller than the 2.9rem it used to be: on a phone these four fields are the
      whole checkout, and the old height left the floating label crowding the
      value. The extra room goes above the text, where the label sits. */
-  min-height: 3.4rem;
-  padding: 1.2rem 0.85rem 0.4rem;
+  min-height: 3.6rem;
+  padding: 1.4rem 0.85rem 0.4rem;
   /* Shopify-style rounded frame: a full 1.5px border the whole way round, no
      ring or drop shadow. The frame is the only thing that changes colour -
      blue while typing, red on an error. */
@@ -233,8 +233,8 @@
 .form-field textarea {
   /* The address field carries the longest answer on the form; give it two
      comfortable lines under the label instead of one and a half. */
-  min-height: 5.25rem;
-  padding-top: 1.3rem;
+  min-height: 5.5rem;
+  padding-top: 1.5rem;
   padding-bottom: 0.5rem;
   resize: vertical;
 }
@@ -249,8 +249,9 @@
   /* Matches the input's horizontal padding, so the resting label sits exactly
      where the value will appear. */
   left: 0.85rem;
-  /* Vertically centred in the taller well. */
-  top: 1.25rem;
+  /* Sits where the value will appear, so nothing jumps sideways or upward when
+     a buyer starts typing. */
+  top: 1.45rem;
   margin: 0;
   color: #555555;
   /* At rest the label is the only prompt in the field, so it is sized to be
@@ -271,7 +272,7 @@
 .form-field textarea ~ span {
   /* A textarea's label rests near its top edge, not centred: the box is tall
      because it holds several lines, and the label belongs above the first one. */
-  top: 1.15rem;
+  top: 1.35rem;
 }
 
 /* The required marker is driven by the `required` attribute rather than written
@@ -294,7 +295,10 @@
 .form-field textarea:not(:placeholder-shown) ~ label,
 .form-field textarea:focus ~ span,
 .form-field textarea:not(:placeholder-shown) ~ span {
-  top: 0.3rem;
+  /* 0.3rem put the shrunken label 3px from the inner edge of the frame, which
+     read as clipped. It sits at 0.55rem now, and the value moved down with it
+     (padding-top 1.4rem) so the two do not close up on each other. */
+  top: 0.55rem;
   color: var(--sf-accent-strong);
   font-size: 0.625rem;
   font-weight: 700;

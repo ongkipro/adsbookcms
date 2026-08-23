@@ -416,9 +416,55 @@ install wizard and store settings offer one option.
 
 ---
 
-## ADR-019 — The public surface is monochrome
+## ADR-019 — The public surface carries one overridable accent
 
-**Date:** 2026-08-20 · **Status:** Accepted
+**Date:** 2026-08-20 · **Amended:** 2026-08-23 · **Status:** Accepted
+
+> **Amendment, 2026-08-23.** This ADR was titled *The public surface is
+> monochrome* and forbade a house accent outright. #58 introduced one anyway,
+> the code and this decision disagreed, and the audit that caught it
+> (`docs/AUDIT-2026-08-23.md` §6) put the question back here rather than
+> reverting. Amended in favour of the code, for a reason the original text
+> could not have anticipated: **how** the accent is expressed turns out to
+> matter more than whether it exists.
+>
+> The gold this ADR removed was 48 hardcoded usages, so re-branding meant
+> patching every call site. #58's accent is five custom properties in
+> `src/styles/form-hybrid.css`, so re-branding means overriding five
+> declarations. That is the shape a product which installs for any merchant
+> actually needs — the original decision reached for absence because tokens
+> were not on the table.
+>
+> The accessibility half of the original case does not carry over and was
+> re-measured before amending: `#2c6ecb` is **5.00:1 on white** and 5.00:1
+> under white, `#1f5199` is 7.79:1, `#1a1a1a` on `#eef4fc` is 15.73:1.
+> `#c9cccf` at 1.61:1 is a field border and correct as one. Nothing here
+> repeats `#C5A880`'s failure.
+>
+> **Amended decision.** One accent, expressed as overridable tokens, defaulting
+> to a neutral blue, **never hardcoded at a call site.** The token set is the
+> re-brand contract and is listed below; adding a sixth without listing it is
+> the defect this amendment exists to prevent.
+>
+> | Token | Default | Role |
+> | --- | --- | --- |
+> | `--sf-accent` | `#2c6ecb` | primary action fill, active state |
+> | `--sf-accent-strong` | `#1f5199` | hover, pressed |
+> | `--sf-accent-soft` | `#eef4fc` | selected row fill, quiet emphasis |
+> | `--sf-field-border` | `#c9cccf` | field hairline — border only, never text |
+> | `--sf-surface-alt` | `#f6f8fb` | wells and inset panels |
+>
+> An install re-brands by redeclaring these five. It does not fork the
+> stylesheet, and a sync does not have to diff the product's CSS to discover
+> what moved — which is exactly what `zanobyshop` had to do, at a cost of seven
+> mappings in its own palette script, before this table existed.
+>
+> Text on `--sf-accent-soft` must clear 4.5:1 against it, not merely against
+> white. That surface is a fill with copy on it, and a store that missed it
+> shipped a struck-through price at 4.41:1.
+>
+> Everything below is the original decision and stands except where the
+> amendment above replaces it.
 
 **Context.** The storefront shipped a warm neutral palette with a gold accent,
 `#C5A880`, across 48 usages. That reads as a brand — and this repository is not
@@ -429,7 +475,9 @@ and every custom product page then has to argue with.
 Measured while removing it: `#C5A880` is **2.26:1 on white**. It was failing
 WCAG AA as text the whole time it was used as text, in ten places.
 
-**Decision.** Ink on white, Dawn-clean. `#111111` ink, three neutral steps
+**Decision.** *(Superseded on the accent question by the amendment above; the
+neutral ladder, shape and shadow rules stand.)* Ink on white, Dawn-clean.
+`#111111` ink, three neutral steps
 (`#FAFAFA` canvas, `#FFFFFF` column, `#F5F5F5` wells), `#E5E5E5` hairlines used
 sparingly, square corners, no decorative shadows. Product images are 1:1.
 Tokens live in `design-tokens.md` at the repository root.
@@ -445,3 +493,6 @@ Tokens live in `design-tokens.md` at the repository root.
 - Card frames and small shadows are gone from the public surface. Borders
   separate; they do not wrap a photo that already has edges.
 - The admin keeps its own palette. `admin.css` owns shadcn and is untouched.
+- The focus ring consequence below is now the general rule rather than an
+  exception: monochrome could not express state against a monochrome page, and
+  the amendment simply names the colour that was always going to be needed.

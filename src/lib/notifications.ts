@@ -85,21 +85,6 @@ export function buildOrderNotification(order: {
   };
 }
 
-export function buildLeadNotification(lead: {
-  orderNumber: string;
-  customerName: string;
-  productTitle: string;
-}) {
-  return {
-    title: `Pesanan tertinggal ${lead.orderNumber}`,
-    body: [
-      lead.customerName.trim() || "Tanpa nama",
-      lead.productTitle.trim(),
-      "Perlu follow-up",
-    ].filter(Boolean).join(" · "),
-  };
-}
-
 export function buildPaymentNotification(order: {
   orderNumber: string;
   customerName: string;

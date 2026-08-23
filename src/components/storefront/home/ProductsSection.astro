@@ -81,11 +81,10 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
     {
       products.map((product, idx) => (
         <div
-          class="product-card"
+          class:list={['product-card', idx >= 10 && 'hidden']}
           data-category={product.category}
           data-search={`${product.name} ${product.category} ${product.description}`.toLowerCase()}
           data-index={idx}
-          style={idx >= 10 ? 'display: none;' : ''}
         >
           <ProductListItem
             product={{
@@ -145,18 +144,16 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
       cards.forEach((card) => {
         const searchData = card.getAttribute('data-search') || '';
         const matchesSearch = !currentSearch || searchData.includes(currentSearch);
+        if (matchesSearch) matchedCount++;
 
-        if (matchesSearch) {
-          matchedCount++;
-          if (currentlyShown < visibleLimit) {
-            card.style.display = 'flex';
-            currentlyShown++;
-          } else {
-            card.style.display = 'none';
-          }
-        } else {
-          card.style.display = 'none';
-        }
+        // Toggle a class rather than writing `style.display`. Showing a card
+        // with `display: flex` turned the wrapper into a flex container, which
+        // sizes its `<article>` to max-content instead of the grid cell — so a
+        // product with a short title rendered a narrower card, and the square
+        // image box shrank its height to match.
+        const show = matchesSearch && currentlyShown < visibleLimit;
+        if (show) currentlyShown++;
+        card.classList.toggle('hidden', !show);
       });
 
       if (visibleCountEl) visibleCountEl.textContent = String(currentlyShown);

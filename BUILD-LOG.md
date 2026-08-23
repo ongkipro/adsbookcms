@@ -4068,3 +4068,47 @@ asset test that skips an install tree by design), 0 errors, build complete.
 `permatamall.shop`, which the brand-contamination test reads as reference-store
 branding. It has been there since the store's first commit: the product was
 extracted from this store, so the test's premise is inverted inside it.
+
+## 2026-08-23 — Going public fixed the deploy pipeline, and permatamall came back
+
+Three things closed after the rollout entry above, and one of them was not a
+code problem at all.
+
+**The repositories are public now, and that restored CI.** All six installs
+joined the product in being public. The deploy workflows in `zanobyshop` and
+`permatamall` had been failing in under four seconds all day with *"The job was
+not started because recent account payments have failed"* — an Actions
+**billing** block that stops the job before a single step runs. Public
+repositories get free Actions minutes, so both pipelines began working
+immediately. The lesson is worth keeping: a workflow that dies implausibly fast
+is a billing or permissions problem, and reading the diff for it wastes the
+afternoon. Before publishing, the six trees were scanned for secrets — no
+`.env` or `.dev.vars` had ever been committed, every "token-shaped" hit was
+path data inside a bank-logo SVG, and the four docs that name a domain were
+byte-identical to the already-public product. What did become public is
+infrastructure identifiers in `wrangler.jsonc`: resource ids and domains, not
+credentials.
+
+**`permatamall` is installed.** Its rebuilt database was empty, so the store
+sat behind its own `/install` wizard. Two gates had to be cleared before its
+pipeline could ever go green, and both predated the rollout: an orphaned
+`drizzle.config.ts` importing a package removed with Drizzle itself (ADR-005),
+which failed typecheck before a single test ran; and the brand-contamination
+test, which read this store's own domain in its own `robots.txt` as
+reference-store branding — the product having been extracted from this store,
+the test's premise is inverted inside it. The second fix belongs to the product
+(729896d), not the store: a sync replaces `src/` wholesale, so a local patch
+would not have survived the next one. With both cleared the store installed,
+and its workflow now runs check, test, build and deploy green.
+
+**Precision was checked, not assumed.** The rule is that a store may look
+different but must not *behave* differently. Compared tree by tree,
+`components/admin`, `components/ui`, `pages/admin`, `pages/api`,
+`styles/admin.css`, `db`, `middleware.ts`, `worker.ts` and the non-visual half
+of `lib` are **byte-identical across all six**. What differs is deliberate:
+`zanobyshop` carries 39 files that differ only in colour values plus its own
+`landing.css` (issue #49), `zvarashop` carries an orange accent, and every store
+generates its own `landing-safelist.html` from its own D1. One file needed a
+second look — `ui-variants.ts` sits in `lib/` and diverges on `zanobyshop`, but
+no admin component imports it; `admin.css` lists it only as a Tailwind
+`@source`, so it is storefront-only and the divergence is allowed.

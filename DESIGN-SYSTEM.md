@@ -2,9 +2,14 @@
 
 > Verified against disk: 2026-08-20 @ `519c255`
 >
-> **The public palette is monochrome (ADR-019).** Colour tokens below that
-> describe the retired gold accent are historical; `design-tokens.md` at the
-> repository root is the current source.
+> **The public palette is neutral plus one overridable accent (ADR-019, as
+> amended 2026-08-23).** Colour tokens below that describe the retired gold
+> accent are historical; `design-tokens.md` at the repository root is the
+> current source for the neutrals, and the eight `--sf-*` custom properties in
+> `src/styles/form-hybrid.css` are the re-brand contract in full — four accent
+> tokens including the focus ring, plus the field, its border, the alternate
+> surface and the separator hairline. An install overrides those five declarations; it does not fork the
+> stylesheet.
 
 This document describes the presentation layer **as it ships**, extracted from the code rather than from intent. Concrete values carry a file reference, and a line number where that line number is stable. Section 1.4 dropped its line numbers after they drifted through a refactor and left the document wrong about its own subject. Anything that could not be verified against the tree was left out — see `DECISIONS.md` ADR-010.
 
@@ -14,7 +19,7 @@ Scope note from `ARCHITECTURE.md`: the **admin shell is a canonical product surf
 
 ## 1. Colour
 
-There is **no colour token layer for the storefront.** Storefront colour is hex literals written inline as Tailwind arbitrary values (`bg-[#F8F7F4]`) and as raw CSS in component `<style>` blocks. Only the shadcn/admin layer uses CSS custom properties.
+Storefront colour is mostly hex literals written inline as Tailwind arbitrary values (`bg-[#F8F7F4]`) and as raw CSS in component `<style>` blocks. The **one** exception is the accent, which since #58 lives as eight custom properties at the top of `src/styles/form-hybrid.css` — `--sf-accent`, `--sf-accent-strong`, `--sf-accent-soft`, `--sf-accent-ring`, `--sf-field`, `--sf-field-border`, `--sf-surface-alt`, `--sf-line`. Note that `--sf-accent-ring` is an `rgba()`, not a hex: a store script matching hex literals will skip it and leave the focus ring the product's colour. ADR-019 as amended makes those the re-brand surface, so a new accent colour belongs there and never at a call site. The shadcn/admin layer uses its own, separate custom properties.
 
 ### 1.1 Storefront palette (`compact-market`)
 

@@ -234,7 +234,7 @@
   /* The address field carries the longest answer on the form; give it two
      comfortable lines under the label instead of one and a half. */
   min-height: 5.5rem;
-  padding-top: 1.5rem;
+  padding-top: 1.35rem;
   padding-bottom: 0.5rem;
   resize: vertical;
 }
@@ -249,9 +249,13 @@
   /* Matches the input's horizontal padding, so the resting label sits exactly
      where the value will appear. */
   left: 0.85rem;
-  /* Sits where the value will appear, so nothing jumps sideways or upward when
-     a buyer starts typing. */
-  top: 1.45rem;
+  /* Optically centred in the well, not aligned to where the value will land.
+     The value sits low by necessity — its padding-top has to clear the floated
+     label — but at rest the field reads as empty, and an empty field's prompt
+     is expected in the middle. Measured: 1.45rem put the label 1.4px below the
+     box centre, and `line-height: 1` pushes the glyphs lower still, so it read
+     as sitting on the floor. */
+  top: 1.3rem;
   margin: 0;
   color: #555555;
   /* At rest the label is the only prompt in the field, so it is sized to be
@@ -271,8 +275,10 @@
 .form-field textarea ~ label,
 .form-field textarea ~ span {
   /* A textarea's label rests near its top edge, not centred: the box is tall
-     because it holds several lines, and the label belongs above the first one. */
-  top: 1.35rem;
+     because it holds several lines, and the label belongs above the first one.
+     In an 88px box a prompt sitting near the middle reads as adrift, so it is
+     pulled up toward the edge it belongs to. */
+  top: 1.1rem;
 }
 
 /* The required marker is driven by the `required` attribute rather than written

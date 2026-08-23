@@ -4018,3 +4018,53 @@ paths are silent no-ops rather than throwing into the poll.
 **Verification.** `npm run check` 0 errors · `npm test` 531 (4 new) ·
 `npm run build` complete. The notification read markers changed for the test
 were restored.
+
+## 2026-08-23 — Rolling 1.3.1 to all six installs, and what the rollout found
+
+The title sink closed in 1.3.1 was live on every store, so the release was only
+half the work. All six installs were brought onto product `3971eaf` and
+deployed the same day.
+
+**Two adoption methods, one safety check.** `taniniaga`, `carukesi` and
+`skincarebpom` merge `product/main` onto their `install/*` branch;
+`zanobyshop`, `permatamall` and — as it turned out — `zvarashop` run
+`scripts/sync-from-product.sh`, which replaces the tree because their history
+diverged. Before each merge the product's own diff was checked against
+`wrangler.jsonc`: if the product had touched install-owned config the update
+was to stop rather than clobber a store's D1 id or domain. It had not, except
+on `zvarashop`, where the guard fired — inspection showed the change was a
+comment, and the store syncs rather than merges anyway. The
+`sync-from-product.sh` runs left every store's `public/` digest byte-identical.
+
+**No database work.** All six already held 48 migrations, the same as the
+product. 1.3.1 is code only, which is why six production deploys carried no
+schema risk.
+
+**The GitHub deploy path is dead, and had been all day.** `zanobyshop` and
+`permatamall` carry a `deploy.yml` that fires on push to `main`. Both runs
+failed in under four seconds with *"The job was not started because recent
+account payments have failed or your spending limit needs to be increased"* —
+as did the earlier sync at 05:21. The job never starts, so a green push proves
+nothing. Both were deployed with `wrangler deploy` from a local build, the way
+the other four always are. Until the billing is settled, **a push to those two
+repositories does not deploy them.**
+
+**Verified live.** `taniniaga.shop`, `carukesi.com`, `skincarebpom.shop`,
+`zvara.shop` and `zanobyshop.shop` answer `200` on `/` and `/produk` and `401`
+on `/api/admin/health`. A real product page renders its title with no
+double-encoded entity. `permatamall.shop` redirects to `/install`: its rebuilt
+database is empty, and the wizard is `INSTALL_TOKEN`-gated, so this is a store
+awaiting setup rather than an open door.
+
+**Three stale facts in `STATUS.md`, corrected.** `carukesi` and `skincarebpom`
+were recorded as having no git remote; both have an `origin` and were pushed.
+`zvara.shop` was recorded as adopting by `git merge`; it holds a sync script
+and its history has diverged. Its freeze was released by the owner for this
+release.
+
+Per-install gates were run before every deploy: 530 passing, 1 skipped (the
+asset test that skips an install tree by design), 0 errors, build complete.
+`permatamall` reports one additional failure — `public/robots.txt` names
+`permatamall.shop`, which the brand-contamination test reads as reference-store
+branding. It has been there since the store's first commit: the product was
+extracted from this store, so the test's premise is inverted inside it.

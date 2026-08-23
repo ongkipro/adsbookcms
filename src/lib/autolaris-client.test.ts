@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   AutoLarisClient,
   autoLarisChannelLockReason,
+  buildAutoLarisCreateOrderPayload,
+  type AutoLarisCreateOrderInput,
   type AutoLarisCreatePaymentInput,
   resolveDisabledAutoLarisChannels,
 } from "./autolaris-client.ts";
@@ -532,4 +534,65 @@ test("payment master settings reject missing boolean values", async () => {
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /harus berupa boolean/i);
   assert.equal(updateCalls, 0);
+});
+
+function digitalOrderInput(
+  overrides: Partial<AutoLarisCreateOrderInput> = {},
+): AutoLarisCreateOrderInput {
+  return {
+    reffId: "10041",
+    channelCode: "COD",
+    origin: "3517100",
+    destination: "3517100",
+    shipperName: "Toko Testing",
+    shipperPhone: "08123456789",
+    shipperEmail: "toko@example.test",
+    shipperAddress: "Alamat toko",
+    receiverName: "Buyer",
+    receiverPhone: "081331000000",
+    receiverEmail: "buyer@example.test",
+    receiverAddress: "Gang buntu no 5 Sidoarjo",
+    grandTotal: 12000,
+    orderDetails: [{ name: "Produk digital", qty: 1, unitPrice: 12000 }],
+    ...overrides,
+  };
+}
+
+test("createOrder payload defaults to a digital product: courir_id 1, cod_value 0", () => {
+  const payload = buildAutoLarisCreateOrderPayload(digitalOrderInput());
+  assert.equal(payload.courir_id, 1);
+  assert.equal(payload.cod_value, "0");
+  assert.equal(payload.reff_id, "10041");
+  assert.equal(payload.grand_total, "12000");
+  // Amounts and quantities cross the wire as strings, the shape the provider's
+  // examples use.
+  assert.deepEqual(payload.order_details, [
+    { name: "Produk digital", qty: "1", unit_price: "12000" },
+  ]);
+});
+
+test("createOrder rejects a non-numeric reff_id, like the payment path", () => {
+  assert.throws(
+    () => buildAutoLarisCreateOrderPayload(digitalOrderInput({ reffId: "INV-10041" })),
+    /angka/i,
+  );
+});
+
+test("createOrder rejects an empty order and a non-positive grand total", () => {
+  assert.throws(
+    () => buildAutoLarisCreateOrderPayload(digitalOrderInput({ orderDetails: [] })),
+    /tidak boleh kosong/i,
+  );
+  assert.throws(
+    () => buildAutoLarisCreateOrderPayload(digitalOrderInput({ grandTotal: 0 })),
+    /positif/i,
+  );
+});
+
+test("createOrder carries an explicit COD value through unchanged", () => {
+  const payload = buildAutoLarisCreateOrderPayload(
+    digitalOrderInput({ codValue: 20150, courirId: 2 }),
+  );
+  assert.equal(payload.cod_value, "20150");
+  assert.equal(payload.courir_id, 2);
 });

@@ -298,7 +298,9 @@ type ProviderInquiryPayload = {
 
 export default function PaymentReconciliationQueue() {
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
-  const [viewStatus, setViewStatus] = useState<"pending" | "paid">("pending");
+  // Opens on the balance that actually came in ("paid"); the "pending" tab is
+  // still one click away and remains the place a payment is confirmed.
+  const [viewStatus, setViewStatus] = useState<"pending" | "paid">("paid");
   const [summary, setSummary] = useState(EMPTY_SUMMARY);
   const [pagination, setPagination] = useState<PaginationState>({
     page: 1,

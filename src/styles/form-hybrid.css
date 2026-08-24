@@ -180,7 +180,11 @@
 }
 .variant-compare {
   font-size: 0.75rem;
-  color: #767676;
+  /* #555555, not #767676: a selected variant's card takes --sf-accent-soft,
+     and the lighter grey measures 4.1:1 on it — under the 4.5 AA floor. The
+     price a customer is comparing against is the wrong thing to make hard to
+     read. #767676 stays where it sits on white, which is everywhere else. */
+  color: #555555;
   text-decoration: line-through;
 }
 .simple-variant-price-row {
@@ -972,7 +976,8 @@
   font-size: 0.75rem;
   line-height: 1.55;
   font-weight: 400;
-  color: #767676;
+  /* The box sits on --sf-surface-alt, where #767676 measures 4.26:1. */
+  color: #555555;
 }
 .submit-panel {
   display: grid;

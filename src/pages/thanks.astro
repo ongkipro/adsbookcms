@@ -78,7 +78,9 @@ const productCatalog = products.map((item) => ({
     </section>
 
     <section class="border-y border-[#E5E5E5] bg-[#F5F5F5] px-5 py-5 text-center" data-motion="summary">
-      <p id="payment-title" class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#767676]">
+      <!-- #555555, not the #767676 used on white: on the #F5F5F5 panel that
+           lighter grey measures 4.16:1, under the 4.5 AA floor. -->
+      <p id="payment-title" class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#555555]">
         Bayar saat paket tiba
       </p>
       <p id="total-payment-hero" class="mt-1.5 text-[32px] font-bold leading-none tracking-[-0.04em] text-[#111111]">
@@ -149,7 +151,7 @@ const productCatalog = products.map((item) => ({
         <div class="flex items-center justify-between gap-3 bg-[#F5F5F5] px-4 py-4">
           <div>
             <p id="total-label" class="text-[13px] font-normal text-[#111111]">Total COD</p>
-            <p id="total-note" class="mt-0.5 text-[10px] uppercase tracking-[0.1em] text-[#767676]">
+            <p id="total-note" class="mt-0.5 text-[10px] uppercase tracking-[0.1em] text-[#555555]">
               Siapkan uang pas saat kurir tiba
             </p>
           </div>
@@ -221,10 +223,14 @@ const productCatalog = products.map((item) => ({
             </p>
           </div>
         </div>
-        <div class="grid grid-cols-[18px_1fr] gap-3 opacity-60">
+        <!-- The future step is de-emphasised by colour, not by `opacity-60`.
+             Fading the whole row dragged its copy to an effective #959595 on
+             the #F5F5F5 panel — 2.74:1, well under the AA floor — so the step a
+             customer most wants to read was the least legible one. -->
+        <div class="grid grid-cols-[18px_1fr] gap-3">
           <span class="mt-0.5 size-4 rounded-full bg-[#E5E5E5] ring-1 ring-[#E5E5E5]"></span>
           <div>
-            <p id="step-three-title" class="text-[13px] font-normal text-[#111111]">Packing & pengiriman</p><p
+            <p id="step-three-title" class="text-[13px] font-normal text-[#555555]">Packing & pengiriman</p><p
               id="step-three-copy"
               class="mt-0.5 text-xs text-[#555555]"
             >
@@ -719,6 +725,30 @@ const productCatalog = products.map((item) => ({
           if (data?.status)
             document.getElementById('step-three-copy').textContent =
               `Status order: ${String(data.status).replace(/_/g, ' ')}`;
+
+          // A transaction can expire or fail after this page was first opened,
+          // and sessionStorage still says "unpaid". /payment already treats
+          // both as terminal; this page did not, so it kept presenting a code
+          // and a bill for an instruction that no longer works. `payment.status`
+          // is the transaction's own status, which is where `expired` lives —
+          // the order's `payment_status` never carries it.
+          const transactionStatus = String(data?.payment?.status || '').toLowerCase();
+          if (isOnlinePayment && ['expired', 'failed'].includes(transactionStatus)) {
+            document.getElementById('payment-qr-row').hidden = true;
+            document.getElementById('payment-page-link').hidden = true;
+            document.getElementById('payment-link').hidden = true;
+            const failure = document.getElementById('payment-failure');
+            failure.hidden = false;
+            failure.textContent =
+              transactionStatus === 'expired'
+                ? 'Batas waktu pembayaran sudah lewat, jadi instruksi di atas tidak berlaku lagi. Hubungi admin untuk membuat instruksi pembayaran baru.'
+                : 'Pembayaran gagal diproses. Jangan melakukan transfer dengan instruksi di atas; hubungi admin untuk penggantinya.';
+            document.getElementById('cta-title').textContent =
+              transactionStatus === 'expired' ? 'Pembayaran kedaluwarsa' : 'Pembayaran gagal';
+            document.getElementById('cta-copy').textContent =
+              'Hubungi admin agar pesanan ini dibuatkan instruksi pembayaran yang baru.';
+            document.getElementById('wa-label').textContent = 'Hubungi Admin';
+          }
         })
         .catch(() => {});
     }

@@ -184,9 +184,11 @@ export const GET: APIRoute = async ({ url, locals }) => {
       whereParts.push("(ad_click_ids LIKE '%fbclid%' OR ad_click_ids LIKE '%_fbc%' OR ad_click_ids LIKE '%meta%' OR ad_click_ids LIKE '%facebook%' OR ad_click_ids LIKE '%instagram%')");
     } else if (sourceFilter === 'google') {
       whereParts.push("(ad_click_ids LIKE '%gclid%' OR ad_click_ids LIKE '%gbraid%' OR ad_click_ids LIKE '%wbraid%' OR ad_click_ids LIKE '%google%')");
-    } else if (sourceFilter === 'tiktok') {
-      whereParts.push("(ad_click_ids LIKE '%ttclid%' OR ad_click_ids LIKE '%tiktok%')");
     } else if (sourceFilter === 'organic') {
+      // `%ttclid%` stays excluded even though TikTok is no longer a filterable
+      // source (removed below): an order captured one before that removal has
+      // a real ad click id on it, and must not read as organic just because
+      // its own category went away.
       whereParts.push("(ad_click_ids IS NULL OR ad_click_ids = '' OR ad_click_ids = '{}' OR (ad_click_ids NOT LIKE '%fbclid%' AND ad_click_ids NOT LIKE '%gclid%' AND ad_click_ids NOT LIKE '%ttclid%' AND ad_click_ids NOT LIKE '%gbraid%' AND ad_click_ids NOT LIKE '%wbraid%'))");
     }
 

@@ -26,7 +26,7 @@ export function navigateAfterCheckout(destination: string) {
       const tracking = trackingRaw ? JSON.parse(trackingRaw) : {};
       const currentParams = new URLSearchParams(window.location.search);
       const trackingKeys = [
-        "gclid", "gbraid", "wbraid", "_fbp", "_fbc", "fbclid", "ttclid",
+        "gclid", "gbraid", "wbraid", "_fbp", "_fbc", "fbclid",
         "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"
       ];
       for (const key of trackingKeys) {

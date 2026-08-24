@@ -312,7 +312,7 @@ test("checkout promotes one abandoned lead and queues one attributable Purchase"
     async () => {
       const landingClickIds = parseClickIdsFromUrl(
         new URL(
-          "https://shop.example/produk/alpha?gclid=google-click_123&_fbp=fb.1.1700000000.111&_fbc=fb.1.1700000000.click-222&ttclid=tiktok-click_333",
+          "https://shop.example/produk/alpha?gclid=google-click_123&_fbp=fb.1.1700000000.111&_fbc=fb.1.1700000000.click-222",
         ),
       );
       const submitRequest = new Request("https://shop.example/api/submit-order", {
@@ -371,7 +371,7 @@ test("checkout promotes one abandoned lead and queues one attributable Purchase"
   );
 
   await t.test(
-    "3. Google, Meta, and TikTok click identifiers survive D1 persistence",
+    "3. Google and Meta click identifiers survive D1 persistence",
     async () => {
       const stored = await readRow<{ ad_click_ids: string }>(
         database,
@@ -382,7 +382,6 @@ test("checkout promotes one abandoned lead and queues one attributable Purchase"
         gclid: "google-click_123",
         _fbp: "fb.1.1700000000.111",
         _fbc: "fb.1.1700000000.click-222",
-        ttclid: "tiktok-click_333",
       });
       assert.deepEqual(JSON.parse(stored.ad_click_ids), clickIds);
     },

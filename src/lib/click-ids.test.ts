@@ -21,16 +21,19 @@ test("captures the click id Google attached to the landing URL", () => {
   assert.deepEqual(parseClickIdsFromUrl(new URL("https://permatamall.shop/produk")), {});
 });
 
-test("captures Meta, TikTok, and UTM tracking parameters from landing URL", () => {
+test("captures Meta and UTM tracking parameters from landing URL, and ignores ttclid — TikTok support was removed", () => {
   const url = new URL(
     "https://permatamall.shop/embed/form?product_id=50559&fbclid=IwAR123&ttclid=E_123&utm_source=facebook&utm_campaign=promo",
   );
   const clickIds = parseClickIdsFromUrl(url);
   assert.equal(clickIds.fbclid, "IwAR123");
-  assert.equal(clickIds.ttclid, "E_123");
   assert.equal(clickIds.utm_source, "facebook");
   assert.equal(clickIds.utm_campaign, "promo");
   assert.ok(clickIds._fbc?.startsWith("fb.1."));
+  // ttclid is not a key of ClickIdKey any more (TRACKING_SPECS.md §8); a URL
+  // still carrying one — an old ad creative, a stale bookmark — must not
+  // resurrect it into the cookie.
+  assert.ok(!("ttclid" in clickIds));
 });
 
 test("rejects values that are not shaped like a Google click id", () => {

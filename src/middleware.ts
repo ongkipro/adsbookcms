@@ -457,7 +457,7 @@ export function createMiddleware(
     embedFrameAncestors,
   );
 
-  // Persist ad attribution click ids (Google, Meta, TikTok, UTMs) from landing/embed URL.
+  // Persist ad attribution click ids (Google, Meta, UTMs) from landing/embed URL.
   if (!isPrivate) {
     const clickIds = parseClickIdsFromUrl(url);
     if (hasClickId(clickIds)) {

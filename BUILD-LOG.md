@@ -4112,3 +4112,147 @@ generates its own `landing-safelist.html` from its own D1. One file needed a
 second look — `ui-variants.ts` sits in `lib/` and diverges on `zanobyshop`, but
 no admin component imports it; `admin.css` lists it only as a Tailwind
 `@source`, so it is storefront-only and the divergence is allowed.
+
+## 2026-08-24 — The gallery rebuild's other half: `/payment` and `/thanks` never got the storefront's design, and ten fixes that followed from actually looking
+
+The 2026-08-23 gallery rebuild fixed the product page. Nobody had checked
+whether `/payment` and `/thanks` — the pages a customer sees right after —
+still matched. They did not: both carried their own slate/emerald/amber
+palette with a gold accent, `rounded-full` pills and `rounded-2xl` panels,
+against the storefront's `#111111`/`#E5E5E5`/`#F5F5F5` and the checkout
+form's one blue. A customer crossed three visual systems between the product
+page and the receipt. Ten PRs (#84–#93) came out of auditing that seam and
+then auditing what each fix shipped, all merged and rolled out to all six
+installs the same day.
+
+**#84 — homepage product cards shrinking to their title width.** The
+catalogue filter script showed a card with `card.style.display = 'flex'`,
+which turned the grid cell into a flex container: the `<article>` inside
+sized to max-content instead of the cell. A loaded image pins max-content to
+the cell width and hides this; a `loading="lazy"` image that has not arrived
+contributes no width, so a short-titled card ("Adaptor Mesin Bor") collapsed
+to 154.6px in a 173px cell while a long-titled one stayed full width — only
+some cards looked wrong, and only while scrolling past them. Fixed by
+toggling the `hidden` class, the pattern `/produk/index.astro` already used,
+so no inline `display` is written at all.
+
+**#85 — `/payment` and `/thanks` redesigned onto the storefront's system, and
+four defects that came with the old one.** The QRIS payload was printed into
+`/thanks` as raw text in a `<code>` block — a customer cannot pay a
+150-character string; it now renders as a scannable canvas QR, the payload
+handed from the page's `is:inline` script to a module script on a data
+attribute because the inline script cannot import the QR library. An unpaid
+online order with no `payment_url` (every QRIS order) reached `/thanks` with
+nothing to act on; it now links back to `/payment`, the only route that
+renders a code or a VA number. The header showed the product name instead of
+the store name — the logo had been fixed for this exact reason once and the
+wordmark was missed. And three elements on `/payment` had their `className`
+reassigned by script instead of toggled, so the copy button never returned to
+its resting shape and the status pill and verification badge were round on a
+square page; colour now swaps one class at a time.
+
+**#86 — an audit of #85 found what it shipped.** An online transaction can
+expire after `/thanks` is first opened while `sessionStorage` still says
+"unpaid"; `/payment` already treated `expired`/`failed` as terminal, `/thanks`
+did not, so it kept presenting a working-looking code for an instruction the
+provider no longer honours. Fixed by reading `payment.status` — the
+transaction's own status, where `expired` lives, since the order's
+`payment_status` never carries it — and hiding the code and both pay links.
+Verified against a real local order (`INV-10012`): flipping its transaction to
+`expired` hid all three and swapped the copy; restored to `pending` after.
+Lighthouse then found three colour-contrast failures: `#767676` on a
+`#F5F5F5` panel measures 4.16:1, under the 4.5 AA floor — it passes on white,
+which is where the storefront actually uses it, so only the two labels
+sitting on grey moved to `#555555`. A future order step de-emphasised with
+`opacity-60` measured an effective 2.74:1; de-emphasis moved to colour, which
+stays legible. The payment-instructions disclosure had no `aria-expanded` or
+`aria-controls` even though the checkout form's own group heads already carry
+both. The same `#767676`-on-tint defect turned up again in the order form
+itself (`.variant-compare`, `.info-box span`) and was fixed the same way.
+
+**#87 — the `AREA_REQUIRES_FULL` redirect dropped every customer at the
+catalogue.** The middle form's area-refusal redirect carried the current
+URL's params to `/full-form`, but the form also renders embedded on
+`/produk/[slug]`, whose URL carries no `product_id` — and `/full-form`
+without one bounces straight to `/produk`. A customer mid-order, having typed
+name/WA/address, landed on the catalogue with everything lost. The path is
+not rare: the server scans the address text for excluded-province names, so
+"Jl. Aceh No. 5" — a real street name in cities where COD is allowed — trips
+it, as does server geo disagreeing with the geo that rendered the form. Fixed
+by naming the product and carrying the chosen variant in the redirect;
+verified against the running server (`/full-form` bare → 302 to `/produk`,
+`/full-form?product_id=…&variant_id=…` → 200 with that variant checked).
+
+**#88 — the worker's single largest chunk was ~30 icons wrapped in an entire
+icon set.** `Icon.astro` imported `@iconify-json/lucide/icons.json` whole —
+620KB, `JSON.parse`d on every isolate cold start — to serve the icons the
+templates actually name. `scripts/generate-lucide-subset.mjs` extracts just
+those (aliases resolved by `getIcons`) into a checked-in
+`lucide-subset.json`; `src/lib/lucide-subset.test.ts` fails the build if a
+template names an icon the subset lacks. The collector walks source files
+in-process rather than shelling out to `rg` — the first draft did shell out,
+and a missing binary returned nothing and silently produced an
+alias-map-only subset, which the test's ≥10-name floor now catches. Icon
+chunk 620KB → 19.6KB; worker upload 10769 → 10170 KiB (gzip 1972 → 1888
+KiB); rendered SVG counts identical to the old build on all three pages
+(9/8/3), zero empty icons, verified on all six live stores.
+
+**#89–#91 — the storefront's own LCP was not preloadable, in three layers a
+single fix each missed.** A throttled trace (Slow 4G, CPU 4×, matching what
+PSI's mobile run uses) put the homepage LCP at 899ms, 609ms of it load delay:
+the hero `<img>` never passed through `BaseLayout`'s `preloadImages`. #89
+added it, reading `content.heroSlides[0]`. Re-tracing after deploy showed four
+of six installs unchanged — their homepage has no operator-configured hero
+and silently borrows a daily rotation from the catalogue inside
+`CompactMarketHome`, invisible to the page that emitted the preload. #90
+moved that resolution up into `index.astro`, which now passes the resolved
+list down, so the preload, the `og:image`, and the rendered hero can never
+name different files. The same #89 PR also fixed `/produk`: every catalogue
+card image was `loading="lazy"`, including the first row — 726ms of load
+delay out of a 919ms LCP. Marking `index < 2` eager left the re-traced LCP
+unchanged at 919ms; the trace named card #3, still lazy, as the LCP element,
+because at 390×844 two grid rows are above the fold, not one. #91 corrected
+it to `index < 4`. Each of the three fixes was verified by re-tracing the
+*live* store after deploy, not by inspecting the diff — #90 and #91 both
+exist because that re-trace caught what the previous PR missed.
+
+**#92 — the same LCP-weight problem, traced to the upload path.** With a real
+PageSpeed Insights API key, official mobile scores landed at 85–96 across the
+six stores; the two lowest (zvara 85, skincarebpom 89) were both LCP,
+matching what PSI's image-delivery audit named directly — a 132KB hero it
+scores at ~44KB, catalogue derivatives carrying 60–70% avoidable weight.
+Traced to two holes in admin image upload, both forward-fixable without
+touching what is already in R2 (existing files are deliberately left alone —
+no backfill, per operator instruction): `ContentWorkbench`, the path hero and
+content media actually arrive through, converted nothing at all — a raw file
+up to 5MB was stored as-is. And `ProductForm`'s "already-small WebP"
+pass-through measured smallness as "under 2MB", which is exactly how a
+high-quality 132KB WebP inside the 1280px edge budget reached R2 unrecompressed.
+Both paths now route through one shared `src/lib/client-image.ts`: max edge
+1280px, canvas quality 0.85 → 0.8 (the canvas encoder is less efficient than
+libwebp, so 0.8 lands nearer PSI's byte estimates), and reuse requires a WebP
+to be both within the edge budget and under 100KB — a bar deliberately set
+below the case that motivated it. The reuse decision is pure and unit-tested;
+the first run of that suite failed, because the 160KB bar drafted first still
+let the 132KB motivating case through untouched. Lowered to 100KB.
+
+**#93 — five indexable routes that should never rank.** `/thanks` — a
+personal order-confirmation page — answered `index,follow`, as did the four
+ad-funnel render modes of `/produk/[slug]` (`/middle-form`, `/full-form`,
+`/hybrid-form`, `/geoipform`): each offers Google four duplicates of every
+product page and lets a funnel URL outrank the canonical one. `/payment`
+already carried `noindex`; all five now match it through `BaseLayout`'s
+existing prop.
+
+**Net effect, measured, not asserted.** Lighthouse accessibility on
+`/payment` and `/thanks`: 100, zero failed audits (was one contrast failure
+short of that before #86). PSI mobile performance, official API, all six
+stores: taniniaga 96, carukesi 95, permatamall 94, zanobyshop 92,
+skincarebpom 89, zvara 85 — CLS 0.00 on every one. `/produk` LCP on the live
+store the throttled traces targeted: 919ms → 854ms, with the LCPDiscovery
+flag gone from Lighthouse Insights entirely. Suite 534 → 540 across the four
+PRs that added tests (#88, #89 implicitly via existing coverage, #92). Every
+PR: CI green, merged, rolled out same-day to all six installs (`git merge` for
+taniniaga/carukesi/skincarebpom, `sync-from-product.sh` for
+zanobyshop/zvarashop/permatamall), deployed, and re-verified against the live
+site — not assumed from the diff.

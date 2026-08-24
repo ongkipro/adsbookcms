@@ -1259,7 +1259,7 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
     const options = state.visiblePaymentOptions;
     if (!options.length) {
       paymentOptionsEl.innerHTML =
-        '<p class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">Metode pembayaran untuk wilayah ini belum tersedia. Hubungi admin untuk bantuan.</p>';
+        '<p class="rounded-none border border-[#f2c4c4] bg-[#fdf1f1] p-3 text-sm font-semibold text-[#a12626]">Metode pembayaran untuk wilayah ini belum tersedia. Hubungi admin untuk bantuan.</p>';
       syncSummary();
       syncSubmitButton();
       return;

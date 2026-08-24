@@ -12,6 +12,14 @@
  * It stays hidden while the hero or the order form is on screen and while a
  * form field holds focus: over the hero it competes with the product photo,
  * and over the form it competes with the thing it exists to cause.
+ *
+ * The buyer names below are ILLUSTRATIVE, not real orders — the same standing
+ * this store's promo-stock counter already has (`readStablePromoStock`).
+ * Nothing here reads D1, and it must not start: real buyer names and cities
+ * are customer PII, and publishing them on a public product page to strangers
+ * would be a disclosure, not social proof. If a merchant ever asks for "real"
+ * notifications, the honest form is an aggregate ("12 orang memesan hari ini"),
+ * never an individual.
  */
 import Icon from './Icon.astro';
 
@@ -20,7 +28,8 @@ interface Props {
   productLabel: string;
   /** Thumbnail, ideally the card derivative (`cardImageSrc`). */
   productImage: string;
-  /** Selector for the hero element that blocks the toast. */
+  /** Selector for the hero element that blocks the toast. Empty = no hero
+   *  blocker, for a page (a landing page) that has no gallery of its own. */
   heroSelector?: string;
   /** Selector for the order-form section that blocks the toast. */
   formSelector?: string;
@@ -94,12 +103,20 @@ const {
     const toast = document.querySelector<HTMLElement>('[data-social-proof]');
     if (!toast) return;
 
-    const hero = toast.dataset.heroSelector
-      ? document.querySelector(toast.dataset.heroSelector)
-      : null;
-    const formSection = toast.dataset.formSelector
-      ? document.querySelector(toast.dataset.formSelector)
-      : null;
+    // A selector may be absent by design (a landing page has no gallery) or
+    // simply wrong; `querySelector` throws on an invalid one, and an
+    // exception here would leave the toast permanently stuck at opacity-0.
+    const findBlocker = (selector: string | undefined) => {
+      if (!selector) return null;
+      try {
+        return document.querySelector(selector);
+      } catch {
+        return null;
+      }
+    };
+
+    const hero = findBlocker(toast.dataset.heroSelector);
+    const formSection = findBlocker(toast.dataset.formSelector);
 
     const buyers = [
       { name: 'Ibu Ratna', location: 'Bekasi, Jawa Barat', time: 'Baru saja' },

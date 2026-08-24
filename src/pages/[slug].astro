@@ -10,6 +10,8 @@ import { getEnvValue, getRuntimeEnv } from '../lib/env';
 import '../styles/form-hybrid.css';
 import '../styles/landing-pages/landing.css';
 import { defaultCatalogContentId } from '../lib/catalog-feed';
+import SocialProofToast from '../components/storefront/shared/SocialProofToast.astro';
+import { cardImageSrc } from '../lib/image-derivative';
 
 export const prerender = false;
 
@@ -151,6 +153,17 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     contentId={defaultCatalogContentId(product)}
     contentName={product.contentName}
     price={product.price}
+  />
+
+  {/* A landing page is an ad destination, so it wants the proof more than the
+      catalogue page does. It has no gallery to blank against, and its first
+      section is merchant-authored, so the hero blocker is left unset and only
+      the checkout form suppresses the toast. */}
+  <SocialProofToast
+    productLabel={product.productName}
+    productImage={cardImageSrc(product.heroImage)}
+    heroSelector=""
+    formSelector="#checkout-form"
   />
 
   {

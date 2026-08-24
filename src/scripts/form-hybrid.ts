@@ -1,4 +1,4 @@
-import { metaNameParts, toE164Digits } from "../lib/meta-identity.ts";
+import { buildMetaAdvancedMatching } from "../lib/meta-identity.ts";
 import { formatIdr } from "../lib/format-idr";
 import { normalizePhone } from "../lib/validation";
 import { calculateCodFeeBreakdown } from "../lib/payment-fee-policy";
@@ -184,17 +184,6 @@ const parsePaymentOptions = (payload: unknown): PaymentOption[] => {
 const fmt = formatIdr;
 const createId = (prefix: string) =>
   `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-const hashSha256Hex = async (input: string) => {
-  const normalized = String(input || "")
-    .trim()
-    .toLowerCase();
-  if (!normalized || !globalThis.crypto?.subtle) return "";
-  const bytes = new TextEncoder().encode(normalized);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-};
 const postMetaEvent = (payload: Record<string, unknown>) =>
   fetch("/api/meta-event", {
     method: "POST",
@@ -379,34 +368,12 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
       .find((row) => row.startsWith(`${name}=`))
       ?.split("=")[1] || "";
 
-  const buildAdvancedMatching = async (
-    extraUserData?: Record<string, unknown>,
-  ) => {
-    // Normalised exactly as the server CAPI leg does. Both legs describe one
-    // person; a difference here means Meta matches neither.
-    const normalizedPhone = toE164Digits(
-      String(extraUserData?.customer_phone || ""),
-    );
-    const { firstName, lastName } = metaNameParts(
-      String(extraUserData?.customer_name || ""),
-    );
-    return {
-      ph: normalizedPhone ? await hashSha256Hex(normalizedPhone) : undefined,
-      fn: firstName ? await hashSha256Hex(firstName) : undefined,
-      ln: lastName ? await hashSha256Hex(lastName) : undefined,
-      external_id: normalizedPhone
-        ? await hashSha256Hex(normalizedPhone)
-        : undefined,
-      client_user_agent: navigator.userAgent,
-    };
-  };
-
   const ensureMetaAdvancedMatching = async (
     extraUserData?: Record<string, unknown>,
   ) => {
     const pixelId = (window as any).__META_PIXEL_ID__;
     if (!(window as any).fbq || !pixelId) return;
-    const advancedMatching = await buildAdvancedMatching(extraUserData);
+    const advancedMatching = await buildMetaAdvancedMatching(extraUserData);
     const signature = JSON.stringify(advancedMatching);
     if ((window as any).__META_AM_SIGNATURE__ === signature) return;
     (window as any).__META_AM_SIGNATURE__ = signature;

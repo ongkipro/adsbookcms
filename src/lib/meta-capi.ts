@@ -1,4 +1,4 @@
-import { metaNameParts, normalizeMetaText, toE164Digits } from './meta-identity.ts';
+import { metaNameParts, normalizeMetaText, sha256Hex, toE164Digits } from './meta-identity.ts';
 /**
  * Pinned in one place so a bump is a one-line change, never a grep across
  * trackers. Meta ships a version roughly quarterly and retires each after about
@@ -37,37 +37,30 @@ export type MetaCustomData = {
   orderNumber?: string;
 };
 
-async function sha256(value: string): Promise<string> {
-  const msgUint8 = new TextEncoder().encode(value);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 /** Meta matches on lowercased, punctuation-free text. */
 function hashText(value?: string) {
   const cleaned = normalizeMetaText(value);
-  return cleaned ? sha256(cleaned) : undefined;
+  return cleaned ? sha256Hex(cleaned) : undefined;
 }
 
 function hashEmail(value?: string) {
   const cleaned = value?.trim().toLowerCase();
-  return cleaned ? sha256(cleaned) : undefined;
+  return cleaned ? sha256Hex(cleaned) : undefined;
 }
 
 function hashPhone(value?: string) {
   const digits = toE164Digits(value);
-  return digits ? sha256(digits) : undefined;
+  return digits ? sha256Hex(digits) : undefined;
 }
 
 function hashFirstName(value?: string) {
   const { firstName } = metaNameParts(value);
-  return firstName ? sha256(firstName) : undefined;
+  return firstName ? sha256Hex(firstName) : undefined;
 }
 
 function hashLastName(value?: string) {
   const { lastName } = metaNameParts(value);
-  return lastName ? sha256(lastName) : undefined;
+  return lastName ? sha256Hex(lastName) : undefined;
 }
 
 function cleanRawSignal(value?: string): string | undefined {

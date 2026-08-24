@@ -15,6 +15,7 @@
  *   ct, st  lowercase, no punctuation, no spaces
  *   zp      lowercase, no spaces, no dash
  *   ph      digits in E.164, no separators
+ *   country lowercase ISO 3166-1 alpha-2 (ID for Indonesia)
  *
  * This module exists so there is exactly one implementation to keep correct.
  * `MetaThanksTracker.astro` cannot import it — `define:vars` forces `is:inline`,
@@ -54,5 +55,71 @@ export function metaNameParts(value?: string): {
     firstName: normalizeMetaText(parts[0]),
     lastName:
       parts.length > 1 ? normalizeMetaText(parts.slice(1).join("")) : undefined,
+  };
+}
+
+/** SHA-256, lower-hex. `crypto.subtle` is global in both the browser and the
+ *  Cloudflare Workers runtime, so this one implementation serves the browser
+ *  Pixel leg and the server CAPI leg alike. */
+export async function sha256Hex(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export type MetaAdvancedMatchingInput = {
+  customer_name?: unknown;
+  customer_phone?: unknown;
+  city?: unknown;
+  province?: unknown;
+  postal_code?: unknown;
+  country?: unknown;
+};
+
+/**
+ * The hashed object `fbq('init', pixelId, advancedMatching)` takes, built with
+ * exactly the same normalisation the server CAPI leg applies (`meta-capi.ts`).
+ *
+ * `ensureMetaAdvancedMatching` in the checkout scripts calls this again every
+ * time more identity becomes known — AddToCart with only a name and phone,
+ * then InitiateCheckout once an address is picked — so it must read every
+ * field CAPI already hashes (ct/st/zp/country), not only ph/fn/ln. Before this
+ * it read only phone and name: city, province, postal code and country were
+ * being sent to CAPI on the same event and silently dropped from the browser
+ * leg, so the Pixel re-identified the visitor with a weaker key than the
+ * server leg used for the same person on the same event.
+ */
+export async function buildMetaAdvancedMatching(
+  input: MetaAdvancedMatchingInput | undefined,
+): Promise<{
+  ph?: string;
+  fn?: string;
+  ln?: string;
+  ct?: string;
+  st?: string;
+  zp?: string;
+  country?: string;
+  external_id?: string;
+  client_user_agent?: string;
+}> {
+  const normalizedPhone = toE164Digits(String(input?.customer_phone ?? ""));
+  const { firstName, lastName } = metaNameParts(String(input?.customer_name ?? ""));
+  const city = normalizeMetaText(String(input?.city ?? ""));
+  const state = normalizeMetaText(String(input?.province ?? ""));
+  const zip = normalizeMetaText(String(input?.postal_code ?? ""));
+  const country = normalizeMetaText(String(input?.country ?? ""));
+  return {
+    ph: normalizedPhone ? await sha256Hex(normalizedPhone) : undefined,
+    fn: firstName ? await sha256Hex(firstName) : undefined,
+    ln: lastName ? await sha256Hex(lastName) : undefined,
+    ct: city ? await sha256Hex(city) : undefined,
+    st: state ? await sha256Hex(state) : undefined,
+    zp: zip ? await sha256Hex(zip) : undefined,
+    country: country ? await sha256Hex(country) : undefined,
+    external_id: normalizedPhone ? await sha256Hex(normalizedPhone) : undefined,
+    client_user_agent:
+      typeof navigator !== "undefined" ? navigator.userAgent : undefined,
   };
 }

@@ -61,6 +61,17 @@ const shouldRenderGoogleAds = Boolean(String(googleAdsId || '').trim() && String
           // gtag.js is deferred; a conversion is the one event that cannot wait
           // for the timer, so it pulls the library forward itself.
           if (typeof window.__PS_LOAD_GOOGLE_TAG__ === 'function') window.__PS_LOAD_GOOGLE_TAG__();
+          // Enhanced conversions read a *separate* `gtag('set', 'user_data', ...)`
+          // call, fired ahead of the conversion event — not a `user_data` key
+          // nested inside the event payload, which is not the shape Google's own
+          // enhanced-conversions-for-web documentation describes
+          // (support.google.com/google-ads/answer/13258081). The nested form used
+          // to be sent here; whether Google silently dropped it or matched
+          // nothing was never verifiable from this side, which is the risk of not
+          // following the documented call shape.
+          if (userData) {
+            window.gtag('set', 'user_data', userData);
+          }
           var payload = {
             send_to: googleAdsId + '/' + googleAdsLabel,
             value: Number(value || 0),
@@ -70,9 +81,6 @@ const shouldRenderGoogleAds = Boolean(String(googleAdsId || '').trim() && String
           // every order without one makes them collide instead of dedupe, so
           // omit the key entirely when there is no order number.
           if (transactionId) payload.transaction_id = transactionId;
-          if (userData) {
-            payload.user_data = userData;
-          }
           window.gtag('event', 'conversion', payload);
         };
       })();

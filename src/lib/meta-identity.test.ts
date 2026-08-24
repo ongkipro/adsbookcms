@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { metaNameParts, normalizeMetaText, toE164Digits } from "./meta-identity.ts";
+import {
+  buildMetaAdvancedMatching,
+  metaNameParts,
+  normalizeMetaText,
+  sha256Hex,
+  toE164Digits,
+} from "./meta-identity.ts";
 
 const THANKS_TRACKER = readFileSync(
   "src/components/storefront/tracking/MetaThanksTracker.astro",
+  "utf8",
+);
+const GOOGLE_ADS_BASE = readFileSync(
+  "src/components/storefront/tracking/GoogleAdsBase.astro",
   "utf8",
 );
 
@@ -61,6 +71,85 @@ test("the inline thanks tracker normalises identically to this module", () => {
   }
 });
 
+test("sha256Hex hashes to lower-hex and never returns the input verbatim", async () => {
+  const hash = await sha256Hex("6281234567890");
+  assert.match(hash, /^[a-f0-9]{64}$/);
+  assert.notEqual(hash, "6281234567890");
+});
+
+test("the browser Pixel's advanced-matching object hashes every field CAPI also hashes for the same event", async () => {
+  // This is the gap that motivated the shared builder: AddToCart and
+  // InitiateCheckout already send city/province/postal_code/country to the
+  // server CAPI leg on the same event (meta-event.ts -> sendMetaCapiEvent),
+  // but the browser Pixel's `fbq('init', pixelId, advancedMatching)` object
+  // read only phone and name. A field CAPI hashes and the Pixel drops means
+  // the two legs describe the same person with different keys.
+  const am = await buildMetaAdvancedMatching({
+    customer_name: "Siti Nur Aisyah",
+    customer_phone: "081234567890",
+    city: "Jakarta Selatan",
+    province: "DKI Jakarta",
+    postal_code: "12430",
+    country: "id",
+  });
+  for (const key of ["ph", "fn", "ln", "ct", "st", "zp", "country", "external_id"] as const) {
+    assert.match(am[key] ?? "", /^[a-f0-9]{64}$/, `${key} must be a SHA-256 hex hash`);
+  }
+  // ph and external_id both derive from the same E.164 phone, per the server
+  // leg's convention (meta-capi.ts) — one identity, two match keys Meta reads.
+  assert.equal(am.ph, am.external_id);
+});
+
+test("advanced matching omits a field entirely rather than hashing an empty string", async () => {
+  // AddToCart fires before an address is known; InitiateCheckout re-inits with
+  // the fuller object. A hash of "" is a match key for nobody and would still
+  // count toward Meta's parameter-coverage metric as if it mattered.
+  const am = await buildMetaAdvancedMatching({
+    customer_name: "Andi",
+    customer_phone: "081234567890",
+  });
+  assert.equal(am.ct, undefined);
+  assert.equal(am.st, undefined);
+  assert.equal(am.zp, undefined);
+  assert.equal(am.country, undefined);
+  assert.match(am.ph ?? "", /^[a-f0-9]{64}$/);
+});
+
+test("the inline thanks tracker's browser Pixel leg hashes city, state, zip and country like the server CAPI leg does", () => {
+  // The CAPI leg (postMeta's user_data, further down this same file) has
+  // always sent ct/st/zp/country for Purchase. The browser Pixel's
+  // `fbq('init', pixelId, {...})` object used to stop at ph/fn/ln, so the two
+  // legs of one Purchase described the same person with different keys.
+  const initCall = THANKS_TRACKER.slice(
+    THANKS_TRACKER.indexOf("window.fbq('init', pixelId,"),
+    THANKS_TRACKER.indexOf("window.fbq('track', eventName, data"),
+  );
+  for (const key of ["ct:", "st:", "zp:", "country:"]) {
+    assert.ok(
+      initCall.includes(key),
+      `MetaThanksTracker.astro's browser Pixel init call is missing ${key}`,
+    );
+  }
+});
+
+test("Google enhanced conversions call `set` before `event`, not a nested user_data param", () => {
+  // Verified 2026-08-24 against support.google.com/google-ads/answer/13258081:
+  // the documented shape is a standalone `gtag('set', 'user_data', {...})`
+  // ahead of the conversion event, not a `user_data` key folded into the
+  // event's own payload. The previous code did the latter, which is not the
+  // shape Google's own docs describe.
+  const setCallIndex = GOOGLE_ADS_BASE.indexOf("gtag('set', 'user_data', userData)");
+  const eventCallIndex = GOOGLE_ADS_BASE.indexOf("gtag('event', 'conversion', payload)");
+  assert.ok(setCallIndex >= 0, "GoogleAdsBase.astro must call gtag('set', 'user_data', ...)");
+  assert.ok(eventCallIndex >= 0, "GoogleAdsBase.astro must still fire the conversion event");
+  assert.ok(setCallIndex < eventCallIndex, "user_data must be set before the conversion event fires");
+  assert.doesNotMatch(
+    GOOGLE_ADS_BASE,
+    /payload\.user_data/,
+    "user_data must not be nested inside the conversion event payload any more",
+  );
+});
+
 test("Google enhanced-conversion names are nested where gtag reads them", () => {
   // Sent at the top level of `user_data`, gtag ignores them: the hashing cost is
   // paid and nobody is matched. They belong inside `address`, beside the
@@ -72,8 +161,8 @@ test("Google enhanced-conversion names are nested where gtag reads them", () => 
   );
   assert.match(
     THANKS_TRACKER,
-    /address:\s*\{[\s\S]{0,600}?country:\s*'id'/,
-    "Google address match key needs country beside the hashed name",
+    /address:\s*\{[\s\S]{0,900}?country:\s*'ID'/,
+    "Google address match key needs an uppercase ISO country code beside the hashed name",
   );
   // Google trims and lowercases; it does not strip punctuation, so a multi-word
   // family name must keep its space here even though Meta removes it.

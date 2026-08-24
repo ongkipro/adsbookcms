@@ -24,6 +24,7 @@ type OrderStatus = Record<string, unknown>;
 type TrackerRun = {
   pixelEventIds: string[];
   postedPayloads: Record<string, unknown>[];
+  pixelInitCalls: Record<string, unknown>[];
 };
 
 function storageStub() {
@@ -40,8 +41,11 @@ function storageStub() {
  * Executes the real inline tracker script from MetaThanksTracker.astro against a
  * stubbed browser, with /api/order-status answering `orderStatus`.
  */
-async function runTracker(orderStatus: OrderStatus): Promise<TrackerRun> {
-  const run: TrackerRun = { pixelEventIds: [], postedPayloads: [] };
+async function runTracker(
+  orderStatus: OrderStatus,
+  thanksStateOverrides: Record<string, unknown> = {},
+): Promise<TrackerRun> {
+  const run: TrackerRun = { pixelEventIds: [], postedPayloads: [], pixelInitCalls: [] };
   const thanksState = {
     order_id: "INV-10042",
     order_pk: "42",
@@ -54,6 +58,7 @@ async function runTracker(orderStatus: OrderStatus): Promise<TrackerRun> {
     product_name: "Asahan Portable",
     product_price: 150_000,
     quantity: 1,
+    ...thanksStateOverrides,
   };
 
   const sessionStorage = storageStub();
@@ -79,8 +84,16 @@ async function runTracker(orderStatus: OrderStatus): Promise<TrackerRun> {
       search: "",
       href: "https://permatamall.shop/thanks",
     },
-    fbq: (action: string, _eventName: string, _data: unknown, options?: { eventID?: string }) => {
+    fbq: (
+      action: string,
+      _eventName: unknown,
+      arg3?: unknown,
+      options?: { eventID?: string },
+    ) => {
       if (action === "track") run.pixelEventIds.push(String(options?.eventID || ""));
+      if (action === "init" && arg3 && typeof arg3 === "object") {
+        run.pixelInitCalls.push(arg3 as Record<string, unknown>);
+      }
     },
   };
 
@@ -135,6 +148,47 @@ test("browser and server Purchase legs derive the same event_id for one order", 
   // as the event_id - the same string the Pixel just used.
   assert.equal(run.postedPayloads[0].order_number, "INV-10042");
   assert.equal(run.postedPayloads[0].status_token, "status-token-42");
+});
+
+test("the browser Pixel's Purchase advanced-matching object hashes city, state, zip and country, not just phone and name", async () => {
+  // The CAPI leg (postedPayloads[0].user_data, asserted below) has always
+  // carried the buyer's address on Purchase. The browser Pixel's own
+  // `fbq('init', pixelId, {...})` call used to stop at ph/fn/ln — a full
+  // match key server-side, a partial one client-side, for the same order.
+  const run = await runTracker(
+    {
+      success: true,
+      order_number: "INV-10042",
+      payment_status: "unpaid",
+      payment_method: "cod",
+      is_paid: false,
+      total_amount: 189_000,
+    },
+    {
+      city: "Jakarta Selatan",
+      province: "DKI Jakarta",
+      postal_code: "12430",
+    },
+  );
+
+  assert.equal(run.pixelInitCalls.length, 1, "the browser must re-init the Pixel exactly once for this Purchase");
+  const advancedMatching = run.pixelInitCalls[0];
+  for (const key of ["ph", "fn", "ln", "ct", "st", "zp", "country", "external_id"]) {
+    assert.match(
+      String(advancedMatching[key] ?? ""),
+      /^[a-f0-9]{64}$/,
+      `advanced matching's ${key} must be a SHA-256 hex hash`,
+    );
+  }
+  assert.equal(advancedMatching.ph, advancedMatching.external_id);
+
+  // The CAPI leg on the same Purchase must describe the same address, not a
+  // different or narrower one.
+  const capiUserData = run.postedPayloads[0].user_data as Record<string, unknown>;
+  assert.equal(capiUserData.city, "Jakarta Selatan");
+  assert.equal(capiUserData.province, "DKI Jakarta");
+  assert.equal(capiUserData.postal_code, "12430");
+  assert.equal(capiUserData.country, "id");
 });
 
 test("a Purchase without a resolvable order number emits nothing at all", async () => {

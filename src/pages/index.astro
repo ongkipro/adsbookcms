@@ -5,6 +5,7 @@ import { getStorefrontProducts } from '../lib/catalog';
 import { getRuntimeEnv } from '../lib/env';
 import { getTenantHomeContent } from '../lib/tenant-content';
 import { resolveStorefrontTemplate } from '../lib/storefront-template';
+import { dailySeed, pickDaily } from '../lib/daily-rotation';
 
 const database = getRuntimeEnv(Astro.locals)?.OMS_DB;
 const [catalog, homeResolution, templateResolution] = await Promise.all([
@@ -37,6 +38,21 @@ if (unavailable) Astro.response.status = 503;
 const homepageTitle = ready
   ? `${Astro.locals.tenant.name} — ${Astro.locals.tenant.tagline || Astro.locals.tenant.description}`
   : `Storefront ${Astro.locals.tenant.name}`;
+// The hero's slides, resolved HERE rather than inside CompactMarketHome, so
+// the preload below names the image the hero will actually render. When the
+// operator has no slides of their own the hero borrows a daily rotation from
+// the catalogue — a fallback the old `content.heroSlides[0]` preload could
+// not see, which left four of the six installs' LCP image unpreloaded. The
+// pick rotates daily rather than per request so visitors reuse cached bytes.
+const heroSlides =
+  content && content.heroSlides.length > 0
+    ? content.heroSlides
+    : pickDaily(products, 3, dailySeed(new Date())).map((product) => ({
+        image: product.image,
+        alt: product.name,
+        badge: product.category,
+        text: product.name,
+      }));
 const itemList = {
   name: `${Astro.locals.tenant.name} — Koleksi Produk pilihan`,
   items: products.map((p) => ({
@@ -52,8 +68,8 @@ const itemList = {
 <BaseLayout
   title={homepageTitle}
   description={Astro.locals.tenant.description}
-  image={content?.heroSlides[0]?.image ?? Astro.locals.tenant.logo}
-  preloadImages={content?.heroSlides[0]?.image}
+  image={heroSlides[0]?.image ?? Astro.locals.tenant.logo}
+  preloadImages={heroSlides[0]?.image}
   itemList={ready ? itemList : undefined}
 >
   {
@@ -71,7 +87,7 @@ const itemList = {
         </div>
       </section>
     ) : (
-      <CompactMarketHome content={content} products={products} sections={template.composition.sections} />
+      <CompactMarketHome content={content} products={products} heroSlides={heroSlides} sections={template.composition.sections} />
     )
   }
 </BaseLayout>

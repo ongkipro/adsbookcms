@@ -1,6 +1,5 @@
 ---
 import HeroSection from '../home/HeroSection.astro';
-import { dailySeed, pickDaily } from '../../../lib/daily-rotation';
 import ProductsSection from '../home/ProductsSection.astro';
 import LandingPagesSection from '../home/LandingPagesSection.astro';
 import type { TenantHomeContent } from '../../../lib/tenant-content';
@@ -23,6 +22,10 @@ interface ProductCard {
 interface Props {
   content: TenantHomeContent;
   products: ProductCard[];
+  /** Resolved by the page, not here: index.astro preloads the first slide's
+   *  image as the LCP element, so the page and the hero must read the same
+   *  list. The daily-rotation fallback lives with that preload now. */
+  heroSlides: Array<{ image: string; alt: string; badge: string; text: string }>;
   sections: {
     hero: boolean;
     catalog: true;
@@ -33,21 +36,7 @@ interface Props {
   };
 }
 
-const { content, products, sections } = Astro.props;
-
-// No slides of the operator's own means the hero borrows from the catalogue.
-// The pick rotates daily rather than per request: a per-request shuffle would
-// change the LCP image on every load, so no visitor could reuse bytes another
-// had already cached.
-const heroSlides =
-  content.heroSlides.length > 0
-    ? content.heroSlides
-    : pickDaily(products, 3, dailySeed(new Date())).map((product) => ({
-        image: product.image,
-        alt: product.name,
-        badge: product.category,
-        text: product.name,
-      }));
+const { content, products, heroSlides, sections } = Astro.props;
 ---
 
 <main

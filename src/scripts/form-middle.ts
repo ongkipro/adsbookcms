@@ -758,6 +758,14 @@ export function initMiddleOrderForm(
           } else {
             target.pathname = "/full-form";
             target.searchParams.delete("form");
+            // /full-form bounces to the catalog without a product_id. The
+            // middle form also renders embedded on /produk/[slug], where the
+            // URL carries no product_id at all — so a customer mid-order (an
+            // address mentioning "Jl. Aceh" is enough to trip the area scan)
+            // was redirected to the catalog and lost everything they typed.
+            // Name the product and keep their chosen variant instead.
+            target.searchParams.set("product_id", productSlug);
+            if (checked.value) target.searchParams.set("variant_id", String(checked.value));
             window.setTimeout(() => {
               navigateAfterCheckout(target.toString());
             }, 1800);

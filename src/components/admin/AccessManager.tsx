@@ -48,7 +48,7 @@ const ROLE_DESCRIPTIONS: Record<AssignableRole, string> = {
   admin:
     "Akses penuh ke semua operasional toko, produk, pengiriman, dan integrasi payment, kecuali manajemen Akses Pengguna.",
   advertiser:
-    "Akses khusus pemasaran: Dashboard analytics, Katalog Produk, Form Storefront, dan Signals OS (Meta/TikTok/Google Ads).",
+    "Akses khusus pemasaran: Dashboard analytics, Katalog Produk, Form Storefront, dan Signals OS (Meta/Google Ads).",
   customer_service:
     "Akses khusus pelayanan: Dashboard sales, Order Management, Pengiriman kurir, Cek Risiko No. WA & Cek Ongkir.",
 };
@@ -124,7 +124,7 @@ const PERMISSION_ROWS: ReadonlyArray<{
     },
   },
   {
-    capability: "Ads Signal OS (Meta, TikTok, Google)",
+    capability: "Ads Signal OS (Meta, Google)",
     description: "Konfigurasi Pixel, CAPI Token, dan audit conversion tracking.",
     access: {
       owner: "full",

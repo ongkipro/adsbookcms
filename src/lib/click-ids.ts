@@ -21,7 +21,7 @@ export const CLICK_ID_COOKIE = "adsbook_click_ids";
  */
 export const LEGACY_CLICK_ID_COOKIE = "zanoby_click_ids";
 
-/** Click identifiers and attribution tags across Google, Meta, TikTok, and UTMs. */
+/** Click identifiers and attribution tags across Google, Meta, and UTMs. */
 export const CLICK_ID_KEYS = [
   "gclid",
   "gbraid",
@@ -29,7 +29,6 @@ export const CLICK_ID_KEYS = [
   "_fbp",
   "_fbc",
   "fbclid",
-  "ttclid",
   "utm_source",
   "utm_medium",
   "utm_campaign",

@@ -1,4 +1,4 @@
-export type TrafficSourceType = 'meta' | 'google' | 'tiktok' | 'organic' | 'custom';
+export type TrafficSourceType = 'meta' | 'google' | 'organic' | 'custom';
 
 export type TrafficSourceInfo = {
   type: TrafficSourceType;
@@ -9,7 +9,6 @@ export type TrafficSourceInfo = {
   details: {
     gclid?: string;
     fbclid?: string;
-    ttclid?: string;
     utm_source?: string;
     utm_medium?: string;
     utm_campaign?: string;
@@ -39,7 +38,6 @@ export function parseTrafficSource(rawClickIds?: string | null): TrafficSourceIn
   const fbclid = typeof parsed.fbclid === 'string' ? parsed.fbclid : undefined;
   const fbc = typeof parsed._fbc === 'string' ? parsed._fbc : undefined;
   const fbp = typeof parsed._fbp === 'string' ? parsed._fbp : undefined;
-  const ttclid = typeof parsed.ttclid === 'string' ? parsed.ttclid : undefined;
 
   const utmSource = typeof parsed.utm_source === 'string' ? parsed.utm_source.toLowerCase().trim() : undefined;
   const utmMedium = typeof parsed.utm_medium === 'string' ? parsed.utm_medium.trim() : undefined;
@@ -48,7 +46,6 @@ export function parseTrafficSource(rawClickIds?: string | null): TrafficSourceIn
   const details = {
     gclid: gclid || gbraid || wbraid,
     fbclid: fbclid || (fbc ? fbc : undefined),
-    ttclid,
     utm_source: utmSource,
     utm_medium: utmMedium,
     utm_campaign: utmCampaign,
@@ -97,22 +94,7 @@ export function parseTrafficSource(rawClickIds?: string | null): TrafficSourceIn
     };
   }
 
-  // 3. TikTok Ads (ttclid, or utm_source contains tiktok/tt)
-  const isTikTok = Boolean(
-    ttclid || (utmSource && (utmSource.includes('tiktok') || utmSource.includes('tt'))),
-  );
-
-  if (isTikTok) {
-    return {
-      type: 'tiktok',
-      label: 'TikTok Ads',
-      badgeClass: 'bg-purple-50 text-purple-700 border-purple-200/80 hover:bg-purple-100/70',
-      textClass: 'text-purple-600 font-semibold',
-      details,
-    };
-  }
-
-  // 4. Custom UTM Referral
+  // 3. Custom UTM Referral
   if (utmSource && utmSource !== 'organic' && utmSource !== 'direct') {
     const formattedSource = utmSource.charAt(0).toUpperCase() + utmSource.slice(1);
     return {
@@ -124,7 +106,7 @@ export function parseTrafficSource(rawClickIds?: string | null): TrafficSourceIn
     };
   }
 
-  // 5. Organic / Direct
+  // 4. Organic / Direct
   return {
     type: 'organic',
     label: 'Organic / Direct',

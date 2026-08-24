@@ -1318,8 +1318,6 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                         ? "Meta Ads"
                         : sourceFilter === "google"
                         ? "Google Ads"
-                        : sourceFilter === "tiktok"
-                        ? "TikTok Ads"
                         : sourceFilter === "organic"
                         ? "Organic / Direct"
                         : "Pilih sumber"}
@@ -1329,7 +1327,6 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                     <SelectItem value="all">Semua traffic</SelectItem>
                     <SelectItem value="meta">Meta Ads</SelectItem>
                     <SelectItem value="google">Google Ads</SelectItem>
-                    <SelectItem value="tiktok">TikTok Ads</SelectItem>
                     <SelectItem value="organic">Organic / Direct</SelectItem>
                   </SelectContent>
                 </Select>

@@ -1,6 +1,6 @@
-# AdsBookCMS Meta Pixel, CAPI, GTM, TikTok, and Google Ads Specification
+# AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-08-17 @ `3de2b01`
+> Verified against disk: 2026-08-24 @ `dc9607b`
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -14,7 +14,6 @@ flowchart LR
     F --> PX[Meta Pixel]
     F --> GTM[GTM dataLayer]
     F --> GA[Google gtag]
-    F --> TT[TikTok ttq]
     F --> API[AdsBookCMS API]
     API --> OB[(capi_event_outbox)]
     OB --> CAPI[Meta CAPI]
@@ -33,11 +32,11 @@ A headless storefront may use a different framework and design, but it must not 
 
 - `MetaPixelBase.astro` resolves a valid Pixel ID from D1 with environment fallback.
 - `GtmBase.astro` resolves and validates the GTM container ID.
-- `GoogleAdsBase.astro` resolves a complete Google Ads conversion ID/label pair, emits the region-scoped Consent Mode v2 defaults (§8), and exposes `window.__PS_PUSH_GOOGLE_CONVERSION__`.
+- `GoogleAdsBase.astro` resolves a complete Google Ads conversion ID/label pair, emits the region-scoped Consent Mode v2 defaults (§10), and exposes `window.__PS_PUSH_GOOGLE_CONVERSION__`.
 - Page, product, landing, and thanks trackers emit the supported browser events.
 - `/api/meta-event` accepts only supported event names and validates event ID, same-origin source URL, product/value payload, and bounded customer data before enqueueing to the CAPI outbox.
-- `/api/v1/tracking/events` provides the same contract for headless storefronts behind developer-API-key auth (§9).
-- `src/lib/capi-outbox.ts` records every CAPI event in D1 before transmission and retries failures (§10).
+- `/api/v1/tracking/events` provides the same contract for headless storefronts behind developer-API-key auth (§12).
+- `src/lib/capi-outbox.ts` records every CAPI event in D1 before transmission and retries failures (§11).
 - Click identifiers are captured in middleware into a first-party cookie and persisted on the order (§7).
 - `/admin/ads/meta` manages Pixel ID plus masked CAPI readiness and supports an explicit Test Events request.
 - `/admin/ads/google` manages GTM independently and validates the Google Ads conversion pair.
@@ -187,13 +186,12 @@ the middleware at landing, which exists on ad traffic *before* the pixel runs.
 
 Click-ID preservation is owned by `src/lib/click-ids.ts`, `src/middleware.ts`, and the `orders.ad_click_ids` column — **not** by `src/lib/order-schema.ts`, which carries no click-ID fields.
 
-`CLICK_ID_KEYS` in `src/lib/click-ids.ts` is a single list covering all four families:
+`CLICK_ID_KEYS` in `src/lib/click-ids.ts` is a single list covering all three families:
 
 | Family | Keys |
 | --- | --- |
 | Google | `gclid`, `gbraid`, `wbraid` |
 | Meta | `_fbp`, `_fbc`, `fbclid` |
-| TikTok | `ttclid` |
 | UTM | `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term` |
 
 Flow:
@@ -202,7 +200,7 @@ Flow:
 2. **Store.** Matching values are JSON-serialized into the cookie named by `CLICK_ID_COOKIE` — currently `adsbook_click_ids` — with `Max-Age` of 90 days, `Path=/`, and `SameSite=None; Secure` on HTTPS (`SameSite=Lax` otherwise). `_fbp` and `_fbc` are additionally re-issued as their own first-party cookies so Meta's own readers find them.
 3. **Read back.** `readClickIdCookie(request)` is called by `src/pages/api/submit-order.ts`, `src/pages/api/submit-middle-order.ts`, and `src/pages/api/v1/checkout.ts`; `readMetaBrowserIds(request)` wraps it for `src/pages/api/meta-event.ts`. Cookies ride along with the submit request, so no hidden form fields are needed. Malformed or hand-edited cookie values parse to `{}` rather than throwing inside the order path.
 4. **Persist.** The serialized value is written to `orders.ad_click_ids` (migration `0024_daily_typhoid_mary.sql`).
-5. **Classify.** `src/lib/traffic-source.ts` reads that stored JSON and derives a `TrafficSourceType` of `meta`, `google`, `tiktok`, `organic`, or `custom`, precedence Meta → Google → TikTok → UTM heuristics. The admin surfaces it through `TrafficSourceBadge` in `OrdersTable.tsx` and `OrderDetail.tsx`.
+5. **Classify.** `src/lib/traffic-source.ts` reads that stored JSON and derives a `TrafficSourceType` of `meta`, `google`, `organic`, or `custom`, precedence Meta → Google → UTM heuristics. The admin surfaces it through `TrafficSourceBadge` in `OrdersTable.tsx` and `OrderDetail.tsx`.
 
 The cookie is `adsbook_click_ids`, renamed from `zanoby_click_ids` on 2026-08-16. `readClickIdCookie()` still **reads** the legacy name when the current one is absent, so attribution captured before the rename survives; nothing writes the legacy name, so it ages out with its own 90-day expiry.
 
@@ -210,38 +208,30 @@ Why this matters for COD: the real conversion happens days after the click, when
 
 ### Cross-frame and cross-page preservation
 
-- `src/lib/checkout-navigation.ts` re-attaches all twelve tracking keys to intermediate checkout navigation URLs, reading from the current query string first and the `adsbook_click_ids` `sessionStorage` entry second. Checkout **completion** URLs are deliberately restricted to opaque order lookup values so no PII or attribution string leaks into a shareable confirmation link.
-- `public/adsbook-form-widget.js` carries the parent-page logic for embedded storefronts. It syncs the same twelve keys into the iframe `src`, recovers `_fbp`/`_fbc` from parent cookies when absent from the URL, and listens for origin-checked `postMessage` events. It is served by the store, so a merchant page picks up fixes on deploy — unlike the inline variant it replaced, which froze the same logic onto the merchant's page permanently and was removed on 2026-08-16.
+- `src/lib/checkout-navigation.ts` re-attaches all eleven tracking keys to intermediate checkout navigation URLs, reading from the current query string first and the `adsbook_click_ids` `sessionStorage` entry second. Checkout **completion** URLs are deliberately restricted to opaque order lookup values so no PII or attribution string leaks into a shareable confirmation link.
+- `public/adsbook-form-widget.js` carries the parent-page logic for embedded storefronts. It syncs the same eleven keys into the iframe `src`, recovers `_fbp`/`_fbc` from parent cookies when absent from the URL, and listens for origin-checked `postMessage` events. It is served by the store, so a merchant page picks up fixes on deploy — unlike the inline variant it replaced, which froze the same logic onto the merchant's page permanently and was removed on 2026-08-16.
 
-## 8. TikTok Signal Boundary
+## 8. TikTok — removed 2026-08-24
 
-TikTok support is narrower than Meta or Google and should not be described as a full integration.
+TikTok was never a full integration — no pixel base component, no Events API, no server outbox, no `event_id` dedup — only `ttclid` click-id capture and a `tiktok` traffic-source classification for the admin order filter. `STATUS.md`'s Tracking line had drifted to describe this as "TikTok event hooks", which overstated it. Rather than leave a partial, easily-misread surface in place, `ttclid` was removed from `CLICK_ID_KEYS`, the `tiktok` branch was removed from `parseTrafficSource` (and `TrafficSourceType`), and the "TikTok Ads" filter option was removed from the admin orders UI and its API. `orders.ad_click_ids` on rows captured before this keeps whatever `ttclid` it already holds — nothing is backfilled — and the `organic` filter still excludes `%ttclid%` so an old TikTok-attributed order does not misread as organic now that it has no category of its own; it falls to `custom` in `parseTrafficSource` if it also carries a `utm_source`, `organic` otherwise.
 
-What exists:
+If TikTok is wanted later, build it as a real integration — a pixel base component and a server-side Events API leg mirroring `meta-capi.ts` — rather than reintroducing click-id-only classification that reads as more than it is.
 
-- `ttclid` is a first-class member of `CLICK_ID_KEYS`, so it is captured in middleware, stored in the cookie for 90 days, persisted to `orders.ad_click_ids`, and forwarded through checkout navigation and embed frames exactly like `gclid` and `fbclid`.
-- `src/lib/traffic-source.ts` classifies an order as `tiktok` when `ttclid` is present, or when `utm_source` contains `tiktok` or `tt`.
-- The embed snippets fire **no Purchase of their own**. `public/adsbook-form-widget.js` does fire Meta `AddToCart` / `InitiateCheckout` and a `gtag` event on the host page when those pixels are already present; what it never fires is a conversion. Until `c967faa` (2026-08-16) the parent listener fired Meta `Purchase`, a Google `conversion`, and TikTok `CompletePayment` on `checkout-redirect`/`order-complete` on a positive total alone — unqualified, before payment was verified, and with no `event_id`. That code is gone, and `src/lib/embed-markup.test.ts` now asserts that no generated snippet contains `fbq`, `ttq`, `gtag`, `dataLayer`, or any conversion event name.
+## 9. Embed Conversion Boundary
 
-What does **not** exist:
-
-- no TikTok pixel base component — AdsBookCMS never loads `ttq` itself, so the `CompletePayment` call only fires when the **host page** already has the TikTok pixel installed;
-- no TikTok pixel ID field in store configuration;
-- no TikTok Events API (server-side) delivery, and no outbox rows for TikTok;
-- no `event_id` deduplication between any browser `ttq` call and a server event;
-- no TikTok conversion is emitted from an embedded checkout at all, by design — the embed sits on a third-party page, has no order number at redirect time, and cannot reach the database, so it can never qualify a purchase.
+The embed snippets fire **no Purchase of their own**. `public/adsbook-form-widget.js` does fire Meta `AddToCart` / `InitiateCheckout` and a `gtag` event on the host page when those pixels are already present; what it never fires is a conversion. Until `c967faa` (2026-08-16) the parent listener fired Meta `Purchase`, a Google `conversion`, and (when the host page already had a TikTok pixel installed) a TikTok `CompletePayment` on `checkout-redirect`/`order-complete` on a positive total alone — unqualified, before payment was verified, and with no `event_id`. That code is gone, and `src/lib/embed-markup.test.ts` now asserts that no generated snippet contains `fbq`, `ttq`, `gtag`, `dataLayer`, or any conversion event name. No conversion is emitted from an embedded checkout at all, by design — the embed sits on a third-party page, has no order number at redirect time, and cannot reach the database, so it can never qualify a purchase.
 
 The embed `postMessage` types use the `adsbook:` prefix, renamed from `cmsads:` on 2026-08-16 together with the widget file and its custom element. The consequence differs per snippet, and the difference is operationally important:
 
 | Snippet | Where its code lives | On deploy |
 | --- | --- | --- |
 | `widget` | `/adsbook-form-widget.js`, served by the store | **self-heals** — the browser revalidates it; only `/_astro/*` is immutable |
-| ~~`autoHeightIframe`~~ | **inline on the merchant's own page** | **Removed 2026-08-16.** It could never heal, so it is no longer generated. Pages that already pasted it still fire the old unqualified Purchase, Google conversion and TikTok CompletePayment and always will — deletion stops new ones, it cannot retract existing ones |
+| ~~`autoHeightIframe`~~ | **inline on the merchant's own page** | **Removed 2026-08-16.** It could never heal, so it is no longer generated. Pages that already pasted it still fire the old unqualified Purchase, Google conversion, and (where the host page had `ttq`) TikTok CompletePayment, and always will — deletion stops new ones, it cannot retract existing ones |
 | `plainIframe` | nothing but an iframe | unaffected; never carried tracking |
 
 An embed pasted before 2026-08-16 must be re-copied from `/admin/products`. The product now **detects** this: every generated snippet stamps a version marker onto its frame URL, and `/embed/form` logs `embed-snippet-stale` with the merchant's origin when the marker is missing or behind. An absent marker reads as version 1, so every pre-existing snippet is caught. A merchant page served over HTTP sends no referrer and cannot be attributed.
 
-## 9. Google Ads Conversion Signal Protocol
+## 10. Google Ads Conversion Signal Protocol
 
 ### Tag integration
 
@@ -351,7 +341,7 @@ Consequences to keep in mind:
 2. COD orders qualify on successful server order creation; prepaid online orders qualify only after authenticated `is_paid: true` reconciliation.
 3. Keeping unverified checkout attempts out of the conversion feed is what prevents Target CPA / Target ROAS from optimizing toward non-revenue.
 
-## 10. CAPI Event Outbox
+## 11. CAPI Event Outbox
 
 `src/lib/capi-outbox.ts` is the durable delivery layer for Meta CAPI. Its purpose: a conversion event is recorded in D1 **before** it is transmitted, so a network blip, a Meta rate limit, or an expired token cannot silently discard revenue signal.
 
@@ -383,7 +373,7 @@ On a successful send the `attempts` counter is not incremented and `last_error` 
 
 Draining is opportunistic, triggered by later storefront traffic and scheduled through `waitUntil()`. There is no cron trigger and no queue binding, because the Astro Cloudflare adapter owns the Worker entrypoint. A store with no traffic therefore does not drain; a failed event waits for the next visitor.
 
-## 11. Browser and Server Payload Boundary
+## 12. Browser and Server Payload Boundary
 
 ### `/api/meta-event` (first-party, same-origin)
 
@@ -430,7 +420,7 @@ Conceptual Purchase data:
 
 This example describes field meaning; it is not merchant data or a live credential.
 
-## 12. Payment and Purchase Qualification
+## 13. Payment and Purchase Qualification
 
 ### COD
 
@@ -442,7 +432,7 @@ Order creation alone is not Purchase. `/api/order-status` reads the existing D1 
 
 Payment success, provider acceptance, ad-platform acceptance, attribution, and reported revenue are separate observable facts.
 
-## 13. Consent and Privacy Boundary
+## 14. Consent and Privacy Boundary
 
 The implementation must:
 
@@ -452,9 +442,9 @@ The implementation must:
 - record consent state separately from event delivery;
 - avoid claiming jurisdiction-specific compliance without a reviewed legal basis.
 
-Current state: Consent Mode v2 defaults ship as described in §9, but there is **no consent management platform and no `gtag('consent', 'update', …)` call anywhere in the repository**, and no framework-neutral consent adapter for headless storefronts. Both remain planned work.
+Current state: Consent Mode v2 defaults ship as described in §10, but there is **no consent management platform and no `gtag('consent', 'update', …)` call anywhere in the repository**, and no framework-neutral consent adapter for headless storefronts. Both remain planned work.
 
-## 14. Headless Storefront Implementation Checklist
+## 15. Headless Storefront Implementation Checklist
 
 An agent implementing a new frontend must:
 
@@ -473,7 +463,7 @@ An agent implementing a new frontend must:
 13. inspect browser Pixel, dataLayer, gtag, and API requests on the exact store origin;
 14. record local browser evidence separately from Meta Test Events, live API acceptance, attribution, and campaign results.
 
-## 15. Verification Contract
+## 16. Verification Contract
 
 Run the repository's own commands:
 
@@ -498,4 +488,4 @@ For the selected storefront:
 - verify no CAPI token appears in HTML, JavaScript, network response, or logs;
 - use Meta Test Events only with an operator-provided test code and explicit outbound-call approval.
 
-A passing local test or build does not prove live Meta/Google/TikTok acceptance, Event Match Quality, attribution, catalog health, or campaign performance. Record exact observed results and non-actions in `STATUS.md` and `BUILD-LOG.md`.
+A passing local test or build does not prove live Meta/Google acceptance, Event Match Quality, attribution, catalog health, or campaign performance. Record exact observed results and non-actions in `STATUS.md` and `BUILD-LOG.md`.

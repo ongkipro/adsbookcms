@@ -317,7 +317,7 @@ AdsBookCMS gives one merchant a complete direct-response storefront: catalog, la
 | REQ-50 | Browser and server Purchase events shall share one per-order event id and the same canonical Product ID so the platform deduplicates them. | Implemented — both legs share the verified `INV-` order number and send the numeric Product ID published by the catalog feeds |
 | REQ-51 | Server-side conversion delivery shall be durable, with retry and attempt accounting, and shall survive a failed outbound call. | Implemented |
 | REQ-52 | CAPI tokens shall remain server-side and shall never reach the browser. | Implemented |
-| REQ-53 | The system shall capture and preserve `gclid`, `gbraid`, `wbraid`, `fbclid`, and `ttclid` from landing through order persistence. | Implemented |
+| REQ-53 | The system shall capture and preserve `gclid`, `gbraid`, `wbraid`, and `fbclid` from landing through order persistence. | Implemented — `ttclid`/TikTok removed 2026-08-24 (TRACKING_SPECS.md §8); it was click-id capture and an admin traffic-source label only, never a Pixel or Events API integration |
 | REQ-54 | Google Consent Mode shall default to denied in regulated regions before the granted default is applied. | Implemented |
 | REQ-55 | A page interaction or an unqualified order shall never be reported as a Purchase. | Implemented |
 | REQ-56 | Product category taxonomy in the catalog feeds shall resolve to the correct Google product category for each item. | Partial — matching is deterministic and confidence-gated (whole words, 3× name weighting, capped description contribution, unique winner); what remains is a compiled nine-rule set with no merchant-managed mapping or confirmation workflow |

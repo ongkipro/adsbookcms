@@ -25,11 +25,14 @@ test('parseTrafficSource identifies Google Ads from gclid, gbraid, or wbraid', (
   assert.equal(sourceGbraid.label, 'Google Ads');
 });
 
-test('parseTrafficSource identifies TikTok Ads from ttclid or utm_source tiktok', () => {
-  const sourceTikTok = parseTrafficSource(JSON.stringify({ ttclid: 'E_123456' }));
-  assert.equal(sourceTikTok.type, 'tiktok');
-  assert.equal(sourceTikTok.label, 'TikTok Ads');
-  assert.ok(sourceTikTok.badgeClass.includes('purple'));
+test('a leftover ttclid from before TikTok support was removed reads as organic, not a phantom category', () => {
+  // TikTok classification was removed 2026-08-24 (TRACKING_SPECS.md §8). An
+  // order whose ad_click_ids still holds a ttclid from before that — nothing
+  // was backfilled — must not resolve to a `TrafficSourceType` that no longer
+  // exists in the union; it falls through to organic like any other unknown key.
+  const source = parseTrafficSource(JSON.stringify({ ttclid: 'E_123456' }));
+  assert.equal(source.type, 'organic');
+  assert.equal(source.label, 'Organic / Direct');
 });
 
 test('parseTrafficSource identifies Organic / Direct when adClickIds is empty or absent', () => {

@@ -21,7 +21,6 @@
     "_fbp",
     "_fbc",
     "fbclid",
-    "ttclid",
     "utm_source",
     "utm_medium",
     "utm_campaign",

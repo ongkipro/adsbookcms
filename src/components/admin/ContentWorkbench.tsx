@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { canConvertToWebP, convertImageToWebP } from "../../lib/client-image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -148,6 +149,15 @@ export function ContentWorkbench() {
     const form = new FormData(event.currentTarget);
     setUploading(true);
     try {
+      // This is the path hero and content images arrive through, and it used
+      // to store the raw file — up to 5MB, unresized. Convert with the same
+      // shared rules the product uploader applies; GIF and AVIF pass by
+      // because a canvas re-encode would flatten the one and inflate the
+      // other.
+      const original = form.get("file");
+      if (original instanceof File && canConvertToWebP(original.type)) {
+        form.set("file", await convertImageToWebP(original));
+      }
       const response = await fetch("/api/admin/media", {
         method: "POST",
         body: form,

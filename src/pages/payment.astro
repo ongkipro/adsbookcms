@@ -36,7 +36,9 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         <!-- Order Header & Status Pill -->
         <div class="flex items-center justify-between gap-3 rounded-none border border-[#E5E5E5] bg-[#F5F5F5] px-4 py-3">
           <div>
-            <p class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#767676]">No. Pesanan</p>
+            <!-- #555555, not the #767676 used on white: on the #F5F5F5 panel
+                 that lighter grey measures 4.16:1, under the 4.5 AA floor. -->
+            <p class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#555555]">No. Pesanan</p>
             <p id="order-number" class="mt-0.5 font-mono text-sm font-bold tracking-wider text-[#111111]">Memuat...</p>
           </div>
           <!-- The base classes stay in the markup and the script swaps only the
@@ -119,7 +121,7 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         <!-- Virtual Account / Payment Code Display Section -->
         <div id="account-section" class="mt-5 rounded-none border border-[#E5E5E5] bg-[#F5F5F5] p-4" hidden>
           <div class="flex items-center justify-between gap-3">
-            <p id="account-label" class="min-w-0 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#767676]">Nomor Virtual Account</p>
+            <p id="account-label" class="min-w-0 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#555555]">Nomor Virtual Account</p>
             <span id="account-verification" class="shrink-0 rounded-none border border-[#E5E5E5] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#555555]">Verifikasi Admin</span>
           </div>
           <div class="mt-2 flex items-center justify-between gap-3 rounded-none border border-[#E5E5E5] bg-white p-3">
@@ -149,7 +151,13 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
                parenthesis on the title row. Every Virtual Account label is
                longer than the row, so the inline form wrapped mid-phrase and
                left the closing bracket stranded on its own line. -->
-          <button id="toggle-instructions" type="button" class="flex w-full items-center justify-between gap-3 bg-[#F5F5F5] px-4 py-3.5 text-left transition-colors hover:bg-[#eef4fc]">
+          <button
+            id="toggle-instructions"
+            type="button"
+            aria-expanded="false"
+            aria-controls="instructions-body"
+            class="flex w-full items-center justify-between gap-3 bg-[#F5F5F5] px-4 py-3.5 text-left transition-colors hover:bg-[#eef4fc]"
+          >
             <span class="flex min-w-0 items-center gap-2">
               <Icon name="lucide:help-circle" class="size-4 shrink-0 text-[#2c6ecb]" aria-hidden="true" />
               <span class="min-w-0">
@@ -654,14 +662,12 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
 
     // Accordion Toggle
     toggleInstructionsBtn.addEventListener('click', () => {
-      const isHidden = instructionsBody.classList.contains('hidden');
-      if (isHidden) {
-        instructionsBody.classList.remove('hidden');
-        instructionsChevron.classList.add('rotate-180');
-      } else {
-        instructionsBody.classList.add('hidden');
-        instructionsChevron.classList.remove('rotate-180');
-      }
+      const willOpen = instructionsBody.classList.contains('hidden');
+      instructionsBody.classList.toggle('hidden', !willOpen);
+      instructionsChevron.classList.toggle('rotate-180', willOpen);
+      // Without this a screen reader announces a button that never changes,
+      // and the checkout form's own group heads already carry the state.
+      toggleInstructionsBtn.setAttribute('aria-expanded', String(willOpen));
     });
 
     // Download QR Canvas Image

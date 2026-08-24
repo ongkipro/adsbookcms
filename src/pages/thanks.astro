@@ -39,6 +39,7 @@ const productCatalog = products.map((item) => ({
   description={`Halaman konfirmasi pesanan ${Astro.locals.tenant.name}.`}
   hideHeader={true}
   hideFooter={true}
+  noindex
 >
   <script is:inline slot="head">
     if (window.location.search) {

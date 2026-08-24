@@ -8,6 +8,8 @@ import Icon from '../../components/storefront/shared/Icon.astro';
 import RatingStars from '../../components/storefront/shared/RatingStars.astro';
 import GeoIpResolvedForm from '../../components/storefront/forms/GeoIpResolvedForm.astro';
 import ProductImageGallery from '../../components/storefront/ProductImageGallery.astro';
+import SocialProofToast from '../../components/storefront/shared/SocialProofToast.astro';
+import { cardImageSrc } from '../../lib/image-derivative';
 import { resolveFormModeContext } from '../../lib/form-mode';
 import '../../styles/form-hybrid.css';
 import { defaultCatalogContentId } from '../../lib/catalog-feed';
@@ -448,8 +450,16 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
       <GeoIpResolvedForm mode={formContext.mode} province={formContext.province} productSlug={product.slug} embedded={true} />
     </section>
 
-    <!-- Sticky Mobile Purchase Bar (Auto-hides when order form is visible) -->
-    <div id="sticky-purchase-bar" class="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-[480px] items-center justify-between border-fade-t bg-white/95 px-5 py-3 shadow-[0_-8px_24px_rgba(17,17,17,0.08)] backdrop-blur-md transition-all duration-300 lg:hidden">
+    <SocialProofToast
+      productLabel={product.productName}
+      productImage={cardImageSrc(productImages[0] ?? product.heroImage)}
+    />
+
+    <!-- Sticky Mobile Purchase Bar (Auto-hides while the hero or the order
+         form is visible: over the hero it covers the product photo before the
+         visitor has read anything, and over the form its CTA points at a form
+         already on screen) -->
+    <div id="sticky-purchase-bar" class="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-[480px] items-center justify-between border-fade-t bg-white/95 px-5 py-3 shadow-[0_-8px_24px_rgba(17,17,17,0.08)] backdrop-blur-md transition-all duration-300 lg:hidden" style="transform: translateY(100%); opacity: 0; pointer-events: none;">
       <div>
         <p class="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#555555]">Harga Promo</p>
         <p class="text-base font-bold text-[#111111]">Rp{Math.round(displayPrice).toLocaleString('id-ID')}</p>
@@ -467,26 +477,42 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     function initStickyBarObserver() {
       const stickyBar = document.getElementById('sticky-purchase-bar');
       const orderForm = document.getElementById('form-pemesanan');
+      const hero = document.querySelector('[data-gallery]');
       if (!stickyBar || !orderForm) return;
+
+      // The bar hides while EITHER blocker is on screen. It also starts hidden
+      // in the markup, because the hero fills the first viewport — waiting for
+      // the observer's first callback used to flash the bar over the photo.
+      let heroVisible = true;
+      let formVisible = false;
+
+      const applyStickyVisibility = () => {
+        if (heroVisible || formVisible) {
+          stickyBar.style.transform = 'translateY(100%)';
+          stickyBar.style.opacity = '0';
+          stickyBar.style.pointerEvents = 'none';
+        } else {
+          stickyBar.style.transform = 'translateY(0)';
+          stickyBar.style.opacity = '1';
+          stickyBar.style.pointerEvents = 'auto';
+        }
+      };
 
       const observer = new IntersectionObserver(
         (entries) => {
           entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              stickyBar.style.transform = 'translateY(100%)';
-              stickyBar.style.opacity = '0';
-              stickyBar.style.pointerEvents = 'none';
-            } else {
-              stickyBar.style.transform = 'translateY(0)';
-              stickyBar.style.opacity = '1';
-              stickyBar.style.pointerEvents = 'auto';
-            }
+            if (entry.target === hero) heroVisible = entry.isIntersecting;
+            if (entry.target === orderForm) formVisible = entry.isIntersecting;
           });
+          applyStickyVisibility();
         },
         { threshold: 0, rootMargin: '0px 0px -40px 0px' }
       );
 
+      if (hero) observer.observe(hero);
+      else heroVisible = false;
       observer.observe(orderForm);
+      applyStickyVisibility();
     }
 
     if (document.readyState === 'loading') {

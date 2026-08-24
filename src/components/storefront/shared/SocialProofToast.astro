@@ -1,0 +1,238 @@
+---
+/**
+ * Purchase social-proof toast, top center.
+ *
+ * Adapted from petanisejahtera's SocialProof.astro — the same discipline
+ * carries over: aria-hidden because the content is marketing persuasion, not
+ * functional information, and repeated announcements would harass a screen
+ * reader user; because it is aria-hidden, nothing focusable may live inside;
+ * pointer-events-none is PERMANENT so the toast can never intercept a tap on
+ * the top of the screen.
+ *
+ * It stays hidden while the hero or the order form is on screen and while a
+ * form field holds focus: over the hero it competes with the product photo,
+ * and over the form it competes with the thing it exists to cause.
+ */
+import Icon from './Icon.astro';
+
+interface Props {
+  /** Product name shown as "Baru saja memesan <label>". */
+  productLabel: string;
+  /** Thumbnail, ideally the card derivative (`cardImageSrc`). */
+  productImage: string;
+  /** Selector for the hero element that blocks the toast. */
+  heroSelector?: string;
+  /** Selector for the order-form section that blocks the toast. */
+  formSelector?: string;
+}
+
+const {
+  productLabel,
+  productImage,
+  heroSelector = '[data-gallery]',
+  formSelector = '#form-pemesanan',
+} = Astro.props;
+---
+
+<div
+  data-social-proof
+  data-hero-selector={heroSelector}
+  data-form-selector={formSelector}
+  aria-hidden="true"
+  class="pointer-events-none fixed left-1/2 top-4 z-40 w-[calc(100%-2rem)] max-w-[360px] -translate-x-1/2 -translate-y-16 scale-95 opacity-0"
+>
+  <div
+    class="flex items-center gap-3 rounded-full border border-[#E5E5E5] bg-white/95 p-2 pr-4 shadow-[0_12px_24px_rgba(17,17,17,0.08),0_4px_12px_rgba(17,17,17,0.04)] backdrop-blur-md"
+  >
+    <div
+      class="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[#F5F5F5] ring-1 ring-[#E5E5E5]"
+    >
+      <img
+        src={productImage}
+        alt=""
+        width="40"
+        height="40"
+        class="h-full w-full object-cover"
+        loading="lazy"
+        decoding="async"
+      />
+    </div>
+
+    <div class="min-w-0 flex-1 text-left">
+      <div class="flex items-center gap-1">
+        <span class="truncate text-[12.5px] font-bold text-[#111111]" data-buyer-name></span>
+        <span class="inline-flex shrink-0 text-[#2c6ecb]">
+          <Icon name="lucide:badge-check" class="h-4 w-4" />
+        </span>
+        <span class="ml-auto shrink-0 text-[10.5px] font-medium text-[#555555]" data-buyer-time></span>
+      </div>
+      <p class="mt-0.5 truncate text-[11.5px] leading-tight text-[#555555]">
+        Baru saja memesan <strong class="font-semibold text-[#1f5199]">{productLabel}</strong><span
+          class="text-[10.5px] text-[#555555]"
+          data-buyer-location></span>
+      </p>
+    </div>
+  </div>
+</div>
+
+<style>
+  [data-social-proof] {
+    transition:
+      transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 0.4s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-social-proof] {
+      transition: opacity 0.2s ease;
+    }
+  }
+</style>
+
+<script>
+  const initSocialProof = () => {
+    const toast = document.querySelector<HTMLElement>('[data-social-proof]');
+    if (!toast) return;
+
+    const hero = toast.dataset.heroSelector
+      ? document.querySelector(toast.dataset.heroSelector)
+      : null;
+    const formSection = toast.dataset.formSelector
+      ? document.querySelector(toast.dataset.formSelector)
+      : null;
+
+    const buyers = [
+      { name: 'Ibu Ratna', location: 'Bekasi, Jawa Barat', time: 'Baru saja' },
+      { name: 'Bapak Hendra', location: 'Medan, Sumut', time: '2 mnt lalu' },
+      { name: 'Ibu Sari', location: 'Tangerang, Banten', time: '1 mnt lalu' },
+      { name: 'Bapak Yusuf', location: 'Makassar, Sulsel', time: '5 mnt lalu' },
+      { name: 'Ibu Dewi', location: 'Semarang, Jateng', time: '3 mnt lalu' },
+      { name: 'Bapak Rizki', location: 'Palembang, Sumsel', time: '4 mnt lalu' },
+      { name: 'Ibu Fitri', location: 'Depok, Jawa Barat', time: '7 mnt lalu' },
+      { name: 'Bapak Agus', location: 'Denpasar, Bali', time: 'Baru saja' },
+      { name: 'Ibu Lestari', location: 'Surabaya, Jatim', time: '6 mnt lalu' },
+      { name: 'Bapak Dimas', location: 'Bogor, Jawa Barat', time: '2 mnt lalu' },
+      { name: 'Ibu Yanti', location: 'Pekanbaru, Riau', time: '8 mnt lalu' },
+      { name: 'Bapak Fauzi', location: 'Banjarmasin, Kalsel', time: '3 mnt lalu' },
+      { name: 'Ibu Nita', location: 'Bandung, Jawa Barat', time: '5 mnt lalu' },
+      { name: 'Bapak Eko', location: 'Balikpapan, Kaltim', time: '1 mnt lalu' },
+      { name: 'Ibu Rahma', location: 'Malang, Jawa Timur', time: '9 mnt lalu' },
+      { name: 'Bapak Irfan', location: 'Padang, Sumbar', time: '4 mnt lalu' },
+      { name: 'Ibu Wulan', location: 'Solo, Jawa Tengah', time: 'Baru saja' },
+      { name: 'Bapak Taufik', location: 'Cirebon, Jawa Barat', time: '6 mnt lalu' },
+      { name: 'Ibu Endah', location: 'Yogyakarta, DIY', time: '2 mnt lalu' },
+      { name: 'Bapak Salman', location: 'Serang, Banten', time: '5 mnt lalu' },
+    ];
+
+    // Fisher-Yates: `sort(() => Math.random() - 0.5)` is not a uniform shuffle.
+    const shuffled = [...buyers];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    let currentIndex = 0;
+    let isHeroVisible = true;
+    let isFormVisible = false;
+    let isFormFocused = false;
+    let isToastShowing = false;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
+    const nameEl = toast.querySelector('[data-buyer-name]');
+    const locEl = toast.querySelector('[data-buyer-location]');
+    const timeEl = toast.querySelector('[data-buyer-time]');
+
+    const clearTimer = () => {
+      if (timerId) clearTimeout(timerId);
+      timerId = null;
+    };
+
+    // A hidden tab blocks too: a toast in an invisible tab persuades nobody.
+    const isBlocked = () =>
+      isHeroVisible || isFormVisible || isFormFocused || document.hidden;
+
+    const hideToast = () => {
+      toast.classList.add('opacity-0', '-translate-y-16', 'scale-95');
+      toast.classList.remove('opacity-100', 'translate-y-0', 'scale-100');
+      isToastShowing = false;
+      clearTimer();
+    };
+
+    const showToast = () => {
+      clearTimer();
+      if (isBlocked()) {
+        timerId = setTimeout(showToast, 3000);
+        return;
+      }
+
+      const buyer = shuffled[currentIndex];
+      if (nameEl) nameEl.textContent = buyer.name;
+      if (locEl) locEl.textContent = ` • ${buyer.location}`;
+      if (timeEl) timeEl.textContent = buyer.time;
+
+      toast.classList.remove('opacity-0', '-translate-y-16', 'scale-95');
+      toast.classList.add('opacity-100', 'translate-y-0', 'scale-100');
+      isToastShowing = true;
+
+      const duration = Math.floor(Math.random() * (15000 - 8000 + 1)) + 8000;
+      timerId = setTimeout(() => {
+        hideToast();
+        const delayNext = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
+        currentIndex = (currentIndex + 1) % shuffled.length;
+        timerId = setTimeout(showToast, delayNext);
+      }, duration);
+    };
+
+    const handleVisibilityUpdate = () => {
+      if (isBlocked()) {
+        if (isToastShowing) hideToast();
+      } else if (!isToastShowing) {
+        showToast();
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.target === hero) isHeroVisible = entry.isIntersecting;
+          if (entry.target === formSection) isFormVisible = entry.isIntersecting;
+        });
+        handleVisibilityUpdate();
+      },
+      { root: null, threshold: 0.05 },
+    );
+
+    if (hero) observer.observe(hero);
+    else isHeroVisible = false;
+    if (formSection) observer.observe(formSection);
+
+    document.addEventListener('visibilitychange', handleVisibilityUpdate);
+
+    if (formSection) {
+      formSection.querySelectorAll('input, textarea, select').forEach((field) => {
+        field.addEventListener('focus', () => {
+          isFormFocused = true;
+          handleVisibilityUpdate();
+        });
+        field.addEventListener('blur', () => {
+          setTimeout(() => {
+            const active = document.activeElement;
+            if (!active || !formSection.contains(active)) {
+              isFormFocused = false;
+              handleVisibilityUpdate();
+            }
+          }, 100);
+        });
+      });
+    }
+
+    showToast();
+  };
+
+  // Deferred 2s past load so it cannot touch LCP/INP.
+  if (document.readyState === 'complete') {
+    setTimeout(initSocialProof, 2000);
+  } else {
+    window.addEventListener('load', () => setTimeout(initSocialProof, 2000));
+  }
+</script>

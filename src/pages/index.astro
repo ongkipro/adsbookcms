@@ -53,6 +53,7 @@ const itemList = {
   title={homepageTitle}
   description={Astro.locals.tenant.description}
   image={content?.heroSlides[0]?.image ?? Astro.locals.tenant.logo}
+  preloadImages={content?.heroSlides[0]?.image}
   itemList={ready ? itemList : undefined}
 >
   {

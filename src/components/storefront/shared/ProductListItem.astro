@@ -21,9 +21,14 @@ interface Props {
     variants: ProductVariant[];
   };
   formatPrice: (value: number) => string;
+  /** Above-the-fold cards only. On /produk the first row is the page's LCP
+   *  element, and a lazy LCP image is the one thing lazy-loading must never
+   *  touch — under Slow 4G it spent 726ms of a 919ms LCP merely waiting to
+   *  be requested. The homepage grid sits below the hero and stays lazy. */
+  eager?: boolean;
 }
 
-const { product, formatPrice } = Astro.props;
+const { product, formatPrice, eager = false } = Astro.props;
 const comparePrice = product.comparePrice ?? 0;
 const hasDiscount = comparePrice > product.price;
 const discountPercentage = hasDiscount
@@ -43,7 +48,8 @@ const discountPercentage = hasDiscount
         width="320"
         height="320"
         class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-        loading="lazy"
+        loading={eager ? 'eager' : 'lazy'}
+        fetchpriority={eager ? 'high' : undefined}
         decoding="async"
       />
       {discountPercentage > 0 && (

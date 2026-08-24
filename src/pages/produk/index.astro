@@ -32,7 +32,10 @@ const INITIAL_COUNT = 10;
           <div class="grid grid-cols-2 gap-3" id="product-grid">
             {products.map((product, index) => (
               <div class={`product-card-item ${index >= INITIAL_COUNT ? 'hidden' : ''}`} data-index={index}>
-                <ProductListItem product={product} formatPrice={formatIdr} eager={index < 2} />
+                {/* Two rows, not one: at 390x844 the second row is fully
+                    visible, and a throttled trace on the live store picked
+                    card #3 as the LCP element — still lazy under index < 2. */}
+                <ProductListItem product={product} formatPrice={formatIdr} eager={index < 4} />
               </div>
             ))}
           </div>

@@ -180,6 +180,14 @@ const { tenantName, tenantSlug } = Astro.props;
       const normalizedPhone = toE164Digits(phone);
       const firstName = normalizeMetaText(nameParts[0]);
       const lastName = nameParts.length > 1 ? normalizeMetaText(nameParts.slice(1).join('')) : undefined;
+      // The CAPI leg below (postMeta's user_data) hashes ct/st/zp/country on
+      // this exact Purchase already. Dropping them from the browser Pixel leg
+      // — as this used to — sent Meta two different match keys for the same
+      // order: a full one server-side, a phone-and-name-only one client-side.
+      const metaCity = normalizeMetaText(city);
+      const metaState = normalizeMetaText(province);
+      const metaZip = normalizeMetaText(postalCode);
+      const metaCountry = normalizeMetaText('id');
       try {
         if (window.fbq) {
           const pixelId = window.__META_PIXEL_ID__;
@@ -188,6 +196,10 @@ const { tenantName, tenantSlug } = Astro.props;
               ph: normalizedPhone ? await hashSha256Hex(normalizedPhone) : undefined,
               fn: firstName ? await hashSha256Hex(firstName) : undefined,
               ln: lastName ? await hashSha256Hex(lastName) : undefined,
+              ct: metaCity ? await hashSha256Hex(metaCity) : undefined,
+              st: metaState ? await hashSha256Hex(metaState) : undefined,
+              zp: metaZip ? await hashSha256Hex(metaZip) : undefined,
+              country: metaCountry ? await hashSha256Hex(metaCountry) : undefined,
               external_id: normalizedPhone ? await hashSha256Hex(normalizedPhone) : undefined,
               client_user_agent: navigator.userAgent,
             });
@@ -239,7 +251,12 @@ const { tenantName, tenantSlug } = Astro.props;
               city: googleText(city),
               region: googleText(province),
               postal_code: googleText(postalCode),
-              country: 'id',
+              // ISO 3166-1 alpha-2, uppercase per Google's enhanced-conversions
+              // documentation (support.google.com/google-ads/answer/13258081,
+              // whose own example is 'UK') — unlike Meta's `country`, which wants
+              // lowercase. Two different ad platforms, two different cases; do
+              // not let one leg's normaliser bleed into the other's.
+              country: 'ID',
             },
           };
           window.__PS_PUSH_GOOGLE_CONVERSION__(Number(conversionValue || 1), orderId || undefined, googleUserData);

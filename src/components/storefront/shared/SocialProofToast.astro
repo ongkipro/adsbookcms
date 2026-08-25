@@ -99,6 +99,14 @@ const {
 </style>
 
 <script>
+  // The rules live in a module both this component and its tests can load;
+  // this script is the DOM wiring around them. See social-proof-visibility.ts.
+  import {
+    isToastBlocked,
+    nextBuyerIndex,
+    shuffleBuyers,
+  } from '../../../lib/social-proof-visibility.ts';
+
   const initSocialProof = () => {
     const toast = document.querySelector<HTMLElement>('[data-social-proof]');
     if (!toast) return;
@@ -141,12 +149,7 @@ const {
       { name: 'Bapak Salman', location: 'Serang, Banten', time: '5 mnt lalu' },
     ];
 
-    // Fisher-Yates: `sort(() => Math.random() - 0.5)` is not a uniform shuffle.
-    const shuffled = [...buyers];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
+    const shuffled = shuffleBuyers(buyers);
 
     let currentIndex = 0;
     let isHeroVisible = true;
@@ -164,9 +167,13 @@ const {
       timerId = null;
     };
 
-    // A hidden tab blocks too: a toast in an invisible tab persuades nobody.
     const isBlocked = () =>
-      isHeroVisible || isFormVisible || isFormFocused || document.hidden;
+      isToastBlocked({
+        heroVisible: isHeroVisible,
+        formVisible: isFormVisible,
+        formFocused: isFormFocused,
+        tabHidden: document.hidden,
+      });
 
     const hideToast = () => {
       toast.classList.add('opacity-0', '-translate-y-16', 'scale-95');
@@ -195,7 +202,7 @@ const {
       timerId = setTimeout(() => {
         hideToast();
         const delayNext = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
-        currentIndex = (currentIndex + 1) % shuffled.length;
+        currentIndex = nextBuyerIndex(currentIndex, shuffled.length);
         timerId = setTimeout(showToast, delayNext);
       }, duration);
     };

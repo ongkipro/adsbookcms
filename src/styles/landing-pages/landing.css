@@ -19,7 +19,16 @@
 
 .lp-section {
   display: block;
-  padding-inline: 20px;
+  /* 16px, matching the order form's own `px-4` inset.
+   *
+   * A landing page interleaves these operator-authored blocks with form
+   * sections, and the form section is deliberately full width — it owns its
+   * horizontal spacing internally, so nothing wraps it in padding. At 20px
+   * here the copy sat 4px further in than every field below it, a step visible
+   * exactly where the page asks for the order. The form's inset is the
+   * reference because it is the one this side cannot change without touching
+   * checkout. */
+  padding-inline: 16px;
   padding-block: 28px;
   color: #111111;
   font-size: 15px;

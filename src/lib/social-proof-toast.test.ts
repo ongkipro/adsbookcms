@@ -144,6 +144,25 @@ test("a missing or invalid blocker selector degrades instead of stranding the to
   assert.match(TOAST, /else isHeroVisible = false;/);
 });
 
+test("hero and form both default to blocking until the observer confirms otherwise", () => {
+  // The IntersectionObserver's first callback is always asynchronous, so the
+  // unconditional showToast() at the end of init runs on these defaults, not
+  // on real data. Only the hero used to default safe (true); form defaulted
+  // to false, so a form already in view at load — a short landing page, or a
+  // tall viewport where the form sits high on the product page — let the
+  // toast flash over it, then hide once the real callback landed, then show
+  // again for the same buyer once truly unblocked: a flash-hide-reshow that
+  // reads as a duplicate notification. Both must default true (blocked) and
+  // both must correct to false only when there is nothing to observe.
+  assert.match(TOAST, /let isHeroVisible = true;/);
+  assert.match(TOAST, /let isFormVisible = true;/);
+  assert.match(TOAST, /if \(hero\) observer\.observe\(hero\);\s*else isHeroVisible = false;/);
+  assert.match(
+    TOAST,
+    /if \(formSection\) observer\.observe\(formSection\);\s*else isFormVisible = false;/,
+  );
+});
+
 test("init is deferred past load so the toast cannot touch LCP or INP", () => {
   assert.match(TOAST, /setTimeout\(initSocialProof, 2000\)/);
   assert.match(TOAST, /window\.addEventListener\('load'/);

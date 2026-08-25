@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-08-22 @ `5550a61` on `main`
+> Verified against disk: 2026-08-25 @ `17f3b9a` + Google offline delivery working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -108,14 +108,14 @@ Two registries, currently in step:
 | Source | Field | Value |
 | --- | --- | --- |
 | `src/lib/version.ts` | `version` | `1.3.1` |
-| `src/lib/version.ts` | `releaseTag` | `2026.08-landing` |
-| `src/lib/version.ts` | `schemaVersion` | `48` |
+| `src/lib/version.ts` | `releaseTag` | `2026.08-google-offline` |
+| `src/lib/version.ts` | `schemaVersion` | `49` |
 | `package.json` | `version` | `1.3.1` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration files, and the tree holds 48 (`0000`–`0047`).
+`schemaVersion` counts migration files, and the tree holds 49 (`0000`–`0048`).
 `schema-version.test.ts` fails CI on drift; middleware enforces the same chain at
 runtime; `operational-health.ts` and the dashboard expose applied version.
 

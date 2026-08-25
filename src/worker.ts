@@ -10,6 +10,11 @@ import { collectOperationalHealth } from "./lib/operational-health.ts";
 import { ensureSchemaUpgraded } from "./lib/schema-version.ts";
 import { drainCapiOutbox } from "./lib/capi-outbox.ts";
 import { getStoreAdsConfig } from "./lib/store-ads.ts";
+import {
+  drainGoogleAdsConversionOutbox,
+  readGoogleAdsOfflineConfig,
+  reconcileGoogleAdsConversions,
+} from "./lib/google-ads-offline.ts";
 type AstroRequest = Parameters<typeof handle>[0];
 
 async function runScheduledMaintenance(
@@ -33,6 +38,17 @@ async function runScheduledMaintenance(
     ads.metaPixelId && ads.metaCapiToken
       ? await drainCapiOutbox(env.OMS_DB, ads.metaPixelId, ads.metaCapiToken)
       : 0;
+  const googleAdsOffline = readGoogleAdsOfflineConfig(env);
+  const queuedGoogleAdsConversions = googleAdsOffline
+    ? await reconcileGoogleAdsConversions(
+        env.OMS_DB,
+        googleAdsOffline,
+        new Date(scheduledTime),
+      )
+    : 0;
+  const drainedGoogleAdsConversions = googleAdsOffline
+    ? await drainGoogleAdsConversionOutbox(env.OMS_DB, googleAdsOffline)
+    : 0;
 
   const health = await collectOperationalHealth(env.OMS_DB);
   const alerts = await evaluateOperationalAlerts(
@@ -50,6 +66,8 @@ async function runScheduledMaintenance(
     schemaState: health.build.schemaState,
     purgedAbandonedOrders,
     drainedCapiEvents,
+    queuedGoogleAdsConversions,
+    drainedGoogleAdsConversions,
     alerts: alerts.map(({ id, state, reason, transition, notification }) => ({
       id,
       state,

@@ -21,8 +21,8 @@ The previous version of this file described a different repository — it opened
 | Product | AdsBookCMS (single) |
 | Repository role | **Product.** Deploys nothing; CI runs check, test and build only |
 | Install model | 1 installer = 1 Worker = 1 store (ADR-001) |
-| Version | `1.3.1` / `2026.08-landing` (`src/lib/version.ts`) |
-| Schema | 48 migration files, `0000`-`0047` |
+| Version | `1.3.1` / `2026.08-google-offline` (`src/lib/version.ts`) |
+| Schema | 49 migration files, `0000`-`0048` |
 | Bindings | `OMS_DB` (D1), `SESSION` (KV), `ASSET_BUCKET` (R2), `AI`, `ASSETS` — names fixed across installs |
 | `wrangler.jsonc` | template of placeholders; each install supplies its own resources |
 
@@ -124,6 +124,14 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 **Operator notifications** — a new order, a missed-order lead, and a cleared payment each record exactly one notification, enforced by a unique index on `(type, order_id)` rather than by the caller. Recording is fail-open and can never affect the commerce write that triggered it. The admin topbar carries an unread badge and a panel, newest first, with read state per operator so one person clearing the badge does not blind the team; `advertiser` is refused the endpoint entirely. A browser notification is raised while an admin page is open, at most once per event per browser. Delivery while no admin page is open needs Web Push and is specified (`REQ-153`) but unbuilt.
 
 **Headless API** — nine `/api/v1/*` routes authenticated by API key and independently origin-checked. Every operation has a minimum scope; origin denials occur before quota, minute denials do not spend daily quota, and D1 records the final handler status exactly once without request payloads. The order-status route requires the order number plus its public status token and returns no customer PII.
+
+Google Ads API offline delivery is now implemented but remains disabled until an
+install provides its own optional API/OAuth secrets, customer ID, UPLOAD_CLICKS
+conversion action, and explicit start timestamp. Hourly maintenance reconciles
+online paid and COD delivered orders into a D1 outbox, uploads only orders with
+stored Google click identity, and retries transient failures. No install has
+those credentials yet; no remote migration, historical backfill, or API upload
+has occurred.
 
 **Tracking** — Meta Pixel plus server-side CAPI through a durable outbox with retry and a shared, order-derived `event_id`. A valid Meta configuration now mints one 128-bit first-party `adsbook_meta_external_id`, retains it for 90 days, and SHA-256 hashes it independently on Pixel and CAPI; PageView through Purchase therefore keep one advertiser identity instead of changing `external_id` to phone only after checkout. `_fbp`/`_fbc` remain raw, phone/name/address matching remains normalized and hashed, and phone is only an upgrading-session fallback when the new cookie is absent. The native checkout deliberately remains email-free; CAPI accepts and hashes a real email from Headless callers or stored orders but never sends the synthetic address used only to satisfy an online payment provider. Google Tag and Ads conversion configuration retain region-scoped Consent Mode v2 and enhanced conversions (`gtag('set', 'user_data', ...)`, uppercase ISO country); click-id capture covers `gclid`/`gbraid`/`wbraid`/`fbclid`. **TikTok removed 2026-08-24** (BUILD-LOG same date, TRACKING_SPECS.md §8): no Pixel or Events API existed, so its stale click-id and traffic-source surfaces were deleted. Hosted and embedded checkout surfaces emit Purchase only after the order can be resolved and verified. Product ID remains the canonical advertising identity across API `content_id`, Meta `content_ids`, Google ecommerce `item_id`, and both catalog feeds.
 

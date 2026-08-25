@@ -43,6 +43,15 @@ interface SharedEnvVars {
   NEXT_PUBLIC_GTM_ID?: string;
   PUBLIC_GTM_ID?: string;
   GTM_ID?: string;
+  GOOGLE_ADS_CUSTOMER_ID?: string;
+  GOOGLE_ADS_OFFLINE_CONVERSION_ACTION_ID?: string;
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID?: string;
+  GOOGLE_ADS_DEVELOPER_TOKEN?: string;
+  GOOGLE_ADS_CLIENT_ID?: string;
+  GOOGLE_ADS_CLIENT_SECRET?: string;
+  GOOGLE_ADS_REFRESH_TOKEN?: string;
+  /** ISO timestamp; prevents accidental historical conversion backfill. */
+  GOOGLE_ADS_OFFLINE_START_AT?: string;
 }
 
 interface CloudflareRuntimeEnv extends SharedEnvVars {

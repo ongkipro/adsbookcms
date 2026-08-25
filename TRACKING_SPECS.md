@@ -370,14 +370,36 @@ Consequences to keep in mind:
 
 1. Every conversion payload includes `transaction_id` set to the persisted **order number**, not a numeric row ID.
 2. Order numbers come from `src/lib/order-persistence.ts` and use `` `INV-${10000 + id}` `` for completed orders — e.g. order row `1` is `INV-10001`. Abandoned/partial leads use `` `ABN-${10000 + id}` `` and are converted to the `INV-` form when the order completes. No order number is ever minted with an `ORD-` prefix. The string appears three times as operator-facing example copy in `src/pages/admin/ads/meta.astro` and `google.astro`; it is not produced by `order-persistence.ts`.
-3. Deduplication applies across GTM ecommerce `purchase` events, direct `gtag` conversion events, and any future Google Ads API offline conversion upload — all three must send the identical `INV-` string.
+3. Browser/direct-tag and Google Ads API conversions may share the same `INV-` order identity, but they must target separately owned conversion actions. Account configuration decides which action is Primary; `transaction_id` does not make dual Primary actions safe.
 4. Refreshing `/thanks` or revisiting the confirmation URL does not re-trigger the conversion, thanks to the `once('Purchase_order_' + orderId)` local guard.
 
 ### Smart Bidding signals
 
 1. Conversion values use actual item price multiplied by quantity, in IDR.
-2. COD orders qualify on successful server order creation; prepaid online orders qualify only after authenticated `is_paid: true` reconciliation.
-3. Keeping unverified checkout attempts out of the conversion feed is what prevents Target CPA / Target ROAS from optimizing toward non-revenue.
+2. The browser/direct action measures verified website order creation for COD and authenticated paid state for online payment.
+3. The server/offline action measures stronger revenue qualification: COD only after `shipping_status = delivered`, online payment only after `payment_status` is paid/settled/success.
+4. The recommended account policy is browser order-created as Secondary and server revenue-qualified as Primary after reconciliation proves the import.
+
+### Google Ads API offline delivery
+
+`google-ads-offline.ts` implements OAuth refresh, `v25`
+`uploadClickConversions`, reconciliation, idempotency, and bounded retries.
+Migration `0048_google_ads_conversion_outbox.sql` stores one row per order.
+Scheduled maintenance first discovers eligible orders, then drains up to ten due
+rows. HTTP 429 and server/network failures retry with bounded backoff; permanent
+4xx errors and exhausted rows fail closed.
+
+The integration is disabled unless every optional environment field is valid:
+customer ID, UPLOAD_CLICKS conversion-action ID, developer token, OAuth client,
+refresh token, and `GOOGLE_ADS_OFFLINE_START_AT`. The start timestamp prevents
+an install from uploading historical orders merely because credentials were
+added. Only orders with a stored `gclid`, `gbraid`, or `wbraid` are queued.
+
+No customer identity is uploaded through this server path yet because AdsBookCMS
+does not persist the user's Google consent decision with the order. The offline
+payload contains click identity, merchandise value, currency, canonical order
+number, and observed qualification time. Adding hashed user identifiers requires
+persisted consent plus the account's enhanced-conversions-for-leads prerequisites.
 
 ## 11. CAPI Event Outbox
 

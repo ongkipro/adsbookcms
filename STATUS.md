@@ -28,14 +28,18 @@ The previous version of this file described a different repository — it opened
 
 ### Known installs
 
-Verified live 2026-08-25: each host answers `200` on `/` and `401` on
-`/api/admin/health`. The three manual deploys reached their own Workers; the
-two install deploy workflows completed successfully; `zvara.shop` was manually
-deployed after integrating its independently pushed landing-page change.
+Verified live 2026-08-25 after the Google Ads hardening release: every host
+answers `200` on `/`, `401` on unauthenticated `/api/admin/health`, and has zero
+page-level horizontal overflow at 1280px. Zanobyshop, the configured ads
+install, exposes a valid `AW-18116744287` destination and conversion label; its
+two Consent Mode defaults precede `js`/`config`, and `gtag.js` loads from that
+validated destination.
 
-All six run the Meta signal release from product `79ff3a5`. The release changed
-no `wrangler.jsonc`, D1 migration, provider configuration, or secret. Every
-install retained its own Worker, domain, D1/KV/R2 bindings, and merchant assets.
+All six run product `7362037`. The release changed no `wrangler.jsonc`, D1
+migration, provider configuration, or secret. Every install retained its own
+Worker, domain, D1/KV/R2 bindings, and merchant assets. Zvara's independently
+tracked native landing route, stylesheet, manifest entry, and package policy
+were explicitly restored after its replace-style sync and verified live.
 
 The 2026-08-24 rollout (BUILD-LOG same date, PRs #84–#93) carried ten fixes to
 all six installs same-day, re-verified live after each deploy rather than
@@ -69,12 +73,12 @@ is generated per store from that store's own D1.
 
 | Install | Repository | Adopts the product by | State |
 | --- | --- | --- | --- |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh` — **no shared history**, the sync replaces the tree and re-applies a store palette | on `aafdd40` (product `79ff3a5`, synced/deployed 2026-08-25). Largest install; only configured Meta Pixel. GitHub Actions deploy run succeeded |
-| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on branch `install/carukesi` | on `da4155f` (product `79ff3a5`, merged/deployed 2026-08-25). Manual Worker deploy succeeded |
-| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on branch `install/skincarebpom` | on `e97d5bb` (product `79ff3a5`, merged/deployed 2026-08-25). Manual Worker deploy succeeded |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `333b626` (product `79ff3a5`, merged/deployed 2026-08-25). Manual Worker deploy succeeded |
-| `zvara.shop` | `ongkipro/zvarashop` | `scripts/sync-from-product.sh` — its history diverged from the product, so it syncs rather than merges | on `11c0340` (product `79ff3a5` plus an independently pushed landing page, integrated/deployed 2026-08-25). Manual Worker deploy succeeded |
-| `permatamall.shop` | `ongkipro/permatamall` | `scripts/sync-from-product.sh` — shares no history with the product (it is the codebase the product was extracted from) | on `67eb293` (product `79ff3a5`, synced/deployed 2026-08-25). GitHub Actions deploy run succeeded |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh` — **no shared history**, the sync replaces the tree and re-applies a store palette | on `9788620` (product `7362037`, synced/deployed 2026-08-25). GitHub Actions deploy succeeded; live Google tag destination/consent order verified |
+| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on branch `install/carukesi` | on `bdaff97` (product `7362037`, merged/deployed 2026-08-25). Manual Worker deploy succeeded |
+| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on branch `install/skincarebpom` | on `bbd9891` (product `7362037`, merged/deployed 2026-08-25). Manual Worker deploy succeeded |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `095f482` (product `7362037`, merged/deployed 2026-08-25). Manual Worker deploy succeeded |
+| `zvara.shop` | `ongkipro/zvarashop` | `scripts/sync-from-product.sh` — its history diverged from the product, so it syncs rather than merges | on `0178e58` (product `7362037`, merchant native landing preserved, deployed 2026-08-25). Manual Worker deploy succeeded |
+| `permatamall.shop` | `ongkipro/permatamall` | `scripts/sync-from-product.sh` — shares no history with the product (it is the codebase the product was extracted from) | on `976c787` (product `7362037`, synced/deployed 2026-08-25). GitHub Actions deploy succeeded |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more
 (ADR-016). Older installs keep legacy `cmsads-*` names on their Cloudflare

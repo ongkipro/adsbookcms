@@ -152,8 +152,16 @@ const {
     const shuffled = shuffleBuyers(buyers);
 
     let currentIndex = 0;
+    // Both default to "assumed blocking" until the IntersectionObserver's own
+    // first callback confirms otherwise — that callback is always async, so a
+    // form already in view at load (a short landing page, or a tall viewport
+    // where the form sits high on the product page) would otherwise let the
+    // very first showToast() below fire on stale, wrong-direction data: it
+    // shows over the form, gets yanked back within milliseconds once the real
+    // callback lands, then reappears for the same buyer once truly unblocked —
+    // a flash-hide-reshow that reads as a duplicate notification.
     let isHeroVisible = true;
-    let isFormVisible = false;
+    let isFormVisible = true;
     let isFormFocused = false;
     let isToastShowing = false;
     let timerId: ReturnType<typeof setTimeout> | null = null;
@@ -229,6 +237,7 @@ const {
     if (hero) observer.observe(hero);
     else isHeroVisible = false;
     if (formSection) observer.observe(formSection);
+    else isFormVisible = false;
 
     document.addEventListener('visibilitychange', handleVisibilityUpdate);
 

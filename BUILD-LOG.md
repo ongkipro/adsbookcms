@@ -4410,3 +4410,30 @@ Evidence: focused Google/offline plus migration tests passed 11/11; full suite
 Cloudflare build completed. No OAuth credential, developer token, remote
 migration, API upload, install adoption, deployment, account mutation, or
 historical backfill occurred.
+
+## 2026-08-25 — Google offline outbox released fleet-wide, disabled and empty
+
+Product `7b0a1ab` was adopted by all six installs. Every install passed 569
+tests, zero Astro/TypeScript diagnostics, and a Cloudflare build before release.
+The four ordinary manual targets passed Wrangler dry-run then deploy.
+Zanobyshop and Permatamall's main-branch workflows both failed before any step
+started because recent account payments failed or the Actions spending limit
+needs adjustment; their exact checked-out builds were then deployed manually
+through the same dry-run gate.
+
+Migration `0048` is additive: one new outbox table plus its unique and due
+indexes, no mutation to orders or existing provider/configuration tables. Live
+root requests triggered the checked-in runtime migration chain. Read-only D1
+verification on all six databases reported `migration_count = 49` and
+`outbox_rows = 0`.
+
+The zero rows are expected and safety-relevant. None of the installs has the
+all-or-nothing Google API/OAuth configuration or explicit start timestamp, so
+scheduled maintenance cannot reconcile or upload anything. No Google API call,
+historical backfill, secret write, account mutation, or conversion occurred.
+
+Post-deploy smoke: all six roots returned `200`, every unauthenticated admin
+health endpoint returned `401`, and every page shell had zero horizontal
+overflow. Zvara's merchant-owned GlowHome landing route, stylesheet, manifest,
+and package policy were restored after replace-style sync and its live route
+again returned `200`.

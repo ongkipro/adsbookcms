@@ -28,14 +28,14 @@ The previous version of this file described a different repository — it opened
 
 ### Known installs
 
-Verified 2026-08-23 from outside: each host serves Astro 7.2 and answers `401`
-on `/api/admin/health`, so the admin boundary holds on every one.
+Verified live 2026-08-25: each host answers `200` on `/` and `401` on
+`/api/admin/health`. The three manual deploys reached their own Workers; the
+two install deploy workflows completed successfully; `zvara.shop` was manually
+deployed after integrating its independently pushed landing-page change.
 
-All six run **1.3.1** (product `77b9e7c`) as of 2026-08-24, deployed and
-verified live: every one answers `200` on `/` and `/produk` with `401` on
-`/api/admin/health`. `zvara.shop` was released from its freeze and adopted with
-the rest, and `permatamall.shop` was installed through its token-gated wizard
-the same day, so its `/install` route now refuses to run again.
+All six run the Meta signal release from product `79ff3a5`. The release changed
+no `wrangler.jsonc`, D1 migration, provider configuration, or secret. Every
+install retained its own Worker, domain, D1/KV/R2 bindings, and merchant assets.
 
 The 2026-08-24 rollout (BUILD-LOG same date, PRs #84–#93) carried ten fixes to
 all six installs same-day, re-verified live after each deploy rather than
@@ -69,12 +69,12 @@ is generated per store from that store's own D1.
 
 | Install | Repository | Adopts the product by | State |
 | --- | --- | --- | --- |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh` — **no shared history**, the sync replaces the tree and re-applies a store palette | on `dbe75b4` (1.3.1, product `77b9e7c`, synced 2026-08-24). Largest install: 34 products, 33 landing pages. The audit reports in `docs/` are measured against it, and it is the only install with ad tracking configured |
-| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on branch `install/carukesi` | on `72917be` (1.3.1, product `77b9e7c`, merged 2026-08-24). No deploy workflow — `wrangler deploy` is run by hand |
-| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on branch `install/skincarebpom` | on `76a729c` (1.3.1, product `77b9e7c`, merged 2026-08-24). Cron trigger deliberately released to `zanobyshop` (Workers Free caps the account at five). No deploy workflow |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `9de8d05` (1.3.1, product `77b9e7c`, merged 2026-08-24) |
-| `zvara.shop` | `ongkipro/zvarashop` | `scripts/sync-from-product.sh` — its history diverged from the product, so it syncs rather than merges | on `a970ba3` (1.3.1, product `77b9e7c`, synced 2026-08-24). Deployed by hand, it carries no deploy workflow |
-| `permatamall.shop` | `ongkipro/permatamall` | `scripts/sync-from-product.sh` — shares no history with the product (it is the codebase the product was extracted from) | on `a828e2a` (1.3.1, product `77b9e7c`, synced 2026-08-24). Installed through the wizard on 2026-08-23; its `/install` route now refuses to run again. Cron released, like `skincarebpom` |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh` — **no shared history**, the sync replaces the tree and re-applies a store palette | on `aafdd40` (product `79ff3a5`, synced/deployed 2026-08-25). Largest install; only configured Meta Pixel. GitHub Actions deploy run succeeded |
+| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on branch `install/carukesi` | on `da4155f` (product `79ff3a5`, merged/deployed 2026-08-25). Manual Worker deploy succeeded |
+| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on branch `install/skincarebpom` | on `e97d5bb` (product `79ff3a5`, merged/deployed 2026-08-25). Manual Worker deploy succeeded |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `333b626` (product `79ff3a5`, merged/deployed 2026-08-25). Manual Worker deploy succeeded |
+| `zvara.shop` | `ongkipro/zvarashop` | `scripts/sync-from-product.sh` — its history diverged from the product, so it syncs rather than merges | on `11c0340` (product `79ff3a5` plus an independently pushed landing page, integrated/deployed 2026-08-25). Manual Worker deploy succeeded |
+| `permatamall.shop` | `ongkipro/permatamall` | `scripts/sync-from-product.sh` — shares no history with the product (it is the codebase the product was extracted from) | on `67eb293` (product `79ff3a5`, synced/deployed 2026-08-25). GitHub Actions deploy run succeeded |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more
 (ADR-016). Older installs keep legacy `cmsads-*` names on their Cloudflare

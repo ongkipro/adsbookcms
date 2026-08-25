@@ -4290,3 +4290,32 @@ event IDs. The worktree dependency symlink caused unrelated local font requests
 to return 403; no Meta-related request failed. No live Meta token, provider
 mutation, install update, deployment, commit, or push occurred, so Meta
 acceptance, EMQ, attributed-conversion lift, CPA, and ROAS remain unproven.
+
+## 2026-08-25 — Stable Meta matching released to every install without a database touch
+
+Product commit `79ff3a5` added the stable first-party Meta `external_id` path.
+The release diff was inspected before adoption: fifteen tracking and
+documentation files only; no `src/db/migrations/`, `wrangler.jsonc`, secret, or
+provider configuration change. Each install's Worker name, route, and D1 binding
+was independently fingerprinted before any update; all six were distinct.
+
+`zanobyshop`, `zvarashop`, and `permatamall` used their documented
+`sync-from-product.sh` path, which preserves `wrangler.jsonc`, secrets, and
+merchant assets. `carukesi`, `skincarebpom`, and `taniniaga` merged
+`product/main` into their install branches. An independently pushed Zvara
+landing-page commit arrived while its release was being pushed; it was merged,
+then its full validation was rerun before deployment.
+
+All six installs passed their own `npm test`, `npm run check`, and `npm run
+build` gates. The manual deployments for Carukesi, Skincare BPOM, Taniniaga,
+and Zvara each passed Wrangler dry-run then deploy. Zanobyshop and Permatamall
+deployed through their own main-branch GitHub Actions workflows; both exact-SHA
+runs completed successfully. No remote D1 migration command ran.
+
+Post-deploy Chromium smoke: every root returned `200` with zero page-level
+horizontal overflow; every unauthenticated `/api/admin/health` returned `401`.
+Zanobyshop, the only install with a Meta Pixel configured, also served
+`fbevents.js`, created a stable 32-hex `adsbook_meta_external_id`, and sent its
+SHA-256 `external_id` with a PageView whose browser event ID matched the CAPI
+event ID. Meta acceptance, Event Match Quality, conversion lift, CPA, and ROAS
+still require Events Manager observation and are not inferred from the deploy.

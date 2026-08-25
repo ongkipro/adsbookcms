@@ -1,4 +1,5 @@
 import { buildMetaAdvancedMatching } from "../lib/meta-identity.ts";
+import { META_EXTERNAL_ID_COOKIE } from "../lib/click-ids.ts";
 import { normalizePhone } from "../lib/validation";
 import { formatIdr } from "../lib/format-idr";
 import { pushGtmEcomEvent } from "../lib/gtm";
@@ -98,7 +99,11 @@ export function initMiddleOrderForm(
   ) => {
     const pixelId = (window as any).__META_PIXEL_ID__;
     if (!(window as any).fbq || !pixelId) return;
-    const advancedMatching = await buildMetaAdvancedMatching(extraUserData);
+    const advancedMatching = await buildMetaAdvancedMatching({
+      ...extraUserData,
+      external_id:
+        getCookieValue(META_EXTERNAL_ID_COOKIE) || extraUserData?.external_id,
+    });
     const signature = JSON.stringify(advancedMatching);
     if ((window as any).__META_AM_SIGNATURE__ === signature) return;
     (window as any).__META_AM_SIGNATURE__ = signature;
@@ -152,6 +157,8 @@ export function initMiddleOrderForm(
       event_source_url: window.location.href,
       user_data: {
         ...extraUserData,
+        external_id:
+          getCookieValue(META_EXTERNAL_ID_COOKIE) || extraUserData?.external_id,
         fbp: getCookieValue("_fbp"),
         fbc: getCookieValue("_fbc"),
       },

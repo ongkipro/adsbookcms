@@ -1484,3 +1484,9 @@ engine · ~~A-155~~ private target registry + fleet planner · ~~A-156~~ per-ins
 CI/D1 gate engine · ~~A-157~~ canary-first rollout state · ~~A-158~~ redacted
 fleet reports. Reinstate only if the number of installs makes manual copy
 genuinely unmanageable.
+
+## A23 — Stable Meta first-party customer matching
+
+- [x] **A-161** — Carry one privacy-safe external ID through the native Meta funnel. **Done locally 2026-08-25.**
+  -> Primary requirements: REQ-6, REQ-8, REQ-9 · Dependencies: T12, T13 · Done when: a configured Pixel mints one cryptographically random 128-bit first-party visitor ID; PageView, ViewContent, AddToCart, InitiateCheckout, and Purchase reuse it; Pixel and CAPI send only its SHA-256 hash to Meta; `_fbp`/`_fbc` remain raw; normalized phone remains an upgrade fallback; the deliberately email-free native checkout is unchanged; malformed cookies fail closed; focused/full tests, check, build, and local browser proof pass; and no live token, provider mutation, deployment, commit, or push occurs.
+  -> Evidence: focused Meta contract tests 27/27; full suite 563/563; `npm run check` 390 files with zero diagnostics; Cloudflare build complete; local Chromium observed one stable 32-hex cookie across navigation, a 64-hex Pixel `external_id`, and identical Pixel/CAPI PageView event IDs.

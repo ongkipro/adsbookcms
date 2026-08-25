@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-08-24 @ `dc9607b`
+> Verified against disk: 2026-08-25 @ `bdb9d72` + current Meta signal worktree
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -153,34 +153,64 @@ A local duplicate guard proves only the browser and database paths. CAPI accepta
 
 ### Hash before CAPI
 
-Normalize and SHA-256 hash supported customer identifiers such as:
+Normalize and SHA-256 hash every supported customer identifier before it leaves
+AdsBookCMS:
 
 - phone after Indonesian international normalization;
+- a real email after trim and lowercase — never the synthetic payment-provider
+  fallback used by the deliberately email-free native checkout;
 - first and last name after trim and normalization;
-- external ID when its canonical source is defined.
+- the stable advertiser-issued external ID described below.
+
+Meta's current documentation is internally inconsistent: the customer-parameter
+index calls `external_id` hashing recommended while the live Payload Helper calls
+it required. AdsBookCMS takes the privacy-safe intersection and always hashes it
+on both Pixel and CAPI legs. A dashboard label that says “no hash required” is
+not permission to expose the raw identifier.
 
 ### Never hash Meta browser identifiers
 
-Preserve `_fbp` and `_fbc` exactly as issued when present. They are attribution identifiers, not Advanced Matching fields. Do not place them in URLs or logs.
+Preserve `_fbp` and `_fbc` exactly as issued when present. They are attribution
+identifiers, not Advanced Matching fields. Do not place them in URLs or logs.
+
+### Stable first-party external ID
+
+`MetaPixelBase.astro` mints `adsbook_meta_external_id` only when a valid Meta
+Pixel is configured. It is 128 random bits encoded as 32 lowercase hexadecimal
+characters, generated with Web Crypto, and retained for 90 days. HTTPS uses
+`SameSite=None; Secure` so an embedded storefront can keep the same identifier;
+local HTTP uses `SameSite=Lax`.
+
+The raw value remains first-party transport data. Pixel Advanced Matching and
+the outbound CAPI payload each contain its SHA-256 hash. `PageView`,
+`ViewContent`, `AddToCart`, `InitiateCheckout`, and `Purchase` therefore share
+one advertiser-issued identity instead of changing `external_id` to a phone
+number only after checkout. An upgrading session without the cookie temporarily
+falls back to normalized phone; the next Pixel bootstrap creates the stable key.
+The identifier is never accepted from a URL, never written to the order's
+click-ID JSON, and never used as `event_id`.
 
 ### Request-derived context
 
-Client IP and user agent are derived at the server boundary (`getClientIp(request.headers)` and the `user-agent` header) rather than trusted from arbitrary browser fields.
+Client IP and user agent are derived at the server boundary
+(`getClientIp(request.headers)` and the `user-agent` header) rather than trusted
+from arbitrary browser fields.
 
-`_fbp` and `_fbc` are derived the same way. `readMetaBrowserIds(request)` in
-`src/lib/click-ids.ts` reads them off the request cookie header — both are
-first-party on the storefront origin and every tracker posts same-origin, so
-they arrive without a tracker having to include them. A value the browser *did*
-send still wins; the server read is the floor, not a replacement.
+`external_id`, `_fbp`, and `_fbc` are derived the same way.
+`readMetaBrowserIds(request)` in `src/lib/click-ids.ts` validates them from the
+request cookie header. All are first-party on the storefront origin and every
+tracker posts same-origin, so they arrive without a tracker having to include
+them. Explicit `_fbp`/`_fbc` values still win because Meta minted them; the
+dedicated external-ID cookie wins over phone so one visitor keeps one identity.
 
-This is deliberate rather than defensive. Before it, `ViewContent` and
-`PageView` posted no `user_data` at all, and on a live install that was 2992 of
-3115 delivered events — 96% of the CAPI volume — reaching Meta with nothing but
-an IP and a user agent. `fbc` was absent from all 3115, Purchases included. The
-server read also holds in the cases a browser read cannot: the pixel deferred,
+This is deliberate rather than defensive. Before the server read, `ViewContent`
+and `PageView` posted no `user_data` at all, and on a live install that was 2992
+of 3115 delivered events — 96% of the CAPI volume — reaching Meta with nothing
+but an IP and a user agent. `fbc` was absent from all 3115, Purchases included.
+The server read also holds when a browser read cannot: the pixel deferred,
 blocked by an extension, or simply not loaded when the event fires. For `fbc`
 specifically it falls back to the `_fbc` synthesized into the click-ID cookie by
-the middleware at landing, which exists on ad traffic *before* the pixel runs.
+the middleware at landing, which exists on ad traffic before the pixel runs.
 
 ### Click identifier capture and persistence
 
@@ -241,14 +271,18 @@ An embed pasted before 2026-08-16 must be re-copied from `/admin/products`. The 
 
 ### Enhanced Conversions for Web
 
-Executed inside `MetaThanksTracker.astro` after order verification. The same raw phone is normalized once, then hashed **twice, differently**, because Meta and Google specify different formats:
+Executed inside `MetaThanksTracker.astro` after order verification. Phone is
+normalized separately for Meta and Google; the first-party external ID is a
+different identity and must not collapse back onto phone once its cookie exists:
 
 | Consumer | Value hashed | Example input to SHA-256 |
 | --- | --- | --- |
-| Meta `ph` / `external_id` | E.164 **digits only** | `6281234567890` |
+| Meta `ph` | E.164 **digits only** | `6281234567890` |
+| Meta `external_id` | Stable first-party 32-hex visitor ID | `0123456789abcdef0123456789abcdef` |
 | Google `sha256_phone_number` | E.164 **including the leading `+`** | `+6281234567890` |
 
-Never share one hash between the two.
+Never share one hash between platforms or use the phone hash as the permanent
+external-ID hash.
 
 Phone normalization is **one implementation**, `src/lib/meta-identity.ts`:
 strip every non-digit, drop a `00` international prefix, then map `620…`, `0…`

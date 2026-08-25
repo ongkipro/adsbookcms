@@ -4256,3 +4256,37 @@ PR: CI green, merged, rolled out same-day to all six installs (`git merge` for
 taniniaga/carukesi/skincarebpom, `sync-from-product.sh` for
 zanobyshop/zvarashop/permatamall), deployed, and re-verified against the live
 site — not assumed from the diff.
+
+## 2026-08-25 — Meta gets one stable first-party identity instead of a second phone field
+
+Meta's updated parameter guidance puts the largest reported matching opportunity
+on `fbc`, email, phone, and `external_id`, but those percentages describe
+additional conversions Meta can report, not additive sales lift. AdsBookCMS
+already preserved `_fbc` raw, normalized and hashed Indonesian phone, and
+supported real email in CAPI. The native checkout intentionally removed its
+email field in T127, so this change did not restore friction or send the
+synthetic payment-provider email as customer identity.
+
+The remaining weakness was `external_id`: it appeared only after the buyer
+entered a phone number and was another hash of that same phone. A configured
+`MetaPixelBase` now generates 128 random bits with Web Crypto, stores the
+32-lower-hex `adsbook_meta_external_id` first-party cookie for 90 days, and
+hashes it before Pixel Advanced Matching. The CAPI boundary validates the same
+cookie server-side and prefers it for every event from PageView through
+Purchase. Hosted forms and the verified thanks tracker use the same value on
+their browser and server legs. An upgrading session without the cookie retains
+the old normalized-phone fallback until the next Pixel bootstrap; malformed
+cookie values are dropped. `_fbp` and `_fbc` remain raw.
+
+Meta's live documentation is inconsistent — the customer-parameter page calls
+`external_id` hashing recommended while Payload Helper calls it required — so
+AdsBookCMS keeps the privacy-safe intersection and always hashes outbound.
+
+Evidence: 27/27 focused Meta tests; 563/563 full tests; `npm run check` reported
+390 files with zero errors, warnings, or hints; the Cloudflare server build
+completed. An isolated local Chromium install observed a stable 32-hex cookie
+across navigation, its 64-hex Pixel hash, and identical browser/CAPI PageView
+event IDs. The worktree dependency symlink caused unrelated local font requests
+to return 403; no Meta-related request failed. No live Meta token, provider
+mutation, install update, deployment, commit, or push occurred, so Meta
+acceptance, EMQ, attributed-conversion lift, CPA, and ROAS remain unproven.

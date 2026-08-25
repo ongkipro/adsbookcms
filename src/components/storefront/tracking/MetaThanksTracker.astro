@@ -1,4 +1,5 @@
 ---
+import { META_EXTERNAL_ID_COOKIE } from '../../../lib/click-ids';
 interface Props {
   tenantName: string;
   tenantSlug: string;
@@ -7,7 +8,14 @@ interface Props {
 const { tenantName, tenantSlug } = Astro.props;
 ---
 
-<script is:inline define:vars={{ tenantName, tenantSlug }}>
+<script
+  is:inline
+  define:vars={{
+    tenantName,
+    tenantSlug,
+    metaExternalIdCookie: META_EXTERNAL_ID_COOKIE,
+  }}
+>
   (() => {
     if (typeof window === 'undefined') return;
 
@@ -178,6 +186,10 @@ const { tenantName, tenantSlug } = Astro.props;
       };
       const nameParts = String(name || '').trim().split(/\s+/).filter(Boolean);
       const normalizedPhone = toE164Digits(phone);
+      const storedExternalId = getCookieValue(metaExternalIdCookie);
+      const externalId = /^[a-f0-9]{32}$/.test(storedExternalId)
+        ? storedExternalId
+        : normalizedPhone;
       const firstName = normalizeMetaText(nameParts[0]);
       const lastName = nameParts.length > 1 ? normalizeMetaText(nameParts.slice(1).join('')) : undefined;
       // The CAPI leg below (postMeta's user_data) hashes ct/st/zp/country on
@@ -200,7 +212,7 @@ const { tenantName, tenantSlug } = Astro.props;
               st: metaState ? await hashSha256Hex(metaState) : undefined,
               zp: metaZip ? await hashSha256Hex(metaZip) : undefined,
               country: metaCountry ? await hashSha256Hex(metaCountry) : undefined,
-              external_id: normalizedPhone ? await hashSha256Hex(normalizedPhone) : undefined,
+              external_id: externalId ? await hashSha256Hex(externalId) : undefined,
               client_user_agent: navigator.userAgent,
             });
           }
@@ -287,9 +299,9 @@ const { tenantName, tenantSlug } = Astro.props;
           province,
           city,
           district,
-          // Same value the browser leg hashes into external_id, so both legs
-          // resolve to one person instead of two.
-          external_id: normalizedPhone || undefined,
+          // Stable first-party visitor ID when available; normalized phone only
+          // keeps an upgrading session matchable before the cookie exists.
+          external_id: externalId || undefined,
           fbp: getCookieValue('_fbp'),
           fbc: getCookieValue('_fbc'),
         },

@@ -13,6 +13,10 @@ const THANKS_TRACKER = readFileSync(
   "src/components/storefront/tracking/MetaThanksTracker.astro",
   "utf8",
 );
+const PIXEL_BASE = readFileSync(
+  "src/components/storefront/tracking/MetaPixelBase.astro",
+  "utf8",
+);
 const GOOGLE_ADS_BASE = readFileSync(
   "src/components/storefront/tracking/GoogleAdsBase.astro",
   "utf8",
@@ -77,6 +81,67 @@ test("sha256Hex hashes to lower-hex and never returns the input verbatim", async
   assert.notEqual(hash, "6281234567890");
 });
 
+test("the Pixel bootstrap mints and hashes one stable first-party external ID", async () => {
+  const match = PIXEL_BASE.match(
+    /<script\b[^>]*\bis:inline\b[^>]*>([\s\S]*)<\/script>/,
+  );
+  assert.ok(match, "MetaPixelBase must keep its inline bootstrap");
+
+  let cookie = "";
+  const documentStub = {
+    get cookie() {
+      return cookie;
+    },
+    set cookie(value: string) {
+      cookie = value.split(";")[0];
+    },
+    createElement: () => ({}),
+    head: { appendChild: () => undefined },
+  };
+  const calls: unknown[][] = [];
+  const tracked = Promise.withResolvers<void>();
+  const windowStub: Record<string, any> = {
+    location: { protocol: "https:" },
+    addEventListener: () => undefined,
+    setTimeout: () => 1,
+    fbq: (...args: unknown[]) => {
+      calls.push(args);
+      if (args[0] === "track") tracked.resolve();
+    },
+  };
+  const bootstrap = new Function(
+    "pixelId",
+    "metaExternalIdCookie",
+    "window",
+    "document",
+    "crypto",
+    "TextEncoder",
+    "Uint8Array",
+    match[1],
+  );
+
+  bootstrap(
+    "1234567890",
+    "adsbook_meta_external_id",
+    windowStub,
+    documentStub,
+    globalThis.crypto,
+    TextEncoder,
+    Uint8Array,
+  );
+  await tracked.promise;
+
+  const externalId = cookie.split("=")[1];
+  assert.match(externalId, /^[a-f0-9]{32}$/);
+  const init = calls.find((args: unknown[]) => args[0] === "init");
+  const pageView = calls.find((args: unknown[]) => args[0] === "track");
+  const initData = init?.[2] as Record<string, unknown> | undefined;
+  const pageViewOptions = pageView?.[3] as Record<string, unknown> | undefined;
+  assert.match(String(initData?.external_id ?? ""), /^[a-f0-9]{64}$/);
+  assert.equal(initData?.external_id, await sha256Hex(externalId));
+  assert.equal(pageViewOptions?.eventID, windowStub.__META_PAGEVIEW_EVENT_ID__);
+});
+
 test("the browser Pixel's advanced-matching object hashes every field CAPI also hashes for the same event", async () => {
   // This is the gap that motivated the shared builder: AddToCart and
   // InitiateCheckout already send city/province/postal_code/country to the
@@ -91,13 +156,16 @@ test("the browser Pixel's advanced-matching object hashes every field CAPI also 
     province: "DKI Jakarta",
     postal_code: "12430",
     country: "id",
+    external_id: "0123456789abcdef0123456789abcdef",
   });
   for (const key of ["ph", "fn", "ln", "ct", "st", "zp", "country", "external_id"] as const) {
     assert.match(am[key] ?? "", /^[a-f0-9]{64}$/, `${key} must be a SHA-256 hex hash`);
   }
-  // ph and external_id both derive from the same E.164 phone, per the server
-  // leg's convention (meta-capi.ts) — one identity, two match keys Meta reads.
-  assert.equal(am.ph, am.external_id);
+  assert.notEqual(am.ph, am.external_id);
+  assert.equal(
+    am.external_id,
+    await sha256Hex("0123456789abcdef0123456789abcdef"),
+  );
 });
 
 test("advanced matching omits a field entirely rather than hashing an empty string", async () => {
@@ -113,6 +181,9 @@ test("advanced matching omits a field entirely rather than hashing an empty stri
   assert.equal(am.zp, undefined);
   assert.equal(am.country, undefined);
   assert.match(am.ph ?? "", /^[a-f0-9]{64}$/);
+  // Upgrading sessions without the first-party visitor cookie retain the
+  // historical phone-derived external_id until the next Pixel bootstrap.
+  assert.equal(am.external_id, am.ph);
 });
 
 test("the inline thanks tracker's browser Pixel leg hashes city, state, zip and country like the server CAPI leg does", () => {

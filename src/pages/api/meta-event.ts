@@ -141,14 +141,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const purchaseExternalId = purchaseOrder
       ? toE164Digits(purchaseOrder.customer_phone)
       : undefined;
-    // The request carries `_fbp` and `_fbc` on its own — they are first-party
-    // cookies on this origin and every tracker posts here same-origin. Reading
-    // them here rather than trusting each tracker to include them is what gives
-    // `ViewContent` and `PageView` an identity at all: those two send no
-    // `user_data`, and on a live install they were 96% of the CAPI volume,
-    // reaching Meta with nothing but an IP and a user agent. A value the
-    // browser did send still wins, because the pixel's own copy is the one
-    // Meta minted.
+    // The request carries all three first-party browser identifiers on its own.
+    // Reading them here gives PageView and ViewContent the stable advertiser ID
+    // and Meta's fbp/fbc even though those trackers send no user_data. Explicit
+    // values still win for fbp/fbc because the Pixel's own copy is authoritative;
+    // the dedicated external ID cookie wins over phone so every funnel event for
+    // one visitor keeps the same advertiser-issued identity.
     const browserIds = readMetaBrowserIds(request);
     const event = {
       eventName: payload.eventName,
@@ -161,7 +159,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
         city: purchaseOrder?.city || payload.city,
         province: purchaseOrder?.province || payload.province,
         postalCode: purchaseOrder?.postal_code || payload.postalCode,
-        externalId: purchaseExternalId || payload.externalId,
+        externalId:
+          browserIds.externalId || purchaseExternalId || payload.externalId,
         fbp: payload.fbp || browserIds.fbp,
         fbc: payload.fbc || browserIds.fbc,
         clientIp: getClientIp(request.headers),

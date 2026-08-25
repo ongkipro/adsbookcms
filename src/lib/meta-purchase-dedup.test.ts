@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { resolveMetaEventId } from "./meta-capi.ts";
+import { META_EXTERNAL_ID_COOKIE } from "./click-ids.ts";
+import { sha256Hex } from "./meta-identity.ts";
 
 // Meta only deduplicates a browser Pixel event against a server CAPI event when
 // both carry the same event_id. The server leg is authoritative and keys Purchase
@@ -14,7 +16,7 @@ const TRACKER_SOURCE = readFileSync(
 );
 
 const INLINE_SCRIPT = (() => {
-  const match = TRACKER_SOURCE.match(/<script is:inline[^>]*>([\s\S]*)<\/script>/);
+  const match = TRACKER_SOURCE.match(/<script\b[^>]*\bis:inline\b[^>]*>([\s\S]*)<\/script>/);
   assert.ok(match, "MetaThanksTracker must keep its inline tracking script");
   return match[1];
 })();
@@ -44,6 +46,7 @@ function storageStub() {
 async function runTracker(
   orderStatus: OrderStatus,
   thanksStateOverrides: Record<string, unknown> = {},
+  documentCookie = "",
 ): Promise<TrackerRun> {
   const run: TrackerRun = { pixelEventIds: [], postedPayloads: [], pixelInitCalls: [] };
   const thanksState = {
@@ -100,6 +103,7 @@ async function runTracker(
   const tracker = new Function(
     "tenantName",
     "tenantSlug",
+    "metaExternalIdCookie",
     "window",
     "document",
     "navigator",
@@ -112,8 +116,9 @@ async function runTracker(
   tracker(
     "Permatamall",
     "permatamall",
+    META_EXTERNAL_ID_COOKIE,
     windowStub,
-    { cookie: "" },
+    { cookie: documentCookie },
     { userAgent: "node-test" },
     sessionStorage,
     storageStub(),
@@ -189,6 +194,27 @@ test("the browser Pixel's Purchase advanced-matching object hashes city, state, 
   assert.equal(capiUserData.province, "DKI Jakarta");
   assert.equal(capiUserData.postal_code, "12430");
   assert.equal(capiUserData.country, "id");
+});
+
+test("Purchase keeps one stable first-party external_id across Pixel and CAPI", async () => {
+  const externalId = "0123456789abcdef0123456789abcdef";
+  const run = await runTracker(
+    {
+      success: true,
+      order_number: "INV-10042",
+      payment_status: "unpaid",
+      payment_method: "cod",
+      is_paid: false,
+      total_amount: 189_000,
+    },
+    {},
+    `${META_EXTERNAL_ID_COOKIE}=${externalId}`,
+  );
+
+  assert.equal(run.pixelInitCalls[0].external_id, await sha256Hex(externalId));
+  const capiUserData = run.postedPayloads[0].user_data as Record<string, unknown>;
+  assert.equal(capiUserData.external_id, externalId);
+  assert.notEqual(run.pixelInitCalls[0].external_id, capiUserData.external_id);
 });
 
 test("a Purchase without a resolvable order number emits nothing at all", async () => {

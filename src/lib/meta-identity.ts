@@ -76,6 +76,7 @@ export type MetaAdvancedMatchingInput = {
   province?: unknown;
   postal_code?: unknown;
   country?: unknown;
+  external_id?: unknown;
 };
 
 /**
@@ -110,6 +111,7 @@ export async function buildMetaAdvancedMatching(
   const state = normalizeMetaText(String(input?.province ?? ""));
   const zip = normalizeMetaText(String(input?.postal_code ?? ""));
   const country = normalizeMetaText(String(input?.country ?? ""));
+  const externalId = normalizeMetaText(String(input?.external_id ?? "")) ?? normalizedPhone;
   return {
     ph: normalizedPhone ? await sha256Hex(normalizedPhone) : undefined,
     fn: firstName ? await sha256Hex(firstName) : undefined,
@@ -118,7 +120,7 @@ export async function buildMetaAdvancedMatching(
     st: state ? await sha256Hex(state) : undefined,
     zp: zip ? await sha256Hex(zip) : undefined,
     country: country ? await sha256Hex(country) : undefined,
-    external_id: normalizedPhone ? await sha256Hex(normalizedPhone) : undefined,
+    external_id: externalId ? await sha256Hex(externalId) : undefined,
     client_user_agent:
       typeof navigator !== "undefined" ? navigator.userAgent : undefined,
   };

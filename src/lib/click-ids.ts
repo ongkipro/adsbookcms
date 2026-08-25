@@ -14,6 +14,9 @@
 
 export const CLICK_ID_COOKIE = "adsbook_click_ids";
 
+/** Stable first-party visitor key shared by the Pixel and CAPI legs. */
+export const META_EXTERNAL_ID_COOKIE = "adsbook_meta_external_id";
+
 /**
  * Cookie name used before the AdsBookCMS rename. Read-only: an install upgraded
  * mid-campaign would otherwise drop up to 90 days of in-flight click ids that
@@ -100,25 +103,27 @@ export function hasClickId(ids: ClickIds): boolean {
 // step with the identical pattern in `meta-event-contract.ts`, which guards the
 // browser-supplied copy of the same two values.
 const FB_BROWSER_ID_PATTERN = /^fb\.\d\.\d{10,20}\..+$/;
+const META_EXTERNAL_ID_PATTERN = /^[a-f0-9]{32}$/;
 
-function readRawCookie(cookieHeader: string, name: string): string | undefined {
+function readCookieValue(cookieHeader: string, name: string): string | undefined {
   const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
   if (!match) return undefined;
   try {
-    const value = decodeURIComponent(match[1]);
-    return FB_BROWSER_ID_PATTERN.test(value) ? value : undefined;
+    return decodeURIComponent(match[1]);
   } catch {
     return undefined;
   }
 }
 
+
 /**
- * Meta's two browser identifiers, read server-side.
+ * Meta's browser identifiers, read server-side.
  *
  * `_fbp` is written by `fbevents.js`; `_fbc` is written by the middleware the
  * moment an ad click lands with `fbclid`, and again by the pixel once it loads.
- * Both are first-party on the storefront origin, so a same-origin request
- * carries them without the browser having to pass them in a body.
+ * `externalId` is a random first-party key minted by `MetaPixelBase`. All three
+ * are first-party on the storefront origin, so a same-origin request carries
+ * them without the browser having to pass them in a body.
  *
  * Reading them here rather than in each tracker is what stops top-of-funnel
  * events from reaching Meta anonymous: `ViewContent` and `PageView` never sent
@@ -126,15 +131,27 @@ function readRawCookie(cookieHeader: string, name: string): string | undefined {
  * also survives the cases a browser read cannot — the pixel deferred, blocked,
  * or simply not loaded yet when the event fires.
  */
-export function readMetaBrowserIds(request: Request): { fbp?: string; fbc?: string } {
+export function readMetaBrowserIds(
+  request: Request,
+): { externalId?: string; fbp?: string; fbc?: string } {
   const cookieHeader = request.headers.get("cookie");
   if (!cookieHeader) return {};
   // The click-id cookie is the fallback for `_fbc` alone: the middleware
   // synthesises it from `fbclid` at landing, so it exists on ad traffic even
   // before the pixel runs. `_fbp` has no such origin — only the pixel mints it.
   const clickIds = readClickIdCookie(request);
+  const externalId = readCookieValue(cookieHeader, META_EXTERNAL_ID_COOKIE);
+  const fbp = readCookieValue(cookieHeader, "_fbp");
+  const directFbc = readCookieValue(cookieHeader, "_fbc");
   return {
-    fbp: readRawCookie(cookieHeader, "_fbp"),
-    fbc: readRawCookie(cookieHeader, "_fbc") ?? clickIds._fbc,
+    externalId:
+      externalId && META_EXTERNAL_ID_PATTERN.test(externalId)
+        ? externalId
+        : undefined,
+    fbp: fbp && FB_BROWSER_ID_PATTERN.test(fbp) ? fbp : undefined,
+    fbc:
+      directFbc && FB_BROWSER_ID_PATTERN.test(directFbc)
+        ? directFbc
+        : clickIds._fbc,
   };
 }

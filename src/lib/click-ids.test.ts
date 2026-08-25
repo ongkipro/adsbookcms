@@ -85,14 +85,18 @@ test("no cookie means no click id, not a crash", () => {
 });
 
 test("Meta's browser ids are read from the request, so a CAPI event is never anonymous", () => {
+  const externalId = "0123456789abcdef0123456789abcdef";
   const fbp = "fb.1.1787423478702.1234567890";
   const fbc = "fb.1.1787423478702.IwAR0abcDEF";
-
   // The ordinary case: the pixel has run and both cookies are on the origin.
   const both = new Request("https://permatamall.shop/api/meta-event", {
-    headers: { cookie: `_ga=x; _fbp=${fbp}; _fbc=${fbc}; other=1` },
+    headers: {
+      cookie:
+        `adsbook_meta_external_id=${externalId}; _ga=x; ` +
+        `_fbp=${fbp}; _fbc=${fbc}; other=1`,
+    },
   });
-  assert.deepEqual(readMetaBrowserIds(both), { fbp, fbc });
+  assert.deepEqual(readMetaBrowserIds(both), { externalId, fbp, fbc });
 
   // An ad click that has not waited for the pixel: the middleware wrote `_fbc`
   // into the click-id cookie at landing, and that is the copy Meta needs most.
@@ -101,7 +105,11 @@ test("Meta's browser ids are read from the request, so a CAPI event is never ano
       cookie: `adsbook_click_ids=${encodeURIComponent(JSON.stringify({ fbclid: "IwAR0abcDEF", _fbc: fbc }))}`,
     },
   });
-  assert.deepEqual(readMetaBrowserIds(beforePixel), { fbp: undefined, fbc });
+  assert.deepEqual(readMetaBrowserIds(beforePixel), {
+    externalId: undefined,
+    fbp: undefined,
+    fbc,
+  });
 
   // A raw `_fbc` cookie outranks the click-id copy — the pixel's own value is
   // the one Meta minted.
@@ -117,9 +125,17 @@ test("Meta's browser ids are read from the request, so a CAPI event is never ano
   // Anything that is not Meta's documented shape is dropped rather than
   // forwarded: a malformed match key costs event quality, it does not add to it.
   const junk = new Request("https://permatamall.shop/api/meta-event", {
-    headers: { cookie: "_fbp=not-a-real-fbp; _fbc=<script>" },
+    headers: {
+      cookie:
+        "adsbook_meta_external_id=phone-number-is-not-a-stable-id; " +
+        "_fbp=not-a-real-fbp; _fbc=<script>",
+    },
   });
-  assert.deepEqual(readMetaBrowserIds(junk), { fbp: undefined, fbc: undefined });
+  assert.deepEqual(readMetaBrowserIds(junk), {
+    externalId: undefined,
+    fbp: undefined,
+    fbc: undefined,
+  });
 
   // No cookies at all is an empty result, never a throw inside the event path.
   assert.deepEqual(readMetaBrowserIds(new Request("https://permatamall.shop/api/meta-event")), {});

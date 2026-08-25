@@ -1,8 +1,8 @@
 # STATUS — AdsBookCMS
 
-> Last executed baseline: 2026-08-24 @ `77b9e7c`. Gates on the current tree:
-> `npm run check` 387 files / 0 errors / 0 warnings / 0 hints · `npm test`
-> 540 / 540 · `npm run build` Cloudflare server bundle complete.
+> Last executed baseline: 2026-08-25 @ `bdb9d72` + current Meta signal worktree.
+> `npm run check` 390 files / 0 errors / 0 warnings / 0 hints · `npm test`
+> 563 / 563 · `npm run build` Cloudflare server bundle complete.
 >
 > `main` was re-founded as AdsBookCMS and its history rewritten (ADR-012), so
 > commit ranges older documents cite may not exist on this branch; the
@@ -121,7 +121,9 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 **Headless API** — nine `/api/v1/*` routes authenticated by API key and independently origin-checked. Every operation has a minimum scope; origin denials occur before quota, minute denials do not spend daily quota, and D1 records the final handler status exactly once without request payloads. The order-status route requires the order number plus its public status token and returns no customer PII.
 
-**Tracking** — Meta Pixel plus server-side CAPI through a durable outbox with retry and a shared, order-derived `event_id`, with one shared identity normalizer (`meta-identity.ts`) so the browser and server legs hash the same person and — as of 2026-08-24 — hash city/state/zip/country too, not just phone and name (BUILD-LOG same date); Google Tag and Ads conversion configuration with region-scoped Consent Mode v2 and enhanced conversions (`gtag('set', 'user_data', ...)`, uppercase ISO country); and click-id capture for `gclid`/`gbraid`/`wbraid`/`fbclid`. **TikTok removed 2026-08-24** (BUILD-LOG same date, TRACKING_SPECS.md §8): this line previously also claimed "TikTok event hooks", which never existed (no Pixel, no Events API) — what did exist was `ttclid` click-id capture and a `tiktok` traffic-source classification for the admin order filter, both taken out entirely rather than left as a partial, easily-misread surface. Hosted and embedded checkout surfaces emit Purchase only after the order can be resolved and verified. Product ID is the canonical advertising identity: the API `content_id`, Meta `content_ids`, Google ecommerce `item_id`, and `<g:id>` in both catalog feeds are the same numeric value with at least five digits; variants remain separate checkout selections.
+**Tracking** — Meta Pixel plus server-side CAPI through a durable outbox with retry and a shared, order-derived `event_id`. A valid Meta configuration now mints one 128-bit first-party `adsbook_meta_external_id`, retains it for 90 days, and SHA-256 hashes it independently on Pixel and CAPI; PageView through Purchase therefore keep one advertiser identity instead of changing `external_id` to phone only after checkout. `_fbp`/`_fbc` remain raw, phone/name/address matching remains normalized and hashed, and phone is only an upgrading-session fallback when the new cookie is absent. The native checkout deliberately remains email-free; CAPI accepts and hashes a real email from Headless callers or stored orders but never sends the synthetic address used only to satisfy an online payment provider. Google Tag and Ads conversion configuration retain region-scoped Consent Mode v2 and enhanced conversions (`gtag('set', 'user_data', ...)`, uppercase ISO country); click-id capture covers `gclid`/`gbraid`/`wbraid`/`fbclid`. **TikTok removed 2026-08-24** (BUILD-LOG same date, TRACKING_SPECS.md §8): no Pixel or Events API existed, so its stale click-id and traffic-source surfaces were deleted. Hosted and embedded checkout surfaces emit Purchase only after the order can be resolved and verified. Product ID remains the canonical advertising identity across API `content_id`, Meta `content_ids`, Google ecommerce `item_id`, and both catalog feeds.
+
+The 2026-08-25 Meta identity change has local executable evidence only: focused identity tests, the full suite, Astro/TypeScript checks, a Cloudflare build, and a local browser that observed a stable 32-hex cookie, a 64-hex Pixel hash, and byte-identical PageView browser/server event IDs across navigation. No install was updated, no event was sent with a real Meta token, and provider acceptance, Event Match Quality, attributed-conversion lift, CPA, and ROAS remain unverified.
 
 
 ---

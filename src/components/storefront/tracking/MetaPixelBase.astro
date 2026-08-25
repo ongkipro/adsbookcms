@@ -1,5 +1,6 @@
 ---
 import { getStoreAdsConfig } from '../../../lib/store-ads';
+import { META_EXTERNAL_ID_COOKIE } from '../../../lib/click-ids';
 
 interface Props {
   pixelId?: string;
@@ -23,11 +24,52 @@ const shouldRenderPixel = /^\d{5,25}$/.test(String(pixelId || '').trim());
         the critical path. Rendered only when a pixel is actually configured. */}
     <link rel="preconnect" href="https://connect.facebook.net" crossorigin />
     <link rel="dns-prefetch" href="https://connect.facebook.net" />
-    <script is:inline define:vars={{ pixelId }}>
-      (() => {
+    <script is:inline define:vars={{ pixelId, metaExternalIdCookie: META_EXTERNAL_ID_COOKIE }}>
+      void (async () => {
         if (typeof window === 'undefined') return;
 
         const createEventId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const eventId = createEventId('pv');
+        window.__META_PAGEVIEW_EVENT_ID__ = eventId;
+
+        const readCookieValue = (name) =>
+          document.cookie
+            .split('; ')
+            .find((row) => row.startsWith(`${name}=`))
+            ?.split('=')[1] || '';
+        let externalId = readCookieValue(metaExternalIdCookie);
+        if (!/^[a-f0-9]{32}$/.test(externalId)) {
+          externalId = '';
+          try {
+            externalId = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+              .map((byte) => byte.toString(16).padStart(2, '0'))
+              .join('');
+          } catch {
+            // Pixel and CAPI still carry fbp/fbc when Web Crypto is unavailable.
+          }
+          if (externalId) {
+            const cookieSecurity = window.location.protocol === 'https:'
+              ? 'SameSite=None; Secure'
+              : 'SameSite=Lax';
+            document.cookie =
+              `${metaExternalIdCookie}=${externalId}; Path=/; Max-Age=${90 * 24 * 60 * 60}; ${cookieSecurity}`;
+          }
+        }
+
+        let externalIdHash;
+        if (externalId) {
+          try {
+            const digest = await crypto.subtle.digest(
+              'SHA-256',
+              new TextEncoder().encode(externalId),
+            );
+            externalIdHash = Array.from(new Uint8Array(digest))
+              .map((byte) => byte.toString(16).padStart(2, '0'))
+              .join('');
+          } catch {
+            // Pixel and CAPI still carry fbp/fbc when Web Crypto is unavailable.
+          }
+        }
 
         // Meta's own stub queues every fbq() call until the script arrives, so
         // the queue is created now and the 105 KB download is deferred. The
@@ -70,10 +112,11 @@ const shouldRenderPixel = /^\d{5,25}$/.test(String(pixelId || '').trim());
         window.setTimeout(loadPixel, 2500);
 
         window.__META_PIXEL_ID__ = pixelId;
-        window.fbq('init', pixelId);
-
-        const eventId = createEventId('pv');
-        window.__META_PAGEVIEW_EVENT_ID__ = eventId;
+        if (externalIdHash) {
+          window.fbq('init', pixelId, { external_id: externalIdHash });
+        } else {
+          window.fbq('init', pixelId);
+        }
         window.fbq('track', 'PageView', {}, { eventID: eventId });
       })();
     </script>

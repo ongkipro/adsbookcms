@@ -3,6 +3,22 @@
 // this module could not be unit-tested at all (audit 2026-08-23 §2.6).
 import { getRuntimeEnv, getEnvValue } from './env.ts';
 
+export const GOOGLE_ADS_CONVERSION_ID_PATTERN = /^AW-\d{5,20}$/;
+export const GOOGLE_ADS_CONVERSION_LABEL_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
+
+/**
+ * The conversion destination is an atomic public configuration. A half-filled
+ * or malformed environment fallback must disable the direct Google Ads tag,
+ * not emit a broken `send_to` value into the storefront.
+ */
+export function hasValidGoogleAdsConversion(
+  conversionId: string,
+  conversionLabel: string,
+): boolean {
+  return GOOGLE_ADS_CONVERSION_ID_PATTERN.test(conversionId)
+    && GOOGLE_ADS_CONVERSION_LABEL_PATTERN.test(conversionLabel);
+}
+
 export type StoreAdsConfig = {
   metaPixelId: string;
   metaCapiToken: string;
@@ -68,17 +84,20 @@ export async function getStoreAdsConfig(locals?: App.Locals): Promise<StoreAdsCo
     getEnvValue('PUBLIC_GTM_ID', envSource) ||
     getEnvValue('GTM_ID', envSource);
 
-  const googleAdsConversionId =
+  const candidateGoogleAdsConversionId =
     dbGoogleId || getEnvValue('GOOGLE_ADS_CONVERSION_ID', envSource);
-
-  const googleAdsConversionLabel =
+  const candidateGoogleAdsConversionLabel =
     dbGoogleLabel || getEnvValue('GOOGLE_ADS_CONVERSION_LABEL', envSource);
+  const hasGoogleAdsConversion = hasValidGoogleAdsConversion(
+    candidateGoogleAdsConversionId,
+    candidateGoogleAdsConversionLabel,
+  );
 
   return {
     metaPixelId,
     metaCapiToken,
     googleTagManagerId,
-    googleAdsConversionId,
-    googleAdsConversionLabel,
+    googleAdsConversionId: hasGoogleAdsConversion ? candidateGoogleAdsConversionId : '',
+    googleAdsConversionLabel: hasGoogleAdsConversion ? candidateGoogleAdsConversionLabel : '',
   };
 }

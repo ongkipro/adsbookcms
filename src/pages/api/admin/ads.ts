@@ -1,15 +1,17 @@
 import type { APIRoute } from 'astro';
 import { getEnvValue, getRuntimeEnv, maskSecretValue } from '../../../lib/env';
 import { sendMetaCapiEvent } from '../../../lib/meta-capi';
+import {
+  GOOGLE_ADS_CONVERSION_ID_PATTERN,
+  GOOGLE_ADS_CONVERSION_LABEL_PATTERN,
+} from '../../../lib/store-ads';
 
 export const prerender = false;
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 const PIXEL_ID_PATTERN = /^\d{5,25}$/;
-const GOOGLE_ID_PATTERN = /^AW-\d{5,20}$/;
 const GTM_ID_PATTERN = /^GTM-[A-Z0-9]{4,20}$/;
 const META_TEST_CODE_PATTERN = /^TEST\d{3,20}$/;
-const GOOGLE_LABEL_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
 
 type AdsConfigPayload = {
   action?: 'save-meta' | 'save-google' | 'test-capi';
@@ -136,8 +138,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       const googleLabel = clean(body.google_ads_conversion_label, 100);
       if (Boolean(googleId) !== Boolean(googleLabel)) return json({ success: false, error: 'Conversion ID dan Label harus diisi berpasangan.' }, 400);
       if (googleTagManagerId && !GTM_ID_PATTERN.test(googleTagManagerId)) return json({ success: false, error: 'Google Tag Manager ID harus berformat GTM-XXXXXXX.' }, 400);
-      if (googleId && !GOOGLE_ID_PATTERN.test(googleId)) return json({ success: false, error: 'Google Ads Conversion ID harus berformat AW-XXXXXXXXX.' }, 400);
-      if (googleLabel && !GOOGLE_LABEL_PATTERN.test(googleLabel)) return json({ success: false, error: 'Google Ads Conversion Label tidak valid.' }, 400);
+      if (googleId && !GOOGLE_ADS_CONVERSION_ID_PATTERN.test(googleId)) return json({ success: false, error: 'Google Ads Conversion ID harus berformat AW-XXXXXXXXX.' }, 400);
+      if (googleLabel && !GOOGLE_ADS_CONVERSION_LABEL_PATTERN.test(googleLabel)) return json({ success: false, error: 'Google Ads Conversion Label tidak valid.' }, 400);
       await database.prepare(`
         UPDATE stores
         SET google_tag_manager_id = ?, google_ads_conversion_id = ?, google_ads_conversion_label = ?

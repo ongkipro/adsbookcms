@@ -4331,3 +4331,25 @@ evidence-backed conversion claims, and the canonical product-driven hybrid-form
 handoff. Campaign-specific visual recipes, another merchant's brand language,
 and prompts to fabricate testimonials, proof, scarcity, guarantees, or outcomes
 were deliberately excluded.
+
+## 2026-08-25 — Google Ads destination validity and ownership made explicit
+
+Google's current tag, consent, and enhanced-conversion documentation was
+rechecked. AdsBookCMS already placed `gtag('set', 'user_data', …)` before a
+verified Purchase conversion, used `INV-` order numbers as non-empty
+`transaction_id`, and applied a region-scoped Consent Mode default. The gap was
+the environment fallback: dashboard input validation rejected malformed Google
+Ads destinations, but an invalid environment `AW-` value or label could still
+cause the storefront to render a broken direct tag.
+
+`store-ads.ts` now owns one atomic Google Ads destination validator. The same
+patterns govern D1, environment fallback, the storefront component, and the
+admin API. A partial or malformed pair becomes disabled—not a malformed
+`send_to`. The Google setup and tracking contract now also name the operational
+ownership rule: GTM may consume GA4/ecommerce events beside the direct Google
+tag, but both must not fire the same Google Ads conversion action.
+
+Evidence: focused resolver and enhanced-conversion regressions passed 17/17;
+`npm run check` reported 390 files with zero diagnostics. This is local
+configuration evidence only. No Google Ads account setting, consent policy,
+real conversion, feed, API upload, deployment, or campaign mutation occurred.

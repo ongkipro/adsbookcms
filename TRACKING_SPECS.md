@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-08-25 @ `bdb9d72` + current Meta signal worktree
+> Verified against disk: 2026-08-25 @ `16df062` + Google destination hardening working tree
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -265,9 +265,9 @@ An embed pasted before 2026-08-16 must be re-copied from `/admin/products`. The 
 
 ### Tag integration
 
-1. **Google Tag (`gtag.js`)**: loaded by `GoogleAdsBase.astro` when a valid `google_ads_conversion_id` (`AW-XXXXXXXXX`) and `google_ads_conversion_label` are configured. Both must be present; the component renders nothing otherwise. The 153 KB library download is **deferred** to first interaction or 2500 ms, whichever comes first — the same trade `MetaPixelBase.astro` takes, made after it measured 228 ms of a product page's 750 ms blocking time. `window.gtag` is a `dataLayer.push` shim declared inline, so the consent, `js` and `config` calls queue in their original order and only the download moves. A conversion never waits on the timer: `__PS_PUSH_GOOGLE_CONVERSION__` calls `window.__PS_LOAD_GOOGLE_TAG__()` before pushing. Only remarketing `page_view` is affected, and only for a visitor who leaves inside the timeout.
-2. **Google Tag Manager**: loaded by `GtmBase.astro` when `google_tag_manager_id` (`GTM-XXXXXXX`) is defined. Pushes `page_view`, `view_item`, `add_to_cart`, `begin_checkout`, and `purchase` to `window.dataLayer` using the GA4/GTM ecommerce schema.
-3. **Global execution helper**: `window.__PS_PUSH_GOOGLE_CONVERSION__(value, transactionId, userData)` builds `{ send_to: id + '/' + label, value, currency: 'IDR' }`, appends `transaction_id` **only when truthy** (an empty string would make every order collide instead of dedupe), attaches `user_data` when supplied, and calls `gtag('event', 'conversion', payload)`.
+1. **Google Tag (`gtag.js`)**: loaded by `GoogleAdsBase.astro` only when the effective `google_ads_conversion_id` (`AW-XXXXXXXXX`) and `google_ads_conversion_label` are both valid. Dashboard and environment values use the same atomic validation; a half-filled or malformed fallback disables the direct tag rather than emitting a broken `send_to`. The library download is deferred to first interaction or 2500 ms, whichever comes first. `window.gtag` is a `dataLayer.push` shim declared inline, so the consent, `js` and `config` calls queue in their original order. A conversion never waits on the timer: `__PS_PUSH_GOOGLE_CONVERSION__` calls `window.__PS_LOAD_GOOGLE_TAG__()` before pushing.
+2. **Google Tag Manager**: loaded by `GtmBase.astro` when `google_tag_manager_id` (`GTM-XXXXXXX`) is defined. It may consume `page_view`, `view_item`, `add_to_cart`, `begin_checkout`, and `purchase` through the GA4/GTM ecommerce schema. It must not map `purchase` to the same Google Ads conversion action as the direct Google Tag pair—one Ads action has one emitting owner.
+3. **Global execution helper**: `window.__PS_PUSH_GOOGLE_CONVERSION__(value, transactionId, userData)` builds `{ send_to: id + '/' + label, value, currency: 'IDR' }`, appends `transaction_id` **only when truthy** (an empty string would make every order collide instead of dedupe), attaches `user_data` through `gtag('set', 'user_data', ...)` before the conversion event, then calls `gtag('event', 'conversion', payload)`.
 
 ### Enhanced Conversions for Web
 
@@ -323,6 +323,10 @@ address match key, so the unhashed fields travel with them. Email is not part of
 the browser Enhanced Conversions payload today: the only address the funnel holds
 for a non-COD order is synthesized from the phone number, and a synthetic address
 cannot match a Google account.
+
+Enhanced Conversions is only processed after the advertiser enables the
+Google-tag method and accepts Google Ads customer-data terms for the conversion
+action. A correct browser payload alone cannot prove account-side processing.
 
 ### Consent Mode v2 — region-scoped, two calls
 

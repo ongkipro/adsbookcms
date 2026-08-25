@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getStoreAdsConfig } from "./store-ads.ts";
+import {
+  getStoreAdsConfig,
+  hasValidGoogleAdsConversion,
+} from "./store-ads.ts";
 
 /**
  * Audit 2026-08-23 §2.6: this module resolves the pixel id, CAPI token and
@@ -107,6 +110,24 @@ test("a store row that leaves a field blank falls through to the environment", a
   assert.equal(config.metaPixelId, "111111111111111");
   assert.equal(config.metaCapiToken, "env-capi-token");
   assert.equal(config.googleTagManagerId, "GTM-ENVONLY");
+});
+
+test("Google Ads direct conversion requires a valid complete destination", async (context) => {
+  withoutAdsSecrets(context);
+  assert.equal(hasValidGoogleAdsConversion("AW-111111111", "valid_label-1"), true);
+  assert.equal(hasValidGoogleAdsConversion("AW-111111111", ""), false);
+  assert.equal(hasValidGoogleAdsConversion("G-111111111", "valid_label-1"), false);
+  assert.equal(hasValidGoogleAdsConversion("AW-111111111", "not valid"), false);
+
+  const config = await getStoreAdsConfig({
+    runtimeEnv: {
+      OMS_DB: storeDatabase(null),
+      GOOGLE_ADS_CONVERSION_ID: "AW-111111111",
+      GOOGLE_ADS_CONVERSION_LABEL: "not valid",
+    },
+  } as never);
+  assert.equal(config.googleAdsConversionId, "");
+  assert.equal(config.googleAdsConversionLabel, "");
 });
 
 test("every documented pixel alias resolves, so one spelling does not silently disable tracking", async (context) => {

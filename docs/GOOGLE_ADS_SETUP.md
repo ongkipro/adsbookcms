@@ -1,6 +1,6 @@
 # Google Ads Conversion Signal & Merchant Center Setup Guide
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A10 working tree
+> Verified against disk: 2026-08-25 @ `16df062` + Google destination hardening working tree
 
 > **Product:** AdsBookCMS (single) — one installer, one Worker, one store.
 > **Repository role:** product. Examples below name `permatamall.shop`, the first install, which lives in its own repository (`ongkipro/permatamall`); substitute your own install's domain.
@@ -57,17 +57,32 @@ $$\text{Ad click (gclid, gbraid, wbraid)} \longrightarrow \text{Consent Mode v2 
 
 1. On the conversion action detail page, expand *UI label* **Enhanced conversions**.
 2. Check *UI label* **Turn on enhanced conversions**.
-3. Select *UI label* **Google tag** or *UI label* **Google Tag Manager** as the implementation method.
-4. The storefront hashes first-party data client-side before dispatch, in `MetaThanksTracker.astro`:
+3. Choose the implementation owner for this conversion action:
+   - **Google tag** — enter the conversion ID and label in Ads & Tracking →
+     Google. AdsBookCMS emits the direct `gtag('event', 'conversion', …)`.
+   - **Google Tag Manager** — configure the conversion tag in GTM from the
+     `purchase` dataLayer event, and leave the direct conversion ID/label empty.
+     GTM may still run GA4 alongside the direct Google tag, but the same Google
+     Ads conversion action must never fire through both paths.
+4. The storefront sends real available first-party data client-side before the
+   verified Purchase event:
    - `sha256_phone_number` — the phone normalized to E.164 **including the leading `+`** (for example `+6281234567890`), then SHA-256 hashed. Note that the Meta leg hashes the same number **without** the `+`; the two hashes are deliberately different and must not be shared.
    - `sha256_first_name` — first whitespace-delimited token of the name, trimmed, SHA-256 hashed.
-   - `sha256_last_name` — remaining name tokens joined by a space, SHA-256 hashed.
-   - Email is **not** currently included in the browser Enhanced Conversions payload.
-5. Click *UI label* **Save**.
+   - `sha256_last_name` — remaining name tokens joined by a space, trimmed, SHA-256 hashed.
+   - Email is **not** currently included in the browser Enhanced Conversions payload; a synthetic payment-provider email must never be substituted.
+5. Confirm the Google-tag enhanced-conversion method and customer-data terms are enabled in the Google Ads account. A correctly shaped browser payload is otherwise not processed.
+6. Click *UI label* **Save**.
 
-### Step 3 — Configure the GTM container (optional, recommended)
+### Step 3 — Configure the GTM container (optional)
 
-If using Google Tag Manager (`GTM-XXXXXXX`), configure it in the store admin under Ads & Tracking → Google. GTM is validated and loaded independently of the Google Ads conversion pair, so one can be configured without the other.
+If using Google Tag Manager (`GTM-XXXXXXX`), configure it in the store admin under Ads & Tracking → Google. GTM is validated and loaded independently of the direct Google Ads conversion pair.
+
+Choose one conversion owner:
+
+- **Direct Google Tag configured:** use GTM for GA4/analytics and do **not**
+  create a Google Ads Conversion Tracking tag for that same purchase action.
+- **GTM conversion owner:** leave the direct Google Ads conversion ID and label
+  empty, then configure the following GTM tags.
 
 In the GTM workspace:
 
@@ -78,14 +93,14 @@ In the GTM workspace:
   - Tag type: *UI label* **Google Tag**
   - Tag ID: your `AW-` conversion ID
   - Trigger: *UI label* **All Pages**
-- **Tag 3 — Google Ads Conversion Tracking**
-  - Tag type: *UI label* **Google Ads Conversion Tracking**
+- **Tag 3 — Google Ads Conversion Tracking** *(only when GTM owns it)*
   - Conversion ID: your `AW-` ID, or a variable such as `{{Google Ads ID}}`
   - Conversion label: your label, or a variable such as `{{Google Ads Label}}`
   - Value: `{{dlv - total_price}}`
   - Currency code: `IDR`
   - Transaction ID: `{{dlv - order_id}}`
-  - Enable enhanced conversions: checked, with user-data variable `{{dlv - user_data}}`
+  - Enable enhanced conversions only after its Google-account method and
+    customer-data terms are configured
   - Trigger: custom event `purchase`
 
 The storefront pushes `page_view`, `view_item`, `add_to_cart`, `begin_checkout`, and `purchase` to `window.dataLayer` using the GA4/GTM ecommerce schema.

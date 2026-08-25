@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-08-22 @ `d6f08c6` + A21
+> Verified against disk: 2026-08-25 @ `ca221b8`; incorporates the reusable native-page integration constraints from Zvara's 2026-08-25 landing-page work.
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -142,7 +142,25 @@ gallery is `scroll-snap`; a countdown is a `<script>` tag.
 - One accent: `#C5A880`. One ink: `#111111`. One neutral family, warm
   (`#F8F7F4` surfaces on a `#f8f7f4` canvas, white reading column).
 
-### 5. Verify before calling it done
+### 5. Evidence, assets, and conversion claims
+
+- Put route-owned imagery under `public/images/landing/<slug>/`. Use only
+  merchant-approved product, demonstration, or customer evidence; optimize it
+  through the existing `src/lib/client-image.ts` policy. Do not add an image
+  package or a one-off conversion script.
+- A page may structure a clear progression from product context through benefits,
+  use, proof, and checkout, but its section count and visual treatment are not a
+  product contract. Reuse the design system rather than importing a rigid
+  campaign-specific visual recipe.
+- Copy may name a buyer problem and explain a verified product benefit. Do not
+  manufacture testimonials, review avatars, before/after evidence, stock
+  scarcity, guarantees, certifications, or outcome claims. Absent evidence is
+  omitted, not generated.
+- The checkout handoff remains canonical:
+  `<GeoIpResolvedForm mode="hybrid" productSlug={product.slug} />`. Never pass
+  a hard-coded product ID, price, variant, or a made-up form context.
+
+### 6. Verify before calling it done
 
 ```bash
 npm run check     # astro check + tsc

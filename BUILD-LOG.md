@@ -4319,3 +4319,15 @@ Zanobyshop, the only install with a Meta Pixel configured, also served
 SHA-256 `external_id` with a PageView whose browser event ID matched the CAPI
 event ID. Meta acceptance, Event Match Quality, conversion lift, CPA, and ROAS
 still require Events Manager observation and are not inferred from the deploy.
+
+## 2026-08-25 — Zvara's native landing-page notes reconciled into the canonical guide
+
+Zvara's independently merged landing-page work included
+`docs/NATIVE_LANDING_PAGE_SPEC.md`. It was not copied into the product: that
+would create a second owner beside `docs/LANDING-PAGES.md`, which already owns
+native and CMS landing-page construction. The product guide now carries the
+reusable constraints: route-owned asset location, the existing image policy,
+evidence-backed conversion claims, and the canonical product-driven hybrid-form
+handoff. Campaign-specific visual recipes, another merchant's brand language,
+and prompts to fabricate testimonials, proof, scarcity, guarantees, or outcomes
+were deliberately excluded.

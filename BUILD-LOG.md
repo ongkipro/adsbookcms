@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `75f606d` + KV-quota working tree
+> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -4477,3 +4477,28 @@ again returned `200`.
   retired `/api/webhooks/autolaris` is still sent as `callbackUrl`;
   `/payment` still depends on `sessionStorage`; a late manual payment never
   fires a browser Purchase. Tracked as A-162…A-164.
+
+### Entry 85: Payment recovery — callbacks recorded, reopenable /payment, late Purchase, DANA retired
+
+**Date:** 2026-08-27 · **Release:** 1.3.3 / `2026.08-payment-recovery` · **ADR:** 022 · **Migration:** `0050` · **Tasks:** A-164…A-167
+
+- **A-164.** `/api/webhooks/autolaris` records every delivery verbatim in
+  `autolaris_callbacks` and answers 200 (was a 410 tombstone that AutoLaris
+  was still being told to call). Rate-limited per address; never touches
+  `orders` or `payment_transactions`. `manual-payment-reconciliation.test.ts`
+  asserts a forged `PAID` body is stored and nothing transitions.
+- **A-165.** Checkout navigates to `/payment#o=<order>&t=<token>`; the page
+  copies the fragment into `sessionStorage`, strips it from the address bar,
+  and offers *Salin Tautan Pembayaran* so the instructions can be reopened on
+  another device. Fragments never reach a server or referrer, which is why the
+  query-string ban in `checkout-navigation.ts` stands.
+- **A-166.** `src/lib/paid-order-purchase.ts`: a manual paid confirmation
+  enqueues the server Meta Purchase from the order row — `event_id` = order
+  number, goods-only value, catalogue content ids, no invented browser ids.
+  Best-effort after the confirmation is durable; `paid-order-purchase.test.ts`.
+- **A-167.** `DANA` removed from `AUTOLARIS_CHANNELS` and from the dead
+  branches in `form-hybrid.ts` and `payment.astro`.
+- **Evidence.** `npm test` 583/583, `npm run check` 396 files clean, build
+  complete, lucide subset regenerated (29 icons). Local `wrangler dev`: fresh
+  D1 reports 51 claims; a JSON callback is stored with `reff_id`/`trx_id`
+  indexed; `/payment` ships the link and retry controls.

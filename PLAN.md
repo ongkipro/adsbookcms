@@ -1,5 +1,7 @@
 # PLAN — AdsBookCMS install updates (manual copy)
 
+> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+
 **Status:** Decided (ADR-020). Security gate A-151 done; fleet-automation engine
 withdrawn as YAGNI. This is a procedure, not a tool to build.
 

@@ -1,6 +1,6 @@
 # Architecture Decision Record — AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `75f606d` + KV-quota working tree
+> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
 
 Append-only. One decision per entry. A decision is recorded here only when it constrains future work; implementation detail belongs in `ARCHITECTURE.md`, remaining work in `UNIMPLEMENTED_SPECS.md`.
 
@@ -627,3 +627,33 @@ binding per distinct limit, a 10 s or 60 s window only (the login brake is
 Object* for exact counting — a new resource class per install for something a
 single D1 upsert does. *Keeping sessions in KV with a fallback* — a store of
 record with a fallback is two stores of record.
+
+## ADR-022 — Provider callbacks are evidence, never transitions
+
+**Date:** 2026-08-27 · **Status:** Accepted. Migration `0050`; A-164.
+
+**Context.** AutoLaris requires a non-empty `callback_url` on every
+`create_payment`, and this product handed it a URL that answered `410` — a
+tombstone left when the earlier webhook was retired because the provider has no
+accepted callback contract and its settled/expired/failed shapes have never been
+observed (UNIMPLEMENTED_SPECS §AutoLaris). Observing one by paying a real VA
+was ruled out. Meanwhile every callback the provider did send was dropped, so
+the evidence that would settle the question was being thrown away on arrival.
+
+**Decision.** `/api/webhooks/autolaris` records every delivery verbatim in
+`autolaris_callbacks` (received time, address, content type, body, and the
+`reff_id`/`trx_id` it can lift for indexing) and answers `200`. It is
+rate-limited per address and never reads or writes `orders` or
+`payment_transactions`. Manual owner/admin reconciliation remains the only path
+to `paid`. When a settled callback is on file, classifying its shape and wiring
+it into `inquirePayment` is a separate, evidence-backed decision.
+
+**Consequences.** A forged callback can fill a table, not mark an order paid.
+Operators read the table with `wrangler d1 execute` for now; an admin view is
+not built until there is something to show. Astro's default `checkOrigin` CSRF
+guard is kept: a `application/json` callback is accepted (measured 200), while a
+form-encoded or `text/plain` POST from another origin is refused with 403
+before route code runs (measured). AutoLaris speaks JSON on every documented
+endpoint; if the table stays empty after real payments, the provider posting
+forms is the first thing to rule out, and the fix is a deliberate
+`security.checkOrigin` decision, not a silent one.

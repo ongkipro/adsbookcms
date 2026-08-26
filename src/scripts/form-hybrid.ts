@@ -1240,9 +1240,7 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
     }
 
     const virtualAccountOptions = options.filter(
-      (opt) =>
-        opt.paymentMethod === "bank_transfer" &&
-        opt.channelCode !== "DANA",
+      (opt) => opt.paymentMethod === "bank_transfer",
     );
     const manualBankOptions = options.filter(
       (opt) => opt.paymentMethod === "manual_transfer",
@@ -2092,7 +2090,14 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
         ? "Membuka Instruksi Pembayaran..."
         : "Mengalihkan ke Halaman Terima Kasih...",
     );
-    navigateAfterCheckout(destinationPath);
+    // The payment locator rides in the URL fragment, which browsers never send
+    // to a server or a referrer, so the instructions survive a lost tab or a
+    // hand-off to another device without exposing the token to analytics.
+    navigateAfterCheckout(
+      destinationPath === "/payment"
+        ? `/payment#o=${encodeURIComponent(String(thanksState.order_pk ?? ""))}&t=${encodeURIComponent(String(thanksState.status_token ?? ""))}`
+        : destinationPath,
+    );
   });
 }
 

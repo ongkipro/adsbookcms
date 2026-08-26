@@ -8,11 +8,11 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.3.2",
+  version: "1.3.3",
   channel: "production",
-  // Admin sessions and rate-limit counters move to D1 in migration 0049 (ADR-021).
-  releaseTag: "2026.08-kv-quota",
+  // 0049: sessions and rate limits in D1 (ADR-021). 0050: AutoLaris callback evidence (A-164).
+  releaseTag: "2026.08-payment-recovery",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
-  schemaVersion: 50,
+  schemaVersion: 51,
   lastUpdated: "2026-08-27",
 };

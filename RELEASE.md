@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `75f606d` + KV-quota working tree
+> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -104,6 +104,8 @@ Migration-specific notes:
 - **`0049` (1.3.2, ADR-021)** moves admin sessions and rate-limit counters from
   KV into D1. Sessions are not migrated: every operator logs in once more after
   the first deploy that carries it. Nothing else changes for the buyer.
+- **`0050` (1.3.3, ADR-022)** adds `autolaris_callbacks`. Additive; no data
+  moves. The provider's `callback_url` starts answering 200 instead of 410.
 
 ---
 
@@ -113,15 +115,15 @@ Two registries, currently in step:
 
 | Source | Field | Value |
 | --- | --- | --- |
-| `src/lib/version.ts` | `version` | `1.3.2` |
-| `src/lib/version.ts` | `releaseTag` | `2026.08-kv-quota` |
-| `src/lib/version.ts` | `schemaVersion` | `50` |
-| `package.json` | `version` | `1.3.2` |
+| `src/lib/version.ts` | `version` | `1.3.3` |
+| `src/lib/version.ts` | `releaseTag` | `2026.08-payment-recovery` |
+| `src/lib/version.ts` | `schemaVersion` | `51` |
+| `package.json` | `version` | `1.3.3` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration files, and the tree holds 50 (`0000`–`0049`).
+`schemaVersion` counts migration files, and the tree holds 51 (`0000`–`0050`).
 `schema-version.test.ts` fails CI on drift; middleware enforces the same chain at
 runtime; `operational-health.ts` and the dashboard expose applied version.
 

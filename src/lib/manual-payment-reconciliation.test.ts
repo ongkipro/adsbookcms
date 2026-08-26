@@ -463,16 +463,57 @@ test("admin role can confirm through the protected route contract", async () => 
   assert.equal(count(database, "payment_reconciliation_audits"), 1);
 });
 
-test("retired AutoLaris webhook always returns 410 without touching runtime state", async () => {
-  const response = await LEGACY_WEBHOOK({
-    request: new Request("https://cms.test/api/webhooks/autolaris", {
-      method: "POST",
-      body: JSON.stringify({ status: "PAID", trx_id: "forged" }),
-    }),
-    locals: {},
-  } as never);
-  assert.equal(response.status, 410);
-  assert.equal((await response.json() as { code: string }).code, "AUTOLARIS_WEBHOOK_RETIRED");
+test("an AutoLaris callback is recorded verbatim and moves no payment state", async () => {
+  const rows: unknown[][] = [];
+  const statements: string[] = [];
+  const database = {
+    prepare(sql: string) {
+      statements.push(sql);
+      let values: unknown[] = [];
+      const statement = {
+        bind(...next: unknown[]) {
+          values = next;
+          return statement;
+        },
+        async first() {
+          if (sql.includes("INSERT INTO rate_limits")) return { count: 1 };
+          throw new Error(`unexpected first(): ${sql}`);
+        },
+        async run() {
+          if (sql.includes("INSERT INTO autolaris_callbacks")) {
+            rows.push(values);
+            return { meta: { changes: 1 } };
+          }
+          throw new Error(`unexpected run(): ${sql}`);
+        },
+      };
+      return statement;
+    },
+  } as unknown as D1Database;
+  const original = console.error;
+  console.error = () => {};
+  let response: Response;
+  try {
+    response = await LEGACY_WEBHOOK({
+      request: new Request("https://cms.test/api/webhooks/autolaris", {
+        method: "POST",
+        headers: { "content-type": "application/json", "cf-connecting-ip": "203.0.113.9" },
+        body: JSON.stringify({ rc: "00", data: { trx_id: "TRX-77", reff_id: "10041", status: "PAID" } }),
+      }),
+      locals: { runtimeEnv: { OMS_DB: database } },
+    } as never);
+  } finally {
+    console.error = original;
+  }
+  assert.equal(response.status, 200);
+  assert.equal((await response.json() as { recorded: boolean }).recorded, true);
+  assert.equal(rows.length, 1);
+  // Indexed identifiers were lifted from the body; the body itself is intact.
+  assert.equal(rows[0][5], "10041");
+  assert.equal(rows[0][6], "TRX-77");
+  assert.match(String(rows[0][4]), /"status":"PAID"/);
+  // Nothing touched orders or payment_transactions: a forged "PAID" is evidence, not a transition.
+  assert.equal(statements.some((sql) => /UPDATE (orders|payment_transactions)/.test(sql)), false);
 });
 
 test("a provider inquiry reports AutoLaris state without writing anything", async (context) => {

@@ -1,6 +1,6 @@
 # AdsBookCMS — Storefront, Form, and Ads Integration Contract
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A10 working tree
+> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
 
 This document is the implementation handoff for anyone — human or agent — building a public storefront experience against an **AdsBookCMS** install. Two integration shapes are supported and both are shipping today:
 
@@ -46,7 +46,7 @@ A second store is a second install — separate Worker, D1, KV, R2, and domain. 
 
 **Storefront-owned (built-in renderer):** `/`, `/produk`, `/produk/[slug]`, `/[slug]` landing catch-all, `/404`, content pages (`/tentang`, `/kontak`, `/testimoni`, `/sitemap`, `/disclaimer`, `/kebijakan-privasi`, `/kebijakan-cookie`, `/syarat-ketentuan`, `/pengiriman`), feeds (`/sitemap.xml`, `/feed/google-catalog.xml`, `/feed/meta-catalog.xml`, `/robots.txt`), and media (`/assets/[...key]`, `/media/[...key]`).
 
-**System-owned, never forked:** `/admin/*`, `/hello`, `/api/*`, `/payment`, `/thanks`, `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`, `/api/admin/payment-reconciliation`, and the retired tombstone `/api/webhooks/autolaris`.
+**System-owned, never forked:** `/admin/*`, `/hello`, `/api/*`, `/payment`, `/thanks`, `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`, `/api/admin/payment-reconciliation`, and the callback recorder `/api/webhooks/autolaris` (evidence only; never a payment transition).
 
 ### Form route redirects — verified
 

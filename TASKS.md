@@ -1,5 +1,7 @@
 # Tasks: AdsBookCMS
 
+> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+
 ## A21 — A landing page may become the product page
 
 - [x] **A-147** — Add the product-page claim to `landing_pages`, enforced by a partial unique index. **Done 2026-08-22** — migration `0046`, schema 47. Focused tests prove a second page targeting the same product is refused with the holding slug, that releasing frees it, and that an unknown page reports not-found instead of throwing.
@@ -1497,11 +1499,11 @@ genuinely unmanageable.
   -> Done when: a fleet-wide `KV put() limit exceeded` no longer fails login or kecamatan search; sessions revoke on rotation/logout from D1; the pair brake is exact; every remaining KV write is best-effort and labelled. Evidence: BUILD-LOG entry 84.
 - [x] **A-163** — A failed or expired AutoLaris instruction is regenerable, not a dead order. **Done 2026-08-27.**
   -> Done when: `create_payment` failure leaves the order `pending` with a `failed` transaction; `expired` is derived from `expires_at`; `/api/order-status` regenerates on `retry_payment` under a 5/10 min limit; `/payment` offers the retry and stops polling a dead instruction. Evidence: `autolaris-payment.test.ts` (+3), local `wrangler dev` limits observed.
-- [ ] **A-164** — Stop sending the retired webhook as `callbackUrl`.
-  -> `autolaris-payment.ts` still hands AutoLaris `/api/webhooks/autolaris`, which answers `410`. Done when the provider is given either no callback or a live one — which needs the settled `advice` shape (UNIMPLEMENTED_SPECS §AutoLaris) before a callback can move payment state.
-- [ ] **A-165** — `/payment` survives losing `sessionStorage`.
-  -> The page strips every query parameter and reads `order_pk`/`status_token` only from `thanks_state`; a second tab or device shows "Data pembayaran tidak lengkap" although the VA is in D1. Done when a buyer can reopen their instructions from a link that carries the status token without leaking it to analytics referrers.
-- [ ] **A-166** — A Purchase for an order paid after the buyer left `/thanks`.
-  -> Manual reconciliation marks the order paid and records a notification only; the browser Purchase fires from `/thanks`, which a late-paying buyer never revisits. Google offline reconciliation covers Google; Meta has no server-side equivalent here. Done when a paid transition without a browser Purchase enqueues one CAPI Purchase with the order's `event_id`.
-- [ ] **A-167** — Retire the half-wired `DANA` channel code paths.
-  -> `DANA` sits in `AUTOLARIS_CHANNELS` but not in the checkout list; dead branches remain in `form-hybrid.ts`, `payment.astro`, and there is no fee rule, so a DANA channel would throw in `payment-fee-policy.ts`. Done when either the channel is offered end to end with a fee rule, or the dead branches are removed.
+- [x] **A-164** — Stop sending the retired webhook as `callbackUrl`. **Done 2026-08-27 (ADR-022, migration `0050`).**
+  -> The URL stays; the endpoint now records every callback in `autolaris_callbacks` and answers 200, moving no payment state. Evidence: BUILD-LOG entry 85.
+- [x] **A-165** — `/payment` survives losing `sessionStorage`. **Done 2026-08-27.**
+  -> Fragment locator `/payment#o=…&t=…` from checkout and from the page's own copy-link button; never a query string. Evidence: BUILD-LOG entry 85.
+- [x] **A-166** — A Purchase for an order paid after the buyer left `/thanks`. **Done 2026-08-27.**
+  -> `enqueuePurchaseForPaidOrder` after manual confirmation; deduplicated by the outbox's `event_id`. Evidence: `paid-order-purchase.test.ts`.
+- [x] **A-167** — Retire the half-wired `DANA` channel code paths. **Done 2026-08-27.**
+  -> Removed from `AUTOLARIS_CHANNELS`, `form-hybrid.ts`, and `payment.astro`.

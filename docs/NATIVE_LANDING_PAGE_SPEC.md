@@ -1,6 +1,6 @@
 # Native Direct-Response Landing Page Standard
 
-> Verified against disk: 2026-08-25. Companion to `docs/LANDING-PAGES.md`.
+> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
 
 This document is the portable implementation standard for a native Astro
 product landing page. `docs/LANDING-PAGES.md` remains the canonical owner of

@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { z } from "zod";
 import { jsonError, jsonOk } from "../../../lib/api.ts";
 import { getRuntimeEnv } from "../../../lib/env.ts";
+import { enqueuePurchaseForPaidOrder } from "../../../lib/paid-order-purchase.ts";
 import {
   confirmManualAutoLarisPayment,
   inquireAutoLarisPaymentStatus,
@@ -137,8 +138,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
         note: parsed.data.note,
       },
     );
+    // The buyer left /thanks long before this confirmation; the browser
+    // Purchase never fired. Send it from the order row (A-166). Best effort:
+    // the confirmation above is already durable and must not be undone by a
+    // conversion problem.
+    let purchase: Awaited<ReturnType<typeof enqueuePurchaseForPaidOrder>> | null = null;
+    try {
+      purchase = await enqueuePurchaseForPaidOrder(database, locals, result.transaction.order_id);
+    } catch (error) {
+      console.error("paid-order-purchase-failed", error);
+    }
     return jsonOk({
       data: {
+        meta_purchase: purchase,
         transaction_id: result.transaction.transaction_id,
         order_number: result.transaction.order_number,
         status: result.transaction.status,

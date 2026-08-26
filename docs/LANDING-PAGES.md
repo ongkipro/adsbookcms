@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-08-25 @ `ca221b8`; incorporates the reusable native-page integration constraints from Zvara's 2026-08-25 landing-page work.
+> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.

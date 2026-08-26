@@ -8,7 +8,6 @@ export const AUTOLARIS_CHANNELS = [
   "VABSI",
   "VACIMB",
   "VADANAMON",
-  "DANA",
 ] as const;
 
 export type AutoLarisChannel = (typeof AUTOLARIS_CHANNELS)[number];

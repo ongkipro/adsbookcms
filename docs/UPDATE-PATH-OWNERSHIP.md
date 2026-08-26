@@ -1,5 +1,7 @@
 # Path-ownership manifest — copy-paste install updates
 
+> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+
 Authority: `DECISIONS.md` ADR-020, `PLAN.md`, `TASKS.md` A-153.
 
 Each store is a copy of AdsBookCMS in its **own repo**, deployed independently.

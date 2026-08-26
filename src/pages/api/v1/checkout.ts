@@ -22,8 +22,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   try {
     const clientIp = getClientIp(request.headers);
-    const sessions = getRuntimeEnv(locals)?.SESSION as KVNamespace | undefined;
-    const rateLimit = await checkRateLimit(sessions, `headless-checkout:${clientIp}`, 15, 60_000);
+    const database = getRuntimeEnv(locals)?.OMS_DB as D1Database | undefined;
+    const rateLimit = await checkRateLimit(database, `headless-checkout:${clientIp}`, 15, 60_000);
     if (!rateLimit.allowed) {
       return validation.finalize(headlessError('Terlalu banyak percobaan order. Silakan tunggu 1 menit.', 429, {
         code: 'RATE_LIMITED',
@@ -52,7 +52,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const data = parsed.data;
-    const database = getRuntimeEnv(locals)?.OMS_DB as D1Database | undefined;
     if (!database?.prepare) {
       return validation.finalize(headlessError('Database order belum dikonfigurasi.', 503, {
         code: 'DATABASE_UNAVAILABLE',

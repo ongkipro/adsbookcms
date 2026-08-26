@@ -1,6 +1,6 @@
 # AdsBookCMS
 
-> Verified against disk: 2026-08-18 @ `0af225b` on `feat/admin-access-dashboard`
+> Verified against disk: 2026-08-27 @ `75f606d` + KV-quota working tree
 
 A self-contained direct-response commerce CMS that installs onto Cloudflare Workers. One install runs one store: storefront, landing-page builder, checkout with COD and online payment, order management, courier dispatch, ad-signal tracking, and an admin dashboard — in a single Worker with its own database.
 
@@ -49,7 +49,7 @@ npm run cf:dev                # wrangler dev --local, closest to production
 | Islands | React 19 |
 | Runtime | Cloudflare Workers (`nodejs_compat`) |
 | Database | Cloudflare D1, accessed with raw prepared statements |
-| Sessions / counters | Cloudflare KV |
+| Sessions / counters | Cloudflare D1 (`admin_sessions`, `rate_limits`); KV holds caches and alert state only (ADR-021) |
 | Media | Cloudflare R2 |
 | AI | Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) for admin content drafting |
 | Styling | Tailwind CSS v4 + shadcn/ui |

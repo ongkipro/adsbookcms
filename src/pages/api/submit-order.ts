@@ -45,9 +45,8 @@ const json = (
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const clientIp = getClientIp(request.headers);
-  const sessions = getRuntimeEnv(locals)?.SESSION as KVNamespace | undefined;
   const rateLimit = await checkRateLimit(
-    sessions,
+    getRuntimeEnv(locals)?.OMS_DB as D1Database | undefined,
     `submit-order:${clientIp}`,
     10,
     60_000,
@@ -294,23 +293,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
       data.payment_method !== "cod" &&
       data.payment_method !== "manual_transfer"
     ) {
+      // A provider failure here no longer marks the *order* failed. That
+      // status released the reserved stock and left the buyer with no
+      // instructions and no route to new ones. The order stays pending with
+      // its failed transaction row, which `/api/order-status` can regenerate
+      // on the buyer's request and the operator can see in the order detail.
       try {
         payment = await createAutoLarisPaymentForOrder(database, locals, {
           orderId: order.id,
           channelCode: data.payment_channel!,
         });
-        if (payment.status === "failed") {
-          await database
-            .prepare("UPDATE orders SET payment_status = 'failed' WHERE id = ?")
-            .bind(order.id)
-            .run();
-        }
       } catch (error) {
         console.error("submit-order-autolaris-error", error);
-        await database
-          .prepare("UPDATE orders SET payment_status = 'failed' WHERE id = ?")
-          .bind(order.id)
-          .run();
       }
     }
     scheduleReceiverPerformanceRefresh(

@@ -1,3 +1,5 @@
+import { effectivePaymentStatus } from "./autolaris-payment.ts";
+
 export type PublicPaymentStatus = {
   channel_code: string;
   fee_bearer: "buyer" | "seller";
@@ -131,7 +133,9 @@ export async function loadPublicOrderStatus(
         ? {
             channel_code: orderRow.channel_code || orderRow.seller_bank_code || "",
             fee_bearer: orderRow.fee_bearer === "seller" ? "seller" : "buyer",
-            status: orderRow.transaction_status || paymentStatus,
+            status: orderRow.transaction_status
+              ? effectivePaymentStatus(orderRow.transaction_status, orderRow.expires_at)
+              : paymentStatus,
             amount: Number(orderRow.amount ?? orderRow.total_amount ?? 0),
             admin_fee: Number(orderRow.admin_fee ?? 0),
             total_amount: Number(orderRow.payment_total ?? orderRow.total_amount ?? 0),
@@ -147,4 +151,27 @@ export async function loadPublicOrderStatus(
           }
         : null,
   };
+}
+
+/**
+ * The order's primary key behind a public identity + token pair. Kept out of
+ * `PublicOrderStatus` on purpose: that shape is also the headless
+ * `/api/v1/orders/status` contract, and a payment retry is the only caller
+ * that needs the key.
+ */
+export async function resolvePublicOrderId(
+  database: D1Database,
+  orderIdentity: string,
+  statusToken: string,
+): Promise<number | null> {
+  const row = await database
+    .prepare(
+      `SELECT id FROM orders
+        WHERE (CAST(id AS TEXT) = ? OR order_number = ?)
+          AND public_status_token = ?
+        LIMIT 1`,
+    )
+    .bind(orderIdentity, orderIdentity, statusToken)
+    .first<{ id: number }>();
+  return row ? Number(row.id) : null;
 }

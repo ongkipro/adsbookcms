@@ -5,7 +5,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import { getStorefrontProduct } from '../lib/catalog';
 import { getLandingPageBySlug, parseShortcodes } from '../lib/landing-pages';
 import { getStoreSupportWhatsapp } from '../lib/public-store';
-import { getSessionCookie, verifyJwt } from '../lib/auth';
+import { resolveAdminSession } from '../lib/admin-session';
 import { getEnvValue, getRuntimeEnv } from '../lib/env';
 import '../styles/form-hybrid.css';
 import '../styles/landing-pages/landing.css';
@@ -31,42 +31,13 @@ if (previewRequested) {
   if (Astro.locals.admin) {
     isPreview = true;
   } else {
-    try {
-      const env = getRuntimeEnv(Astro.locals);
-      const sessions = env?.SESSION as KVNamespace | undefined;
-      const database = env?.OMS_DB as D1Database | undefined;
-      const token = getSessionCookie(Astro.request);
-      const session = token
-        ? await verifyJwt(token, getEnvValue('AUTH_SECRET', env))
-        : null;
-      if (session && sessions && database) {
-        const storedValue = await sessions.get(`admin-session:${session.jti}`);
-        const stored = storedValue
-          ? JSON.parse(storedValue) as {
-              username?: unknown;
-              role?: unknown;
-              must_change_password?: unknown;
-              credential_updated_at?: unknown;
-            }
-          : null;
-        if (
-          stored?.username === session.username &&
-          stored.role === session.role &&
-          stored.must_change_password !== true &&
-          typeof stored.credential_updated_at === 'string'
-        ) {
-          const credential = await database
-            .prepare('SELECT updated_at, role FROM admin_credentials WHERE username = ? LIMIT 1')
-            .bind(session.username)
-            .first<{ updated_at: string; role: string }>();
-          isPreview =
-            credential?.updated_at === stored.credential_updated_at &&
-            credential.role === session.role;
-        }
-      }
-    } catch {
-      isPreview = false;
-    }
+    const env = getRuntimeEnv(Astro.locals);
+    const session = await resolveAdminSession(
+      env?.OMS_DB as D1Database | undefined,
+      Astro.request,
+      getEnvValue('AUTH_SECRET', env),
+    );
+    isPreview = session !== null && !session.mustChangePassword;
   }
 }
 if (isPreview) Astro.response.headers.set('Cache-Control', 'no-store');

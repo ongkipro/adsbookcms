@@ -31,18 +31,6 @@ export const prerender = false;
 export const GET: APIRoute = async ({ request, url, locals }) => {
   try {
     const runtimeEnv = getRuntimeEnv(locals);
-    const rateLimit = await checkRateLimit(
-      runtimeEnv?.SESSION as KVNamespace | undefined,
-      `public-location:${getClientIp(request.headers)}`,
-      120,
-      60_000,
-    );
-    if (!rateLimit.allowed) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Terlalu banyak pencarian lokasi. Coba lagi sebentar.' }),
-        { status: 429, headers: { 'Content-Type': 'application/json', ...rateLimitHeaders(rateLimit.remaining, rateLimit.resetAt) } },
-      );
-    }
     const search = url.searchParams.get('search') || '';
     const level = url.searchParams.get('level');
     if (!search || search.trim().length < 2) {
@@ -56,11 +44,29 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
     // instant, needs no network, and stays usable if Mengantar is slow or
     // down. `level=resolve` (fired on selection, not on keystroke) is the
     // only call that has to reach the provider for a real destination id.
+    //
+    // No rate-limit counter on this branch, on purpose. It is a pure in-memory
+    // scan with nothing to protect, and the form fires it on every keystroke:
+    // counting each one was a store write per character, which is how a
+    // shared daily KV allowance was spent on typing (ADR-021).
     if (level === 'district') {
       const items = searchDistrictCatalog(search).map(createDistrictDiscoveryLocation);
       return new Response(
         JSON.stringify({ success: true, items, locations: items }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const rateLimit = await checkRateLimit(
+      runtimeEnv?.OMS_DB as D1Database | undefined,
+      `public-location:${getClientIp(request.headers)}`,
+      120,
+      60_000,
+    );
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Terlalu banyak pencarian lokasi. Coba lagi sebentar.' }),
+        { status: 429, headers: { 'Content-Type': 'application/json', ...rateLimitHeaders(rateLimit.remaining, rateLimit.resetAt) } },
       );
     }
 
@@ -184,6 +190,9 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
     }
     return new Response(JSON.stringify(payload));
   } catch (error) {
+    // Labelled so Workers Logs can answer "why did kecamatan search 500" —
+    // the previous silent catch hid a quota outage for a whole fleet.
+    console.error('public-location-search-failed', error);
     return new Response(
       JSON.stringify({ success: false, error: 'Gagal mencari lokasi' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },

@@ -12,7 +12,7 @@ export const GET: APIRoute = async ({ request, url, locals }) => {
   try {
     const env = getRuntimeEnv(locals);
     const rateLimit = await checkRateLimit(
-      env?.SESSION as KVNamespace | undefined,
+      env?.OMS_DB as D1Database | undefined,
       `public-shipping-rate:${getClientIp(request.headers)}`,
       60,
       60_000,

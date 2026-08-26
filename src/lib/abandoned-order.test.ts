@@ -21,9 +21,8 @@ const qualifiedLead = {
   customer_phone: "081234567890",
 };
 
-test("abandoned capture rejects a filled honeypot before any KV or D1 operation", async () => {
+test("abandoned capture rejects a filled honeypot before any D1 operation", async () => {
   let databaseOperations = 0;
-  let kvOperations = 0;
   const response = await POST({
     request: abandonedRequest({
       ...qualifiedLead,
@@ -37,12 +36,6 @@ test("abandoned capture rejects a filled honeypot before any KV or D1 operation"
             throw new Error("honeypot reached D1");
           },
         },
-        SESSION: {
-          async get() {
-            kvOperations += 1;
-            throw new Error("honeypot reached KV");
-          },
-        },
       },
     },
   } as never);
@@ -50,10 +43,9 @@ test("abandoned capture rejects a filled honeypot before any KV or D1 operation"
   assert.equal(response.status, 400);
   assert.equal((await response.json() as { code?: string }).code, "HONEYPOT_TRIGGERED");
   assert.equal(databaseOperations, 0);
-  assert.equal(kvOperations, 0);
 });
 
-test("a qualified human lead inside the KV window is recorded", async () => {
+test("a qualified human lead inside the rate-limit window is recorded", async () => {
   let spentSlots = 0;
   // Captures the operator-notification write. Without a `run()` here the
   // fail-open recorder swallowed its own failure and the lead call site was
@@ -84,6 +76,10 @@ test("a qualified human lead inside the KV window is recorded", async () => {
           if (sql.includes("UPDATE order_number_counters")) {
             return { last_value: 10001 };
           }
+          if (sql.includes("INSERT INTO rate_limits")) {
+            spentSlots += 1;
+            return { count: spentSlots };
+          }
           throw new Error(`Unexpected query: ${sql}`);
         },
       };
@@ -103,14 +99,6 @@ test("a qualified human lead inside the KV window is recorded", async () => {
     locals: {
       runtimeEnv: {
         OMS_DB: database,
-        SESSION: {
-          async get() {
-            return null;
-          },
-          async put() {
-            spentSlots += 1;
-          },
-        },
       },
     },
   } as never);
@@ -130,25 +118,24 @@ test("a qualified human lead inside the KV window is recorded", async () => {
   assert.equal(notificationWrites.length, 0);
 });
 
-test("abandoned capture is rejected when the shared KV window is exhausted", async () => {
+test("abandoned capture is rejected when the rate-limit window is exhausted", async () => {
   let databaseOperations = 0;
   const response = await POST({
     request: abandonedRequest(qualifiedLead),
     locals: {
       runtimeEnv: {
         OMS_DB: {
-          prepare() {
+          prepare(sql: string) {
+            if (sql.includes("INSERT INTO rate_limits")) {
+              return {
+                bind(...values: QueryValue[]) {
+                  assert.match(String(values[0]), /^record-abandoned-order:203\.0\.113\.10:/);
+                  return { first: async () => ({ count: 11 }) };
+                },
+              };
+            }
             databaseOperations += 1;
             throw new Error("rate-limited request reached D1");
-          },
-        },
-        SESSION: {
-          async get(key: string) {
-            assert.match(key, /^record-abandoned-order:203\.0\.113\.10:/);
-            return "10";
-          },
-          async put() {
-            throw new Error("exhausted window was incremented");
           },
         },
       },

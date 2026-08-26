@@ -32,9 +32,8 @@ const json = (
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const clientIp = getClientIp(request.headers);
-  const sessions = getRuntimeEnv(locals)?.SESSION as KVNamespace | undefined;
   const rateLimit = await checkRateLimit(
-    sessions,
+    getRuntimeEnv(locals)?.OMS_DB as D1Database | undefined,
     `submit-middle-order:${clientIp}`,
     10,
     60_000,

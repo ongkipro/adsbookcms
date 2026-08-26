@@ -5,7 +5,10 @@ import {
   parseAutoLarisPaymentResponse,
 } from "./autolaris-client.ts";
 import { summarizePaymentBuckets } from "./autolaris-balance.ts";
-import { createAutoLarisPaymentForOrder } from "./autolaris-payment.ts";
+import {
+  createAutoLarisPaymentForOrder,
+  effectivePaymentStatus,
+} from "./autolaris-payment.ts";
 
 function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
   const state = {
@@ -65,6 +68,22 @@ function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
               expires_at: statement.args[8],
               failed_reason: null,
             };
+          } else if (sql.includes("status = 'pending', amount = ?,\n          admin_fee = ?, total_amount = ?, provider_transaction_id = NULL")) {
+            // A failed or expired row is reused for the retry.
+            Object.assign(state.transaction!, {
+              channel_code: statement.args[0],
+              fee_bearer: statement.args[1],
+              status: "pending",
+              amount: statement.args[2],
+              admin_fee: statement.args[3],
+              total_amount: statement.args[4],
+              virtual_account: null,
+              qr_payload: null,
+              payment_code: null,
+              provider_payment_url: null,
+              failed_reason: null,
+              expires_at: statement.args[5],
+            });
           } else if (sql.includes("provider_transaction_id = ?")) {
             Object.assign(state.transaction!, {
               amount: statement.args[1],
@@ -236,4 +255,95 @@ test("recorded balance separates paid funds, pending bills, fees, and failures",
     recordedFees: 7500,
     failedCount: 3,
   });
+});
+
+test("a failed instruction is regenerated on the next request, a live one is left alone", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const { database, state } = createAutoLarisOrderDatabase("qa-key");
+  let providerCalls = 0;
+  let providerAnswers = false;
+  globalThis.fetch = async () => {
+    providerCalls += 1;
+    if (!providerAnswers) return new Response("upstream down", { status: 502 });
+    return Response.json({
+      rc: "00",
+      data: {
+        trx_id: "TRX-PAY-41-B",
+        virtual_account: "",
+        qr: "QR-PAYLOAD-B",
+        payment_code: "",
+        url: "",
+        amount: 117_576,
+        admin: 824,
+        total: 118_400,
+      },
+    });
+  };
+
+  const first = await createAutoLarisPaymentForOrder(database, QA_LOCALS, { orderId: 41, channelCode: "QRIS" });
+  assert.equal(first.status, "failed");
+  assert.equal(providerCalls, 1);
+
+  // The provider recovers; the buyer asks again and gets a real instruction on
+  // the same transaction row.
+  providerAnswers = true;
+  const second = await createAutoLarisPaymentForOrder(database, QA_LOCALS, { orderId: 41, channelCode: "QRIS" });
+  assert.equal(providerCalls, 2);
+  assert.equal(second.status, "pending");
+  assert.equal(second.qrPayload, "QR-PAYLOAD-B");
+  assert.equal(second.failedReason, undefined);
+  assert.equal(state.transaction?.id, 91);
+
+  // A live instruction is never regenerated.
+  const third = await createAutoLarisPaymentForOrder(database, QA_LOCALS, { orderId: 41, channelCode: "QRIS" });
+  assert.equal(providerCalls, 2);
+  assert.equal(third.qrPayload, "QR-PAYLOAD-B");
+});
+
+test("a pending instruction past its expiry reads as expired and is regenerated", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const { database, state } = createAutoLarisOrderDatabase("qa-key");
+  let providerCalls = 0;
+  globalThis.fetch = async () =>
+    Response.json({
+      rc: "00",
+      data: {
+        trx_id: `TRX-${(providerCalls += 1)}`,
+        virtual_account: "8877001",
+        qr: "",
+        payment_code: "",
+        url: "",
+        amount: 117_576,
+        admin: 824,
+        total: 118_400,
+      },
+    });
+
+  const live = await createAutoLarisPaymentForOrder(database, QA_LOCALS, { orderId: 41, channelCode: "VABCA" });
+  assert.equal(live.status, "pending");
+  assert.ok(new Date(live.expiresAt || "").getTime() > Date.now());
+
+  state.transaction!.expires_at = new Date(Date.now() - 60_000).toISOString();
+  const expired = await createAutoLarisPaymentForOrder(database, QA_LOCALS, { orderId: 41, channelCode: "VABCA" });
+  assert.equal(providerCalls, 2, "an expired row is treated like a failed one");
+  assert.equal(expired.status, "pending");
+  assert.ok(new Date(expired.expiresAt || "").getTime() > Date.now());
+});
+
+test("payment status expiry is derived at read time, never stored", () => {
+  const past = new Date(Date.now() - 1).toISOString();
+  const future = new Date(Date.now() + 60_000).toISOString();
+  assert.equal(effectivePaymentStatus("pending", past), "expired");
+  assert.equal(effectivePaymentStatus("pending", future), "pending");
+  assert.equal(effectivePaymentStatus("pending", null), "pending");
+  assert.equal(effectivePaymentStatus("pending", "not a date"), "pending");
+  // A final state is final regardless of the clock.
+  assert.equal(effectivePaymentStatus("paid", past), "paid");
+  assert.equal(effectivePaymentStatus("failed", past), "failed");
 });

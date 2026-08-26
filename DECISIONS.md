@@ -1,6 +1,6 @@
 # Architecture Decision Record — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A10 working tree
+> Verified against disk: 2026-08-27 @ `75f606d` + KV-quota working tree
 
 Append-only. One decision per entry. A decision is recorded here only when it constrains future work; implementation detail belongs in `ARCHITECTURE.md`, remaining work in `UNIMPLEMENTED_SPECS.md`.
 
@@ -573,3 +573,57 @@ regression test. The fleet-automation tasks (A-152, A-154 through A-158) are
 withdrawn under this decision; A-153 is reduced to producing and maintaining
 the path-ownership manifest, and A-159 (local worktree hygiene) remains an
 optional cleanup. Open work is owned only by `TASKS.md`.
+
+## ADR-021 — KV is a cache; sessions and rate-limit counters live in D1
+
+**Date:** 2026-08-27 · **Status:** Accepted. Migration `0049`; A-71 closed.
+
+**Context.** On 2026-08-27 every live install answered `500` to every
+kecamatan search and every admin login at once. Workers Logs on each of them
+carried one line: `Error: KV put() limit exceeded for the day.` Workers KV on
+the Free plan allows 1,000 writes per day **for the whole Cloudflare account**,
+and the account hosts twenty-one KV namespaces across every product this
+operator runs. The store of record for two things that must work — the admin
+session created at login, and the rate-limit window spent on each public
+request — was a write to that shared pool. The checkout form debounces the
+kecamatan search at 100 ms and each keystroke spent one write on a counter
+guarding a pure in-memory catalogue scan, so a single shopper typing an address
+could burn a meaningful fraction of the fleet's daily allowance.
+
+The KV counter also had a known ceiling of its own (A-71): `get` then `put` is
+not atomic, so a parallel credential-stuffing run spent one slot for N guesses.
+
+**Decision.**
+
+1. **D1 is the store of record for admin sessions and rate-limit windows.**
+   Migration `0049` adds `admin_sessions` and `rate_limits`. A login inserts a
+   session row; middleware validates a request with one D1 round trip that
+   joins the row to its `admin_credentials` revision (`src/lib/admin-session.ts`).
+   A rate-limit spend is one statement — `INSERT … ON CONFLICT DO UPDATE …
+   RETURNING count` — which is exact under concurrency and closes A-71
+   (`src/lib/rate-limit.ts`). D1's Free-plan allowance is 100,000 row writes
+   per day, a hundred times KV's, and the scheduled maintenance purges expired
+   windows hourly.
+2. **KV holds only caches and alert transition state**, and every KV write is
+   best-effort: a failure is logged under a stable label and never fails the
+   request. What remains in KV: the Mengantar location lookup cache, the
+   COD-province policy cache behind `/api/form-config`, and the operational
+   alert dedup state.
+3. **No counter on a request that costs nothing.** The local district search
+   (`/api/locations?level=district`) is not rate-limited at all; the provider
+   paths still are.
+
+**Consequences.** Every install picks the schema up on its first request after
+deploy. Sessions that lived in KV are not migrated, so every operator logs in
+once more after the upgrade. The `SESSION` binding stays required and keeps
+its name (INSTALLATION.md); the Free-plan write ceiling still applies to the
+caches it holds, but running out of it now degrades to a cache miss instead of
+an outage. Whether the account moves to Workers Paid is an operational decision
+outside this repository; the code no longer depends on the answer.
+
+**Rejected.** *Cloudflare's rate-limiting binding* — no KV cost, but one
+binding per distinct limit, a 10 s or 60 s window only (the login brake is
+15 minutes), and a `wrangler.jsonc` change on every install. *A Durable
+Object* for exact counting — a new resource class per install for something a
+single D1 upsert does. *Keeping sessions in KV with a fallback* — a store of
+record with a fallback is two stores of record.

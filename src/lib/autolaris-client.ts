@@ -28,6 +28,13 @@ export const AUTOLARIS_CHECKOUT_CHANNELS = [
 export type AutoLarisCheckoutChannel =
   (typeof AUTOLARIS_CHECKOUT_CHANNELS)[number];
 
+export function isAutoLarisCheckoutChannel(value: unknown): value is AutoLarisCheckoutChannel {
+  return (
+    typeof value === "string" &&
+    (AUTOLARIS_CHECKOUT_CHANNELS as readonly string[]).includes(value)
+  );
+}
+
 export const AUTOLARIS_LOCKED_CHANNEL_REASONS = {
   VABSI: "Tidak aktif di provider.",
   VACIMB: "Tidak aktif di provider.",

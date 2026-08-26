@@ -8,11 +8,11 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.3.1",
+  version: "1.3.2",
   channel: "production",
-  // Google Ads offline delivery adds migration 0048.
-  releaseTag: "2026.08-google-offline",
+  // Admin sessions and rate-limit counters move to D1 in migration 0049 (ADR-021).
+  releaseTag: "2026.08-kv-quota",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
-  schemaVersion: 49,
-  lastUpdated: "2026-08-25",
+  schemaVersion: 50,
+  lastUpdated: "2026-08-27",
 };

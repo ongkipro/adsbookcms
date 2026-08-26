@@ -25,11 +25,11 @@ export async function getCachedLocation<T>(
   key: string,
 ): Promise<T | null> {
   if (!sessions) return null;
-  const raw = await sessions.get(key);
-  if (!raw) return null;
   try {
-    return JSON.parse(raw) as T;
-  } catch {
+    const raw = await sessions.get(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch (error) {
+    console.error("location-cache-read-failed", error);
     return null;
   }
 }
@@ -41,9 +41,15 @@ async function setCachedLocation<T>(
   ttlSeconds: number,
 ): Promise<void> {
   if (!sessions) return;
-  await sessions.put(key, JSON.stringify(value), {
-    expirationTtl: Math.max(MIN_KV_TTL_SECONDS, ttlSeconds),
-  });
+  // Best effort: KV writes share a daily allowance across the whole account
+  // on the Free plan, and a cache that cannot be written is still a cache.
+  try {
+    await sessions.put(key, JSON.stringify(value), {
+      expirationTtl: Math.max(MIN_KV_TTL_SECONDS, ttlSeconds),
+    });
+  } catch (error) {
+    console.error("location-cache-write-failed", error);
+  }
 }
 
 /** A district-name-to-provider-id mapping is stable, so it caches long. */

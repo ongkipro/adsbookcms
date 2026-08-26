@@ -1234,8 +1234,8 @@ Worker, and by reading the emitted stylesheets rather than the source.
 - [x] **A-79** — A fresh store described itself to customers as unconfigured. **Done 2026-08-17.**
  -> Same defect as A-70, one field over: `PUBLIC_SITE_DESCRIPTION` shipped `"Belum dikonfigurasi."`, which becomes the meta description Google prints under the store and the second half of the home page `<title>`. Both the template value and the code default are now empty, and the resolver composes a plain sentence from the store's own name.
 
-- [ ] **A-71** — Make the login brake exact under concurrency.
- -> ADR-014 · `checkRateLimit` is a non-atomic KV get-then-put, so N simultaneous guesses read the same count and spend one slot between them: measured, 50 parallel wrong passwords cost 1 of a 5-attempt bucket. It damps sequential credential stuffing, not parallel. Done when the pair bucket is exact under concurrency — which means a Durable Object, since Workers KV has no atomic increment.
+- [x] **A-71** — Make the login brake exact under concurrency. **Done 2026-08-27 (ADR-021).**
+ -> ADR-014 · Was a non-atomic KV get-then-put: 50 parallel wrong passwords cost 1 of a 5-attempt bucket. Now one D1 `INSERT … ON CONFLICT DO UPDATE … RETURNING count` per spend — no Durable Object needed.
 
 - [ ] **A-80** — See the admin rendered in a browser.
  -> deps: [A-58] · Everything in A-76, A-77 and A-78 is a cascade change reasoned from the built stylesheet, not from pixels. Not established: that the 44px floors do not break a compact row, that growing `dialog-close` to 44×44 under `absolute top-2 right-2` clears the header in `OrderDetail`'s `p-0` dialog, or that admin reads acceptably now that it renders in Inter rather than the platform's `system-ui`. Done when the admin has been opened at 320px, 390px and desktop.
@@ -1490,3 +1490,18 @@ genuinely unmanageable.
 - [x] **A-161** — Carry one privacy-safe external ID through the native Meta funnel. **Done locally 2026-08-25.**
   -> Primary requirements: REQ-6, REQ-8, REQ-9 · Dependencies: T12, T13 · Done when: a configured Pixel mints one cryptographically random 128-bit first-party visitor ID; PageView, ViewContent, AddToCart, InitiateCheckout, and Purchase reuse it; Pixel and CAPI send only its SHA-256 hash to Meta; `_fbp`/`_fbc` remain raw; normalized phone remains an upgrade fallback; the deliberately email-free native checkout is unchanged; malformed cookies fail closed; focused/full tests, check, build, and local browser proof pass; and no live token, provider mutation, deployment, commit, or push occurs.
   -> Evidence: focused Meta contract tests 27/27; full suite 563/563; `npm run check` 390 files with zero diagnostics; Cloudflare build complete; local Chromium observed one stable 32-hex cookie across navigation, a 64-hex Pixel `external_id`, and identical Pixel/CAPI PageView event IDs.
+
+## A24 — KV quota outage and payment regeneration
+
+- [x] **A-162** — Take admin sessions and rate-limit counters off the account-shared KV write allowance. **Done 2026-08-27 (ADR-021, migration `0049`).**
+  -> Done when: a fleet-wide `KV put() limit exceeded` no longer fails login or kecamatan search; sessions revoke on rotation/logout from D1; the pair brake is exact; every remaining KV write is best-effort and labelled. Evidence: BUILD-LOG entry 84.
+- [x] **A-163** — A failed or expired AutoLaris instruction is regenerable, not a dead order. **Done 2026-08-27.**
+  -> Done when: `create_payment` failure leaves the order `pending` with a `failed` transaction; `expired` is derived from `expires_at`; `/api/order-status` regenerates on `retry_payment` under a 5/10 min limit; `/payment` offers the retry and stops polling a dead instruction. Evidence: `autolaris-payment.test.ts` (+3), local `wrangler dev` limits observed.
+- [ ] **A-164** — Stop sending the retired webhook as `callbackUrl`.
+  -> `autolaris-payment.ts` still hands AutoLaris `/api/webhooks/autolaris`, which answers `410`. Done when the provider is given either no callback or a live one — which needs the settled `advice` shape (UNIMPLEMENTED_SPECS §AutoLaris) before a callback can move payment state.
+- [ ] **A-165** — `/payment` survives losing `sessionStorage`.
+  -> The page strips every query parameter and reads `order_pk`/`status_token` only from `thanks_state`; a second tab or device shows "Data pembayaran tidak lengkap" although the VA is in D1. Done when a buyer can reopen their instructions from a link that carries the status token without leaking it to analytics referrers.
+- [ ] **A-166** — A Purchase for an order paid after the buyer left `/thanks`.
+  -> Manual reconciliation marks the order paid and records a notification only; the browser Purchase fires from `/thanks`, which a late-paying buyer never revisits. Google offline reconciliation covers Google; Meta has no server-side equivalent here. Done when a paid transition without a browser Purchase enqueues one CAPI Purchase with the order's `event_id`.
+- [ ] **A-167** — Retire the half-wired `DANA` channel code paths.
+  -> `DANA` sits in `AUTOLARIS_CHANNELS` but not in the checkout list; dead branches remain in `form-hybrid.ts`, `payment.astro`, and there is no fee rule, so a DANA channel would throw in `payment-fee-policy.ts`. Done when either the channel is offered end to end with a fee rule, or the dead branches are removed.

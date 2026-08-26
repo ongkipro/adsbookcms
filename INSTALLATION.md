@@ -1,6 +1,6 @@
 # Installing AdsBookCMS
 
-> Verified against disk: 2026-08-19 @ `3666a1d` + the working tree on `feat/admin-access-dashboard`
+> Verified against disk: 2026-08-27 @ `75f606d` + KV-quota working tree
 
 This document describes how an install is actually stood up today, and where that process is still rougher than the product intends to be. It contains no commands that do not exist. Where a step is manual because the tooling has not been built yet, it says so and points at the gap.
 
@@ -14,7 +14,7 @@ This document describes how an install is actually stood up today, and where tha
 | --- | --- | --- |
 | Worker | `wrangler deploy` | name must be globally unique in the account |
 | D1 database | `wrangler d1 create` | binding `OMS_DB` |
-| KV namespace | `wrangler kv namespace create` | binding `SESSION` |
+| KV namespace | `wrangler kv namespace create` | binding `SESSION` — caches and alert state only. On the Workers Free plan KV allows 1,000 writes/day **per account**, shared by every Worker on it; since 1.3.2 running out degrades caches rather than login or checkout (ADR-021) |
 | R2 bucket | `wrangler r2 bucket create` | binding `ASSET_BUCKET` |
 | Workers AI | binding only | no resource to create |
 | Custom domain | Cloudflare dashboard or `routes` in `wrangler.jsonc` | apex and `www` |

@@ -173,28 +173,3 @@ export async function updateAdminCredential(
 
   return { ok: true as const, username: normalizedUsername, updatedAt };
 }
-
-export async function revokeAdminSessions(
-  sessions: KVNamespace,
-  username?: string,
-) {
-  let cursor: string | undefined;
-  do {
-    const page = await sessions.list({ prefix: 'admin-session:', cursor });
-    await Promise.all(page.keys.map(async (key) => {
-      if (!username) {
-        await sessions.delete(key.name);
-        return;
-      }
-      const value = await sessions.get(key.name);
-      if (!value) return;
-      try {
-        const parsed = JSON.parse(value) as { username?: unknown };
-        if (parsed.username === username) await sessions.delete(key.name);
-      } catch {
-        await sessions.delete(key.name);
-      }
-    }));
-    cursor = page.list_complete ? undefined : page.cursor;
-  } while (cursor);
-}

@@ -1,8 +1,11 @@
 # STATUS — AdsBookCMS
 
-> Last executed baseline: 2026-08-25 @ `bdb9d72` + current Meta signal worktree.
-> `npm run check` 390 files / 0 errors / 0 warnings / 0 hints · `npm test`
-> 563 / 563 · `npm run build` Cloudflare server bundle complete.
+> Last executed baseline: 2026-08-27 @ `75f606d` + KV-quota working tree.
+> `npm run check` 394 files / 0 errors / 0 warnings / 0 hints · `npm test`
+> 581 / 581 · `npm run build` Cloudflare server bundle complete · local
+> `wrangler dev` run: fresh install applied `0049`, login/logout/session
+> revocation, local district search, and the 60/min and 5/10min public
+> limits all observed.
 >
 > `main` was re-founded as AdsBookCMS and its history rewritten (ADR-012), so
 > commit ranges older documents cite may not exist on this branch; the
@@ -21,12 +24,21 @@ The previous version of this file described a different repository — it opened
 | Product | AdsBookCMS (single) |
 | Repository role | **Product.** Deploys nothing; CI runs check, test and build only |
 | Install model | 1 installer = 1 Worker = 1 store (ADR-001) |
-| Version | `1.3.1` / `2026.08-google-offline` (`src/lib/version.ts`) |
-| Schema | 49 migration files, `0000`-`0048` |
-| Bindings | `OMS_DB` (D1), `SESSION` (KV), `ASSET_BUCKET` (R2), `AI`, `ASSETS` — names fixed across installs |
+| Version | `1.3.2` / `2026.08-kv-quota` (`src/lib/version.ts`) |
+| Schema | 50 migration files, `0000`-`0049` |
+| Bindings | `OMS_DB` (D1), `SESSION` (KV, caches only since ADR-021), `ASSET_BUCKET` (R2), `AI`, `ASSETS` — names fixed across installs |
 | `wrangler.jsonc` | template of placeholders; each install supplies its own resources |
 
 ### Known installs
+
+**2026-08-27 incident.** Every install answered `500` on `/api/locations`
+(kecamatan search) and on the `/hello` login POST. Cause: `KV put() limit
+exceeded for the day` — the account-wide Free-plan KV write allowance, shared
+by twenty-one namespaces, was exhausted; each keystroke in the kecamatan field
+and each login was a KV write. Fixed in 1.3.2 by ADR-021 (sessions and counters
+in D1, KV writes best-effort, no counter on the local district search). The
+rollout record and per-install verification are appended below once each
+install has deployed.
 
 Verified live 2026-08-25 after the Google server/offline release: every host
 answers `200` on `/`, `401` on unauthenticated `/api/admin/health`, and has zero

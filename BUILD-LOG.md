@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A12 working tree
+> Verified against disk: 2026-08-27 @ `75f606d` + KV-quota working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -4437,3 +4437,43 @@ health endpoint returned `401`, and every page shell had zero horizontal
 overflow. Zvara's merchant-owned GlowHome landing route, stylesheet, manifest,
 and package policy were restored after replace-style sync and its live route
 again returned `200`.
+
+### Entry 84: KV quota outage — sessions and rate limits move to D1; payment regeneration
+
+**Date:** 2026-08-27 · **Release:** 1.3.2 / `2026.08-kv-quota` · **ADR:** 021 · **Migration:** `0049`
+
+- **Incident.** taniniaga.shop, zvara.shop and permatamall.shop all returned
+  `500` on `GET /api/locations` (every kecamatan search, including the
+  keystroke path) and on `POST /hello` (admin login). `wrangler tail` on
+  zvarashop showed `admin-login Error: KV put() limit exceeded for the day`;
+  the locations route had a silent catch and logged nothing. Root cause: the
+  Workers Free plan's 1,000 KV writes/day is per account and the account runs
+  21 KV namespaces; rate-limit counters and sessions were KV writes on the hot
+  path.
+- **Fix.** `admin_sessions` and `rate_limits` tables (`0049`); `src/lib/admin-session.ts`
+  replaces the KV session record and the duplicated preview check in
+  `[slug].astro`; `checkRateLimit` becomes one atomic D1 upsert with
+  `RETURNING` (closes A-71) and fails open on a store error; the local district
+  search carries no counter; every remaining KV write (location cache,
+  form-config cache, alert state) is best-effort; the admin upload counter
+  reuses the shared limiter; scheduled maintenance purges expired windows.
+- **Payment path (AutoLaris QRIS/VA), from the same audit.** A failed
+  `create_payment` no longer marks the order `failed` (which released stock and
+  left the buyer with nothing); the transaction row is reused for a retry.
+  `expired` is derived at read time from `expires_at` — nothing ever wrote it.
+  `/api/order-status` accepts `retry_payment: true` (5 per 10 min per address)
+  and `/payment` shows a *Buat Ulang Instruksi Pembayaran* button on a failed or
+  expired instruction and stops polling a dead one. The endpoint itself is now
+  rate-limited (60/min per address). A provider total that differs from the
+  local fee table is logged as `autolaris-fee-mismatch`.
+- **Evidence.** `npm test` 581/581 (was 569; +12 across `admin-session`,
+  `rate-limit`, `autolaris-payment`), `npm run check` 394 files clean,
+  `npm run build` complete. Local `wrangler dev`: fresh D1 applied `0049` on
+  first request; install → login (401 on a wrong password, 302 + cookie on the
+  right one) → `/admin/dashboard` 200 → logout → session row gone → 429 on the
+  sixth wrong password; 65 status polls in one window → 60 × 404, 5 × 429;
+  retry bucket 5 then 429.
+- **Not done here.** Deploying — that is each install's own step. The
+  retired `/api/webhooks/autolaris` is still sent as `callbackUrl`;
+  `/payment` still depends on `sessionStorage`; a late manual payment never
+  fires a browser Purchase. Tracked as A-162…A-164.

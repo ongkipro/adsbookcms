@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A11 working tree
+> Verified against disk: 2026-08-27 @ `75f606d` + KV-quota working tree
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -18,7 +18,7 @@ An AdsBookCMS install is one Cloudflare Worker with its own private resources:
 | --- | --- | --- |
 | Worker | — | one per install, named by that install |
 | D1 database | `OMS_DB` | one per install |
-| KV namespace | `SESSION` | sessions, rate-limit counters, idempotency keys |
+| KV namespace | `SESSION` | caches only — location lookups, COD-province policy, alert transition state; every write is best-effort (ADR-021) |
 | R2 bucket | `ASSET_BUCKET` | product uploads + CMS media |
 | Workers AI | `AI` | optional platform binding; not used by the public content workflow |
 | Static assets | `ASSETS` | `dist/client`, served by the Cloudflare adapter |
@@ -51,7 +51,7 @@ Every route is server-rendered: `astro.config.mjs` sets `output: 'server'` with 
 
 ### Middleware responsibilities (`src/middleware.ts`)
 
-Runs on every request, in order: canonical host redirect (`www` → apex), ad click-ID capture into first-party cookies, admin session validation against KV + `admin_credentials`, role-based admin route policy, same-origin enforcement on unsafe admin API methods, and the embed frame policy (replaces `X-Frame-Options: DENY` with a `frame-ancestors` CSP built from `stores.embed_allowed_origins`, failing closed to an empty allowlist on database error).
+Runs on every request, in order: canonical host redirect (`www` → apex), ad click-ID capture into first-party cookies, admin session validation against `admin_sessions` joined to `admin_credentials` in one D1 query (ADR-021), role-based admin route policy, same-origin enforcement on unsafe admin API methods, and the embed frame policy (replaces `X-Frame-Options: DENY` with a `frame-ancestors` CSP built from `stores.embed_allowed_origins`, failing closed to an empty allowlist on database error).
 
 ---
 
@@ -141,7 +141,7 @@ Provider credentials follow a **D1-first, env-fallback** rule: a key saved in th
 
 ## 6. Authentication and Access
 
-Session is a signed JWT in the `adsbook_session` cookie (`SESSION_COOKIE_NAME` in `src/lib/auth.ts` — the single source for the name), verified in middleware against a KV record and the `admin_credentials` row. `admin_credentials.updated_at` doubles as a session revision: rotating a credential invalidates existing sessions. Roles are defined in `src/lib/auth.ts` (`ADMIN_ROLES`) and enforced per route by `canAccessAdminRoute`.
+Session is a signed JWT in the `adsbook_session` cookie (`SESSION_COOKIE_NAME` in `src/lib/auth.ts` — the single source for the name), verified in middleware against an `admin_sessions` row joined to the `admin_credentials` row in one D1 query (`src/lib/admin-session.ts`, ADR-021). `admin_credentials.updated_at` doubles as a session revision: rotating a credential invalidates existing sessions. Public rate limits (`src/lib/rate-limit.ts`) count in the `rate_limits` table with one atomic upsert per spend; a store failure fails open and is logged as `rate-limit-store-failed`. Roles are defined in `src/lib/auth.ts` (`ADMIN_ROLES`) and enforced per route by `canAccessAdminRoute`.
 
 The login route is `/hello` rather than `/admin/login`, and `robots.txt` — served from `src/pages/robots.txt.ts`, not a static file —
 disallows `/admin/`, `/api/`, `/embed/`, `/hello` and `/install` **inside every

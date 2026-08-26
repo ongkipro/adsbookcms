@@ -1,6 +1,6 @@
 # Observability — AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A11 working tree
+> Verified against disk: 2026-08-27 @ `75f606d` + KV-quota working tree
 
 This document describes what an operator can observe and what AdsBookCMS now alerts on for one running install. Cross-install aggregation and an external uptime probe remain separate decisions.
 
@@ -133,3 +133,19 @@ an alert console: it shows the present and keeps no alert history.
 For alert delivery failures, query Workers Logs for
 `operational-alert-notification-failed`; for transitions, use
 `operational-alert-triggered` and `operational-alert-recovered`.
+
+Labels added on 2026-08-27 (ADR-021), all `console.error`, none carrying a
+client address, username, or order payload:
+
+| Label | Meaning |
+| --- | --- |
+| `rate-limit-store-failed` | The `rate_limits` D1 write or read threw; the request was allowed through (fail open). `bucket` names the limit |
+| `admin-session-read-failed` | The `admin_sessions` join threw; the request was treated as signed out |
+| `location-cache-read-failed` / `location-cache-write-failed` | KV location cache unavailable — typically `KV put() limit exceeded for the day`; the lookup still answers from the provider or catalogue |
+| `public-location-search-failed` | `/api/locations` answered 500. Previously a silent catch: the 2026-08-27 fleet outage was invisible in logs because of it |
+| `public-order-status-failed` / `public-payment-retry-failed` | `/api/order-status` failed, or a buyer-requested payment regeneration did |
+| `autolaris-fee-mismatch` | The provider billed a total other than the one computed from `payment-fee-policy.ts`; the fee table needs updating |
+
+If `KV put() limit exceeded for the day` appears at all, the account's shared
+Free-plan KV allowance is exhausted: nothing user-facing fails any more, but the
+caches it feeds are cold until the daily reset.

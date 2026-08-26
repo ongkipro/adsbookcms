@@ -14,46 +14,85 @@ export type RateLimitResult = {
   resetAt: number;
 };
 
+const RATE_LIMIT_STORE_ERROR_LABEL = 'rate-limit-store-failed';
+
 /**
- * KV-backed fixed window.
+ * D1-backed fixed window (ADR-021).
  *
- * The previous implementation kept buckets in a module-level Map. On Workers
- * every isolate holds its own copy and isolates come and go constantly, so the
- * effective limit was multiplied by the number of live isolates and reset at
- * random — it looked like a control while enforcing close to nothing. KV is
- * shared across isolates, which is why admin login already uses it.
+ * Two earlier homes for this counter both failed in production. A module-level
+ * Map was multiplied by the number of live isolates and reset at random. KV
+ * was shared across isolates but its writes count against the Workers Free
+ * plan's 1,000-per-day allowance for the *whole account*: every install on the
+ * account spent from the same pool, one keystroke in a kecamatan search cost
+ * one write, and when the pool ran dry every login and every search on every
+ * store failed with `KV put() limit exceeded for the day`.
  *
- * KV is eventually consistent, so a burst spread across colos can still slip a
- * few requests through. That is acceptable spam damping; it is not a quota.
+ * D1 has a hundred times that allowance and, unlike KV, the spend is one
+ * statement: `INSERT … ON CONFLICT DO UPDATE … RETURNING count` is atomic, so
+ * N simultaneous requests see N distinct counts. That closes A-71 as well.
+ *
+ * A store failure fails open. This is spam damping, not a quota — a counter
+ * that cannot be read must never take checkout or the admin down with it.
  */
 export async function checkRateLimit(
-  sessions: KVNamespace | undefined,
+  database: D1Database | undefined,
   key: string,
   limit: number,
   windowMs: number,
   consume = true,
 ): Promise<RateLimitResult> {
   const now = Date.now();
-  // Without KV there is nothing shared to count in; fail open rather than block
-  // every order because a binding is missing.
-  if (!sessions) return { allowed: true, remaining: limit - 1, resetAt: now + windowMs };
+  // Without a database there is nothing shared to count in; fail open rather
+  // than block every order because a binding is missing.
+  if (!database) return { allowed: true, remaining: limit - 1, resetAt: now + windowMs };
 
   const windowStart = Math.floor(now / windowMs) * windowMs;
   const resetAt = windowStart + windowMs;
   const windowKey = `${key}:${windowStart}`;
 
-  const count = Number(await sessions.get(windowKey)) || 0;
-  if (count >= limit) return { allowed: false, remaining: 0, resetAt };
+  try {
+    // `consume: false` reads the window without spending from it. Admin login
+    // needs that split: a correct password must not cost the operator an
+    // attempt, so the check runs first and only a failure is recorded afterwards.
+    if (!consume) {
+      const row = await database
+        .prepare('SELECT count FROM rate_limits WHERE key = ?')
+        .bind(windowKey)
+        .first<{ count: number }>();
+      const count = Number(row?.count) || 0;
+      if (count >= limit) return { allowed: false, remaining: 0, resetAt };
+      return { allowed: true, remaining: limit - count, resetAt };
+    }
 
-  // `consume: false` reads the window without spending from it. Admin login
-  // needs that split: a correct password must not cost the operator an attempt,
-  // so the check runs first and only a failure is recorded afterwards.
-  if (!consume) return { allowed: true, remaining: limit - count, resetAt };
+    const row = await database
+      .prepare(
+        `INSERT INTO rate_limits (key, count, reset_at) VALUES (?, 1, ?)
+         ON CONFLICT(key) DO UPDATE SET count = count + 1
+         RETURNING count`,
+      )
+      .bind(windowKey, resetAt)
+      .first<{ count: number }>();
+    const count = Number(row?.count) || 1;
+    if (count > limit) return { allowed: false, remaining: 0, resetAt };
+    return { allowed: true, remaining: Math.max(0, limit - count), resetAt };
+  } catch (error) {
+    // The bucket name only — the rest of the key is a client address or a
+    // username, neither of which belongs in a log line.
+    console.error(RATE_LIMIT_STORE_ERROR_LABEL, {
+      bucket: key.split(':')[0],
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { allowed: true, remaining: limit - 1, resetAt };
+  }
+}
 
-  await sessions.put(windowKey, String(count + 1), {
-    expirationTtl: Math.max(60, Math.ceil((resetAt - now) / 1000) + 60),
-  });
-  return { allowed: true, remaining: Math.max(0, limit - count - 1), resetAt };
+/** Hourly housekeeping: a window that has reset is never read again. */
+export async function purgeExpiredRateLimits(database: D1Database, now = new Date()) {
+  const result = await database
+    .prepare('DELETE FROM rate_limits WHERE reset_at <= ?')
+    .bind(now.getTime())
+    .run();
+  return result.meta.changes;
 }
 
 /** LOGIN-19. One window for every login bucket; also the lockout ceiling. */
@@ -103,21 +142,18 @@ export function adminLoginRateLimitBuckets(username: string, ip: string) {
  * control, which leaves the operator a way in from anywhere; a distributed
  * attempt still hits its ceiling on every address it actually uses.
  *
- * lazy: the pair bucket is the real brake and KV cannot make it exact —
- * `checkRateLimit` is a non-atomic get-then-put, so N simultaneous guesses all
- * read the same count and spend one slot between them. It damps sequential
- * guessing, which is what a credential-stuffing script does; it does not stop a
- * parallel one. Making it exact needs a Durable Object, tracked as A-71.
+ * The pair bucket is the real brake, and since ADR-021 it is exact: the spend
+ * is one atomic D1 upsert, so N simultaneous guesses spend N slots (A-71).
  */
 export async function checkAdminLoginRateLimit(
-  sessions: KVNamespace | undefined,
+  database: D1Database | undefined,
   username: string,
   ip: string,
 ): Promise<RateLimitResult> {
   const buckets = adminLoginRateLimitBuckets(username, ip);
   const [pair, address, identifier] = await Promise.all(
     buckets.map((bucket) =>
-      checkRateLimit(sessions, bucket.key, bucket.limit, ADMIN_LOGIN_WINDOW_MS, false),
+      checkRateLimit(database, bucket.key, bucket.limit, ADMIN_LOGIN_WINDOW_MS, false),
     ),
   );
 
@@ -134,30 +170,40 @@ export async function checkAdminLoginRateLimit(
 
 /** Counts one failed attempt in every bucket. A bucket already at its limit stays there. */
 export async function recordAdminLoginFailure(
-  sessions: KVNamespace | undefined,
+  database: D1Database | undefined,
   username: string,
   ip: string,
 ) {
   await Promise.all(
     adminLoginRateLimitBuckets(username, ip).map((bucket) =>
-      checkRateLimit(sessions, bucket.key, bucket.limit, ADMIN_LOGIN_WINDOW_MS, true),
+      checkRateLimit(database, bucket.key, bucket.limit, ADMIN_LOGIN_WINDOW_MS, true),
     ),
   );
 }
 
 /** A correct password clears the record, so earlier typos cannot follow the operator. */
 export async function clearAdminLoginFailures(
-  sessions: KVNamespace | undefined,
+  database: D1Database | undefined,
   username: string,
   ip: string,
 ) {
-  if (!sessions) return;
+  if (!database) return;
   const windowStart = Math.floor(Date.now() / ADMIN_LOGIN_WINDOW_MS) * ADMIN_LOGIN_WINDOW_MS;
-  await Promise.all(
-    adminLoginRateLimitBuckets(username, ip).map((bucket) =>
-      sessions.delete(`${bucket.key}:${windowStart}`),
-    ),
+  const keys = adminLoginRateLimitBuckets(username, ip).map(
+    (bucket) => `${bucket.key}:${windowStart}`,
   );
+  try {
+    await database
+      .prepare('DELETE FROM rate_limits WHERE key IN (?, ?, ?)')
+      .bind(...keys)
+      .run();
+  } catch (error) {
+    // Best effort: a stale failure count can only make the next window stricter.
+    console.error(RATE_LIMIT_STORE_ERROR_LABEL, {
+      bucket: 'admin-login-clear',
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 export function rateLimitHeaders(remaining: number, resetAt: number) {

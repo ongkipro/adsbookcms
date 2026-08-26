@@ -7,27 +7,69 @@ import {
   checkRateLimit,
   clearAdminLoginFailures,
   getClientIp,
+  purgeExpiredRateLimits,
   recordAdminLoginFailure,
 } from './rate-limit.ts';
 
-/** Enough of KV to count with: get, put and delete over a Map. TTLs are irrelevant here. */
-function createKv() {
-  const store = new Map<string, string>();
-  return {
-    store,
-    kv: {
-      get: async (key: string) => store.get(key) ?? null,
-      put: async (key: string, value: string) => {
-        store.set(key, value);
-      },
-      delete: async (key: string) => {
-        store.delete(key);
-      },
-    } as unknown as KVNamespace,
-  };
+/**
+ * Enough of D1 to count with: the four statements `rate-limit.ts` issues,
+ * interpreted over a Map. A `prepare` for any other SQL fails the test, so a
+ * new statement in the module has to be taught here on purpose.
+ */
+export function createRateLimitDatabase() {
+  const store = new Map<string, { count: number; resetAt: number }>();
+  const database = {
+    prepare(query: string) {
+      let values: unknown[] = [];
+      const statement = {
+        bind(...next: unknown[]) {
+          values = next;
+          return statement;
+        },
+        async first() {
+          if (query.startsWith('SELECT count FROM rate_limits')) {
+            const row = store.get(String(values[0]));
+            return row ? { count: row.count } : null;
+          }
+          if (query.includes('INSERT INTO rate_limits')) {
+            const key = String(values[0]);
+            const row = store.get(key) ?? { count: 0, resetAt: Number(values[1]) };
+            row.count += 1;
+            store.set(key, row);
+            return { count: row.count };
+          }
+          throw new Error(`unexpected first(): ${query}`);
+        },
+        async run() {
+          if (query.startsWith('DELETE FROM rate_limits WHERE key IN')) {
+            for (const key of values) store.delete(String(key));
+            return { meta: { changes: values.length } };
+          }
+          if (query.startsWith('DELETE FROM rate_limits WHERE reset_at <=')) {
+            let changes = 0;
+            for (const [key, row] of store) {
+              if (row.resetAt <= Number(values[0])) {
+                store.delete(key);
+                changes += 1;
+              }
+            }
+            return { meta: { changes } };
+          }
+          throw new Error(`unexpected run(): ${query}`);
+        },
+      };
+      return statement;
+    },
+  } as unknown as D1Database;
+  return { store, database };
 }
 
-async function failTimes(kv: KVNamespace, username: string, ip: string, times: number) {
+const createKv = () => {
+  const { store, database } = createRateLimitDatabase();
+  return { store, kv: database };
+};
+
+async function failTimes(kv: D1Database, username: string, ip: string, times: number) {
   for (let attempt = 0; attempt < times; attempt += 1) {
     await recordAdminLoginFailure(kv, username, ip);
   }
@@ -140,7 +182,7 @@ test('login buckets are window-scoped and separate identifier from address', asy
   assert.equal(ADMIN_LOGIN_WINDOW_MS, 900_000);
 });
 
-test('a missing KV binding fails open rather than locking the admin out', async () => {
+test('a missing database binding fails open rather than locking the admin out', async () => {
   assert.equal((await checkAdminLoginRateLimit(undefined, 'admin', '203.0.113.4')).allowed, true);
   await recordAdminLoginFailure(undefined, 'admin', '203.0.113.4');
   await clearAdminLoginFailures(undefined, 'admin', '203.0.113.4');
@@ -156,7 +198,7 @@ test('the client address prefers the Cloudflare header over forwarded ones', () 
 });
 
 test('a distributed attempt cannot lock the operator out of their own admin', async () => {
-  const { kv } = createKv();
+  const { kv, store } = createKv();
 
   // Ten addresses, each spending its full pair allowance. That is 50 failures
   // on the identifier bucket — exactly its ceiling — for the cost of knowing
@@ -167,7 +209,7 @@ test('a distributed attempt cannot lock the operator out of their own admin', as
   const identifierKey = adminLoginRateLimitBuckets('operator', 'x')[2].key;
   const windowStart =
     Math.floor(Date.now() / ADMIN_LOGIN_WINDOW_MS) * ADMIN_LOGIN_WINDOW_MS;
-  assert.equal(Number(await kv.get(`${identifierKey}:${windowStart}`)), 50);
+  assert.equal(store.get(`${identifierKey}:${windowStart}`)?.count, 50);
 
   // The operator, from an address that has never failed, must still get in.
   const operator = await checkAdminLoginRateLimit(kv, 'operator', '198.51.100.7');
@@ -197,4 +239,42 @@ test('the identifier ceiling still closes an address once it has failed here', a
   assert.equal((await checkAdminLoginRateLimit(kv, 'operator', fresh)).allowed, true);
   await recordAdminLoginFailure(kv, 'operator', fresh);
   assert.equal((await checkAdminLoginRateLimit(kv, 'operator', fresh)).allowed, false);
+});
+
+test('a counter store that throws fails open and never blocks the request', async () => {
+  const broken = {
+    prepare() {
+      throw new Error('D1_ERROR: no such table: rate_limits');
+    },
+  } as unknown as D1Database;
+  const errors: unknown[][] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => {
+    errors.push(args);
+  };
+  try {
+    assert.equal((await checkRateLimit(broken, 'submit-order:203.0.113.4', 10, 60_000)).allowed, true);
+    assert.equal((await checkAdminLoginRateLimit(broken, 'admin', '203.0.113.4')).allowed, true);
+    await recordAdminLoginFailure(broken, 'admin', '203.0.113.4');
+    await clearAdminLoginFailures(broken, 'admin', '203.0.113.4');
+  } finally {
+    console.error = original;
+  }
+  // Every failure is logged under one label and none of them carries the
+  // client address or username.
+  assert.ok(errors.length >= 2);
+  for (const entry of errors) {
+    assert.equal(entry[0], 'rate-limit-store-failed');
+    assert.doesNotMatch(JSON.stringify(entry[1]), /203\.0\.113\.4|admin\|/);
+  }
+});
+
+test('expired windows are purged and live ones are kept', async () => {
+  const { kv, store } = createKv();
+  await checkRateLimit(kv, 'live', 5, 60_000);
+  const [liveKey] = Array.from(store.keys());
+  store.set('stale:0', { count: 3, resetAt: Date.now() - 1 });
+
+  assert.equal(await purgeExpiredRateLimits(kv), 1);
+  assert.deepEqual(Array.from(store.keys()), [liveKey]);
 });

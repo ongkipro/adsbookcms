@@ -8,6 +8,7 @@ import {
 } from "./lib/operational-alerts.ts";
 import { collectOperationalHealth } from "./lib/operational-health.ts";
 import { ensureSchemaUpgraded } from "./lib/schema-version.ts";
+import { purgeExpiredRateLimits } from "./lib/rate-limit.ts";
 import { drainCapiOutbox } from "./lib/capi-outbox.ts";
 import { getStoreAdsConfig } from "./lib/store-ads.ts";
 import {
@@ -23,6 +24,10 @@ async function runScheduledMaintenance(
 ) {
   await ensureSchemaUpgraded(env.OMS_DB);
   const purgedAbandonedOrders = await purgeExpiredAbandonedOrders(
+    env.OMS_DB,
+    new Date(scheduledTime),
+  );
+  const purgedRateLimitWindows = await purgeExpiredRateLimits(
     env.OMS_DB,
     new Date(scheduledTime),
   );
@@ -65,6 +70,7 @@ async function runScheduledMaintenance(
     overall: health.overall,
     schemaState: health.build.schemaState,
     purgedAbandonedOrders,
+    purgedRateLimitWindows,
     drainedCapiEvents,
     queuedGoogleAdsConversions,
     drainedGoogleAdsConversions,

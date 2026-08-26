@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { jsonError, jsonOk } from "../../../lib/api";
 import { getRuntimeEnv } from "../../../lib/env";
+import { checkRateLimit, getClientIp } from "../../../lib/rate-limit";
 
 export const prerender = false;
 
@@ -43,8 +44,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const env = getRuntimeEnv(locals);
     const bucket = env?.ASSET_BUCKET as R2Bucket | undefined;
-    const sessions = env?.SESSION as KVNamespace | undefined;
-    if (!bucket || !sessions) {
+    if (!bucket) {
       return jsonError("Asset storage belum tersedia.", 503);
     }
 
@@ -53,10 +53,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
       return jsonError("Ukuran file maksimal 2 MB.", 413);
     }
 
-    const clientIp = request.headers.get("cf-connecting-ip")?.trim() || "local";
-    const uploadKey = `admin-upload-count:${clientIp}:${Math.floor(Date.now() / 3_600_000)}`;
-    const uploadCount = Number(await sessions.get(uploadKey)) || 0;
-    if (uploadCount >= MAX_UPLOADS_PER_HOUR) {
+    // Counted on the attempt rather than on success: the shared limiter is
+    // one atomic spend, and a rejected upload is still a request to damp.
+    const uploads = await checkRateLimit(
+      env?.OMS_DB as D1Database | undefined,
+      `admin-upload:${getClientIp(request.headers)}`,
+      MAX_UPLOADS_PER_HOUR,
+      3_600_000,
+    );
+    if (!uploads.allowed) {
       return jsonError("Batas 20 upload per jam telah tercapai.", 429);
     }
 
@@ -110,10 +115,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
         contentDisposition: "inline",
       },
     });
-    await sessions.put(uploadKey, String(uploadCount + 1), {
-      expirationTtl: 60 * 60,
-    });
-
     return jsonOk({
       url: `/assets/${fileName}`,
       fileName,

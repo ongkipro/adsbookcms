@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-08-17 @ `5cb1d32` + current A13 working tree
+> Verified against disk: 2026-08-27 @ `75f606d` + KV-quota working tree
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -93,7 +93,7 @@ npm run build     # astro build
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **310 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
+Current verified working-tree baseline: **581 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 
@@ -133,6 +133,7 @@ Do not "fix" these silently or treat them as bugs to be surprised by — they ar
 - `theme_color`, `locale` and `admin_name` are stored per install but have no admin editor yet.
 - Storefront template definitions live in `storefront_templates`. Built-in `compact-market` and `wide-catalog` are seeded only as editable D1 definitions; adding a definition must not require a rebuild.
 - The admin session cookie is `adsbook_session`, declared once as `SESSION_COOKIE_NAME` in `src/lib/auth.ts`. Never write the literal string; a writer and reader that disagree is a silent lockout.
+- The `SESSION` KV binding holds **caches only** (ADR-021). Admin sessions live in `admin_sessions` and rate-limit windows in `rate_limits`, both D1. A KV write on any request path must be wrapped so that its failure is logged and nothing else — the account-wide Free-plan write allowance ran out once and took every install's login and checkout search down with it.
 - The click cookie is `adsbook_click_ids`. The former `zanoby_click_ids` is still **read** as a fallback so an upgrading install does not lose 90 days of in-flight attribution. Never write the legacy name; it ages out on its own.
 - Newly issued developer API keys carry `adsbook_live_`. Keys issued as `cmsads_live_` still validate — the stored value is a SHA-256 digest, so the prefix never took part in matching, and rewriting it would have broken them. The legacy prefix survives only in `maskApiKeySecret` so an old key still renders a coherent preview.
 

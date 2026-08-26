@@ -36,9 +36,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   const clientIp = getClientIp(request.headers);
-  const sessions = runtime?.SESSION as KVNamespace | undefined;
   const rateLimit = await checkRateLimit(
-    sessions,
+    runtime?.OMS_DB as D1Database | undefined,
     `record-abandoned-order:${clientIp}`,
     10,
     60_000,

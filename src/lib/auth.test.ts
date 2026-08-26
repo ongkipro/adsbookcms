@@ -300,7 +300,7 @@ test('a session is closed once the credential behind it rotates', async () => {
     credential_updated_at: issuedAt,
   });
 
-  // Same token, same KV record: only the stored credential row changes.
+  // Same token, same session row: only the stored credential row changes.
   assert.equal((await runAdminRequest({ pathname: '/api/admin/products', token, stored: storedRecord, credential: { updated_at: issuedAt, role: 'advertiser' } })).status, 200);
 
   // Rotation bumps `updated_at`, which is the session revision.
@@ -312,7 +312,7 @@ test('a session is closed once the credential behind it rotates', async () => {
   // A deleted operator has no credential row left to match.
   assert.equal((await runAdminRequest({ pathname: '/api/admin/products', token, stored: storedRecord, credential: null })).status, 401);
 
-  // A revoked (deleted) KV session record closes the gate as well.
+  // A revoked (deleted) session row closes the gate as well.
   assert.equal((await runAdminRequest({ pathname: '/api/admin/products', token, stored: null, credential: { updated_at: issuedAt, role: 'advertiser' } })).status, 401);
 
   // The same rotation on a page route sends the operator back to the login page.
@@ -516,15 +516,36 @@ test('the privileged allowlists cover every admin route that exists on disk', ()
 
 type CredentialRow = { updated_at: string; role: string } | null;
 
-function createSessionStore(value: string | null) {
-  return { get: async () => value } as unknown as KVNamespace;
-}
-
-function createCredentialDatabase(row: CredentialRow) {
+/**
+ * The identity read, the credential read, and — since ADR-021 — the session
+ * row joined to its credential. `stored` is the session record the login
+ * wrote, as JSON, or null for a revoked one; unparseable JSON stands in for a
+ * corrupt row and must read as no session.
+ */
+function createCredentialDatabase(row: CredentialRow, stored: string | null = null) {
   return {
-    prepare: () => ({
+    prepare: (query: string) => ({
       first: async () => ({ name: 'Test Store', slug: 'test-store' }),
-      bind: () => ({ first: async () => row }),
+      bind: () => ({
+        first: async () => {
+          if (!query.includes('FROM admin_sessions s')) return row;
+          if (!stored) return null;
+          let parsed: Record<string, unknown>;
+          try {
+            parsed = JSON.parse(stored) as Record<string, unknown>;
+          } catch {
+            return null;
+          }
+          return {
+            username: parsed.username,
+            role: parsed.role,
+            must_change_password: parsed.must_change_password === true ? 1 : 0,
+            credential_updated_at: parsed.credential_updated_at ?? null,
+            current_updated_at: row?.updated_at ?? null,
+            current_role: row?.role ?? null,
+          };
+        },
+      }),
     }),
   } as unknown as D1Database;
 }
@@ -571,8 +592,7 @@ async function runAdminRequest(options: {
     locals: {
       runtimeEnv: {
         AUTH_SECRET,
-        SESSION: createSessionStore(options.stored),
-        OMS_DB: createCredentialDatabase(options.credential),
+        OMS_DB: createCredentialDatabase(options.credential, options.stored),
       },
     },
     redirect: (location: string, status = 302) =>

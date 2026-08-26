@@ -2,10 +2,10 @@ import type { APIRoute } from "astro";
 import {
   hashAdminPassword,
   normalizeAdminUsername,
-  revokeAdminSessions,
   validateAdminUsername,
   validateNewAdminPassword,
 } from "../../../lib/admin-credentials";
+import { revokeAdminSessions } from "../../../lib/admin-session";
 import { jsonError, jsonOk } from "../../../lib/api";
 import { getRuntimeEnv } from "../../../lib/env";
 import { isAdminRole } from "../../../lib/auth";
@@ -16,7 +16,6 @@ function runtime(locals: App.Locals) {
   const env = getRuntimeEnv(locals);
   return {
     database: env?.OMS_DB as D1Database | undefined,
-    sessions: env?.SESSION as KVNamespace | undefined,
   };
 }
 
@@ -124,8 +123,8 @@ export const PATCH: APIRoute = async ({ request, locals }) => {
   if (!locals.admin || locals.admin.role !== "owner") {
     return jsonError("Hanya Owner yang berhak mengelola akses pengguna.", 403);
   }
-  const { database, sessions } = runtime(locals);
-  if (!database || !sessions) {
+  const { database } = runtime(locals);
+  if (!database) {
     return jsonError("Penyimpanan akses belum tersedia.", 503);
   }
   const body = (await request.json().catch(() => null)) as Record<
@@ -219,7 +218,7 @@ export const PATCH: APIRoute = async ({ request, locals }) => {
       .bind(...params)
       .run();
 
-    await revokeAdminSessions(sessions, existing.username);
+    await revokeAdminSessions(database, existing.username);
 
     const updatedUser = await database
       .prepare(
@@ -244,8 +243,8 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
   if (!locals.admin || locals.admin.role !== "owner") {
     return jsonError("Hanya Owner yang berhak mengelola akses pengguna.", 403);
   }
-  const { database, sessions } = runtime(locals);
-  if (!database || !sessions) {
+  const { database } = runtime(locals);
+  if (!database) {
     return jsonError("Penyimpanan akses belum tersedia.", 503);
   }
   const body = (await request.json().catch(() => null)) as {
@@ -273,7 +272,7 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
     if (result.meta.changes !== 1) {
       return jsonError("Pengguna tidak ditemukan.", 404);
     }
-    await revokeAdminSessions(sessions, row.username);
+    await revokeAdminSessions(database, row.username);
     return jsonOk({ message: `Akses ${row.username} dicabut.` });
   } catch (error) {
     console.error("admin-access-delete", error);

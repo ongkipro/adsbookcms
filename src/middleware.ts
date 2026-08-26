@@ -5,13 +5,8 @@ import {
   parseClickIdsFromUrl,
   serializeClickIds,
 } from './lib/click-ids';
-import {
-  canAccessAdminRoute,
-  getDefaultAdminRoute,
-  getSessionCookie,
-  verifyJwt,
-  type AdminRole,
-} from './lib/auth';
+import { canAccessAdminRoute, getDefaultAdminRoute } from './lib/auth';
+import { resolveAdminSession } from './lib/admin-session';
 import { getEnvValue, getRuntimeEnv } from './lib/env';
 import { isRegisteredNativeSlug } from './lib/native-landing-pages';
 import { readStoreIdentity, resolveTenantConfig } from './lib/tenant';
@@ -60,44 +55,6 @@ function applySecurityHeaders(
   return response;
 }
 
-function readStoredSession(
-  value: string | null,
-  username: string,
-  role: AdminRole,
-) {
-  if (!value) {
-    return {
-      active: false,
-      mustChangePassword: false,
-      credentialUpdatedAt: "",
-    };
-  }
-  try {
-    const parsed = JSON.parse(value) as {
-      username?: unknown;
-      role?: unknown;
-      must_change_password?: unknown;
-      credential_updated_at?: unknown;
-    };
-    const active =
-      parsed.username === username &&
-      parsed.role === role &&
-      typeof parsed.credential_updated_at === "string";
-    return {
-      active,
-      mustChangePassword: active && parsed.must_change_password === true,
-      credentialUpdatedAt: active
-        ? (parsed.credential_updated_at as string)
-        : "",
-    };
-  } catch {
-    return {
-      active: false,
-      mustChangePassword: false,
-      credentialUpdatedAt: "",
-    };
-  }
-}
 async function loadStoredEmbedAllowedOrigins(
   database: D1Database | undefined,
 ) {
@@ -361,41 +318,13 @@ export function createMiddleware(
   }
 
   if (isPrivate) {
-    const env = getRuntimeEnv(context.locals);
-    const secret = getEnvValue('AUTH_SECRET', env);
-    const sessions = env?.SESSION as KVNamespace | undefined;
-    const database = env?.OMS_DB as D1Database | undefined;
-    const token = getSessionCookie(context.request);
-    const session = token ? await verifyJwt(token, secret) : null;
-    let active = false;
-    let mustChangePassword = false;
-    if (session && sessions && database) {
-      try {
-        const stored = readStoredSession(
-          await sessions.get(`admin-session:${session.jti}`),
-          session.username,
-          session.role,
-        );
-        if (stored.active) {
-          const credential = await database.prepare(
-            `SELECT updated_at, role
-            FROM admin_credentials
-            WHERE username = ?
-            LIMIT 1`,
-          ).bind(session.username).first<{
-            updated_at: string;
-            role: string;
-          }>();
-          active =
-            credential?.updated_at === stored.credentialUpdatedAt &&
-            credential.role === session.role;
-          mustChangePassword = active && stored.mustChangePassword;
-        }
-      } catch {
-        active = false;
-      }
-    }
-    if (!session || !active) {
+    // One D1 round trip: the session row joined to its credential (ADR-021).
+    const session = await resolveAdminSession(
+      identityDb,
+      context.request,
+      getEnvValue('AUTH_SECRET', runtime),
+    );
+    if (!session) {
       if (isAdminApi) {
         return applySecurityHeaders(new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
           status: 401,
@@ -404,6 +333,7 @@ export function createMiddleware(
       }
       return applySecurityHeaders(context.redirect('/hello'), true);
     }
+    const { mustChangePassword } = session;
     context.locals.admin = {
       username: session.username,
       role: session.role,

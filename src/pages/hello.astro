@@ -16,6 +16,7 @@ import {
   signJwt,
   verifyPasswordHash,
 } from '../lib/auth';
+import { storeAdminSession } from '../lib/admin-session';
 import { getEnvValue, getRuntimeEnv } from '../lib/env';
 import {
   checkAdminLoginRateLimit,
@@ -47,12 +48,11 @@ if (Astro.request.method === 'POST' && crossSiteLogin) {
   Astro.response.status = 403;
   errorMessage = 'Permintaan login ditolak karena berasal dari domain lain.';
 } else if (Astro.request.method === 'POST') {
-  const sessions = env?.SESSION as KVNamespace | undefined;
   const authSecret = getEnvValue('AUTH_SECRET', env);
   const clientIp = getClientIp(Astro.request.headers);
 
   try {
-    if (!sessions || !database || authSecret.length < 32) {
+    if (!database || authSecret.length < 32) {
       Astro.response.status = 503;
       errorMessage = 'Login admin belum dikonfigurasi di server.';
     } else {
@@ -65,7 +65,7 @@ if (Astro.request.method === 'POST' && crossSiteLogin) {
       // behaves identically for a username that exists and one that does not —
       // otherwise the rate limiter itself answers the question the error message
       // refuses to. Nothing is spent here; only a failure is recorded, below.
-      const attempts = await checkAdminLoginRateLimit(sessions, username, clientIp);
+      const attempts = await checkAdminLoginRateLimit(database, username, clientIp);
       if (!attempts.allowed) {
         Astro.response.status = 429;
         Astro.response.headers.set(
@@ -96,17 +96,8 @@ if (Astro.request.method === 'POST' && crossSiteLogin) {
         if (credential && usernameMatches && passwordMatches) {
           const { token, session } = await signJwt({ username: credential.username, role: credential.role }, authSecret);
           await Promise.all([
-            sessions.put(
-              `admin-session:${session.jti}`,
-              JSON.stringify({
-                username: session.username,
-                role: session.role,
-                must_change_password: credential.mustChangePassword,
-                credential_updated_at: credential.updatedAt,
-              }),
-              { expirationTtl: 60 * 60 * 24 },
-            ),
-            clearAdminLoginFailures(sessions, username, clientIp),
+            storeAdminSession(database, session, credential),
+            clearAdminLoginFailures(database, username, clientIp),
           ]);
           Astro.cookies.set(SESSION_COOKIE_NAME, token, {
             path: '/',
@@ -118,7 +109,7 @@ if (Astro.request.method === 'POST' && crossSiteLogin) {
           return Astro.redirect(credential.mustChangePassword ? '/admin/profile' : '/admin/dashboard');
         }
 
-        await recordAdminLoginFailure(sessions, username, clientIp);
+        await recordAdminLoginFailure(database, username, clientIp);
         Astro.response.status = 401;
         focusPassword = true;
         errorMessage = 'Username atau password salah.';

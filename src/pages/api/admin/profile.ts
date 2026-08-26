@@ -1,9 +1,9 @@
 import type { APIRoute } from 'astro';
 import {
   getAdminCredential,
-  revokeAdminSessions,
   updateAdminCredential,
 } from '../../../lib/admin-credentials';
+import { revokeAdminSessions } from '../../../lib/admin-session';
 import { jsonError, jsonOk } from '../../../lib/api';
 import { SESSION_COOKIE_NAME } from '../../../lib/auth';
 import { getRuntimeEnv } from '../../../lib/env';
@@ -20,8 +20,7 @@ type ProfilePayload = {
 function runtime(locals: App.Locals) {
   const env = getRuntimeEnv(locals);
   const database = env?.OMS_DB as D1Database | undefined;
-  const sessions = env?.SESSION as KVNamespace | undefined;
-  return { database, sessions };
+  return { database };
 }
 
 export const GET: APIRoute = async ({ locals }) => {
@@ -48,8 +47,8 @@ export const GET: APIRoute = async ({ locals }) => {
 };
 
 export const PUT: APIRoute = async ({ request, locals, cookies }) => {
-  const { database, sessions } = runtime(locals);
-  if (!database || !sessions) return jsonError('Penyimpanan profil admin belum tersedia.', 503);
+  const { database } = runtime(locals);
+  if (!database) return jsonError('Penyimpanan profil admin belum tersedia.', 503);
 
   const body = await request.json().catch(() => null) as ProfilePayload | null;
   if (!body) return jsonError('Payload tidak valid.', 400);
@@ -74,7 +73,7 @@ export const PUT: APIRoute = async ({ request, locals, cookies }) => {
     );
     if (!result.ok) return jsonError(result.error, 400);
 
-    await revokeAdminSessions(sessions, actorUsername);
+    await revokeAdminSessions(database, actorUsername);
     cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
     return jsonOk({
       message: 'Profil admin diperbarui. Silakan login kembali.',

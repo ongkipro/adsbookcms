@@ -53,14 +53,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
       return jsonError("Ukuran file maksimal 2 MB.", 413);
     }
 
-    // Counted on the attempt rather than on success: the shared limiter is
-    // one atomic spend, and a rejected upload is still a request to damp.
-    const uploads = await checkRateLimit(
-      env?.OMS_DB as D1Database | undefined,
-      `admin-upload:${getClientIp(request.headers)}`,
-      MAX_UPLOADS_PER_HOUR,
-      3_600_000,
-    );
+    // Peek first, spend only once the object is stored: a rejected file is
+    // not an upload and must not eat the operator's twenty.
+    const uploadDatabase = env?.OMS_DB as D1Database | undefined;
+    const uploadBucketKey = `admin-upload:${getClientIp(request.headers)}`;
+    const uploads = await checkRateLimit(uploadDatabase, uploadBucketKey, MAX_UPLOADS_PER_HOUR, 3_600_000, false);
     if (!uploads.allowed) {
       return jsonError("Batas 20 upload per jam telah tercapai.", 429);
     }
@@ -115,6 +112,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         contentDisposition: "inline",
       },
     });
+    await checkRateLimit(uploadDatabase, uploadBucketKey, MAX_UPLOADS_PER_HOUR, 3_600_000);
     return jsonOk({
       url: `/assets/${fileName}`,
       fileName,

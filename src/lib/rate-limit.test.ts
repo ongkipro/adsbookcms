@@ -269,6 +269,18 @@ test('a counter store that throws fails open and never blocks the request', asyn
   }
 });
 
+test('a refused window is refused from a read and costs no write', async () => {
+  const { kv, store } = createKv();
+  for (let attempt = 0; attempt < 3; attempt += 1) await checkRateLimit(kv, 'burst', 3, 60_000);
+  const [key] = Array.from(store.keys());
+  assert.equal(store.get(key)?.count, 3);
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    assert.equal((await checkRateLimit(kv, 'burst', 3, 60_000)).allowed, false);
+  }
+  // Twenty refused attempts left the counter exactly where the limit put it.
+  assert.equal(store.get(key)?.count, 3);
+});
+
 test('expired windows are purged and live ones are kept', async () => {
   const { kv, store } = createKv();
   await checkRateLimit(kv, 'live', 5, 60_000);

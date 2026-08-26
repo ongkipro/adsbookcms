@@ -76,6 +76,7 @@ test("a qualified human lead inside the rate-limit window is recorded", async ()
           if (sql.includes("UPDATE order_number_counters")) {
             return { last_value: 10001 };
           }
+          if (sql.includes("SELECT count FROM rate_limits")) return null;
           if (sql.includes("INSERT INTO rate_limits")) {
             spentSlots += 1;
             return { count: spentSlots };
@@ -126,13 +127,16 @@ test("abandoned capture is rejected when the rate-limit window is exhausted", as
       runtimeEnv: {
         OMS_DB: {
           prepare(sql: string) {
-            if (sql.includes("INSERT INTO rate_limits")) {
+            if (sql.includes("SELECT count FROM rate_limits")) {
               return {
                 bind(...values: QueryValue[]) {
                   assert.match(String(values[0]), /^record-abandoned-order:203\.0\.113\.10:/);
-                  return { first: async () => ({ count: 11 }) };
+                  return { first: async () => ({ count: 10 }) };
                 },
               };
+            }
+            if (sql.includes("INSERT INTO rate_limits")) {
+              throw new Error("exhausted window was incremented");
             }
             databaseOperations += 1;
             throw new Error("rate-limited request reached D1");

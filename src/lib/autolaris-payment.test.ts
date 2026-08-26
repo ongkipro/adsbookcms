@@ -71,18 +71,19 @@ function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
           } else if (sql.includes("status = 'pending', amount = ?,\n          admin_fee = ?, total_amount = ?, provider_transaction_id = NULL")) {
             // A failed or expired row is reused for the retry.
             Object.assign(state.transaction!, {
-              channel_code: statement.args[0],
-              fee_bearer: statement.args[1],
+              reference_id: statement.args[0],
+              channel_code: statement.args[1],
+              fee_bearer: statement.args[2],
               status: "pending",
-              amount: statement.args[2],
-              admin_fee: statement.args[3],
-              total_amount: statement.args[4],
+              amount: statement.args[3],
+              admin_fee: statement.args[4],
+              total_amount: statement.args[5],
               virtual_account: null,
               qr_payload: null,
               payment_code: null,
               provider_payment_url: null,
               failed_reason: null,
-              expires_at: statement.args[5],
+              expires_at: statement.args[6],
             });
           } else if (sql.includes("provider_transaction_id = ?")) {
             Object.assign(state.transaction!, {
@@ -292,6 +293,8 @@ test("a failed instruction is regenerated on the next request, a live one is lef
   providerAnswers = true;
   const second = await createAutoLarisPaymentForOrder(database, QA_LOCALS, { orderId: 41, channelCode: "QRIS" });
   assert.equal(providerCalls, 2);
+  // The retry carries a fresh, digits-only provider reference derived from the order sequence.
+  assert.match(String(state.transaction?.reference_id), /^10041\d{6}$/);
   assert.equal(second.status, "pending");
   assert.equal(second.qrPayload, "QR-PAYLOAD-B");
   assert.equal(second.failedReason, undefined);

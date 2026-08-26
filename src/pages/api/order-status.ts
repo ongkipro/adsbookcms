@@ -48,10 +48,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // The payment page polls this every minute per open tab; a retry reaches
     // the payment provider. Both are unauthenticated, so both are damped —
     // the retry far more tightly, since each one is a provider request.
+    // Indonesian mobile networks put whole cities behind one CGNAT egress, so
+    // the per-address ceilings are loose; the retry is additionally capped per
+    // order below, which is the limit that actually protects the provider.
     const clientIp = getClientIp(request.headers);
     const rateLimit = retryPayment
-      ? await checkRateLimit(database, `public-payment-retry:${clientIp}`, 5, 10 * 60_000)
-      : await checkRateLimit(database, `public-order-status:${clientIp}`, 60, 60_000);
+      ? await checkRateLimit(database, `public-payment-retry:${clientIp}`, 30, 10 * 60_000)
+      : await checkRateLimit(database, `public-order-status:${clientIp}`, 240, 60_000);
     if (!rateLimit.allowed) {
       return json(
         { success: false, error: "Terlalu banyak permintaan. Coba lagi sebentar.", code: "RATE_LIMITED" },
@@ -66,11 +69,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     // A buyer holding a failed or expired instruction may ask for a new one.
-    // Only that: a live or paid transaction is never touched, and the channel
-    // is the one the order was placed with.
+    // Only that: a live or paid transaction is never touched, the channel is
+    // the one the order was placed with, and the order itself must still be a
+    // live, unpaid, undispatched order — a cancelled or refunded one must not
+    // grow a fresh VA nobody can reconcile.
     if (
       retryPayment &&
       !orderStatus.is_paid &&
+      orderStatus.status === "pending" &&
+      ["pending", "unpaid"].includes(orderStatus.payment_status) &&
       orderStatus.payment &&
       !orderStatus.payment.manual_transfer &&
       RETRYABLE_PAYMENT_STATUSES.has(orderStatus.payment.status) &&
@@ -79,6 +86,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
       try {
         const orderId = await resolvePublicOrderId(database, orderIdentity, statusToken);
         if (orderId === null) throw new Error("Order pembayaran tidak ditemukan.");
+        const perOrder = await checkRateLimit(database, `public-payment-retry-order:${orderId}`, 3, 10 * 60_000);
+        if (!perOrder.allowed) {
+          return json(
+            { success: false, error: "Instruksi pembayaran baru saja dibuat ulang. Coba lagi dalam beberapa menit.", code: "RATE_LIMITED" },
+            429,
+            rateLimitHeaders(perOrder.remaining, perOrder.resetAt),
+          );
+        }
         await createAutoLarisPaymentForOrder(database, locals, {
           orderId,
           channelCode: orderStatus.payment.channel_code,

@@ -77,6 +77,8 @@ export type OrderItem = {
   totalAmount: number;
   paymentMethod: string;
   paymentStatus: string;
+  /** The latest AutoLaris instruction's state — failed/expired means the buyer has nothing to pay with. */
+  paymentInstructionStatus: string;
   shippingStatus: string;
   courierCode: string;
   cnoteNo: string;
@@ -109,6 +111,7 @@ type OrderRow = {
   total_amount: number;
   payment_method: string;
   payment_status: string;
+  payment_instruction_status?: string | null;
   shipping_status: string;
   courier_code: string | null;
   cnote_no: string | null;
@@ -165,6 +168,7 @@ const mapOrder = (row: OrderRow): OrderItem => ({
   totalAmount: Number(row.total_amount) || 0,
   paymentMethod: row.payment_method,
   paymentStatus: row.payment_status,
+  paymentInstructionStatus: row.payment_instruction_status || "",
   shippingStatus: row.shipping_status,
   courierCode: row.courier_code || "",
   cnoteNo: row.cnote_no || "",
@@ -465,6 +469,23 @@ function RiskBadge({
         {styles.guidance}
       </p>
     </div>
+  );
+}
+
+/**
+ * An order can be `pending` while its payment instruction is dead — the
+ * provider failed at checkout, or the VA expired unpaid. Without this the two
+ * were indistinguishable in the list, and an operator would tell a buyer to
+ * pay a VA that no longer exists.
+ */
+function InstructionHint({ order }: { order: { paymentStatus: string; paymentInstructionStatus: string } }) {
+  const instruction = order.paymentInstructionStatus.toLowerCase();
+  if (!["failed", "expired"].includes(instruction)) return null;
+  if (["paid", "settled", "success"].includes(order.paymentStatus.toLowerCase())) return null;
+  return (
+    <span className="text-[10px] font-bold uppercase tracking-wide text-rose-600">
+      {instruction === "expired" ? "Instruksi kedaluwarsa" : "Instruksi gagal"}
+    </span>
   );
 }
 
@@ -1431,6 +1452,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                     <p className="text-slate-500">Pembayaran</p>
                     <div className="mt-1">
                       <PaymentBadge status={order.paymentStatus} />
+                      <InstructionHint order={order} />
                     </div>
                   </div>
                   <div>
@@ -1605,6 +1627,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                     <TableCell className="px-4 py-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <PaymentBadge status={order.paymentStatus} />
+                        <InstructionHint order={order} />
                         <span className="text-[10px] font-bold text-slate-500">
                           {paymentMethodLabels[order.paymentMethod] ||
                             order.paymentMethod}

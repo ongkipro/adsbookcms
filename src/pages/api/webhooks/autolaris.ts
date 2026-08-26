@@ -48,9 +48,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if (!database?.prepare) {
     return jsonError("Penyimpanan callback belum tersedia.", 503);
   }
+  // Per-address and store-wide. This is an unauthenticated endpoint that
+  // writes a row per request; without a global ceiling a distributed sender
+  // could spend the store's daily D1 write allowance on evidence rows. A real
+  // provider sends one callback per payment event — a few hundred an hour is
+  // far above any store here.
   const clientIp = getClientIp(request.headers);
-  const rateLimit = await checkRateLimit(database, `autolaris-callback:${clientIp}`, 60, 60_000);
-  if (!rateLimit.allowed) {
+  const [perAddress, global] = await Promise.all([
+    checkRateLimit(database, `autolaris-callback:${clientIp}`, 30, 60_000),
+    checkRateLimit(database, "autolaris-callback-global:store", 600, 60 * 60_000),
+  ]);
+  if (!perAddress.allowed || !global.allowed) {
+    console.error("autolaris-callback-rate-limited", { global: !global.allowed });
     return jsonError("Terlalu banyak callback.", 429, { code: "RATE_LIMITED" });
   }
 

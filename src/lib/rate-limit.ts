@@ -64,6 +64,17 @@ export async function checkRateLimit(
       return { allowed: true, remaining: limit - count, resetAt };
     }
 
+    // A window already at its limit is refused from a read alone. Rows written
+    // are the scarce D1 resource (100k/day on the Free plan, account-wide);
+    // without this, a source that is being refused still cost one write per
+    // attempt and could spend the day's allowance on requests that were never
+    // going to be served. Reads are fifty times cheaper.
+    const current = await database
+      .prepare('SELECT count FROM rate_limits WHERE key = ?')
+      .bind(windowKey)
+      .first<{ count: number }>();
+    if ((Number(current?.count) || 0) >= limit) return { allowed: false, remaining: 0, resetAt };
+
     const row = await database
       .prepare(
         `INSERT INTO rate_limits (key, count, reset_at) VALUES (?, 1, ?)
@@ -82,7 +93,10 @@ export async function checkRateLimit(
       bucket: key.split(':')[0],
       error: error instanceof Error ? error.message : String(error),
     });
-    return { allowed: true, remaining: limit - 1, resetAt };
+    // A peek that failed must report nothing spent: the login brake reads
+    // `remaining < limit` as "this address has already failed here", and a
+    // store error must not turn into a lockout of the real operator.
+    return { allowed: true, remaining: consume ? limit - 1 : limit, resetAt };
   }
 }
 

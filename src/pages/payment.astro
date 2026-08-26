@@ -766,11 +766,17 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         const data = await response.json() as StatusResponse;
         if (!response.ok || data.success === false) throw new Error(data.error || 'Status pembayaran tidak tersedia.');
         orderNumber = text(data.order_number || orderNumber);
+        if (data.is_paid) {
+          // Paid is paid, whatever the instruction row says about itself.
+          redirectToThanks();
+          return true;
+        }
         const orderPaymentStatus = text(data.payment_status || currentStatus).toLowerCase();
         const transactionStatus = text(data.payment?.status).toLowerCase();
-        currentStatus = ['failed', 'expired'].includes(transactionStatus)
-          ? transactionStatus
-          : orderPaymentStatus;
+        // The instruction's own state wins whenever there is one: an order
+        // that an older release marked `failed` still gets its freshly
+        // regenerated `pending` VA rendered instead of a stale error.
+        currentStatus = transactionStatus || orderPaymentStatus;
         // The server row is the whole truth after a refresh: a regenerated
         // instruction must not keep the stale VA or error from the checkout
         // response merged underneath it.
@@ -781,10 +787,6 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         errorEl.hidden = true;
         errorEl.textContent = '';
         render();
-        if (data.is_paid) {
-          redirectToThanks();
-          return true;
-        }
       } catch (error) {
         errorEl.hidden = false;
         errorEl.textContent = error instanceof Error ? error.message : 'Status pembayaran tidak tersedia.';

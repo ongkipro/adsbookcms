@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-08-27 @ `1acbd7e` + review-hardening working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -4502,3 +4502,34 @@ again returned `200`.
   complete, lucide subset regenerated (29 icons). Local `wrangler dev`: fresh
   D1 reports 51 claims; a JSON callback is stored with `reff_id`/`trx_id`
   indexed; `/payment` ships the link and retry controls.
+
+### Entry 86: Review hardening of the payment-recovery release
+
+**Date:** 2026-08-27 · **Release:** 1.3.4 / `2026.08-payment-recovery` · **Task:** A-168 · **Migration:** none
+
+- **Source.** `/code-review high 75f606d...main` over 1.3.2 + 1.3.3, plus the
+  audit's own residual-risk pass.
+- **Fixed.** `/payment` now redirects on `is_paid` before anything else and
+  lets the instruction's own state win, so a pre-1.3.2 order marked `failed`
+  renders its regenerated VA instead of throwing. `expirePendingPaymentTransactions`
+  runs hourly so SQL filters, counts and the reconciliation queue see
+  `expired`; the admin order detail applies `effectivePaymentStatus` and the
+  admin list projects `payment_instruction_status`, rendered as *Instruksi
+  gagal / kedaluwarsa* beside the payment badge. Upload quota is peek-then-spend
+  again (a rejected file costs nothing). Cron housekeeping is guarded, so one
+  failing purge cannot skip the outbox drains and health evaluation. The retry
+  gate additionally requires a live (`pending`) undispatched, unpaid order, is
+  capped per order (3 / 10 min) on top of CGNAT-tolerant per-address limits
+  (status 240/min, retry 30/10min), sends a fresh six-digit-suffixed `reff_id`
+  on retry, and `reference_id` now stores the reference the provider was
+  actually given. A `rate_limits` store error during a peek reports nothing
+  spent, so it can no longer trip the login identifier ceiling. Refused windows
+  cost no write (read-before-upsert); the callback recorder has a store-wide
+  600/h ceiling beside 30/min per address.
+- **Evidence.** `npm test` 587/587 (`order-status-api.test.ts` added: plain
+  read never reaches the provider; retry allowed only for a failed/expired
+  instruction on a live unpaid order; wrong token 404 and per-order ceiling 429
+  before the provider), `npm run check` 397 files clean, build complete, local
+  `wrangler dev --test-scheduled` cron run.
+- **Not done.** A-169 (unpaid online order lifecycle) and A-170 (retry handle
+  when the instruction row was never created) are tracked, not fixed.

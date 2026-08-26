@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { effectivePaymentStatus } from '../../../../lib/autolaris-payment.ts';
 import { jsonError, jsonOk } from '../../../../lib/api';
 import { getRuntimeEnv } from '../../../../lib/env';
 import { selectQuotedRate } from '../../../../lib/courier-rules';
@@ -291,7 +292,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
         payment: payment ? {
           reference_id: payment.reference_id,
           channel_code: payment.channel_code,
-          status: payment.status,
+          status: effectivePaymentStatus(payment.status, payment.expires_at),
           amount: payment.amount,
           admin_fee: payment.admin_fee,
           total_amount: payment.total_amount,

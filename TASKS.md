@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-08-27 @ `1acbd7e` + review-hardening working tree
 
 ## A21 — A landing page may become the product page
 
@@ -1507,3 +1507,9 @@ genuinely unmanageable.
   -> `enqueuePurchaseForPaidOrder` after manual confirmation; deduplicated by the outbox's `event_id`. Evidence: `paid-order-purchase.test.ts`.
 - [x] **A-167** — Retire the half-wired `DANA` channel code paths. **Done 2026-08-27.**
   -> Removed from `AUTOLARIS_CHANNELS`, `form-hybrid.ts`, and `payment.astro`.
+- [x] **A-168** — Review pass on 1.3.2–1.3.3 (`/code-review high 75f606d...main`). **Done 2026-08-27, BUILD-LOG entry 86.**
+  -> Six confirmed findings fixed: `/payment` rendered a stale `failed` over a regenerated VA on pre-1.3.2 orders; `expired` reached only buyer readers (now an hourly sweeper plus the admin detail); the upload quota counted rejected files; an unguarded purge could skip the whole cron hour; dead-instruction orders were invisible in the admin list; the retry gate had no route test. Also from the review's candidates: the gate now refuses cancelled/refunded orders, limits are CGNAT-tolerant with a per-order ceiling, a retry sends a fresh `reff_id`, and a store error during a peek no longer reads as a spent slot.
+- [ ] **A-169** — Decide the lifecycle of an online order whose instruction was never paid.
+  -> An unpaid QRIS/VA order stays `pending` with stock reserved until an operator cancels it — true before this work and still true; the retry only makes regeneration possible. `purgeExpiredAbandonedOrders` covers abandoned leads only. Done when a store policy says what happens N hours after expiry (auto-cancel with stock restoration through `order-lifecycle.ts`, or an operator queue), and it is implemented as a scheduled step.
+- [ ] **A-170** — A provider failure before the instruction row exists leaves no retry handle.
+  -> If `createAutoLarisPaymentForOrder` throws before its INSERT (a D1 transport failure on the order read), no `payment_transactions` row exists, `channel_code` is empty in the public status, and the retry button never appears. Rare and documented; done when the channel is persisted on `orders` or the catch in `submit-order.ts` writes a `failed` row.

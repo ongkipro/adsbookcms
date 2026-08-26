@@ -9,6 +9,7 @@ import {
 import { collectOperationalHealth } from "./lib/operational-health.ts";
 import { ensureSchemaUpgraded } from "./lib/schema-version.ts";
 import { purgeExpiredRateLimits } from "./lib/rate-limit.ts";
+import { expirePendingPaymentTransactions } from "./lib/autolaris-payment.ts";
 import { drainCapiOutbox } from "./lib/capi-outbox.ts";
 import { getStoreAdsConfig } from "./lib/store-ads.ts";
 import {
@@ -27,9 +28,23 @@ async function runScheduledMaintenance(
     env.OMS_DB,
     new Date(scheduledTime),
   );
-  const purgedRateLimitWindows = await purgeExpiredRateLimits(
-    env.OMS_DB,
-    new Date(scheduledTime),
+  // Housekeeping never takes the outbox drains or the health evaluation down
+  // with it: a transient D1 error here is logged and the hour goes on.
+  const housekeeping = async (label: string, run: () => Promise<number>) => {
+    try {
+      return await run();
+    } catch (error) {
+      console.error(label, error);
+      return -1;
+    }
+  };
+  const purgedRateLimitWindows = await housekeeping(
+    "scheduled-rate-limit-purge-failed",
+    () => purgeExpiredRateLimits(env.OMS_DB, new Date(scheduledTime)),
+  );
+  const expiredPaymentInstructions = await housekeeping(
+    "scheduled-payment-expiry-failed",
+    () => expirePendingPaymentTransactions(env.OMS_DB, new Date(scheduledTime)),
   );
   // The outbox had no clock of its own: `drainCapiOutbox` was reachable only
   // from `/api/meta-event` and `/api/v1/tracking/events`, so a delivery that
@@ -71,6 +86,7 @@ async function runScheduledMaintenance(
     schemaState: health.build.schemaState,
     purgedAbandonedOrders,
     purgedRateLimitWindows,
+    expiredPaymentInstructions,
     drainedCapiEvents,
     queuedGoogleAdsConversions,
     drainedGoogleAdsConversions,

@@ -476,6 +476,7 @@ test("an AutoLaris callback is recorded verbatim and moves no payment state", as
           return statement;
         },
         async first() {
+          if (sql.includes("SELECT count FROM rate_limits")) return null;
           if (sql.includes("INSERT INTO rate_limits")) return { count: 1 };
           throw new Error(`unexpected first(): ${sql}`);
         },

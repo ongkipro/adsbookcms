@@ -1,6 +1,6 @@
 # Observability — AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-08-27 @ `1acbd7e` + review-hardening working tree
 
 This document describes what an operator can observe and what AdsBookCMS now alerts on for one running install. Cross-install aggregation and an external uptime probe remain separate decisions.
 
@@ -147,6 +147,8 @@ client address, username, or order payload:
 | `autolaris-fee-mismatch` | The provider billed a total other than the one computed from `payment-fee-policy.ts`; the fee table needs updating |
 | `autolaris-callback-recorded` / `autolaris-callback-store-failed` | A provider callback was stored in `autolaris_callbacks` (with the `reff_id`/`trx_id` it carried), or could not be. Read the table with `wrangler d1 execute`; nothing acts on it (ADR-022) |
 | `paid-order-purchase-failed` | A manual paid confirmation succeeded but the server Meta Purchase could not be enqueued; the confirmation stands |
+| `scheduled-rate-limit-purge-failed` / `scheduled-payment-expiry-failed` | One housekeeping step of the hourly cron threw; the outbox drains and health evaluation still ran. `operational-health-scheduled` reports `-1` for that step |
+| `autolaris-callback-rate-limited` | A callback was refused by the per-address (30/min) or store-wide (600/h) ceiling; `global: true` names the latter |
 
 If `KV put() limit exceeded for the day` appears at all, the account's shared
 Free-plan KV allowance is exhausted: nothing user-facing fails any more, but the

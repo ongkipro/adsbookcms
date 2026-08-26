@@ -44,6 +44,7 @@ type OrderRow = {
   shipping_cost: number;
   payment_method: string;
   payment_status: string;
+  payment_instruction_status?: string | null;
   shipping_status: string;
   courier_code: string | null;
   cnote_no: string | null;
@@ -253,6 +254,15 @@ export const GET: APIRoute = async ({ url, locals }) => {
             ORDER BY payment_transactions.id DESC
             LIMIT 1
           ) AS epayment_link,
+          (
+            SELECT CASE
+              WHEN pt.status = 'pending' AND pt.expires_at IS NOT NULL AND pt.expires_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now') THEN 'expired'
+              ELSE pt.status END
+            FROM payment_transactions pt
+            WHERE pt.order_id = orders.id
+            ORDER BY pt.id DESC
+            LIMIT 1
+          ) AS payment_instruction_status,
           destination_area_id,
           provider_order_id,
           provider_dispatch_error,
@@ -347,6 +357,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
           shipping_cost: row.shipping_cost,
           payment_method: row.payment_method,
           payment_status: row.payment_status,
+          payment_instruction_status: row.payment_instruction_status || null,
           shipping_status: row.shipping_status,
           courier_code: row.courier_code,
           cnote_no: row.cnote_no,

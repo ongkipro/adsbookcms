@@ -8,7 +8,7 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.3.3",
+  version: "1.3.4",
   channel: "production",
   // 0049: sessions and rate limits in D1 (ADR-021). 0050: AutoLaris callback evidence (A-164).
   releaseTag: "2026.08-payment-recovery",

@@ -66,11 +66,13 @@ const cleanOptional = (value: string | null) => value?.trim() || undefined;
 export const RETRYABLE_PAYMENT_STATUSES: ReadonlySet<string> = new Set(["failed", "expired"]);
 
 /**
- * Expiry is decided at read time. Nothing ever wrote `status = 'expired'`
- * — the provider closes a VA or QR on its own clock and never tells us — so
- * a pending row past `expires_at` was rendered as a live instruction, the
- * countdown reached 00:00:00, and the page kept polling it forever. Deriving
- * the state here makes every reader agree without a sweeper.
+ * Expiry is decided at read time for the buyer-facing readers, and written by
+ * the hourly sweeper (`expirePendingPaymentTransactions`) for every SQL
+ * filter and count that reads `status` directly. Nothing used to write
+ * `'expired'` — the provider closes a VA or QR on its own clock and never
+ * tells us — so a pending row past `expires_at` was rendered as a live
+ * instruction, the countdown reached 00:00:00, and the page kept polling it
+ * forever.
  */
 export function effectivePaymentStatus(
   status: string,
@@ -132,6 +134,32 @@ function mapPaymentRecord(row: PaymentTransactionRow): AutoLarisPaymentRecord {
   };
 }
 
+/** Hourly: a pending instruction past its expiry becomes `expired` for every reader. */
+export async function expirePendingPaymentTransactions(database: D1Database, now = new Date()) {
+  const iso = now.toISOString();
+  const result = await database
+    .prepare(
+      `UPDATE payment_transactions
+          SET status = 'expired', updated_at = ?
+        WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at <= ?`,
+    )
+    .bind(iso, iso)
+    .run();
+  return result.meta.changes;
+}
+
+/**
+ * The provider reference for one attempt. The first attempt is the bare order
+ * sequence, readable against the order number; a retry appends a six-digit
+ * clock suffix so the provider never sees a reference it may already hold
+ * from the expired attempt. Digits only, at most 30, as the provider demands.
+ */
+export function autoLarisAttemptReferenceId(orderNumber: string, retry: boolean, now = Date.now()) {
+  const base = autoLarisReferenceId(orderNumber);
+  if (!retry) return base;
+  return `${base}${String(Math.floor(now / 1000) % 1_000_000).padStart(6, "0")}`.slice(0, 30);
+}
+
 export async function loadPaymentRecord(database: D1Database, orderId: number) {
   const row = await database
     .prepare(
@@ -188,6 +216,7 @@ export async function createAutoLarisPaymentForOrder(
   const createdAt = now.toISOString();
   const publicToken = crypto.randomUUID();
   const feeBearer = normalizePaymentFeeBearer(order.payment_fee_bearer);
+  const referenceId = autoLarisAttemptReferenceId(order.order_number, Boolean(existing));
   const requestAmount = calculateAutoLarisRequestAmount(
     input.channelCode,
     order.total_amount,
@@ -203,7 +232,7 @@ export async function createAutoLarisPaymentForOrder(
     await database
       .prepare(
         `UPDATE payment_transactions SET
-          channel_code = ?, fee_bearer = ?, status = 'pending', amount = ?,
+          reference_id = ?, channel_code = ?, fee_bearer = ?, status = 'pending', amount = ?,
           admin_fee = ?, total_amount = ?, provider_transaction_id = NULL,
           virtual_account = NULL, qr_payload = NULL, payment_code = NULL,
           provider_payment_url = NULL, failed_reason = NULL, expires_at = ?,
@@ -211,6 +240,7 @@ export async function createAutoLarisPaymentForOrder(
         WHERE id = ?`,
       )
       .bind(
+        referenceId,
         input.channelCode,
         feeBearer,
         requestAmount,
@@ -233,7 +263,8 @@ export async function createAutoLarisPaymentForOrder(
         )
         .bind(
           order.id,
-          order.order_number,
+          // What the provider is told, so reconciliation can match either side.
+          referenceId,
           publicToken,
           input.channelCode,
           feeBearer,
@@ -281,7 +312,7 @@ export async function createAutoLarisPaymentForOrder(
       config.apiKey,
       config.baseUrl,
     ).createPayment({
-      reffId: autoLarisReferenceId(order.order_number),
+      reffId: referenceId,
       channelCode: input.channelCode,
       customerId: String(order.id),
       customerName: order.customer_name,

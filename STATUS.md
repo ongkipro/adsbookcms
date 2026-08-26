@@ -65,6 +65,13 @@ from migration `0050` is live on each D1 (one probe row per store, body
 retry controls; kecamatan search 200; wrong-password login 401;
 `/api/order-status` 404.
 
+**2026-08-27 rollout of 1.3.4 (product `1c071d8`, review hardening).** All
+six installs again (tests 582–586 in the installs); the merge-type runner
+initially redeployed stale code because it had not fetched `product` — caught
+by the test count, fixed, rerun. Measured live afterwards on every host:
+`/` 200, kecamatan search 200, wrong-password login 401, `/api/order-status`
+404, JSON callback 200. Installs carry `1.3.4` in `src/lib/version.ts`.
+
 Verified live 2026-08-25 after the Google server/offline release: every host
 answers `200` on `/`, `401` on unauthenticated `/api/admin/health`, and has zero
 page-level horizontal overflow. Every install applied migration `0048`

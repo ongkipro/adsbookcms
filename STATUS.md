@@ -37,8 +37,20 @@ exceeded for the day` — the account-wide Free-plan KV write allowance, shared
 by twenty-one namespaces, was exhausted; each keystroke in the kecamatan field
 and each login was a KV write. Fixed in 1.3.2 by ADR-021 (sessions and counters
 in D1, KV writes best-effort, no counter on the local district search). The
-rollout record and per-install verification are appended below once each
-install has deployed.
+rollout was completed the same day.
+
+**2026-08-27 rollout of 1.3.2 (product `189ec2f`).** All six installs deployed
+from their own checkouts — carukesi, skincarebpom, taniniaga by merging
+`product/main`; permatamall, zanobyshop, zvarashop by applying the product
+diff (`wrangler.jsonc` and `RELEASE.md` untouched, dry-run confirmed each
+Worker's own bindings). Each passed `check`, `test` (579–580; the product
+carries 581) and `build` before `wrangler deploy`. Measured live afterwards on
+every host: `/` 200; `/api/locations?level=district` 200 with 94 results;
+provider-path search 200; wrong-password login **401** (was 500);
+unauthenticated `/api/admin/health` 401; `/api/order-status` 404 (was 500);
+sixth wrong password **429** — which proves `rate_limits` from migration
+`0049` is live on each D1. Operators must log in once more; KV sessions were
+not migrated.
 
 Verified live 2026-08-25 after the Google server/offline release: every host
 answers `200` on `/`, `401` on unauthenticated `/api/admin/health`, and has zero

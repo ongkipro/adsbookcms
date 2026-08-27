@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `1acbd7e` + review-hardening working tree
+> Verified against disk: 2026-08-27 @ `551d099` + admin-blank hotfix
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -91,9 +91,16 @@ npm run check     # astro check && tsc --noEmit
 npm run build     # astro build
 ```
 
+A React island is **not** covered by any of these three. `npm test` globs
+`src/lib/*.test.ts` only, and a component that throws during SSR answers `200`
+with an **empty body** — a blank white page that every static check calls
+healthy. Put the branch in `src/lib/` where the runner can reach it, and open
+the page. 1.3.4 shipped a one-line island change to every install and left the
+admin order list blank for a day.
+
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **587 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
+Current verified working-tree baseline: **591 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 

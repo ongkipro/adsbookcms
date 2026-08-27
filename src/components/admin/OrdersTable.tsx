@@ -1,4 +1,5 @@
 import { formatIdr } from "@/lib/format-idr";
+import { paymentInstructionHint } from "../../lib/order-instruction-hint";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
 import { CrmActionGroup } from "./CrmActionGroup";
 import type { CrmStepKey } from "./CrmActionButton";
@@ -77,8 +78,17 @@ export type OrderItem = {
   totalAmount: number;
   paymentMethod: string;
   paymentStatus: string;
-  /** The latest AutoLaris instruction's state — failed/expired means the buyer has nothing to pay with. */
-  paymentInstructionStatus: string;
+  /**
+   * The latest AutoLaris instruction's state — failed/expired means the buyer
+   * has nothing to pay with.
+   *
+   * Optional because this row has two independent producers: `mapOrder` for
+   * the client fetch, and the SQL in `src/pages/admin/orders/index.astro` for
+   * the server-rendered first paint. The second one omitted it and every
+   * admin order page rendered blank, so the type now forces both readers to
+   * cope rather than trusting a field that may not be there.
+   */
+  paymentInstructionStatus?: string;
   shippingStatus: string;
   courierCode: string;
   cnoteNo: string;
@@ -478,13 +488,12 @@ function RiskBadge({
  * were indistinguishable in the list, and an operator would tell a buyer to
  * pay a VA that no longer exists.
  */
-function InstructionHint({ order }: { order: { paymentStatus: string; paymentInstructionStatus: string } }) {
-  const instruction = order.paymentInstructionStatus.toLowerCase();
-  if (!["failed", "expired"].includes(instruction)) return null;
-  if (["paid", "settled", "success"].includes(order.paymentStatus.toLowerCase())) return null;
+function InstructionHint({ order }: { order: { paymentStatus?: string; paymentInstructionStatus?: string } }) {
+  const hint = paymentInstructionHint(order.paymentStatus, order.paymentInstructionStatus);
+  if (!hint) return null;
   return (
     <span className="text-[10px] font-bold uppercase tracking-wide text-rose-600">
-      {instruction === "expired" ? "Instruksi kedaluwarsa" : "Instruksi gagal"}
+      {hint === "expired" ? "Instruksi kedaluwarsa" : "Instruksi gagal"}
     </span>
   );
 }

@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `1acbd7e` + review-hardening working tree
+> Verified against disk: 2026-08-27 @ `551d099` + admin-blank hotfix
 
 ## A21 — A landing page may become the product page
 
@@ -1513,3 +1513,10 @@ genuinely unmanageable.
   -> An unpaid QRIS/VA order stays `pending` with stock reserved until an operator cancels it — true before this work and still true; the retry only makes regeneration possible. `purgeExpiredAbandonedOrders` covers abandoned leads only. Done when a store policy says what happens N hours after expiry (auto-cancel with stock restoration through `order-lifecycle.ts`, or an operator queue), and it is implemented as a scheduled step.
 - [ ] **A-170** — A provider failure before the instruction row exists leaves no retry handle.
   -> If `createAutoLarisPaymentForOrder` throws before its INSERT (a D1 transport failure on the order read), no `payment_transactions` row exists, `channel_code` is empty in the public status, and the retry button never appears. Rare and documented; done when the channel is persisted on `orders` or the catch in `submit-order.ts` writes a `failed` row.
+
+## A25 — The blank admin order list
+
+- [x] **A-171** — `/admin/orders` returned an empty 200 on every install. **Done 2026-08-27 (1.3.5).**
+  -> Cause: `InstructionHint` (entry 86) read a field the server-rendered producer never supplied. Done when: the predicate lives in `src/lib/` with a test for the missing-field case, `OrderItem` marks it optional, the page query supplies it, and every admin route was opened against a seeded store and returned a non-empty body. Evidence: BUILD-LOG entry 87.
+- [ ] **A-172** — Give the React islands a rendering check the runner can see.
+  -> `npm test` globs `src/lib/*.test.ts`, so no island is ever executed; a component that throws during SSR returns a blank 200 that `check`, `test` and `build` all call healthy. Done when either the admin islands are smoke-rendered in CI (react-dom/server over a compiled entry) or a route-level check asserts a non-empty body for every admin page against a seeded database.

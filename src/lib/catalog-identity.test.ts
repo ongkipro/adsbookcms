@@ -9,6 +9,7 @@ import {
   defaultCatalogContentId,
   generateGoogleCatalogXml,
   generateMetaCatalogXml,
+  catalogProductIdOrNull,
 } from "./catalog-feed.ts";
 
 /**
@@ -120,4 +121,13 @@ test("tracking surfaces use the canonical Product ID without rebuilding variant 
     readFileSync("src/components/storefront/tracking/MetaThanksTracker.astro", "utf8"),
   ].join("\n");
   assert.doesNotMatch(trackingSources, /p\$\{productId\}-v\$\{/);
+});
+
+test("the display-safe catalogue id degrades instead of blanking a screen", () => {
+  // A single short id used to throw inside the admin product list's own
+  // filter, and a React render that throws returns an empty page.
+  assert.equal(catalogProductIdOrNull(60001), "60001");
+  for (const short of [1, 0, "", "abc", -5, 9999]) {
+    assert.equal(catalogProductIdOrNull(short as number), null);
+  }
 });

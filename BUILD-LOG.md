@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `1acbd7e` + review-hardening working tree
+> Verified against disk: 2026-08-27 @ `551d099` + admin-blank hotfix
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -4533,3 +4533,40 @@ again returned `200`.
   `wrangler dev --test-scheduled` cron run.
 - **Not done.** A-169 (unpaid online order lifecycle) and A-170 (retry handle
   when the instruction row was never created) are tracked, not fixed.
+
+### Entry 87: The admin order list was blank on every install
+
+**Date:** 2026-08-27 · **Release:** 1.3.5 / `2026.08-admin-blank-hotfix` · **Task:** A-171 · **Migration:** none
+
+- **Symptom.** `/admin/orders` answered `200` with a **zero-byte body** on all
+  six installs — a blank white page, no error page, no console entry visible to
+  the operator. Reported by the merchant, not by any check.
+- **Cause, self-inflicted.** Entry 86 added `InstructionHint` to
+  `OrdersTable.tsx`, reading `order.paymentInstructionStatus.toLowerCase()`.
+  The row has **two independent producers**: `mapOrder`, which defaults the
+  field, and the SQL in `src/pages/admin/orders/index.astro`, which builds
+  `OrderItem` from its own column aliases and never learned about the new one.
+  The server-rendered first paint therefore read `undefined.toLowerCase()`, the
+  React render threw, and Astro returned an empty 200.
+- **Why every gate stayed green.** `npm test` globs `src/lib/*.test.ts`, so no
+  `.tsx` is executed; `astro check` and `tsc` were satisfied because the page's
+  row type is `Omit<OrderItem, …>` and the SQL aliases are typed by assertion,
+  not by the query. AGENTS.md already carried the rule this broke — "for
+  anything browser-visible, open the page" — and it was not followed.
+- **Fix.** The predicate moved to `src/lib/order-instruction-hint.ts`, where
+  the runner can reach it, and treats a missing status as "no warning"; the
+  field is now optional on `OrderItem` so both producers must cope; and the
+  page's own query supplies it, so the first paint carries the same truth as
+  the client fetch.
+- **Found alongside.** `/admin/products` blanks the same way if any product row
+  carries an id shorter than five digits: `catalogProductId` fails closed by
+  design and the admin list called it inside a `filter`. Live installs allocate
+  ids through `createCatalogProductId`, so this was reachable only through
+  imported or hand-inserted rows — now `catalogProductIdOrNull` keeps display
+  paths from throwing while the ads paths stay strict.
+- **Evidence.** `npm test` 591/591, `npm run check` 399 files clean, build
+  complete. Local `wrangler dev` against a seeded store, signed in as a real
+  operator: `/admin/orders` 260,798 bytes carrying both seeded orders and the
+  *Instruksi kedaluwarsa* badge for the expired instruction; `/admin/products`
+  227,221 bytes with `—` in the Content ID column for a short id; all sixteen
+  admin routes non-empty; zero uncaught SSR exceptions.

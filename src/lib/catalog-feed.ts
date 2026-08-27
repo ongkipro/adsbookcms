@@ -65,6 +65,23 @@ export function catalogProductId(productId: number | string): string {
 }
 
 /**
+ * The catalogue id, or null when this row cannot have one.
+ *
+ * `catalogProductId` fails closed on purpose — an ads payload must never carry
+ * a padded or guessed identity. A *display* path has no such duty, and one
+ * short id (an import, a hand-inserted row, a legacy migration) throwing
+ * inside a React render blanks the entire admin product page. Screens read
+ * through this; ads keep reading the strict function.
+ */
+export function catalogProductIdOrNull(productId: number | string): string | null {
+  try {
+    return catalogProductId(productId);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The content id for a page where no variant has been chosen yet — a product
  * detail page or a landing page. The feed is product-level, while the first
  * variant remains the default price shown by the storefront.

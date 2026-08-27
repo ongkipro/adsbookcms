@@ -65,6 +65,21 @@ from migration `0050` is live on each D1 (one probe row per store, body
 retry controls; kecamatan search 200; wrong-password login 401;
 `/api/order-status` 404.
 
+**2026-08-27 rollout of 1.3.5 (hotfix, product `679f577`).** Shipped within
+the hour of the merchant reporting a blank admin order list; all six installs
+deployed and pushed. `/admin/orders` answers 200 and redirects an
+unauthenticated caller to `/hello` on every host — the signed-in render was
+verified locally against a seeded store rather than in production, because
+production admin credentials are behind the approval gate.
+
+**2026-08-27 rollout of 1.4.0 (product `6130a2d`, stock stops gating a sale).**
+All six installs (tests 590–591 in the installs). zanobyshop needed a manual
+three-way merge again — it carries its own storefront palette on the line the
+release reworded — and was then committed, gated, deployed and pushed by hand.
+Measured live afterwards on every host: `/` and `/produk` 200, kecamatan search
+200, wrong-password login 401, `/api/order-status` 404, JSON callback 200. No
+migration: `product_variants.stock` is retained and inert.
+
 **2026-08-27 rollout of 1.3.4 (product `1c071d8`, review hardening).** All
 six installs again (tests 582–586 in the installs); the merge-type runner
 initially redeployed stale code because it had not fetched `product` — caught

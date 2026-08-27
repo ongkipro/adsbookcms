@@ -467,7 +467,7 @@ function ConversionDialog({
           <section aria-labelledby="lead-product-heading" className="space-y-4">
             <div>
               <h3 id="lead-product-heading" className="font-medium">Produk</h3>
-              <p className="text-sm text-muted-foreground">Harga dan stok tetap diverifikasi dari data produk aktif.</p>
+              <p className="text-sm text-muted-foreground">Harga tetap diverifikasi dari data produk aktif.</p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_7rem]">
               <div className="space-y-1.5">
@@ -476,7 +476,7 @@ function ConversionDialog({
                   <SelectTrigger id="lead-variant" aria-invalid={fieldError?.id === "lead-variant"} aria-describedby={fieldError?.id === "lead-variant" ? "lead-variant-error" : undefined}><SelectValue placeholder="Pilih produk" /></SelectTrigger>
                   <SelectContent>
                     {products.filter((product) => product.is_active).flatMap((product) => product.variants.map((variant) => (
-                      <SelectItem key={variant.id} value={String(variant.id)} disabled={variant.stock === 0}>
+                      <SelectItem key={variant.id} value={String(variant.id)}>
                         {product.title} · {variant.title} ({formatIdr(variant.price)})
                       </SelectItem>
                     )))}

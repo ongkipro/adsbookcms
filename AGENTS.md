@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `551d099` + admin-blank hotfix
+> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -63,7 +63,8 @@ failure mode this section exists to prevent.
 - Checkout never dispatches to a courier. Orders land as `pending`; an operator releases them explicitly from `/admin/orders`.
 - Paid status changes dispatch *eligibility*, never dispatch itself.
 - Price, stock, weight, and identity come from D1. Browser state is never pricing authority.
-- Stock non-negativity and exactly-once restoration are enforced through the shared order lifecycle. All single/bulk status changes and deletions must use `src/lib/order-lifecycle.ts`; never write order status or delete reserved items around it.
+- **Stock never gates a sale (ADR-023).** It is not read at checkout, at CS conversion, or when deciding what the storefront publishes, and nothing decrements or restores it. Do not reintroduce a stock check; the tests assert its absence.
+- Exactly-once order release is enforced through the shared order lifecycle. All single/bulk status changes and deletions must use `src/lib/order-lifecycle.ts`; never write order status or delete order rows around it. `orders.stock_restored_at` is that marker — it predates ADR-023 and now means only "this order is void".
 
 **Config**
 - Binding names are fixed: `OMS_DB`, `SESSION`, `ASSET_BUCKET`, `AI`, `ASSETS`.
@@ -100,7 +101,7 @@ admin order list blank for a day.
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **591 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
+Current verified working-tree baseline: **592 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 

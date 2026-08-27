@@ -227,9 +227,6 @@ export function parseProductMutationPayload(
     if (!weightGrams || weightGrams <= 0) {
       return { error: `Berat varian ${sku} harus integer positif.` };
     }
-    if (stock === null || stock < 0) {
-      return { error: `Stok varian ${sku} harus integer nol atau lebih.` };
-    }
     if (comparePrice !== null && comparePrice < 0) {
       return { error: `Harga coret varian ${sku} harus nol atau lebih.` };
     }
@@ -247,7 +244,10 @@ export function parseProductMutationPayload(
       price,
       compare_price: comparePrice,
       weight_grams: weightGrams,
-      stock,
+      // Retained as bookkeeping only. Nothing gates a sale on it since
+      // ADR-023, so an absent or negative figure is stored as zero rather
+      // than refused — a save must not fail over a number nobody reads.
+      stock: stock !== null && stock > 0 ? stock : 0,
     });
   }
 

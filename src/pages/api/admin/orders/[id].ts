@@ -13,7 +13,7 @@ import { getReceiverPerformance, scheduleReceiverPerformanceRefresh } from '../.
 import type { ReceiverPerformance } from '../../../../lib/receiver-performance';
 import {
   applyOrderLifecycleMutation,
-  deleteOrdersRestoringStock,
+  deleteOrdersReleasingReservations,
   OrderLifecycleError,
 } from '../../../../lib/order-lifecycle';
 import {
@@ -780,7 +780,7 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
     const order = await loadOrder(db, orderKey);
     if (!order) return jsonError('Order tidak ditemukan', 404);
 
-    const deleted = await deleteOrdersRestoringStock(db, [order.id]);
+    const deleted = await deleteOrdersReleasingReservations(db, [order.id]);
     if (deleted.length === 0) {
       return jsonError('Order tidak ditemukan', 404);
     }

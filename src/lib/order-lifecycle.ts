@@ -24,6 +24,7 @@ const PAID_PAYMENT_STATUSES = new Set(["paid", "settled", "success"]);
 const RELEASING_PAYMENT_STATUSES = new Set(["cancelled", "refunded", "failed"]);
 const RELEASING_SHIPPING_STATUSES = new Set(["cancelled", "returned"]);
 const SHIPPED_LIKE_STATUSES = new Set(["shipped", "delivered", "returned"]);
+/** An order in one of these states is void: released, and never dispatchable again. */
 const STOCK_RELEASED_SQL =
   "(o.shipping_status IN ('cancelled', 'returned') OR o.payment_status IN ('cancelled', 'refunded', 'failed'))";
 
@@ -121,7 +122,7 @@ export function resolveAdminOrderTransition(
     shippingStatus === "abandoned"
   ) {
     throw new OrderLifecycleError(
-      "Pesanan tertinggal hanya dapat diaktifkan melalui checkout atau konversi CS agar stok dicadangkan.",
+      "Pesanan tertinggal hanya dapat diaktifkan melalui checkout atau konversi CS.",
     );
   }
 
@@ -135,12 +136,12 @@ export function resolveAdminOrderTransition(
     !RELEASING_SHIPPING_STATUSES.has(shippingStatus)
   ) {
     throw new OrderLifecycleError(
-      "Order yang stoknya sudah dikembalikan tidak dapat diaktifkan kembali tanpa reservasi stok baru.",
+      "Order yang sudah dibatalkan atau dikembalikan tidak dapat diaktifkan kembali. Buat order baru.",
     );
   }
   if (currentReleased && !nextReleased) {
     throw new OrderLifecycleError(
-      "Order yang stoknya sudah dikembalikan tidak dapat diaktifkan kembali tanpa reservasi stok baru.",
+      "Order yang sudah dibatalkan atau dikembalikan tidak dapat diaktifkan kembali. Buat order baru.",
     );
   }
 
@@ -188,7 +189,17 @@ function selectedOrdersCte(orderIds: readonly number[]) {
   return `WITH selected(order_id) AS (VALUES ${orderIds.map(() => "(?)").join(", ")})`;
 }
 
-function buildStockRestorationStatements(
+/**
+ * Marks an order released, exactly once.
+ *
+ * `stock_restored_at` is the marker's column name and predates ADR-023, when
+ * releasing an order also returned its quantity to a counted shelf. Stock is
+ * no longer counted, so nothing is returned — but the marker still carries its
+ * other, load-bearing meaning: this order is void, it may not be released a
+ * second time, and manual payment reconciliation must refuse it. The column
+ * keeps its name because renaming it buys nothing and touches every reader.
+ */
+function buildOrderReleaseStatements(
   database: D1Database,
   orderIds: readonly number[],
   requireReleasedState: boolean,
@@ -198,25 +209,6 @@ function buildStockRestorationStatements(
     ? ` AND ${STOCK_RELEASED_SQL}`
     : " AND o.shipping_status <> 'abandoned'";
   return [
-    database
-      .prepare(
-        `${cte}, reserved(variant_id, quantity) AS (
-          SELECT oi.variant_id, SUM(oi.quantity)
-          FROM order_items oi
-          JOIN orders o ON o.id = oi.order_id
-          JOIN selected s ON s.order_id = o.id
-          WHERE o.stock_restored_at IS NULL${releaseGuard}
-          GROUP BY oi.variant_id
-        )
-        UPDATE product_variants
-        SET stock = stock + COALESCE(
-          (SELECT reserved.quantity FROM reserved WHERE reserved.variant_id = product_variants.id),
-          0
-        )
-        WHERE stock IS NOT NULL
-          AND id IN (SELECT variant_id FROM reserved)`,
-      )
-      .bind(...orderIds),
     database
       .prepare(
         `${cte}
@@ -239,7 +231,7 @@ export async function applyOrderLifecycleMutation(
   const statements = [orderMutation];
   if (transition.releasesStock) {
     statements.push(
-      ...buildStockRestorationStatements(database, [current.id], true),
+      ...buildOrderReleaseStatements(database, [current.id], true),
     );
   }
   const results = await database.batch(statements);
@@ -299,7 +291,7 @@ export async function updateAdminOrderShippingStatuses(
   ];
   if (transitions.some((transition) => transition.releasesStock)) {
     statements.push(
-      ...buildStockRestorationStatements(database, orderIds, true),
+      ...buildOrderReleaseStatements(database, orderIds, true),
     );
   }
   const results = await database.batch(statements);
@@ -307,10 +299,10 @@ export async function updateAdminOrderShippingStatuses(
 }
 
 /**
- * Restores every still-reserved item and deletes all order-owned rows in one
+ * Marks every still-open order released and deletes all order-owned rows in one
  * D1 batch transaction. D1 rolls the whole batch back if any statement fails.
  */
-export async function deleteOrdersRestoringStock(
+export async function deleteOrdersReleasingReservations(
   database: D1Database,
   rawOrderIds: readonly number[],
 ): Promise<DeletedOrder[]> {
@@ -343,7 +335,7 @@ export async function deleteOrdersRestoringStock(
     );
   }
   const statements = [
-    ...buildStockRestorationStatements(database, orderIds, false),
+    ...buildOrderReleaseStatements(database, orderIds, false),
     database
       .prepare(
         `${cte}
@@ -373,5 +365,8 @@ export async function deleteOrdersRestoringStock(
       .bind(...orderIds),
   ];
   const results = await database.batch(statements);
-  return (results[4]?.results || []) as DeletedOrder[];
+  // The RETURNING delete is the last statement, whatever precedes it. A
+  // hard-coded index here silently returned the wrong result the moment the
+  // statement list changed length.
+  return (results.at(-1)?.results || []) as DeletedOrder[];
 }

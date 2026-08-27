@@ -150,9 +150,10 @@ test("active product validation rejects a missing image", () => {
   );
 });
 
-test("active product validation rejects a catalog with no in-stock variant", () => {
-  assert.deepEqual(
-    parseProductMutationPayload(
+test("a variant is accepted whatever its stock figure says", () => {
+  // Stock stopped gating a sale in ADR-023, so it can no longer refuse a save.
+  for (const stock of [0, -5, undefined]) {
+    const parsed = parseProductMutationPayload(
       validMutationPayload({
         variants: [
           {
@@ -160,38 +161,20 @@ test("active product validation rejects a catalog with no in-stock variant", () 
             title: "1 Liter",
             price: 125000,
             weight_grams: 1000,
-            stock: 0,
+            ...(stock === undefined ? {} : { stock }),
           },
         ],
       }),
       false,
-    ),
-    {
-      error:
-        "Produk aktif wajib memiliki minimal 1 varian valid dan tersedia.",
-    },
-  );
+    );
+    assert.ok(!("error" in parsed), `stock ${String(stock)} must be accepted`);
+    assert.equal(parsed.value.variants[0].stock, 0);
+  }
 });
 
-test("product validation never synthesizes a missing slug or stock", () => {
+test("product validation never synthesizes a missing slug", () => {
   assert.deepEqual(
     parseProductMutationPayload(validMutationPayload({ slug: "" }), false),
     { error: "Judul dan slug produk wajib diisi." },
-  );
-  assert.deepEqual(
-    parseProductMutationPayload(
-      validMutationPayload({
-        variants: [
-          {
-            sku: "MERCHANT-1",
-            title: "1 Liter",
-            price: 125000,
-            weight_grams: 1000,
-          },
-        ],
-      }),
-      false,
-    ),
-    { error: "Stok varian MERCHANT-1 harus integer nol atau lebih." },
   );
 });

@@ -149,7 +149,12 @@ test("persistOrder promotes the recent abandoned row and replaces its items", as
   assert.equal(result.id, 7);
   assert.equal(result.orderNumber, "INV-10007");
   assert.equal(result.publicStatusToken, "status-original");
-  assert.equal(batchStatements.length, 5);
+  assert.equal(batchStatements.length, 4);
+  // Four statements, and none of them a stock movement (ADR-023).
+  assert.equal(
+    batchStatements.some((statement) => statement.sql.includes("product_variants")),
+    false,
+  );
   assert.match(batchStatements[0].sql, /^\s*UPDATE orders/);
   assert.match(batchStatements[0].sql, /shipping_status = 'pending'/);
   assert.match(batchStatements[0].sql, /warehouse_id = \?/);

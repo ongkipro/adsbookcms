@@ -1,6 +1,6 @@
 # Architecture Decision Record — AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
 
 Append-only. One decision per entry. A decision is recorded here only when it constrains future work; implementation detail belongs in `ARCHITECTURE.md`, remaining work in `UNIMPLEMENTED_SPECS.md`.
 
@@ -657,3 +657,57 @@ before route code runs (measured). AutoLaris speaks JSON on every documented
 endpoint; if the table stays empty after real payments, the provider posting
 forms is the first thing to rule out, and the fix is a deliberate
 `security.checkOrigin` decision, not a silent one.
+
+## ADR-023 — Stock is bookkeeping, not a gate
+
+**Date:** 2026-08-27 · **Status:** Accepted. No migration; the column is retained and inert.
+
+**Context.** This product is a direct-response storefront: one merchant, a
+handful of SKUs, goods ordered or produced against demand rather than picked
+from a counted shelf. The schema nevertheless carried a full reservation
+system — `product_variants.stock` was checked before an order was accepted,
+decremented inside the checkout batch, restored on cancellation, guarded by a
+`stock_restored_at` exactly-once marker and by a `RAISE(ABORT,
+'INSUFFICIENT_STOCK')` trigger.
+
+Every part of that machinery could refuse a sale, and one part refused it
+silently: `mergeStorefrontCatalog` required `stock > 0` for a variant to be
+**published at all**, so a variant whose counter reached zero — or was never
+set, since `NULL` failed the same predicate — disappeared from the storefront
+entirely. A live product stopped being buyable with nobody having changed it,
+and no error anywhere said so. The counter was never maintained against real
+warehouse movement, so what it enforced was not availability; it was the
+residue of past orders.
+
+**Decision.** Stock stops being a constraint anywhere in the product.
+
+- Checkout (`persistOrder`) and CS lead conversion (`convertAbandonedLead`) no
+  longer read it, no longer guard on it, and no longer decrement it.
+- Releasing an order (cancel, return, delete) no longer adds anything back.
+  `stock_restored_at` keeps its name and its **other** meaning — this order is
+  void, may not be released twice, and manual payment reconciliation must
+  refuse it — which is the part that was actually load-bearing.
+- The storefront and the admin publish a variant on title and price alone.
+- Saving a product accepts any figure, negative or absent, and stores zero.
+
+The column stays. It is a number an operator may keep for their own reference,
+and removing it would mean a migration, a rewrite of six admin readers, and the
+loss of the data — for nothing. `product_variants_stock_nonnegative`
+(migration 0003) also stays: it guards a value nothing writes any more, which
+costs nothing.
+
+**Consequences.** A variant is buyable whenever it is active and priced.
+Overselling is possible by construction — that is the merchant's stated model,
+not an oversight: fulfilment capacity lives outside this system. The three
+tests that asserted the old contract now assert its inverse, so a future change
+that reintroduces a stock gate fails the suite rather than silently removing a
+product from sale. Should a store ever need real stock control, this ADR is the
+thing to revisit, and the counter it needs is still there.
+
+**Rejected.** *Keeping the decrement as bookkeeping* — a figure that drifts
+negative through sales while the admin form validates it as non-negative is two
+rules disagreeing about one column. *Setting every counter to `NULL` to mean
+"unlimited"* — the codebase already read `NULL` as unlimited in the write paths
+but as **unpublished** in the read path, which is the bug in the first place;
+making the representation carry the meaning would have left that trap in place
+for whoever typed a number next.

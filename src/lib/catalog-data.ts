@@ -50,9 +50,7 @@ export function getPublicProductValidationError(
       (variant) =>
         Boolean(variant.title?.trim()) &&
         Number.isSafeInteger(variant.price) &&
-        Number(variant.price) > 0 &&
-        Number.isSafeInteger(variant.stock) &&
-        Number(variant.stock) > 0,
+        Number(variant.price) > 0,
     )
   ) {
     return "Produk aktif wajib memiliki minimal 1 varian valid dan tersedia.";
@@ -60,6 +58,12 @@ export function getPublicProductValidationError(
   return null;
 }
 
+/**
+ * A variant is sellable when it has a title and a price. Stock is deliberately
+ * not consulted (ADR-023): a zero on the counter used to remove the variant
+ * from the storefront entirely, which is how a live product became unbuyable
+ * without anyone changing it.
+ */
 export function mergeStorefrontCatalog(
   productRows: CatalogProductRow[],
   variantRows: CatalogVariantRow[],
@@ -96,9 +100,7 @@ export function mergeStorefrontCatalog(
         variant.id > 0 &&
         Boolean(variant.title?.trim()) &&
         Number.isSafeInteger(variant.price) &&
-        variant.price > 0 &&
-        Number.isSafeInteger(variant.stock) &&
-        Number(variant.stock) > 0,
+        variant.price > 0,
     );
     const publicationError = getPublicProductValidationError(
       product,

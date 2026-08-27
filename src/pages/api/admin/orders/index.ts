@@ -10,7 +10,7 @@ import {
 import { getMengantarDispatchEligibility } from '../../../../lib/payment-dispatch-policy.ts';
 import {
   ADMIN_SHIPPING_STATUSES,
-  deleteOrdersRestoringStock,
+  deleteOrdersReleasingReservations,
   OrderLifecycleError,
   updateAdminOrderShippingStatuses,
 } from '../../../../lib/order-lifecycle.ts';
@@ -492,7 +492,7 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
     }
 
     const db = database as D1Database;
-    const deleted = await deleteOrdersRestoringStock(db, ids);
+    const deleted = await deleteOrdersReleasingReservations(db, ids);
 
     return jsonOk({
       success: true,

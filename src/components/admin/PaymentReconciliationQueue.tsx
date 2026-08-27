@@ -224,7 +224,7 @@ function parseEnteredAmount(value: string) {
 function formatBlockReason(value: string) {
   const labels: Record<string, string> = {
     provider_reference_missing: "Referensi provider belum tersedia.",
-    stock_restored: "Stok order sudah dipulihkan; pembayaran tidak boleh dikonfirmasi dari antrean ini.",
+    stock_restored: "Order sudah dibatalkan atau dikembalikan; pembayaran tidak boleh dikonfirmasi dari antrean ini.",
     shipping_not_pending: "Status pengiriman sudah berubah dari pending.",
     order_payment_status_locked: "Status pembayaran order sudah terkunci.",
     transaction_status_locked: "Status transaksi sudah berubah.",

@@ -5,7 +5,7 @@ import type { StatementSync } from "node:sqlite";
 import test from "node:test";
 import {
   applyOrderLifecycleMutation,
-  deleteOrdersRestoringStock,
+  deleteOrdersReleasingReservations,
   OrderLifecycleError,
   releasesReservedStock,
   resolveAdminOrderTransition,
@@ -515,7 +515,7 @@ test("canonical policy preserves dispatch, payment, waybill, and stock guards", 
         resolveAdminOrderTransition(order(6, terminalStatus), {
           shippingStatus: "processing",
         }),
-      /reservasi stok baru/,
+      /tidak dapat diaktifkan kembali/,
     );
   }
   assert.throws(
@@ -524,7 +524,7 @@ test("canonical policy preserves dispatch, payment, waybill, and stock guards", 
         paymentStatus: "refunded",
         shippingStatus: "processing",
       }),
-    /reservasi stok baru/,
+    /tidak dapat diaktifkan kembali/,
   );
   assert.throws(
     () =>
@@ -535,7 +535,7 @@ test("canonical policy preserves dispatch, payment, waybill, and stock guards", 
         }),
         { shippingStatus: "shipped" },
       ),
-    /reservasi stok baru/,
+    /tidak dapat diaktifkan kembali/,
   );
 });
 
@@ -578,7 +578,7 @@ test("detail and bulk status routes share the terminal-state rejection", async (
   assert.equal(bulkDatabase.state.orders.get(13)?.shipping_status, "returned");
 });
 
-test("detail cancellation restores stock exactly once", async () => {
+test("detail cancellation releases the order exactly once", async () => {
   const database = databaseWithOrders(order(14));
   const invoke = () =>
     detailRoute.PATCH({
@@ -594,11 +594,16 @@ test("detail cancellation restores stock exactly once", async () => {
   const first = await invoke();
   assert.equal(first.status, 200);
   assert.equal(database.state.orders.get(14)?.shipping_status, "cancelled");
-  assert.equal(database.state.variants.get(501), 24);
+  // The release marker is what must be exactly-once; the stock figure is not
+  // touched at all any more (ADR-023).
+  const releasedAt = database.state.orders.get(14)?.stock_restored_at;
+  assert.ok(releasedAt);
+  assert.equal(database.state.variants.get(501), 10);
 
   const repeat = await invoke();
   assert.equal(repeat.status, 200);
-  assert.equal(database.state.variants.get(501), 24);
+  assert.equal(database.state.orders.get(14)?.stock_restored_at, releasedAt);
+  assert.equal(database.state.variants.get(501), 10);
 });
 
 test("editing a customer phone invalidates receiver scoring before refresh", async () => {
@@ -677,7 +682,7 @@ test("changing a destination cannot retain a stale courier quote", async () => {
   assert.equal(database.state.orders.get(17)?.shipping_status, "pending");
 });
 
-test("bulk cancellation restores stock once across repeat attempts", async () => {
+test("bulk cancellation releases once across repeat attempts", async () => {
   const database = databaseWithOrders(order(21), order(22));
   assert.equal(
     await updateAdminOrderShippingStatuses(
@@ -687,7 +692,9 @@ test("bulk cancellation restores stock once across repeat attempts", async () =>
     ),
     2,
   );
-  assert.equal(database.state.variants.get(501), 53);
+  const released = [21, 22].map((id) => database.state.orders.get(id)?.stock_restored_at);
+  assert.ok(released.every(Boolean));
+  assert.equal(database.state.variants.get(501), 10);
 
   assert.equal(
     await updateAdminOrderShippingStatuses(
@@ -697,10 +704,14 @@ test("bulk cancellation restores stock once across repeat attempts", async () =>
     ),
     2,
   );
-  assert.equal(database.state.variants.get(501), 53);
+  assert.deepEqual(
+    [21, 22].map((id) => database.state.orders.get(id)?.stock_restored_at),
+    released,
+  );
+  assert.equal(database.state.variants.get(501), 10);
 });
 
-test("single delete route restores once and repeat delete cannot inflate stock", async () => {
+test("single delete route deletes once and a repeat is a 404", async () => {
   const database = databaseWithOrders(order(31));
   const invoke = () =>
     detailRoute.DELETE({
@@ -710,17 +721,17 @@ test("single delete route restores once and repeat delete cannot inflate stock",
 
   const first = await invoke();
   assert.equal(first.status, 200);
-  assert.equal(database.state.variants.get(501), 41);
+  assert.equal(database.state.variants.get(501), 10);
   assert.equal(database.state.orders.size, 0);
   assert.equal(database.state.items.length, 0);
   assert.equal(database.state.payments.length, 0);
 
   const repeat = await invoke();
   assert.equal(repeat.status, 404);
-  assert.equal(database.state.variants.get(501), 41);
+  assert.equal(database.state.variants.get(501), 10);
 });
 
-test("deleting an abandoned lead never restores stock it did not reserve", async () => {
+test("deleting an abandoned lead leaves every other row alone", async () => {
   const database = databaseWithOrders(order(32, "abandoned"));
   const stockBefore = database.state.variants.get(501);
 
@@ -734,7 +745,7 @@ test("deleting an abandoned lead never restores stock it did not reserve", async
   assert.equal(database.state.orders.has(32), false);
 });
 
-test("bulk delete route restores only still-reserved orders and reports actual deletes", async () => {
+test("bulk delete route reports the orders it actually deleted", async () => {
   const database = databaseWithOrders(
     order(41),
     order(42, "cancelled", {
@@ -755,7 +766,7 @@ test("bulk delete route restores only still-reserved orders and reports actual d
   };
 
   assert.equal(response.status, 200);
-  assert.equal(database.state.variants.get(501), 51);
+  assert.equal(database.state.variants.get(501), 10);
   assert.equal(database.state.orders.size, 0);
   assert.deepEqual(payload.deleted_ids.sort((a, b) => a - b), [41, 42]);
   assert.equal(payload.deleted_count, 2);
@@ -799,20 +810,20 @@ for (const [name, invoke] of [
 
 test("canonical delete helper returns no rows on a repeat attempt", async () => {
   const database = databaseWithOrders(order(61));
-  const first = await deleteOrdersRestoringStock(
+  const first = await deleteOrdersReleasingReservations(
     database as unknown as D1Database,
     [61],
   );
-  const repeat = await deleteOrdersRestoringStock(
+  const repeat = await deleteOrdersReleasingReservations(
     database as unknown as D1Database,
     [61],
   );
   assert.deepEqual(first, [{ id: 61, order_number: "INV-10061" }]);
   assert.deepEqual(repeat, []);
-  assert.equal(database.state.variants.get(501), 71);
+  assert.equal(database.state.variants.get(501), 10);
 });
 
-test("delete SQL restores and rolls back atomically on a real SQLite engine", async () => {
+test("delete SQL rolls back atomically on a real SQLite engine", async () => {
   const successful = new SqliteD1Database();
   successful.exec(`
     INSERT INTO product_variants (id, stock) VALUES (501, 10);
@@ -824,18 +835,19 @@ test("delete SQL restores and rolls back atomically on a real SQLite engine", as
     INSERT INTO payment_transactions (order_id, reference_id)
       VALUES (81, 'INV-10081');
   `);
-  const deleted = await deleteOrdersRestoringStock(
+  const deleted = await deleteOrdersReleasingReservations(
     successful as unknown as D1Database,
     [81],
   );
   assert.equal(deleted.length, 1);
   assert.equal(deleted[0]?.id, 81);
   assert.equal(deleted[0]?.order_number, "INV-10081");
+  // Untouched: deleting an order no longer moves a stock figure (ADR-023).
   assert.equal(
     successful.get<{ stock: number }>(
       "SELECT stock FROM product_variants WHERE id = 501",
     )?.stock,
-    13,
+    10,
   );
   assert.equal(
     successful.get<{ count: number }>(
@@ -861,7 +873,7 @@ test("delete SQL restores and rolls back atomically on a real SQLite engine", as
     END;
   `);
   await assert.rejects(
-    deleteOrdersRestoringStock(failing as unknown as D1Database, [82]),
+    deleteOrdersReleasingReservations(failing as unknown as D1Database, [82]),
     /injected payment delete failure/,
   );
   assert.equal(
@@ -909,7 +921,7 @@ test("single and bulk delete reject audited payments before restoring stock", as
 
   for (const ids of [[83], [83, 84]]) {
     await assert.rejects(
-      deleteOrdersRestoringStock(database as unknown as D1Database, ids),
+      deleteOrdersReleasingReservations(database as unknown as D1Database, ids),
       (error: unknown) =>
         error instanceof OrderLifecycleError && error.status === 409,
     );
@@ -934,10 +946,11 @@ test("single and bulk delete reject audited payments before restoring stock", as
   }
 });
 
-test("lifecycle mutation and restoration are atomic on D1 batch failure", async () => {
+test("lifecycle mutation and release are atomic on D1 batch failure", async () => {
   const current = order(71);
   const database = databaseWithOrders(current);
-  database.failOnSql = "UPDATE product_variants";
+  // The release marker is the statement the batch now depends on.
+  database.failOnSql = "SET stock_restored_at";
 
   await assert.rejects(
     applyOrderLifecycleMutation(

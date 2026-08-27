@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `551d099` + admin-blank hotfix
+> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
 
 ## A21 — A landing page may become the product page
 
@@ -1509,10 +1509,10 @@ genuinely unmanageable.
   -> Removed from `AUTOLARIS_CHANNELS`, `form-hybrid.ts`, and `payment.astro`.
 - [x] **A-168** — Review pass on 1.3.2–1.3.3 (`/code-review high 75f606d...main`). **Done 2026-08-27, BUILD-LOG entry 86.**
   -> Six confirmed findings fixed: `/payment` rendered a stale `failed` over a regenerated VA on pre-1.3.2 orders; `expired` reached only buyer readers (now an hourly sweeper plus the admin detail); the upload quota counted rejected files; an unguarded purge could skip the whole cron hour; dead-instruction orders were invisible in the admin list; the retry gate had no route test. Also from the review's candidates: the gate now refuses cancelled/refunded orders, limits are CGNAT-tolerant with a per-order ceiling, a retry sends a fresh `reff_id`, and a store error during a peek no longer reads as a spent slot.
-- [ ] **A-169** — Decide the lifecycle of an online order whose instruction was never paid.
-  -> An unpaid QRIS/VA order stays `pending` with stock reserved until an operator cancels it — true before this work and still true; the retry only makes regeneration possible. `purgeExpiredAbandonedOrders` covers abandoned leads only. Done when a store policy says what happens N hours after expiry (auto-cancel with stock restoration through `order-lifecycle.ts`, or an operator queue), and it is implemented as a scheduled step.
-- [ ] **A-170** — A provider failure before the instruction row exists leaves no retry handle.
-  -> If `createAutoLarisPaymentForOrder` throws before its INSERT (a D1 transport failure on the order read), no `payment_transactions` row exists, `channel_code` is empty in the public status, and the retry button never appears. Rare and documented; done when the channel is persisted on `orders` or the catch in `submit-order.ts` writes a `failed` row.
+- [x] **A-169** — Decide the lifecycle of an online order whose instruction was never paid. **Closed 2026-08-27 by ADR-023.**
+  -> The harm this tracked was stock held hostage by an order nobody would pay. Stock is no longer reserved by anything, so an unpaid instruction now costs only list clutter, and the admin list flags it as *Instruksi gagal/kedaluwarsa*. An auto-cancel policy would be a merchant decision with no engineering pressure behind it; reopen only if one is wanted.
+- [x] **A-170** — A provider failure before the instruction row exists leaves no retry handle. **Done 2026-08-27 (1.4.0).**
+  -> `recordFailedPaymentAttempt` writes the `failed` row from the committed order when `createAutoLarisPaymentForOrder` throws before its INSERT, so `/payment` can offer the retry. Evidence: BUILD-LOG entry 88.
 
 ## A25 — The blank admin order list
 
@@ -1520,3 +1520,8 @@ genuinely unmanageable.
   -> Cause: `InstructionHint` (entry 86) read a field the server-rendered producer never supplied. Done when: the predicate lives in `src/lib/` with a test for the missing-field case, `OrderItem` marks it optional, the page query supplies it, and every admin route was opened against a seeded store and returned a non-empty body. Evidence: BUILD-LOG entry 87.
 - [ ] **A-172** — Give the React islands a rendering check the runner can see.
   -> `npm test` globs `src/lib/*.test.ts`, so no island is ever executed; a component that throws during SSR returns a blank 200 that `check`, `test` and `build` all call healthy. Done when either the admin islands are smoke-rendered in CI (react-dom/server over a compiled entry) or a route-level check asserts a non-empty body for every admin page against a seeded database.
+
+## A26 — Stock stops gating a sale
+
+- [x] **A-173** — A variant must be purchasable whatever its stock figure says. **Done 2026-08-27 (ADR-023, 1.4.0).**
+  -> Done when: no checkout, CS conversion, storefront publication, admin picker or product save consults stock; releasing an order returns nothing; the suite asserts the inverse of every rule that was removed; and a store whose only variant carries `stock = 0` renders and offers it in a browser. Evidence: BUILD-LOG entry 88.

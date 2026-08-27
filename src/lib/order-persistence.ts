@@ -318,7 +318,7 @@ export async function persistOrder(
   const variant = await database
     .prepare(
       `
-      SELECT pv.id, pv.price, pv.stock
+      SELECT pv.id, pv.price
       FROM product_variants pv
       INNER JOIN products p ON p.id = pv.product_id
       WHERE (CAST(pv.id AS TEXT) = ? OR pv.sku = ?)
@@ -327,10 +327,11 @@ export async function persistOrder(
     `,
     )
     .bind(input.variantKey, input.variantKey)
-    .first<{ id: number; price: number; stock: number | null }>();
+    .first<{ id: number; price: number }>();
   if (!variant) throw new OrderInputError("Varian produk tidak ditemukan.");
-  if (variant.stock !== null && variant.stock < input.quantity)
-    throw new OrderInputError("Stok produk tidak mencukupi.");
+  // No stock gate. This store sells on demand rather than from a counted
+  // shelf, so an order is never refused for a stock figure and the figure is
+  // never spent (ADR-023). Price, weight and identity still come from D1.
 
   const store = await database
     .prepare("SELECT id, cod_fee_bearer FROM stores ORDER BY id LIMIT 1")
@@ -553,21 +554,6 @@ export async function persistOrder(
         ),
       database
         .prepare(
-          `UPDATE product_variants
-           SET stock = stock - ?
-           WHERE id = ?
-             AND stock IS NOT NULL
-             AND EXISTS (
-               SELECT 1 FROM orders WHERE ${identityPredicate}
-             )`,
-        )
-        .bind(
-          input.quantity,
-          variant.id,
-          ...identityBindings,
-        ),
-      database
-        .prepare(
           `SELECT id FROM orders
            WHERE ${identityPredicate}
            LIMIT 1`,
@@ -620,9 +606,10 @@ export async function persistOrder(
         "Permintaan duplikat terdeteksi. Pesanan sudah diproses.",
       );
     }
-    if (message.includes("INSUFFICIENT_STOCK")) {
-      throw new OrderInputError("Stok produk tidak mencukupi.");
-    }
+    // The `product_variants_stock_nonnegative` trigger (migration 0003) is
+    // still in the schema and still correct, but checkout no longer writes to
+    // `stock` at all (ADR-023), so it can no longer fire from here. The branch
+    // that translated it into a buyer-facing message is gone with it.
     throw error;
   }
 }

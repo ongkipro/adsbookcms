@@ -1,6 +1,6 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
 
 ## A22 — Release-driven updates for isolated installs
 
@@ -281,6 +281,8 @@ AdsBookCMS gives one merchant a complete direct-response storefront: catalog, la
 | REQ-29 | A qualified but unsubmitted lead shall be captured at most once for the same normalized name, WhatsApp number, and product/variant selection in one browser session. Successful fingerprints shall remain in the session set so any prior identical combination is suppressed, while a changed qualified combination may capture; a fingerprint shall be added only after capture succeeds, so a failed capture or unavailable browser storage remains retryable and never blocks capture. A storefront checkout or an explicit CS conversion shall promote the lead to one complete pending order instead of creating a duplicate. CS conversion shall require current D1 product/variant, stock, customer, destination, courier, and pricing data; it shall reserve stock exactly once and shall never dispatch to Mengantar. | Implemented 2026-08-18 — guarded ABN-to-INV conversion and concurrency contracts passed |
 
 ---
+
+The storefront sells on demand: a variant shall be purchasable whenever it is active and priced, and no stock figure shall refuse an order, hide a variant, or block a CS conversion (ADR-023). Fulfilment capacity is the merchant's, outside this system.
 
 ## 5. Payments
 

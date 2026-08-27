@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `551d099` + admin-blank hotfix
+> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -4570,3 +4570,42 @@ again returned `200`.
   *Instruksi kedaluwarsa* badge for the expired instruction; `/admin/products`
   227,221 bytes with `—` in the Content ID column for a short id; all sixteen
   admin routes non-empty; zero uncaught SSR exceptions.
+
+### Entry 88: Stock stops gating a sale; a retry handle for a payment that never started
+
+**Date:** 2026-08-27 · **Release:** 1.4.0 / `2026.08-stock-unlimited` · **ADR:** 023 · **Tasks:** A-170, A-173 · **Migration:** none
+
+- **Why.** The merchant does not run a counted shelf, and the counter was
+  refusing sales on its own: `mergeStorefrontCatalog` required `stock > 0` for
+  a variant to be published, so a variant that reached zero — or was never set,
+  since `NULL` failed the same test — vanished from the storefront while the
+  product stayed active. Checkout, CS conversion and the admin lead picker
+  refused on top of that.
+- **Changed.** No stock read, guard or decrement in `persistOrder` or
+  `convertAbandonedLead`; no restoration when an order is released
+  (`buildOrderReleaseStatements`, renamed, keeps only the `stock_restored_at`
+  marker); publication and availability decided on title and price;
+  `product-mutation` stores any figure as zero rather than refusing a save; the
+  admin lead picker no longer disables a zero-stock variant; three messages
+  that promised stock reservation reworded; the now-unreachable
+  `INSUFFICIENT_STOCK` translation removed. The column and migration 0003's
+  trigger stay, inert.
+- **Found while doing it.** `deleteOrdersReleasingReservations` read its result
+  by the hard-coded index `results[4]`, which silently pointed at the wrong
+  statement the moment the batch changed length — the delete route returned 404
+  for an order it had just deleted. Now `results.at(-1)`.
+- **A-170.** A D1 fault before `createAutoLarisPaymentForOrder` reached its
+  INSERT left an order with no `payment_transactions` row, so the public status
+  carried no channel and `/payment` could never offer a retry.
+  `recordFailedPaymentAttempt` writes that row from the committed order, best
+  effort, `INSERT OR IGNORE` against the unique index.
+- **Also.** Provider callback evidence is purged after 30 days by the hourly
+  maintenance (`purgeExpiredAutoLarisCallbacks`), closing the retention gap the
+  2026-08-27 audit left open.
+- **Evidence.** `npm test` 592/592 — including new assertions that a variant
+  with `0`, `null`, negative or absent stock stays sellable, that a CS
+  conversion below the figure succeeds, that checkout issues no
+  `product_variants` statement, and that release stays exactly-once — plus
+  `npm run check` 399 files clean and a Cloudflare build. Local `wrangler dev`
+  against a seeded store whose only variant carries `stock = 0`: the product
+  page renders and offers it.

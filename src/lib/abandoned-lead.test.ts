@@ -76,8 +76,9 @@ function conversionDatabase() {
         for (const { statement } of raw) {
           const { sql, args } = statement;
           if (sql.includes("UPDATE orders") && sql.includes("lead_follow_up_status = 'converted'")) {
-            const canConvert =
-              state.order.shipping_status === "abandoned" && state.stock >= Number(args[24]);
+            // The abandoned state is the whole guard now: stock stopped
+            // gating a conversion in ADR-023.
+            const canConvert = state.order.shipping_status === "abandoned";
             if (canConvert) {
               state.order.order_number = String(args[0]);
               state.order.submit_token = String(args[1]);
@@ -97,10 +98,6 @@ function conversionDatabase() {
                 unitPrice: Number(args[2]),
               };
             }
-            results.push({ results: [], meta: { changes: owns ? 1 : 0 } });
-          } else if (sql.includes("UPDATE product_variants")) {
-            const owns = state.order.submit_token === args[3];
-            if (owns) state.stock -= Number(args[0]);
             results.push({ results: [], meta: { changes: owns ? 1 : 0 } });
           } else if (sql.includes("SELECT id, order_number")) {
             const owns = state.order.submit_token === args[1];
@@ -124,7 +121,7 @@ function conversionDatabase() {
   return { database, state };
 }
 
-test("concurrent lead conversion reserves stock once and leaves one final item", async () => {
+test("concurrent lead conversion writes one order and one final item", async () => {
   const { database, state } = conversionDatabase();
   const outcomes = await Promise.allSettled([
     convertAbandonedLead(database, 7, conversionInput),
@@ -139,7 +136,9 @@ test("concurrent lead conversion reserves stock once and leaves one final item",
   assert.equal(state.order.shipping_status, "pending");
   assert.equal(state.order.order_number, "INV-10007");
   assert.deepEqual(state.item, { variantId: 202, quantity: 2, unitPrice: 50_000 });
-  assert.equal(state.stock, 8);
+  // The conversion never touches the stock figure — a batch that tried would
+  // have thrown "Unexpected batch" above.
+  assert.equal(state.stock, 10);
 });
 
 test("follow-up persists operator evidence only while the row remains abandoned", async () => {
@@ -188,18 +187,17 @@ test("follow-up persists operator evidence only while the row remains abandoned"
   );
 });
 
-test("insufficient stock leaves the abandoned item and stock untouched", async () => {
+test("a stock figure below the quantity does not stop a conversion", async () => {
+  // The inverse of the rule this test used to assert. The store sells on
+  // demand (ADR-023): an operator converting a lead must never be told the
+  // shelf is empty, and the figure is left exactly as it was.
   const { database, state } = conversionDatabase();
   state.stock = 1;
-  const originalItem = { ...state.item };
 
-  await assert.rejects(
-    convertAbandonedLead(database, 7, conversionInput),
-    (error: unknown) =>
-      error instanceof AbandonedLeadError && error.status === 409,
-  );
-  assert.equal(state.order.shipping_status, "abandoned");
-  assert.deepEqual(state.item, originalItem);
+  const converted = await convertAbandonedLead(database, 7, conversionInput);
+  assert.equal(converted.orderNumber, "INV-10007");
+  assert.equal(state.order.shipping_status, "pending");
+  assert.deepEqual(state.item, { variantId: 202, quantity: 2, unitPrice: 50_000 });
   assert.equal(state.stock, 1);
 });
 

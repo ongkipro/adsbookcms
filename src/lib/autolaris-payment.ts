@@ -179,6 +179,68 @@ export async function loadPaymentRecord(database: D1Database, orderId: number) {
   return row ? mapPaymentRecord(row) : undefined;
 }
 
+/**
+ * Records a `failed` transaction row for an order whose payment could not even
+ * be attempted (A-170).
+ *
+ * `createAutoLarisPaymentForOrder` writes its own `failed` row for a provider
+ * error, but a D1 fault before that INSERT left the order with no
+ * `payment_transactions` row at all — and with no row there is no channel in
+ * the public status, so `/payment` never offered the retry and the buyer had
+ * no route to an instruction. This gives that path the same handle.
+ *
+ * Best effort by contract: the order is already committed and must not fail
+ * over its own error record. The unique index on `order_id` makes a losing
+ * race a silent no-op.
+ */
+export async function recordFailedPaymentAttempt(
+  database: D1Database,
+  order: { id: number; orderNumber: string; totalAmount: number },
+  channelCode: AutoLarisCheckoutChannel,
+  reason: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  try {
+    await database
+      .prepare(
+        `INSERT OR IGNORE INTO payment_transactions (
+          order_id, provider, reference_id, public_token, channel_code,
+          status, amount, admin_fee, total_amount, failed_reason,
+          created_at, updated_at
+        ) VALUES (?, 'autolaris', ?, ?, ?, 'failed', ?, 0, ?, ?, ?, ?)`,
+      )
+      .bind(
+        order.id,
+        autoLarisAttemptReferenceId(order.orderNumber, false),
+        crypto.randomUUID(),
+        channelCode,
+        order.totalAmount,
+        order.totalAmount,
+        reason.slice(0, 500),
+        now,
+        now,
+      )
+      .run();
+  } catch (error) {
+    console.error("payment-attempt-record-failed", error);
+  }
+}
+
+/** Retention for provider callback evidence. Long enough to classify a shape, not a log store. */
+const CALLBACK_RETENTION_DAYS = 30;
+
+/** Hourly: provider callback evidence older than the retention window is dropped. */
+export async function purgeExpiredAutoLarisCallbacks(database: D1Database, now = new Date()) {
+  const result = await database
+    .prepare(
+      `DELETE FROM autolaris_callbacks
+        WHERE unixepoch(received_at) < unixepoch(?, '-${CALLBACK_RETENTION_DAYS} days')`,
+    )
+    .bind(now.toISOString())
+    .run();
+  return result.meta.changes;
+}
+
 export async function createAutoLarisPaymentForOrder(
   database: D1Database,
   locals: App.Locals,

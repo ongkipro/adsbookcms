@@ -276,7 +276,7 @@ test("provider sync is sequential and isolates a sibling provider failure", asyn
   }
 });
 
-test("RTS synchronization restores reserved stock exactly once", async () => {
+test("RTS synchronization releases the order exactly once", async () => {
   const database = new ShippingSyncDatabase();
   database.seedOrder({
     id: 3,
@@ -335,11 +335,13 @@ test("RTS synchronization restores reserved stock exactly once", async () => {
         provider_status_text: "Return to sender",
       },
     );
+    // The release marker is the property; the stock figure is not touched at
+    // all any more (ADR-023), so it stays exactly as it was seeded.
     assert.equal(
       database.row<{ stock: number }>(
         "SELECT stock FROM product_variants WHERE id = 501",
       ).stock,
-      10,
+      8,
     );
 
     providerStatus = "{\"CREATED\":true}";
@@ -361,7 +363,7 @@ test("RTS synchronization restores reserved stock exactly once", async () => {
       database.row<{ stock: number }>(
         "SELECT stock FROM product_variants WHERE id = 501",
       ).stock,
-      10,
+      8,
     );
     assert.equal(
       database.row<{ shipping_status: string }>(

@@ -61,7 +61,6 @@ type AbandonedLeadRow = {
 type ActiveVariantRow = {
   id: number;
   price: number;
-  stock: number | null;
 };
 
 function normalizeLeadIdentity(customerName: string, customerPhone: string) {
@@ -105,7 +104,7 @@ export async function assertAbandonedLeadExists(
 async function loadActiveVariant(database: D1Database, variantId: number) {
   return database
     .prepare(
-      `SELECT pv.id, pv.price, pv.stock
+      `SELECT pv.id, pv.price
        FROM product_variants pv
        INNER JOIN products p ON p.id = pv.product_id
        WHERE pv.id = ? AND p.is_active = 1
@@ -241,9 +240,9 @@ function completedNumberFromLead(orderNumber: string) {
 }
 
 /**
- * Promotes one lead to a stock-reserving pending order. The conversion token
- * ties the stock decrement to the winning guarded update, so concurrent retries
- * cannot reserve the same item twice. This deliberately never calls Mengantar.
+ * Promotes one lead to a pending order. The conversion token ties the item
+ * rewrite to the winning guarded update, so two operators converting the same
+ * lead cannot both write its items. This deliberately never calls Mengantar.
  */
 export async function convertAbandonedLead(
   database: D1Database,
@@ -301,9 +300,6 @@ export async function convertAbandonedLead(
   if (!variant) {
     throw new AbandonedLeadError("Varian produk aktif tidak ditemukan.", 404);
   }
-  if (variant.stock !== null && variant.stock < input.quantity) {
-    throw new AbandonedLeadError("Stok produk tidak mencukupi.", 409);
-  }
   if (!store) throw new AbandonedLeadError("Store belum dikonfigurasi.", 503);
 
   const orderNumber = completedNumberFromLead(lead.order_number);
@@ -352,7 +348,6 @@ export async function convertAbandonedLead(
              INNER JOIN products p ON p.id = pv.product_id
              WHERE pv.id = ?
                AND p.is_active = 1
-               AND (pv.stock IS NULL OR pv.stock >= ?)
            )`,
       )
       .bind(
@@ -380,7 +375,6 @@ export async function convertAbandonedLead(
         now,
         orderId,
         variant.id,
-        input.quantity,
       ),
     database
       .prepare(
@@ -406,20 +400,6 @@ export async function convertAbandonedLead(
       .bind(variant.id, input.quantity, unitPrice, orderId, conversionToken),
     database
       .prepare(
-        `UPDATE product_variants
-         SET stock = stock - ?
-         WHERE id = ?
-           AND stock IS NOT NULL
-           AND EXISTS (
-             SELECT 1 FROM orders
-             WHERE id = ?
-               AND submit_token = ?
-               AND shipping_status = 'pending'
-           )`,
-      )
-      .bind(input.quantity, variant.id, orderId, conversionToken),
-    database
-      .prepare(
         `SELECT id, order_number
          FROM orders
          WHERE id = ?
@@ -434,7 +414,7 @@ export async function convertAbandonedLead(
     | undefined;
   if (!converted?.id || !converted.order_number) {
     throw new AbandonedLeadError(
-      "Pesanan tertinggal sudah diproses atau stok tidak lagi mencukupi.",
+      "Pesanan tertinggal sudah diproses oleh operator lain.",
       409,
     );
   }

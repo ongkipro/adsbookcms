@@ -9,7 +9,10 @@ import {
 import { collectOperationalHealth } from "./lib/operational-health.ts";
 import { ensureSchemaUpgraded } from "./lib/schema-version.ts";
 import { purgeExpiredRateLimits } from "./lib/rate-limit.ts";
-import { expirePendingPaymentTransactions } from "./lib/autolaris-payment.ts";
+import {
+  expirePendingPaymentTransactions,
+  purgeExpiredAutoLarisCallbacks,
+} from "./lib/autolaris-payment.ts";
 import { drainCapiOutbox } from "./lib/capi-outbox.ts";
 import { getStoreAdsConfig } from "./lib/store-ads.ts";
 import {
@@ -45,6 +48,10 @@ async function runScheduledMaintenance(
   const expiredPaymentInstructions = await housekeeping(
     "scheduled-payment-expiry-failed",
     () => expirePendingPaymentTransactions(env.OMS_DB, new Date(scheduledTime)),
+  );
+  const purgedProviderCallbacks = await housekeeping(
+    "scheduled-callback-purge-failed",
+    () => purgeExpiredAutoLarisCallbacks(env.OMS_DB, new Date(scheduledTime)),
   );
   // The outbox had no clock of its own: `drainCapiOutbox` was reachable only
   // from `/api/meta-event` and `/api/v1/tracking/events`, so a delivery that
@@ -87,6 +94,7 @@ async function runScheduledMaintenance(
     purgedAbandonedOrders,
     purgedRateLimitWindows,
     expiredPaymentInstructions,
+    purgedProviderCallbacks,
     drainedCapiEvents,
     queuedGoogleAdsConversions,
     drainedGoogleAdsConversions,

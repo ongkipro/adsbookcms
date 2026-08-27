@@ -26,6 +26,7 @@ import {
 } from "../../lib/shipping-quote";
 import {
   createAutoLarisPaymentForOrder,
+  recordFailedPaymentAttempt,
   type AutoLarisPaymentRecord,
 } from "../../lib/autolaris-payment";
 import { getProviderConfig } from "../../lib/provider-config";
@@ -305,6 +306,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
         });
       } catch (error) {
         console.error("submit-order-autolaris-error", error);
+        // Leave the buyer a handle: without a transaction row the public
+        // status carries no channel, so `/payment` could never offer a retry
+        // (A-170).
+        await recordFailedPaymentAttempt(
+          database,
+          order,
+          data.payment_channel!,
+          error instanceof Error ? error.message : String(error),
+        );
       }
     }
     scheduleReceiverPerformanceRefresh(

@@ -68,7 +68,7 @@ test("empty D1 product rows always produce an empty public catalog", () => {
   );
 });
 
-test("D1 rows are the sole source of public identity, image, price, stock, and variants", () => {
+test("D1 rows are the sole source of public identity, image, price, and variants", () => {
   const products = mergeStorefrontCatalog(
     [completeProductRow],
     completeVariantRows,
@@ -88,6 +88,9 @@ test("D1 rows are the sole source of public identity, image, price, stock, and v
   assert.deepEqual(products[0].images, ["/assets/uploads/pupuk.webp"]);
   assert.equal(products[0].headline, "Merchant-authored headline");
   assert.equal(products[0].price, 120000);
+  // Both variants publish. The second carries `stock: 0`, which used to
+  // remove it from the storefront — the merchant sells on demand and a
+  // counter must not decide what is on sale (ADR-023).
   assert.deepEqual(products[0].variants, [
     {
       catalogId: 60001,
@@ -96,6 +99,13 @@ test("D1 rows are the sole source of public identity, image, price, stock, and v
       label: "1 Liter",
       price: 120000,
       comparePrice: 150000,
+    },
+    {
+      catalogId: 60002,
+      sku: "PUPUK-2L",
+      id: "60002",
+      label: "2 Liter",
+      price: 200000,
     },
   ]);
   assert.ok(!products.some((product) => product.productId === "99999"));
@@ -119,13 +129,25 @@ test("active products fail closed without complete merchant data", () => {
   for (const variant of [
     { ...completeVariantRows[0], title: " " },
     { ...completeVariantRows[0], price: 0 },
-    { ...completeVariantRows[0], stock: 0 },
-    { ...completeVariantRows[0], stock: null },
   ]) {
     assert.deepEqual(
       mergeStorefrontCatalog([completeProductRow], [variant]),
       [],
     );
+  }
+});
+
+test("a variant publishes whatever its stock figure says", () => {
+  // The regression this locks: a merchant who never restocks the counter, or
+  // whose counter reached zero through past sales, kept a live product that
+  // silently vanished from the storefront and could not be bought.
+  for (const stock of [0, null, -3, undefined]) {
+    const [product] = mergeStorefrontCatalog(
+      [completeProductRow],
+      [{ ...completeVariantRows[0], stock } as (typeof completeVariantRows)[0]],
+    );
+    assert.equal(product?.variants.length, 1, `stock ${String(stock)} must stay sellable`);
+    assert.equal(product?.variants[0].catalogId, 60001);
   }
 });
 

@@ -72,8 +72,8 @@ function createJourneyDatabase(keyHash: string, providerBaseUrl: string) {
               product_title: "Produk Fixture",
             };
           }
-          if (query.includes("SELECT pv.id, pv.price, pv.stock")) {
-            return { id: 11, price: 100_000, stock: 20 };
+          if (query.includes("SELECT pv.id, pv.price")) {
+            return { id: 11, price: 100_000 };
           }
           if (query.includes("SELECT id, cod_fee_bearer FROM stores")) {
             return { id: 1, cod_fee_bearer: "buyer" };

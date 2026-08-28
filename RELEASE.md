@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
+> Verified against disk: 2026-08-28 @ `92ffde1` + validation working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -229,9 +229,19 @@ anyway, because they are what an install shows before the wizard runs.
 
 **Confirm the target before deploying.** `npx wrangler deploy --dry-run` prints the resolved Worker name, bindings and routes. If it prints `adsbookcms-your-store`, or a database id of all zeros, the merge overwrote the install's configuration — stop and restore it.
 
+**That last check is now mechanical.** `npm run deploy` and `npm run cf:deploy`
+both run `preflight:deploy` first (npm's `pre*` hook), which reads
+`wrangler.jsonc` and refuses when the Worker name, a D1 database name or id, or
+an R2 bucket name is still the product's placeholder. It adds no deploy step and
+holds no credentials — it refuses the one target this section already says to
+refuse, because the paragraph below used to be true of it. `npm run preflight:deploy`
+runs the check alone. In **this** repository it always fails, which is correct:
+§1 says there is no production Worker to reach here. Logic and decisions:
+`src/lib/deploy-preflight.ts`.
+
 ### What this procedure does not solve
 
-It is manual, and nothing verifies that an install ran it. Drift between the product and its installs is the accepted cost of ADR-012, and closing it properly is task **A-51**; making the product an installable, versioned artifact is **A-52**.
+The rest is still manual, and nothing verifies that an install ran it. Drift between the product and its installs is the accepted cost of ADR-012, and closing it properly is task **A-51**; making the product an installable, versioned artifact is **A-52**.
 
 ---
 

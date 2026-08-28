@@ -4944,3 +4944,50 @@ product rather than an install.
   `npm run build` complete. Not run: no browser session this pass — the changes
   are server-side validation and one admin render whose failure mode is a blank
   form, which the type checker and the allowlist scan cover.
+
+### Entry 95: Province gating, and a deploy that refuses the product's own target
+
+- **A-202, resolved by reading the contract rather than by opinion.** Entry 92
+  left this open as "scripts out, or guard in". The scripts stay: `npm run
+  deploy` is the **install's** documented deploy path (README, INSTALLATION
+  §163, RELEASE §8), and AGENTS.md's "this repository deploys nothing" means no
+  CI deploy and no Cloudflare credentials here — not no script. RELEASE §7 then
+  settles it: it already *requires* the check — `--dry-run`, stop on
+  `adsbookcms-your-store` or an all-zero database id — and admits in the next
+  paragraph, "It is manual, and nothing verifies that an install ran it."
+  `preflight:deploy` is that verification, wired to both `predeploy` and
+  `precf:deploy` so it does not depend on which alias an operator types. It adds
+  no deploy step, no credentials, and no policy the release document does not
+  already state. In this repository it always refuses, which §1 says is correct.
+- **Province gating had no test, and it decides where COD is offered.**
+  `isProvinceExcluded` resolves a province to a code and returns `false` when it
+  cannot — so a province the module does not know is a province where COD is
+  **allowed**, whatever the operator disabled. That is only safe while every
+  province a buyer can reach checkout with resolves, and nothing asserted it.
+  It does hold today: all 38 provinces in `indonesia-districts.ts` resolve, and
+  the constant matches migration `0017`'s column default exactly. But the
+  district data is external (cahyadsn/wilayah, Kepmendagri 2025) and the ground
+  is not stable — Papua was split into six between 2022 and 2024, which this
+  list already had to catch up with once. A refresh that adds or renames a
+  province while the list stays put would silently open COD where the operator
+  closed it, with nothing to report it. Now asserted in both directions,
+  including that no province in the list is one the catalog can never produce.
+- **The fail-open is now a decision rather than an accident.** It is asserted
+  explicitly, and defensible only because the coupling test above proves every
+  reachable province resolves.
+- **A false lead, recorded because it cost time.** `shipping-fallback.ts` looked
+  untested by filename and turned out to be covered from `shipping-quote.test.ts`.
+  The useful question is not which files lack a same-named test but which
+  modules no test imports at all.
+- **Landing-builder queue closed honestly.** A-174/175/176/178 are done and
+  browser-proven. A-177 stays open — the size and WebP-signature gates are
+  tested and the editor path is wired, but no browser has stored an object,
+  because `ASSET_BUCKET` is an R2 binding the local run does not provide; it
+  closes on the first install. A-179 stays open for the admin half only: the
+  renderer's legacy compatibility is browser-proven, the four admin behaviours
+  are route-tested and not yet clicked.
+- **Evidence.** `npm test` 618/618, `npm run check` 400 files / 0 errors,
+  `npm run build` complete, and `npm run preflight:deploy` refuses this
+  repository with all four placeholder reasons. Not run: no deploy was executed
+  and no install's configuration was read — the preflight is proven against
+  fixtures and this repository's own file.

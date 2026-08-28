@@ -1528,20 +1528,20 @@ genuinely unmanageable.
 
 ## A27 — Bounded landing-page content and images
 
-- [ ] **A-174** — Extend `landing_sections` for typed CMS content without
+- [x] **A-174** — Extend `landing_sections` for typed CMS content without
   changing any existing `html` or `form` row.
       -> Primary requirement: REQ-173 · Constraints: REQ-178 · Dependencies:
       None · Done when: a new forward migration applies on an empty local D1
       and on a fixture containing existing HTML/form rows, and focused tests
       prove the five typed section kinds round-trip in their declared order.
-- [ ] **A-175** — Validate typed landing-section configuration at the shared
+- [x] **A-175** — Validate typed landing-section configuration at the shared
   create/update boundary.
       -> Primary requirement: REQ-174 · Constraints: REQ-173, REQ-178 ·
       Dependencies: A-174 · Done when: focused tests prove missing required
       text, malformed list items, unsupported image configuration, and raw
       markup in a plain-text field are refused without replacing stored
       sections; valid typed input persists unchanged.
-- [ ] **A-176** — Replace the common-content HTML authoring path with bounded
+- [x] **A-176** — Replace the common-content HTML authoring path with bounded
   headline, paragraph, numbered-list, and bullet-list controls.
       -> Primary requirement: REQ-174 · Constraints: REQ-173, REQ-178 ·
       Dependencies: A-175 · Done when: a browser session creates, edits,
@@ -1555,7 +1555,7 @@ genuinely unmanageable.
       signature gates; a browser uploads a supported source image and stores
       one `/assets/uploads/...webp` object; an oversized, unsupported, malformed,
       or encode-failed source leaves no object behind.
-- [ ] **A-178** — Render typed landing sections through semantic public markup
+- [x] **A-178** — Render typed landing sections through semantic public markup
   with fluid, uncropped images.
       -> Primary requirement: REQ-177 · Constraints: REQ-173, REQ-178 ·
       Dependencies: A-175, A-177 · Done when: route tests prove semantic
@@ -1777,14 +1777,21 @@ re-verified against this repository's code before anything was changed.
       store's own host as well as an all-digits local part: numeric Gmail
       addresses are ordinary in Indonesia and must not be discarded.
 
-- [ ] **A-202** — Decide whether a deploy preflight belongs in the product repo.
-      -> Not done, and deliberately not decided alone. The install repo added
-      one after `wrangler deploy` uploaded a stale working tree and reverted a
-      live release. AGENTS.md §1.4 states this repository deploys nothing —
-      yet `package.json` still carries `deploy` and `cf:deploy`, and
-      `wrangler.jsonc` resolves to the `adsbookcms-your-store` placeholder with
-      database id `00000000-…`. Either the scripts should go or the guard
-      should come; that is the operator's call, not a silent addition.
+- [x] **A-202** — A deploy must refuse the product's placeholder target.
+  **Done 2026-08-28.**
+      -> Resolved by reading the repository's own contract rather than by
+      opinion. The scripts stay: `npm run deploy` is the **install's**
+      documented deploy path (README §Deploy, INSTALLATION §163, RELEASE §8),
+      and AGENTS.md's "this repository deploys nothing" means no CI deploy and
+      no Cloudflare credentials here — not no script. RELEASE §7 already
+      *requires* the check (`--dry-run`, stop on `adsbookcms-your-store` or an
+      all-zero database id) and then admits "nothing verifies that an install
+      ran it". Done when: `predeploy` and `precf:deploy` run
+      `preflight:deploy`, which refuses a placeholder Worker name, D1 name or
+      id, or R2 bucket name. Evidence: `deploy-preflight.test.ts` — a real
+      install passes, this repository's own `wrangler.jsonc` is refused (which
+      §1 says is correct), each placeholder is caught alone, and the JSONC
+      comments and trailing commas the file actually uses parse.
 
 ## A32 — Product audit: public surface and the signal chain, 2026-08-28
 
@@ -1864,3 +1871,31 @@ re-verified against this repository's code before anything was changed.
       placeholder is exactly the short value it handled worst. `env.ts` had no
       test file at all; it has one now, covering masking and the env
       resolution order.
+
+## A34 — Closing the landing-builder queue honestly, 2026-08-28
+
+- **A-174, A-175, A-176, A-178 closed.** Migration `0051` applies from zero and
+  over a fixture holding existing HTML/form rows; the shared create/update
+  boundary refuses missing text, malformed list items, unsupported image
+  configuration, raw markup in a plain-text field, and now every field bound
+  and an unknown product (A-206, A-207); a browser session created, edited,
+  reordered, previewed, saved and reloaded text and list sections at 390 px and
+  desktop with no lost draft and no overflow (A-193, A-194, A-197); and the
+  route emits semantic `h2`/`p`/`ol`/`ul` and `img` with no `set:html` for
+  typed sections, proven in Chromium at 390 px with zero horizontal overflow
+  and a working checkout form.
+
+- [ ] **A-177** — Landing-image upload remains unproven end to end.
+      -> The size and WebP-signature gates are covered by focused tests and the
+      editor path is wired, but no browser has stored an object: `ASSET_BUCKET`
+      is an R2 binding the local run does not provide. This closes on the first
+      install, not here.
+
+- [ ] **A-179** — Legacy landing-page compatibility is proven for the renderer,
+  not for the admin.
+      -> A legacy `html` section with shortcodes and a `form` section both
+      render byte-for-byte as before (browser-verified alongside the five typed
+      kinds), and preview, inactive-page access control, the product-page claim
+      and the canonical redirect are covered by focused tests. What is missing
+      is a browser pass over those four admin behaviours; they were exercised
+      as route tests only.

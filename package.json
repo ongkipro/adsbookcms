@@ -15,7 +15,10 @@
     "test": "node --experimental-strip-types --test src/lib/*.test.ts",
     "preview": "astro preview",
     "cf:dev": "wrangler dev --local",
+    "preflight:deploy": "node --experimental-strip-types scripts/preflight-deploy.ts",
+    "precf:deploy": "npm run preflight:deploy",
     "cf:deploy": "wrangler deploy",
+    "predeploy": "npm run preflight:deploy",
     "deploy": "wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply OMS_DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply OMS_DB --remote"

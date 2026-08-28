@@ -4,7 +4,7 @@
 
 > Last executed baseline: 2026-08-27 @ `1acbd7e` + review-hardening working tree.
 > `npm run check` 399 files / 0 errors / 0 warnings / 0 hints · `npm test`
-> 609 / 609 · `npm run build` Cloudflare server bundle complete · local
+> 618 / 618 · `npm run build` Cloudflare server bundle complete · local
 > `wrangler dev` run: fresh install applied `0049`–`0050` (51 claims),
 > login/logout/session revocation, local district search, the 60/min and
 > 5/10min public limits, and a recorded AutoLaris callback all observed.
@@ -77,6 +77,14 @@
 > that row's page. Four sibling escapes fixed with it, and an allowlist scan now
 > stops a sixth. Landing-page fields are bounded and must name a product the
 > store carries; `maskSecretValue` no longer discloses most of a short secret.
+>
+> Entry 95: `npm run deploy` and `npm run cf:deploy` now refuse a target still
+> carrying the product's placeholder Worker name, D1 name/id or R2 bucket —
+> mechanising the check RELEASE §7 already required and admitted nothing
+> enforced (A-202). Province gating, which decides where COD is offered, had no
+> test at all; all 38 district-catalog provinces resolve today and the constant
+> matches migration `0017`, both now asserted, because the district data is
+> external and Papua's split already forced one catch-up.
 >
 > **Not verified: no live Meta, Google Ads or Merchant Center call was made —
 > the pixel id used was valid in shape only, so what is proven is what leaves

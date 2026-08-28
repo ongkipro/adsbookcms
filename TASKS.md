@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-08-28 @ `f18ca76`
+> Verified against disk: 2026-08-28 @ `0042e75` + forward-backlog working tree
 
 ## A21 — A landing page may become the product page
 
@@ -1899,3 +1899,239 @@ re-verified against this repository's code before anything was changed.
       and the canonical redirect are covered by focused tests. What is missing
       is a browser pass over those four admin behaviours; they were exercised
       as route tests only.
+
+---
+
+# Forward backlog — QA, security, Cloudflare, Meta Ads, Google Ads
+
+> Written 2026-08-28 @ `0042e75`. Every item below was grounded against the
+> tree, not proposed from a checklist: each names what is true today and what
+> would have to become true. Items marked **needs an ADR** record a decision
+> that does not exist yet — write the ADR when the task is picked up, not now,
+> because an ADR for an undecided question is a guess with a number on it.
+
+## What is already true, so nobody re-does it
+
+**Ad signal.** Both catalog feeds publish the Product ID the Pixel sends, byte
+for byte, and one unpublishable row no longer takes a feed or the storefront
+down. The browser Purchase matches on eight keys through the single
+`fbq('init')` MetaPixelBase owns, shares its `event_id` with the CAPI leg, and
+reports the goods rather than the invoice. The Meta outbox is transactional
+with bounded retries and an hourly drain. Google offline conversions discover
+only click-attributed orders. A campaign tag no longer erases a paid click. A
+minted provider email never reaches Meta's `em`. `/api/meta-event` is rate
+limited. All of this is browser-verified end to end (BUILD-LOG 89–93).
+
+**Security.** Admin routes are gated centrally — 401 without a session, 403
+through a default-deny role policy, an origin check on unsafe methods. Sessions
+and rate limits are D1-backed. `X-Content-Type-Options`, `X-Frame-Options`,
+HSTS, `Referrer-Policy` and `Permissions-Policy` ship on every response.
+Provider credentials are D1-first, masked on read, never echoed. `npm audit`
+reports zero vulnerabilities. Checkout re-quotes shipping server-side, prices
+come from D1, and `submit_token` is uniquely indexed against replay.
+
+**QA.** 618 checks across 102 test files, `astro check` clean over 400 files, a
+Cloudflare build, and CI running all three on every push.
+
+## QA — the verification that does not exist yet
+
+- [ ] **A-210** — Give the repository a runnable browser suite.
+      -> Primary requirement: REQ-179 · Dependencies: None · Done when: the
+      browser evidence this project keeps producing by hand — a landing page at
+      390 px, an operator session through the admin editor, the storefront
+      signal chain — runs from one command and fails CI when it breaks.
+      Today every such run has been ad-hoc: driven from a scratch CDP script,
+      reported in BUILD-LOG, and then thrown away. That is why A-179's admin
+      half and A-172's island check are still open, and why the headline-size
+      defect (A-189) survived every static check. **Needs an ADR**: whether the
+      runner belongs in CI at all, given CI has no browser today and adding one
+      changes what a green build means.
+
+- [ ] **A-211** — Cover the twelve modules no test imports.
+      -> Primary requirement: REQ-179 · Dependencies: None · Done when:
+      `catalog.ts`, `geo.ts`, `public-store.ts`, `tenant-content.ts`,
+      `tenant-contract.ts`, `gtm.ts`, `api.ts`, `order-status.ts`,
+      `bundled-migrations.ts`, `utils.ts`, `cn.ts` and `ui-variants.ts` each
+      have an importing test, or are recorded here as deliberately untestable
+      with the reason. This exact question — which modules does no test
+      *import*, not which files lack a same-named test — is what surfaced the
+      `getStorefrontProduct` defect (A-208) and the province gating gap
+      (BUILD-LOG 95). The list is the remainder of that sweep.
+
+- [ ] **A-212** — Prove a fresh install from zero, in a browser.
+      -> Primary requirement: REQ-179 · Dependencies: A-210 · Done when: an
+      empty D1 runs `0000`–`0051`, the install wizard completes, an operator
+      logs in, creates a product, publishes a landing page, and a buyer
+      completes a COD order — all in one recorded run. Migrations are asserted
+      to apply from zero; nothing asserts the store is *usable* afterwards.
+
+- [ ] **A-213** — Decide what the admin's React islands are allowed to break.
+      -> Supersedes the framing of A-172 · Dependencies: A-210 · Done when: the
+      islands that carry money or state — `OrdersTable`, `OrderDetail`,
+      `PaymentReconciliationQueue`, `ProductForm`, `LandingPageEditor` — each
+      have a rendering check the runner can see. A throw inside a React render
+      blanks the surface silently; that has now happened twice
+      (`ProductCatalog`, then `ProductForm` in A-208).
+
+## Security — what the current posture does not cover
+
+- [ ] **A-214** — Ship a real Content-Security-Policy for the storefront.
+      -> Primary requirement: REQ-179 · Dependencies: None · Done when: public
+      responses carry a CSP that constrains script, style, connect and frame
+      sources, and the embed's `frame-ancestors` keeps working. Today CSP is
+      set **only** on the embed, to carry `frame-ancestors`; every other
+      response has none, so `X-Frame-Options` is the whole story. The obstacle
+      is real and must be solved rather than waved at: this storefront runs
+      many `is:inline` scripts by design (`define:vars` forces it), so a
+      meaningful policy needs nonces or hashes threaded through Astro's inline
+      output, and a wrong one silently breaks tracking. **Needs an ADR**: the
+      nonce-vs-hash choice and what `connect-src` admits — Meta, Google, and
+      the store's own origin at minimum.
+
+- [ ] **A-215** — Put a ceiling on the CAPI outbox.
+      -> Primary requirement: REQ-58 · Dependencies: None · Done when:
+      delivered rows are pruned on a retention window the way
+      `autolaris_callbacks` already is, and the table cannot grow without
+      bound. `capi-outbox.ts` says plainly that "the outbox is never pruned",
+      and `readCapiDeliveryWindow` carries a `lazy:` note whose upgrade path
+      is a `(status, updated_at)` index. A-203's rate limit caps the inflow;
+      nothing caps the total.
+
+- [ ] **A-216** — Give the install token a brute-force ceiling.
+      -> Primary requirement: REQ-179 · Dependencies: None · Done when:
+      `/api/install` counts failed token attempts per IP the way every other
+      public POST does. The token must be at least 16 characters, which makes
+      guessing impractical rather than impossible, and this is the only public
+      POST left with no counter after A-203.
+
+- [ ] **A-217** — Decide the credential rotation story.
+      -> Primary requirement: REQ-179 · Dependencies: None · Done when: an
+      operator can rotate a Meta CAPI token, a Mengantar key or an AutoLaris
+      key and know that in-flight work survives it. Today a token is replaced
+      in place; a Meta outbox row queued under the old one fails with code
+      `190`, which `decideRetry` treats as terminal and drops. **Needs an ADR.**
+
+## Cloudflare — what the platform offers that this install does not use
+
+- [ ] **A-218** — Give the ad-signal outboxes a Queue, or record why not.
+      -> Primary requirement: REQ-58 · Dependencies: None · Done when: either
+      Cloudflare Queues carries CAPI and Google Ads delivery with its own
+      retry and dead-letter semantics, or an ADR records that the D1 outbox
+      plus the hourly cron is the deliberate choice. The current design is
+      documented as a consequence of the Astro adapter owning the Worker
+      entrypoint (TRACKING_SPECS §11); Queues did not exist in that reasoning.
+      Weigh it honestly — a queue binding is another resource every install must
+      provision, which ADR-012 says costs more than it looks. **Needs an ADR.**
+
+- [ ] **A-219** — Read the storefront's own performance from Cloudflare rather
+  than from a laptop.
+      -> Primary requirement: REQ-179 · Dependencies: None · Done when:
+      `observability` (already enabled, with `head_sampling_rate`) is paired
+      with an Analytics Engine dataset or Logpush so p75 TTFB, D1 query time
+      and outbox drain outcomes are readable per install. Every performance
+      number in this repository was measured locally; none came from a live
+      store.
+
+- [ ] **A-220** — Evaluate Smart Placement for the D1-bound routes.
+      -> Primary requirement: REQ-179 · Dependencies: A-219 · Done when: a
+      measurement decides it. Checkout, `/api/shipping-rates` and the admin all
+      make several sequential D1 round trips; Smart Placement moves the Worker
+      toward the data. It can also make a mostly-static storefront slower, so
+      this closes on numbers from A-219, not on the feature existing.
+
+- [ ] **A-221** — Serve storefront images through Cloudflare Images or a
+  Worker-side transform.
+      -> Primary requirement: REQ-179 · Dependencies: None · Done when: a
+      product image is resized and re-encoded at the edge rather than in the
+      operator's browser. `client-image.ts` compresses on upload — forward-only,
+      no backfill — so every object stored before that rule, and every size
+      other than the two it emits, is served as-is from R2. The adapter runs
+      `imageService: 'passthrough'` today, which is what makes this visible.
+
+- [ ] **A-222** — Set explicit Worker limits and a tail consumer.
+      -> Primary requirement: REQ-179 · Dependencies: None · Done when:
+      `wrangler.jsonc` declares a CPU limit and errors reach somewhere an
+      operator looks. `runScheduledMaintenance` now does migrations, four
+      purges, two outbox drains, a reconcile and a health evaluation in one
+      invocation; nothing bounds it, and a failure is a `console.error` nobody
+      is subscribed to.
+
+## Meta Ads — beyond "the events arrive"
+
+- [ ] **A-223** — Surface Event Match Quality where the operator configures the
+  pixel.
+      -> Primary requirement: REQ-58 · Dependencies: None · Done when:
+      `/admin/ads/meta` shows the dataset's match quality and recent event
+      volume, read from Meta rather than asserted by this repository. A-198
+      raised browser matching from one key to eight, and the only way anyone
+      can see the difference today is by opening Events Manager. A store that
+      never opens it cannot tell a working pixel from a silent one.
+
+- [ ] **A-224** — Verify deduplication from Meta's side, not ours.
+      -> Primary requirement: REQ-58 · Dependencies: A-223 · Done when: a
+      Purchase is confirmed deduplicated in Events Manager for a real order.
+      Both legs are proven to send the same `event_id` — asserted in tests and
+      observed on the wire — but no one has confirmed Meta *counted* it once.
+      That is the claim the whole design rests on and the only one still taken
+      on trust.
+
+- [ ] **A-225** — Validate the catalog feed against Meta's own diagnostics.
+      -> Primary requirement: REQ-58 · Dependencies: None · Done when
+      `/feed/meta-catalog.xml` is ingested by a real Commerce catalog and its
+      diagnostics are clean, or each warning is recorded here with a decision.
+      The feed is asserted against the Pixel's `content_ids` and against its own
+      shape; it has never been read by Meta.
+
+- [ ] **A-226** — Decide what happens to a Purchase when a store has no CAPI
+  token.
+      -> Primary requirement: REQ-58 · Dependencies: None · Done when the
+      behaviour is deliberate. `/api/meta-event` answers `202 skipped` when the
+      token is unset, so the browser leg fires alone and the server leg is lost
+      with no record — invisible to the operator who has not finished setup.
+
+## Google Ads — the leg with the least instrumentation
+
+- [ ] **A-227** — Give the Google Ads offline outbox a health signal and an
+  alert.
+      -> Primary requirement: REQ-58 · Constraints: OBSERVABILITY.md ·
+      Dependencies: None · Done when `google_ads_conversion_outbox` reports
+      depth, overdue rows and last delivery the way `capi_event_outbox` does,
+      and a stalled queue fires. **This is the highest-value item in this
+      backlog.** `HealthSignalId` is `capi-outbox | meta-capi | mengantar |
+      autolaris` and `OperationalAlertId` is `schema | capi-outbox` — Google has
+      neither. That is exactly why A-182's head-of-line block was invisible:
+      the cron logged `queuedGoogleAdsConversions: 0`, which is also what a
+      quiet week looks like. The Meta side has a depth signal *and* an alert;
+      the Google side has been running blind.
+
+- [ ] **A-228** — Prove one offline conversion lands in Google Ads.
+      -> Primary requirement: REQ-58 · Dependencies: A-227 · Done when a real
+      `uploadClickConversions` call is accepted and the conversion appears in
+      the account. The transport is contract-matched and unit-tested against
+      `v25`; A-182's fix is proven against a D1 fixture. No call has ever been
+      made to Google.
+
+- [ ] **A-229** — Close the Consent Mode gap or state it as policy.
+      -> Primary requirement: REQ-58 · Dependencies: None · Done when either a
+      CMP calls `gtag('consent', 'update', …)`, or the region list stops
+      claiming to serve EEA/UK traffic. `GoogleAdsBase.astro` defaults those 32
+      regions to `denied` with `wait_for_update: 500`, and nothing in this
+      repository ever sends the update — so an EEA visitor stays denied for the
+      whole session and is measured not at all. Deliberate for an Indonesian
+      store; a blocker the moment one advertises into those regions.
+      **Needs an ADR.**
+
+- [ ] **A-230** — Reconcile the two Google conversion actions in the account.
+      -> Primary requirement: REQ-58 · Dependencies: A-228 · Done when the
+      browser action and the offline action are confirmed as Secondary and
+      Primary respectively in a live account, per TRACKING_SPECS §10. The
+      repository documents the recommended policy; `transaction_id` does not
+      make two Primary actions safe, and nothing here can see which they are.
+
+- [ ] **A-231** — Submit the feed to Merchant Center and read its diagnostics.
+      -> Primary requirement: REQ-58 · Dependencies: None · Done when
+      `/feed/google-catalog.xml` is fetched on schedule and every item is
+      either approved or its disapproval recorded with a decision. The
+      taxonomy engine picks `google_product_category` from the product's own
+      text and omits it when unsure; whether Google accepts those choices has
+      never been observed.

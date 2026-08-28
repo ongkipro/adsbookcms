@@ -4991,3 +4991,46 @@ product rather than an install.
   repository with all four placeholder reasons. Not run: no deploy was executed
   and no install's configuration was read — the preflight is proven against
   fixtures and this repository's own file.
+
+### Entry 96: A forward backlog, written against the tree rather than a checklist
+
+Asked for a task list of what is done and what is not, extended to QA,
+security, Cloudflare, Meta Ads and Google Ads, and for the existing ADR/PRD
+documents to be developed where that helps.
+
+- **Extended `TASKS.md` rather than adding a file.** It is the canonical
+  execution queue and already holds 444 closed items; a second task document
+  would split the one source of truth this project keeps insisting on. The new
+  section opens with what is *already* true across ad signal, security and QA,
+  so the next reader does not re-audit ground BUILD-LOG 89–95 already covered.
+- **Twenty-two items, each grounded in something read from the tree.**
+  `wrangler.jsonc` shows what Cloudflare features are configured and what is
+  not (no Queues, no Analytics Engine, no Smart Placement, no limits, no tail
+  consumer). `middleware.ts` shows a solid header set with CSP set **only** on
+  the embed, for `frame-ancestors`. `npm audit` is clean. Twelve modules are
+  imported by no test — the remainder of the sweep that found A-208 and the
+  province gap. `/api/install` is the last public POST with no rate limit.
+- **A-227 is the one that matters most, and it explains an earlier entry.**
+  `HealthSignalId` is `capi-outbox | meta-capi | mengantar | autolaris` and
+  `OperationalAlertId` is `schema | capi-outbox`. The Google Ads offline outbox
+  has **neither** — no depth, no overdue count, no alert. That is precisely why
+  the head-of-line block in entry 89 was invisible: the hourly cron logged
+  `queuedGoogleAdsConversions: 0`, which is also exactly what a quiet week
+  looks like. The Meta side has been modelled properly the whole time; the
+  Google side has been running blind.
+- **Two existing documents were wrong once the backlog was written, so they
+  were corrected rather than left to drift.** `OBSERVABILITY.md` §3 lists the
+  paths that degrade silently and did not list this one; it does now, beside
+  the Meta row it should be modelled on. `UNIMPLEMENTED_SPECS.md` §3 listed
+  external blockers for Mengantar and AutoLaris only, which implied Meta and
+  Google had none — five rows added covering signal acceptance, both catalog
+  feeds, offline conversion acceptance, and the EEA/UK consent gap.
+- **No ADR was written.** Five items are marked **needs an ADR**: the browser
+  runner in CI, the CSP nonce-vs-hash choice, credential rotation, Queues
+  versus the D1 outbox, and the consent-mode position. Each records a decision
+  that has not been made. An ADR for an undecided question is a guess with a
+  number on it, and this repository's ADRs are append-only — the cost of
+  writing one early is paid by everyone who reads it later as settled.
+- **Evidence.** `npm test` 618/618, `npm run check` 400 files / 0 errors.
+  Nothing executable changed in this entry; it is planning and three document
+  corrections.

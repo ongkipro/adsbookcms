@@ -1,6 +1,6 @@
 # Observability — AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `1acbd7e` + review-hardening working tree
+> Verified against disk: 2026-08-28 @ `0042e75` + forward-backlog working tree
 
 This document describes what an operator can observe and what AdsBookCMS now alerts on for one running install. Cross-install aggregation and an external uptime probe remain separate decisions.
 
@@ -61,7 +61,8 @@ These are the paths where the system degrades without telling anyone. Each is a 
 | --- | --- | --- |
 | D1 query error while loading home content | `loadPublishedHomeContent` returns `null`; the storefront silently serves compiled fallback copy | A database outage looks like a working site with the wrong content |
 | D1 error while reading embed origins | Middleware fails closed to an empty allowlist | Correct security behaviour, but embeds break with no signal |
-| Meta CAPI delivery failure | Retried through `capi_event_outbox` with attempt counting | Good design — but nothing surfaces an outbox that has stopped draining |
+| Meta CAPI delivery failure | Retried through `capi_event_outbox` with attempt counting, and `capi-outbox` reports depth, overdue rows and last delivery as both a health signal and an alert | The Meta side is the model the Google side below should follow |
+| **Google Ads offline conversion delivery** | `google_ads_conversion_outbox` retries with the same discipline — and reports **nothing**. `HealthSignalId` is `capi-outbox \| meta-capi \| mengantar \| autolaris`; `OperationalAlertId` is `schema \| capi-outbox`. Google has neither | This is not hypothetical: the discovery query was head-of-line blocked and uploaded **nothing** once fifty unattributable orders accumulated (A-182, BUILD-LOG 89). The only trace was the hourly cron logging `queuedGoogleAdsConversions: 0` — which is also exactly what a quiet week looks like, so it read as normal. Closing this is **A-227**, the highest-value item in the forward backlog |
 | Mengantar dispatch failure | Order stays `pending` and remains retryable | Correct, but an operator must notice manually |
 | Mengantar tracking poll failure | The affected row fails independently, remains at its prior lifecycle state, and returns an operator-visible error in the Shipping workspace | Correct interactive behavior; no automatic retry or alert is claimed |
 | AutoLaris paid transaction with no operator confirmation yet | Order remains pending/unpaid until an owner/admin confirms the exact billed amount and provider reference from the provider dashboard | Correct current contract, but there is no automatic provider-side inquiry yet |

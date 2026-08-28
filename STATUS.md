@@ -86,6 +86,12 @@
 > matches migration `0017`, both now asserted, because the district data is
 > external and Papua's split already forced one catch-up.
 >
+> Forward backlog (BUILD-LOG entry 96, `TASKS.md` §Forward backlog): 22 items
+> across QA, security, Cloudflare, Meta Ads and Google Ads, each grounded in
+> the tree. Highest value is **A-227** — the Google Ads offline outbox has no
+> health signal and no alert, which is why entry 89's head-of-line block was
+> invisible. Five items are marked as needing an ADR that does not exist yet.
+>
 > **Not verified: no live Meta, Google Ads or Merchant Center call was made —
 > the pixel id used was valid in shape only, so what is proven is what leaves
 > the browser and what this app enqueues, not what Events Manager reports.

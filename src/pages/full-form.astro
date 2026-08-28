@@ -5,7 +5,7 @@ import MetaLandingTracker from '../components/storefront/tracking/MetaLandingTra
 import { getStorefrontProduct } from '../lib/catalog';
 import { resolveFormVariant } from '../lib/form-config';
 import '../styles/form-hybrid.css';
-import { catalogProductId } from '../lib/catalog-feed';
+import { catalogProductIdOrNull } from '../lib/catalog-feed';
 export const prerender = false;
 
 const productKey = Astro.url.searchParams.get('product_id')?.trim();
@@ -27,7 +27,7 @@ if (!selectedVariant) return Astro.redirect(`/produk/${product.slug}`);
 >
   <MetaLandingTracker
     slug="full-form"
-    contentId={catalogProductId(product.productId)}
+    contentId={catalogProductIdOrNull(product.productId) ?? undefined}
     contentName={product.productName}
     price={selectedVariant.price}
   />

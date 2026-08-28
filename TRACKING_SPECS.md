@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-08-28 @ `f18ca76` + tracking-review working tree (second pass)
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -92,22 +92,98 @@ Security rules:
 
 `src/lib/meta-event-contract.ts` accepts exactly these five names. The repository does not map every interaction to `Lead` or `Purchase`. Analytics UI events must remain separate from optimization events.
 
+## 4a. One `fbq('init')` per pixel id — the whole page gets one chance
+
+**`fbq('init', pixelId, advancedMatching)` is honoured exactly once per pixel
+id.** A later init carrying more keys is not merged, not an error, and not
+logged. It is discarded in silence.
+
+This was verified against the live `fbevents.js`, not inferred. With an init
+carrying `{ external_id }` followed by an init carrying
+`ph/fn/ln/ct/st/zp/country/external_id`, `fbq.instance.pixelsByID[id].userData`
+held one key. After the fix it holds eight.
+
+Three call sites init'd behind `MetaPixelBase`'s bootstrap —
+`MetaThanksTracker.astro`, `form-hybrid.ts`, `form-middle.ts`. Every advanced
+matching object they built and SHA-256 hashed was thrown away, so the browser
+leg of a Purchase reached Meta matched on `external_id` alone while the server
+leg matched on eight keys. Nothing anywhere reported it.
+
+The contract that replaces it:
+
+- **`MetaPixelBase.astro` owns the only init**, and exposes
+  `window.__PS_META_INIT__(advancedMatching)`. First caller wins; it returns
+  `false` to a later one instead of pretending.
+- **A page with better matching declares `window.__PS_META_AWAIT_MATCHING__ =
+  true`** before the pixel component runs. `/thanks` does this in the head slot
+  `BaseLayout` renders ahead of `MetaPixelBase`, because its eight keys are only
+  known once `/api/order-status` has answered. The wait is bounded at 4 s inside
+  the pixel: a failed fetch must cost the better matching, never the `PageView`.
+- **Nothing else calls `fbq('init')`.** `meta-identity.test.ts` scans the thanks
+  tracker's source (comments stripped) and fails if one reappears;
+  `meta-purchase-dedup.test.ts` fails if the tracker issues one at runtime.
+- **A form page cannot upgrade its matching.** The pixel has already initialised
+  by the time a buyer types anything, so `AddToCart` and `InitiateCheckout`
+  carry `external_id` on the browser leg and the full identity on the CAPI leg,
+  which is read server-side and is not subject to this constraint.
+
+### The advanced-matching key set
+
+`ph`, `fn`, `ln`, `ct`, `st`, `zp`, `country`, `external_id` — and nothing else.
+
+`client_user_agent` used to be sent here and has been removed. It is a
+Conversions API field; Meta's Pixel advanced-matching reference does not list
+it, and the browser attaches its own user agent to the request regardless.
+
+### A conversion never waits on the deferral timer
+
+`fbevents.js` is deferred behind an interaction listener and a 2.5 s timer
+(§1). The stub queues an `fbq('track')` call, but nothing is transmitted until
+the library arrives, and a buyer who reads `/thanks` and closes it triggers
+neither trigger. `MetaPixelBase` therefore exposes
+`window.__PS_LOAD_META_PIXEL__`, the exact counterpart of the
+`__PS_LOAD_GOOGLE_TAG__` hatch the Google leg has always had, and the Purchase
+pulls the download forward itself. Measured on the real library: 2522 ms to
+45 ms.
+
 ## 5. Product Catalog Identity
 
-Every product event carries the **catalog item id** in `content_ids`:
-`p{product_id}-v{variant_id}`, for example `p1-v11`. That is the same string the
-Google and Meta feeds publish as `<g:id>`, and it has to be byte-identical or
-Advantage+ and Dynamic Product Ads match nothing — silently, with no error and no
-diagnostic anywhere.
+Every product event carries the **catalog item id** in `content_ids`: the
+immutable numeric D1 Product ID, minimum five digits, decimal, no prefix — for
+example `10001`. That is the same string the Google and Meta feeds publish as
+`<g:id>`, and it has to be byte-identical or Advantage+ and Dynamic Product Ads
+match nothing — silently, with no error and no diagnostic anywhere.
 
-The catalog is variant-level, so the id names a variant, not a product. Where no
-variant has been chosen (a product page, a landing page), the event carries the
-**first** variant's id. Where one has (AddToCart, InitiateCheckout, Purchase), it
-carries the chosen one. `p{product_id}` alone is the `item_group_id` and is never
-sent as a `content_ids` value.
+**The catalog is product-level (ADR-017).** One item per product; variants are
+checkout choices and create no catalog identity, so no event ever carries a
+variant in `content_ids` and neither feed emits `item_group_id`. Where the page
+has no chosen variant (a product page, a landing page),
+`defaultCatalogContentId` still returns the product's id — the variant only
+decides the price the storefront shows.
 
-Until 2026-08-17 this said the bare D1 `products.id` — which is what the Pixel
-actually sent, while the feed published `10000 + id`. Nothing matched.
+`src/lib/catalog-feed.ts` is the single source of that id; `catalog-identity.ts`
+proves feed output and Pixel payload against each other rather than against a
+fixture, because a fixture is how three different values once passed CI.
+
+Two corrections this section has already had to absorb, both worth keeping:
+
+- Until 2026-08-17 it said the bare D1 `products.id` — which is what the Pixel
+  actually sent, while the feed published `10000 + id`. Nothing matched.
+- Until 2026-08-28 it still described the variant-level `p{product_id}-v{variant_id}`
+  scheme, which ADR-017 had already replaced. The code was right; the contract
+  document was months stale, and `catalog-identity.test.ts` had been failing any
+  source that reintroduced `p${productId}-v${...}` the whole time.
+
+### A row that cannot publish is skipped, not fatal
+
+`catalogProductId` throws on an id that predates the five-digit scheme, and that
+is correct for a single ads payload: a padded or guessed identity is worse than
+none. Inside the feed loop it was wrong. Both feed routes catch and return a
+500 stub, so one legacy row — an import, a hand-inserted product — meant
+Merchant Center and Meta Commerce fetched an empty catalog and disapproved every
+product, not the one that could not be published. The generators now read
+`catalogProductIdOrNull` and omit that item; `defaultCatalogContentId` does the
+same on a product page, which then sells normally but cannot be retargeted.
 
 - D1 product ID: tracking and external catalog identity.
 - D1 variant ID: order selection identity when variant detail is needed.
@@ -168,6 +244,39 @@ it required. AdsBookCMS takes the privacy-safe intersection and always hashes it
 on both Pixel and CAPI legs. A dashboard label that says “no hash required” is
 not permission to expose the raw identifier.
 
+### Never hash a manufactured email
+
+`orders.customer_email` is not always a buyer's address. The payment provider
+requires one and a COD checkout collects none, so two places mint
+`<phone digits>@<store host>` — `buyerEmail()` in `autolaris-payment.ts`, and
+`submit-order.ts` when a non-COD order is created — and both persist it to that
+column. All three CAPI legs read the column straight into `em`.
+
+Meta scores Event Match Quality on the keys it is given. Hashing a fabricated
+`em` does not merely fail to match: it spends a match key on a value no Meta
+user carries, which reads as real signal that never resolves.
+
+`matchableCustomerEmail(email, ...siteUrls)` guards the boundary in
+`/api/meta-event`, `/api/v1/tracking/events`, and `paid-order-purchase.ts`. The
+test is two-part on purpose — an all-digits local part is **not** enough, because
+numeric Gmail addresses are ordinary in Indonesia and discarding one would throw
+away a genuine match key. The address must also sit on the store's own host,
+which no buyer's does.
+
+**It takes every host the store answers on, and that is not a detail.** The
+first version of this guard checked one, and the fabricated address went to Meta
+anyway, because there were two minting shapes for one concept: `buyerEmail` used
+the configured `siteUrl` while `submit-order.ts` hand-rolled the same string
+against `new URL(request.url).hostname`. A store reachable on a `workers.dev`
+address, a preview deployment, or any second domain wrote addresses the
+single-host check could not see. Minting is unified on `buyerEmail` now, and the
+two request-bearing routes pass the request host alongside the configured one so
+rows already written on the other host are still caught.
+
+That hole was found by watching a live `/thanks` enqueue its own CAPI payload,
+not by reading the code — which is the argument for running the funnel rather
+than reasoning about it.
+
 ### Never hash Meta browser identifiers
 
 Preserve `_fbp` and `_fbc` exactly as issued when present. They are attribution
@@ -227,7 +336,11 @@ Click-ID preservation is owned by `src/lib/click-ids.ts`, `src/middleware.ts`, a
 Flow:
 
 1. **Capture.** `src/middleware.ts` runs `parseClickIdsFromUrl(url)` on every non-private request. Values must match `/^[A-Za-z0-9._-]{1,256}$/` or they are dropped. When `fbclid` arrives without `_fbc`, the library synthesizes `_fbc` as `fb.1.<timestamp>.<fbclid>`.
-2. **Store.** Matching values are JSON-serialized into the cookie named by `CLICK_ID_COOKIE` — currently `adsbook_click_ids` — with `Max-Age` of 90 days, `Path=/`, and `SameSite=None; Secure` on HTTPS (`SameSite=Lax` otherwise). `_fbp` and `_fbc` are additionally re-issued as their own first-party cookies so Meta's own readers find them.
+2. **Store.** Matching values are **merged** over the stored cookie by `mergeClickIds()`, then JSON-serialized into the cookie named by `CLICK_ID_COOKIE` — currently `adsbook_click_ids` — with `Max-Age` of 90 days, `Path=/`, and `SameSite=None; Secure` on HTTPS (`SameSite=Lax` otherwise). `_fbp` and `_fbc` are additionally re-issued as their own first-party cookies so Meta's own readers find them.
+
+   **Merged, not overwritten, and the distinction is `AD_CLICK_KEYS` vs the UTM tags.** A new ad click (`gclid`, `gbraid`, `wbraid`, `fbclid`, `_fbc`, `_fbp`) replaces the stored set wholesale: last touch wins and its campaign tags belong to it. Campaign tags arriving *alone* keep the stored click identity and describe only the current visit, so no tag from an older click lingers either.
+
+   Until 2026-08-28 the middleware wrote the parsed URL straight over the cookie, and `hasClickId()` counts a bare `utm_source` as reason enough to write. So an entirely ordinary sequence destroyed paid attribution: click a Google ad on Monday, open the store's own `?utm_source=whatsapp` follow-up on Wednesday, take delivery of the COD order on Friday — and by Friday the `gclid` that was the only way to attribute that sale was gone. Nothing reported a loss; `reconcileGoogleAdsConversions` simply saw an unattributable order.
 3. **Read back.** `readClickIdCookie(request)` is called by `src/pages/api/submit-order.ts`, `src/pages/api/submit-middle-order.ts`, and `src/pages/api/v1/checkout.ts`; `readMetaBrowserIds(request)` wraps it for `src/pages/api/meta-event.ts`. Cookies ride along with the submit request, so no hidden form fields are needed. Malformed or hand-edited cookie values parse to `{}` rather than throwing inside the order path.
 4. **Persist.** The serialized value is written to `orders.ad_click_ids` (migration `0024_daily_typhoid_mary.sql`).
 5. **Classify.** `src/lib/traffic-source.ts` reads that stored JSON and derives a `TrafficSourceType` of `meta`, `google`, `organic`, or `custom`, precedence Meta → Google → UTM heuristics. The admin surfaces it through `TrafficSourceBadge` in `OrdersTable.tsx` and `OrderDetail.tsx`.
@@ -395,6 +508,17 @@ refresh token, and `GOOGLE_ADS_OFFLINE_START_AT`. The start timestamp prevents
 an install from uploading historical orders merely because credentials were
 added. Only orders with a stored `gclid`, `gbraid`, or `wbraid` are queued.
 
+**The discovery query itself enforces that click-id rule**, and it must. Until
+2026-08-28 the rule lived only in `buildGoogleClickConversion`: the query
+returned every revenue-qualified order, the builder refused the ones with no
+Google click, and a refused order wrote no outbox row — so it was still
+unqueued, and still first in line, on the next hourly pass. Fifty organic
+delivered COD orders, an ordinary week for a COD store, therefore pinned the
+50-row discovery window shut permanently and no Google-clicked order behind them
+was ever uploaded again. The failure was silent: the cron logged
+`queuedGoogleAdsConversions: 0`, which is also what a quiet week looks like.
+Candidate set and builder now share one definition of eligible.
+
 No customer identity is uploaded through this server path yet because AdsBookCMS
 does not persist the user's Google consent decision with the order. The offline
 payload contains click identity, merchandise value, currency, canonical order
@@ -429,13 +553,31 @@ Table `capi_event_outbox` (see `src/db/migrations/`): `id`, `event_id` (UNIQUE),
 
 On a successful send the `attempts` counter is not incremented and `last_error` is cleared.
 
-### Why no cron
+### How the outbox drains
 
-Draining is opportunistic, triggered by later storefront traffic and scheduled through `waitUntil()`. There is no cron trigger and no queue binding, because the Astro Cloudflare adapter owns the Worker entrypoint. A store with no traffic therefore does not drain; a failed event waits for the next visitor.
+Two ways, and it needs both:
+
+- **Opportunistically**, on the back of later storefront traffic, scheduled through `waitUntil()` by `/api/meta-event` and `/api/v1/tracking/events`.
+- **On the hour**, from `runScheduledMaintenance` in `src/worker.ts`, which reads the store ads config and calls `drainCapiOutbox` directly.
+
+This section used to say there was no cron, and for a while that was true. It was also the bug: backoff caps at an hour, which quietly assumes a visitor arrives within the hour. A store between campaigns has no such visitor, so a failed event simply sat there — while the health check counted it as overdue with nothing acting on it. The scheduled handler now owns the clock; opportunistic draining remains because it delivers sooner when there *is* traffic.
+
+The same handler reconciles and drains the Google Ads offline outbox (§10).
 
 ## 12. Browser and Server Payload Boundary
 
 ### `/api/meta-event` (first-party, same-origin)
+
+Rate limited at **60 requests per minute per IP** (`public-meta-event:<ip>`),
+the same ceiling `/api/shipping-rates` uses, and failing open when the counter
+cannot be read. Until 2026-08-28 this was the only public POST in the repository
+with no limit, and the one with the most to spend: each accepted event inserts a
+row into an outbox nothing prunes and then calls graph.facebook.com, with the
+opportunistic drain free to make ten more. `event_id` deduplication stops a
+replay, never a flood — fresh ids are never deduplicated. Purchase was already
+safe behind its order and status token; `PageView` and `ViewContent` were not,
+so fabricated funnel events could be pushed into a merchant's pixel to degrade
+the optimisation data they pay Meta to learn from.
 
 Validates through `validateMetaEventPayload()`, then:
 
@@ -453,8 +595,25 @@ Rejected before any outbound call: unsupported event names, malformed event IDs,
 
 - authentication is `validateHeadlessRequest()` — developer API key plus origin allowlist — instead of same-origin;
 - `user_data` accepts the fuller headless set: `phone`, `name`, `email`, `city`, `province`, `postalCode`, `country`, `externalId`, `fbp`, `fbc`, with `clientIp` and `userAgent` always derived server-side from request headers;
-- returns `503 DATABASE_UNAVAILABLE` when the D1 binding is missing, `400 INVALID_TRACKING_PAYLOAD` on a contract violation, `200 { skipped: true }` when tracking is unconfigured, and `200 { event_id, event_name, delivered, queued }` on success;
+- returns `503 DATABASE_UNAVAILABLE` when the D1 binding is missing, `400 INVALID_TRACKING_PAYLOAD` on a contract violation, `404 PURCHASE_ORDER_NOT_FOUND` when a Purchase names no known order, `200 { skipped: true }` when tracking is unconfigured, and `200 { event_id, event_name, delivered, queued }` on success;
 - the same enqueue → deliver → `waitUntil(drain)` sequence runs.
+
+**A Purchase resolves against D1 here too**, through
+`findPurchaseOrderForApiKeyCaller`: the `event_id` is the order number, so it is
+also the locator, and the order it names supplies the canonical `order_number`,
+the customer identity, and `product_value`. The API key replaces the browser's
+`status_token` as the thing that authorises the ask; it does not replace the
+lookup.
+
+Until 2026-08-28 this route did none of that, and the consequence was total
+rather than partial. `resolveMetaEventId` substitutes `customData.orderNumber`
+for a Purchase; the route never set it; `sendMetaCapiEvent` therefore refused
+every headless Purchase **before opening a connection to Meta**, so the event
+was enqueued, failed its five retries against the backoff ladder, and ended
+`failed` — while the route had already answered `200 { queued: true }`. A
+headless storefront's entire Purchase signal was discarded, and its own
+integration checklist (§15) could not detect it, because the route reported
+success.
 
 Conceptual Purchase data:
 
@@ -470,7 +629,7 @@ Conceptual Purchase data:
     "fbc": "<raw-_fbc-if-present>"
   },
   "custom_data": {
-    "content_ids": ["p1-v11"],
+    "content_ids": ["10001"],   // the Product ID, matching <g:id> byte for byte
     "content_type": "product",
     "value": 135000,
     "currency": "IDR"

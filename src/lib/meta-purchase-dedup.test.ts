@@ -27,6 +27,9 @@ type TrackerRun = {
   pixelEventIds: string[];
   postedPayloads: Record<string, unknown>[];
   pixelInitCalls: Record<string, unknown>[];
+  /** Any `fbq('init')` the tracker issues itself — which it must never do. */
+  strayFbqInits: Record<string, unknown>[];
+  pixelLoadPulled: number;
 };
 
 function storageStub() {
@@ -48,7 +51,13 @@ async function runTracker(
   thanksStateOverrides: Record<string, unknown> = {},
   documentCookie = "",
 ): Promise<TrackerRun> {
-  const run: TrackerRun = { pixelEventIds: [], postedPayloads: [], pixelInitCalls: [] };
+  const run: TrackerRun = {
+    pixelEventIds: [],
+    postedPayloads: [],
+    pixelInitCalls: [],
+    strayFbqInits: [],
+    pixelLoadPulled: 0,
+  };
   const thanksState = {
     order_id: "INV-10042",
     order_pk: "42",
@@ -83,6 +92,16 @@ async function runTracker(
 
   const windowStub: Record<string, unknown> = {
     __META_PIXEL_ID__: "1234567890",
+    // What `MetaPixelBase` exposes. fbevents honours advanced matching once per
+    // pixel id, so the tracker must hand its keys to the single init the pixel
+    // owns rather than issuing one of its own.
+    __PS_META_INIT__: (advancedMatching?: Record<string, unknown>) => {
+      run.pixelInitCalls.push(advancedMatching ?? {});
+      return true;
+    },
+    __PS_LOAD_META_PIXEL__: () => {
+      run.pixelLoadPulled += 1;
+    },
     location: {
       search: "",
       href: "https://permatamall.shop/thanks",
@@ -95,7 +114,7 @@ async function runTracker(
     ) => {
       if (action === "track") run.pixelEventIds.push(String(options?.eventID || ""));
       if (action === "init" && arg3 && typeof arg3 === "object") {
-        run.pixelInitCalls.push(arg3 as Record<string, unknown>);
+        run.strayFbqInits.push(arg3 as Record<string, unknown>);
       }
     },
   };
@@ -160,6 +179,11 @@ test("the browser Pixel's Purchase advanced-matching object hashes city, state, 
   // carried the buyer's address on Purchase. The browser Pixel's own
   // `fbq('init', pixelId, {...})` call used to stop at ph/fn/ln — a full
   // match key server-side, a partial one client-side, for the same order.
+  //
+  // And then, for a while, it carried all eight and Meta still saw one. See
+  // the `strayFbqInits` assertion below: fbevents honours advanced matching
+  // exactly once per pixel id and discards later calls in silence, so a second
+  // `fbq('init')` from here hashed eight keys into nothing.
   const run = await runTracker(
     {
       success: true,
@@ -176,8 +200,23 @@ test("the browser Pixel's Purchase advanced-matching object hashes city, state, 
     },
   );
 
-  assert.equal(run.pixelInitCalls.length, 1, "the browser must re-init the Pixel exactly once for this Purchase");
+  assert.equal(
+    run.strayFbqInits.length,
+    0,
+    "the tracker must never call fbq('init') itself — fbevents would discard it",
+  );
+  assert.equal(
+    run.pixelInitCalls.length,
+    1,
+    "matching goes to MetaPixelBase's single init, exactly once",
+  );
+  assert.equal(run.pixelLoadPulled, 1, "a conversion must not wait on the deferral timer");
   const advancedMatching = run.pixelInitCalls[0];
+  assert.equal(
+    advancedMatching.client_user_agent,
+    undefined,
+    "client_user_agent is a CAPI field, not a Pixel advanced-matching key",
+  );
   for (const key of ["ph", "fn", "ln", "ct", "st", "zp", "country", "external_id"]) {
     assert.match(
       String(advancedMatching[key] ?? ""),

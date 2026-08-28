@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { handleOptions, headlessError, headlessOk, validateHeadlessRequest } from '../../../../lib/headless-api';
 import { getStorefrontProduct, getStorefrontProducts } from '../../../../lib/catalog';
-import { catalogProductId } from "../../../../lib/catalog-feed";
+import { catalogProductId, catalogProductIdOrNull } from "../../../../lib/catalog-feed";
 
 export const prerender = false;
 
@@ -23,6 +23,16 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 
     const product = await getStorefrontProduct(locals, slug);
     if (!product) {
+      return validation.finalize(headlessError(`Produk "${slug}" tidak ditemukan.`, 404, {
+        code: 'PRODUCT_NOT_FOUND',
+      }, validation.corsHeaders));
+    }
+
+    // `content_id` is required by the published schema and a row that predates
+    // the five-digit scheme cannot form one. `/api/v1/products` omits such a
+    // row from its list, so the detail endpoint reports the same thing rather
+    // than a 500 from a field it cannot fill.
+    if (!catalogProductIdOrNull(product.productId)) {
       return validation.finalize(headlessError(`Produk "${slug}" tidak ditemukan.`, 404, {
         code: 'PRODUCT_NOT_FOUND',
       }, validation.corsHeaders));

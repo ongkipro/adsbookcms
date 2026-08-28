@@ -218,6 +218,32 @@ export async function uploadGoogleClickConversion(
   }
 }
 
+/**
+ * A candidate must carry a Google click identifier.
+ *
+ * This is not an optimisation. The scan is `ORDER BY o.id LIMIT n` over orders
+ * that have no outbox row yet, and an order this query returns but
+ * `buildGoogleClickConversion` refuses writes nothing — so it is still
+ * unqueued on the next pass, and still first in line. Fifty organic delivered
+ * COD orders, which is a normal week for a COD store, therefore fill the
+ * window permanently and no Google-clicked order behind them is ever uploaded
+ * again.
+ *
+ * TRACKING_SPECS §10 already states the rule — "Only orders with a stored
+ * `gclid`, `gbraid`, or `wbraid` are queued" — it just lived in the builder
+ * alone. Applying it here makes the candidate set and the builder agree, which
+ * is what stops the head of the queue from blocking it.
+ *
+ * `ad_click_ids` is written by `serializeClickIds`, i.e. `JSON.stringify` of
+ * validated `[A-Za-z0-9._-]` values: no spaces, and no value can contain a
+ * quoted key, so this text match cannot be tripped by a click id's contents.
+ */
+const CLICK_IDENTITY_PREDICATE = `(
+  o.ad_click_ids LIKE '%"gclid":"%'
+  OR o.ad_click_ids LIKE '%"gbraid":"%'
+  OR o.ad_click_ids LIKE '%"wbraid":"%'
+)`;
+
 export async function reconcileGoogleAdsConversions(
   database: D1Database,
   config: GoogleAdsOfflineConfig,
@@ -232,6 +258,7 @@ export async function reconcileGoogleAdsConversions(
      LEFT JOIN google_ads_conversion_outbox g ON g.order_id = o.id
      WHERE g.order_id IS NULL
        AND o.created_at >= ?
+       AND ${CLICK_IDENTITY_PREDICATE}
        AND ((o.payment_method = 'cod' AND o.shipping_status = 'delivered')
          OR (o.payment_method <> 'cod' AND o.payment_status IN (${paid})))
      ORDER BY o.id

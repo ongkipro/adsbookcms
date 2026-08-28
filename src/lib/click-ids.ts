@@ -41,6 +41,54 @@ export const CLICK_ID_KEYS = [
 export type ClickIdKey = (typeof CLICK_ID_KEYS)[number];
 export type ClickIds = Partial<Record<ClickIdKey, string>>;
 
+/**
+ * The subset that means an ad click actually happened.
+ *
+ * `CLICK_ID_KEYS` also carries the five UTM tags, and a UTM tag is not a click:
+ * anyone can put one on a WhatsApp broadcast, an email, or an organic post.
+ * Only these keys represent a paid click that a conversion can be attributed
+ * back to.
+ */
+export const AD_CLICK_KEYS = [
+  "gclid",
+  "gbraid",
+  "wbraid",
+  "fbclid",
+  "_fbc",
+  "_fbp",
+] as const satisfies readonly ClickIdKey[];
+
+/** True when this set carries a real ad click, not merely campaign tags. */
+export function hasAdClickId(ids: ClickIds): boolean {
+  return AD_CLICK_KEYS.some((key) => Boolean(ids[key]));
+}
+
+/**
+ * What the cookie should hold after a landing, given what it already held.
+ *
+ * The middleware used to write the parsed URL straight over the cookie, and
+ * `hasClickId` counts a bare `utm_source` as a reason to write. So a visitor
+ * who clicked a Google ad on Monday and opened the merchant's
+ * `?utm_source=whatsapp` follow-up on Wednesday had their `gclid` erased —
+ * and in a COD funnel the sale is confirmed on Friday, when that `gclid` is
+ * the only thing that can attribute it. The click was paid for and the
+ * conversion was silently unattributable.
+ *
+ * - A new ad click replaces the stored set wholesale: last touch wins, and its
+ *   campaign tags belong to it.
+ * - Campaign tags alone keep the stored click identity and describe the
+ *   current visit, so stale tags from an older click do not linger either.
+ */
+export function mergeClickIds(stored: ClickIds, incoming: ClickIds): ClickIds {
+  if (hasAdClickId(incoming)) return incoming;
+  const preserved: ClickIds = {};
+  for (const key of AD_CLICK_KEYS) {
+    const value = stored[key];
+    if (value) preserved[key] = value;
+  }
+  return { ...preserved, ...incoming };
+}
+
 // Click ids and tracking tokens are URL-safe strings up to 256 chars.
 const CLICK_ID_PATTERN = /^[A-Za-z0-9._-]{1,256}$/;
 

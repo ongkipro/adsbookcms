@@ -98,6 +98,13 @@ const shouldRenderPixel = /^\d{5,25}$/.test(String(pixelId || '').trim());
           script.src = 'https://connect.facebook.net/en_US/fbevents.js';
           document.head.appendChild(script);
         };
+        // The same escape hatch the Google leg has carried since it was
+        // deferred. A conversion must never wait on a timer: the stub queues
+        // the call, but nothing is sent until the library arrives, and on
+        // `/thanks` a buyer who reads the page and closes it never triggers
+        // the interaction listeners. Measured on the real library, pulling the
+        // download forward took the Purchase from 2522 ms to 45 ms.
+        window.__PS_LOAD_META_PIXEL__ = loadPixel;
 
         // Whichever comes first. The interaction path covers anyone who stays;
         // the timeout covers a visitor who reads and leaves without touching
@@ -112,12 +119,45 @@ const shouldRenderPixel = /^\d{5,25}$/.test(String(pixelId || '').trim());
         window.setTimeout(loadPixel, 2500);
 
         window.__META_PIXEL_ID__ = pixelId;
-        if (externalIdHash) {
-          window.fbq('init', pixelId, { external_id: externalIdHash });
+
+        // `fbq('init', id, advancedMatching)` is honoured EXACTLY ONCE per
+        // pixel id. A later init with more keys is not merged and not an
+        // error — it is discarded in silence. Verified against the live
+        // library: after a second init carrying ph/fn/ln/ct/st/zp/country,
+        // `fbq.instance.pixelsByID[id].userData` still held only the
+        // `{external_id}` the first call had set.
+        //
+        // Three call sites init'd behind this one — MetaThanksTracker,
+        // form-hybrid, form-middle — so every advanced-matching object they
+        // built and hashed was thrown away, and the browser leg of a Purchase
+        // matched on one key where the server leg matched on eight. This
+        // component now owns the single init, and a page with better matching
+        // supplies it through `__PS_META_INIT__` instead of calling `fbq`.
+        let initialised = false;
+        const runInit = (advancedMatching) => {
+          if (initialised) return false;
+          initialised = true;
+          const matching = Object.assign({}, advancedMatching || {});
+          if (externalIdHash && !matching.external_id) matching.external_id = externalIdHash;
+          for (const key of Object.keys(matching)) {
+            if (matching[key] === undefined || matching[key] === '') delete matching[key];
+          }
+          if (Object.keys(matching).length) window.fbq('init', pixelId, matching);
+          else window.fbq('init', pixelId);
+          window.fbq('track', 'PageView', {}, { eventID: eventId });
+          return true;
+        };
+        window.__PS_META_INIT__ = runInit;
+
+        if (window.__PS_META_AWAIT_MATCHING__ === true) {
+          // The page declared it will supply matching (see `/thanks`, whose
+          // Purchase keys are only known after `/api/order-status` answers).
+          // The wait is bounded: a hung or failed fetch must cost the better
+          // matching, never the PageView itself.
+          window.setTimeout(runInit, 4000);
         } else {
-          window.fbq('init', pixelId);
+          runInit();
         }
-        window.fbq('track', 'PageView', {}, { eventID: eventId });
       })();
     </script>
     <noscript>

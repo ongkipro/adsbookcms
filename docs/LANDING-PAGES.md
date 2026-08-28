@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-08-28 @ `f18ca76` + landing-builder working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -181,10 +181,17 @@ Check at 390 CSS px:
 
 ## CMS landing page
 
-Nothing to build. `/admin/landing-pages` composes ordered `html` and `form`
-sections, previews them in a 480 px canvas, and serves them through the
-catch-all. `?preview=1` renders an inactive page for an authenticated admin and
-sends `Cache-Control: no-store`.
+`/admin/landing-pages` composes ordered `headline`, `paragraph`,
+`numbered_list`, `bullet_list`, `image`, legacy `html`, and `form` sections.
+The bounded text/list/image section cards preview inside the 480 px mobile
+canvas; its numbered section navigator focuses a selected card in long pages,
+while up/down buttons retain keyboard and touch-safe ordering. The header's
+**Live Preview** opens the authenticated draft preview after a page has a slug.
+Images are browser-converted to WebP before the existing authenticated R2 upload
+path. Source images and encoded WebP files are each limited to 2 MiB.
+
+`?preview=1` renders an inactive page for an authenticated admin and sends
+`Cache-Control: no-store`.
 
 Reach for a native route only when the builder genuinely cannot express the
 layout. A page an operator can edit without a deploy is worth more than a page

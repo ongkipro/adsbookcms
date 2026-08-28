@@ -4,6 +4,7 @@ import {
   buildLandingPageDuplicateInput,
   createLandingPage,
   getLandingPageById,
+  LandingPageValidationError,
   LandingProductPageConflictError,
   listLandingPages,
   parseLandingPageDuplicatePayload,
@@ -95,11 +96,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
         201,
       );
     } catch (error: unknown) {
+      if (error instanceof LandingPageValidationError) {
+        return jsonError(error.message, error.status);
+      }
       console.error("POST duplicate landing-page", error);
       const message =
         error instanceof Error ? error.message : "Unknown error";
-      const status = message.includes("slug is already in use") ? 409 : 500;
-      return jsonError("Failed to duplicate landing page: " + message, status);
+      return jsonError("Failed to duplicate landing page: " + message, 500);
     }
   }
 
@@ -110,6 +113,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     );
     return jsonOk({ data: result });
   } catch (error: unknown) {
+    // Refused input is the operator's to fix and is reported as such; only a
+    // genuine failure is logged and returned as 500.
+    if (error instanceof LandingPageValidationError) {
+      return jsonError(error.message, error.status);
+    }
     console.error("POST landing-pages", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return jsonError("Failed to create landing page: " + message, 500);

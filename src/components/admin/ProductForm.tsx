@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { Input } from "../ui/input";
-import { catalogProductId } from "../../lib/catalog-feed";
+import { catalogProductIdOrNull } from "../../lib/catalog-feed";
 import {
   CARD_IMAGE_EDGE,
   MAX_ENCODED_BYTES,
@@ -579,7 +579,13 @@ export function ProductForm({ productId }: { productId?: string }) {
               <div className="rounded-lg bg-slate-50 p-3">
                 <dt className="text-slate-500">Product / Content ID</dt>
                 <dd className="mt-1 font-mono font-black text-slate-900">
-                  {productId ? catalogProductId(productId) : "Otomatis"}
+                  {/* `catalogProductId` throws on a row that predates the
+                      five-digit scheme, and a throw in a React render blanks
+                      the whole form — leaving the operator unable to open, see
+                      or repair the very product that needs it. That failure is
+                      what `catalogProductIdOrNull` was written for; it was
+                      applied to ProductCatalog and missed here. */}
+                  {productId ? catalogProductIdOrNull(productId) ?? "—" : "Otomatis"}
                 </dd>
               </div>
               <div className="rounded-lg bg-slate-50 p-3">

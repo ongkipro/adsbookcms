@@ -110,6 +110,7 @@ test("landing duplication generates a copy slug and independently clones section
         type: "html",
         content_html: "<h1>{{product_name}}</h1>",
         form_config: null,
+        content_config: null,
         created_at: "2026-08-15T00:00:00.000Z",
         updated_at: "2026-08-15T00:00:00.000Z",
       },
@@ -124,6 +125,7 @@ test("landing duplication generates a copy slug and independently clones section
           selected_variant_id: "20001",
           button_text: "Pesan",
         },
+        content_config: null,
         created_at: "2026-08-15T00:00:00.000Z",
         updated_at: "2026-08-15T00:00:00.000Z",
       },
@@ -159,6 +161,7 @@ test("landing duplication generates a copy slug and independently clones section
       type: section.type,
       content_html: section.content_html,
       form_config: section.form_config,
+      content_config: section.content_config,
     })),
   );
   assert.notStrictEqual(duplicateInput.sections, source.sections);

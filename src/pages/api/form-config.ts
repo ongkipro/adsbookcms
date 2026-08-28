@@ -18,7 +18,7 @@ import {
 } from "../../lib/form-mode";
 import { getRuntimeEnv } from "../../lib/env";
 import { getStorefrontProduct } from "../../lib/catalog";
-import { catalogProductId } from "../../lib/catalog-feed";
+import { catalogProductIdOrNull } from "../../lib/catalog-feed";
 
 export const prerender = false;
 
@@ -110,7 +110,12 @@ export const GET: APIRoute = async ({ request, locals }) => {
     {
       product: {
         id: product.catalogId,
-        content_id: catalogProductId(product.productId),
+        // Null rather than fatal for a row that predates the five-digit
+        // scheme. This response configures the checkout form itself, so a
+        // throw here would stop the sale outright to protect an ads identity;
+        // both form scripts already guard with
+        // `content_ids: contentId ? [contentId] : undefined`.
+        content_id: catalogProductIdOrNull(product.productId),
         slug: product.slug,
         name: product.productName,
         image: product.image,
@@ -119,14 +124,14 @@ export const GET: APIRoute = async ({ request, locals }) => {
       },
       variants: product.variants.map((variant) => ({
         id: variant.catalogId,
-        content_id: catalogProductId(product.productId),
+        content_id: catalogProductIdOrNull(product.productId),
         label: variant.label,
         price: variant.price,
         compare_price: variant.comparePrice ?? variant.price,
       })),
       selected_variant: {
         id: selectedVariant.catalogId,
-        content_id: catalogProductId(product.productId),
+        content_id: catalogProductIdOrNull(product.productId),
         label: selectedVariant.label,
         price: selectedVariant.price,
         compare_price: selectedVariant.comparePrice ?? selectedVariant.price,

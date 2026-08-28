@@ -9,6 +9,7 @@ import {
   loadStoreCodDisabledProvinceCodes,
 } from "../../lib/form-mode";
 import { getRuntimeEnv } from "../../lib/env";
+import { buyerEmail } from "../../lib/autolaris-payment";
 import {
   checkRateLimit,
   getClientIp,
@@ -265,10 +266,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
       submitToken: data.submit_token,
       customerName: data.customer_name.trim(),
       customerPhone,
+      // One minting shape, from `buyerEmail` — the function that exists for
+      // exactly this and is what the payment path already calls. Hand-rolling
+      // the same string here against `request.url` instead of the configured
+      // site URL produced a second host for one concept, and the guard that
+      // keeps these fabricated addresses out of Meta's `em` could only know
+      // about one of them.
       customerEmail:
         data.customer_email ||
         (data.payment_method !== "cod"
-          ? `${customerPhone}@${new URL(request.url).hostname}`
+          ? buyerEmail(null, customerPhone, locals.tenant.siteUrl)
           : undefined),
       address: data.address,
       province: data.province,

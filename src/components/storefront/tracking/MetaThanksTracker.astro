@@ -202,19 +202,38 @@ const { tenantName, tenantSlug } = Astro.props;
       const metaCountry = normalizeMetaText('id');
       try {
         if (window.fbq) {
-          const pixelId = window.__META_PIXEL_ID__;
-          if (pixelId) {
-            window.fbq('init', pixelId, {
-              ph: normalizedPhone ? await hashSha256Hex(normalizedPhone) : undefined,
-              fn: firstName ? await hashSha256Hex(firstName) : undefined,
-              ln: lastName ? await hashSha256Hex(lastName) : undefined,
-              ct: metaCity ? await hashSha256Hex(metaCity) : undefined,
-              st: metaState ? await hashSha256Hex(metaState) : undefined,
-              zp: metaZip ? await hashSha256Hex(metaZip) : undefined,
-              country: metaCountry ? await hashSha256Hex(metaCountry) : undefined,
-              external_id: externalId ? await hashSha256Hex(externalId) : undefined,
-              client_user_agent: navigator.userAgent,
-            });
+          // Handed to the ONE init `MetaPixelBase` owns, never to a second
+          // `fbq('init')` of our own: fbevents honours advanced matching once
+          // per pixel id and silently discards every later call, so this
+          // Purchase used to reach Meta matched on `external_id` alone while
+          // the server leg matched on eight keys. `/thanks` sets
+          // `__PS_META_AWAIT_MATCHING__` in the head slot BaseLayout renders
+          // ahead of the pixel, which is what leaves the single init still
+          // unspent by the time these hashes exist.
+          //
+          // `client_user_agent` is deliberately absent. It is a Conversions
+          // API field; Meta's Pixel advanced-matching reference does not list
+          // it, and the browser sends its own user agent with the request
+          // regardless.
+          const advancedMatching = {
+            ph: normalizedPhone ? await hashSha256Hex(normalizedPhone) : undefined,
+            fn: firstName ? await hashSha256Hex(firstName) : undefined,
+            ln: lastName ? await hashSha256Hex(lastName) : undefined,
+            ct: metaCity ? await hashSha256Hex(metaCity) : undefined,
+            st: metaState ? await hashSha256Hex(metaState) : undefined,
+            zp: metaZip ? await hashSha256Hex(metaZip) : undefined,
+            country: metaCountry ? await hashSha256Hex(metaCountry) : undefined,
+            external_id: externalId ? await hashSha256Hex(externalId) : undefined,
+          };
+          if (typeof window.__PS_META_INIT__ === 'function') {
+            window.__PS_META_INIT__(advancedMatching);
+          }
+          // The library is deferred behind an interaction listener and a
+          // 2.5 s timer. A buyer who reads this page and closes it triggers
+          // neither, so the conversion pulls the download forward itself —
+          // the same thing the Google conversion has always done.
+          if (typeof window.__PS_LOAD_META_PIXEL__ === 'function') {
+            window.__PS_LOAD_META_PIXEL__();
           }
           window.fbq('track', eventName, data, { eventID: finalEventId });
         }

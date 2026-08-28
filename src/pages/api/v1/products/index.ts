@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { handleOptions, headlessError, headlessOk, validateHeadlessRequest } from '../../../../lib/headless-api';
 import { getStorefrontProducts } from '../../../../lib/catalog';
-import { catalogProductId } from "../../../../lib/catalog-feed";
+import { catalogProductId, catalogProductIdOrNull } from "../../../../lib/catalog-feed";
 
 export const prerender = false;
 
@@ -26,6 +26,16 @@ export const GET: APIRoute = async ({ request, locals }) => {
     const category = (url.searchParams.get('category') || '').trim().toLowerCase();
 
     let products = await getStorefrontProducts(locals);
+
+    // Every product in this response must carry a `content_id`, which the
+    // published schema declares required — it is the ads identity a headless
+    // storefront sends back as `content_ids`. A row that predates the
+    // five-digit scheme cannot form one, and mapping it threw inside
+    // `paginated.map`, so a single legacy row returned 500 for the whole list
+    // rather than for itself. Filtering before `total` keeps the count and the
+    // pagination window honest, and matches the catalog feeds: a row with no
+    // catalogue identity is not publishable to an ads surface.
+    products = products.filter((p) => catalogProductIdOrNull(p.productId) !== null);
 
     if (category) {
       products = products.filter((p) => p.category.toLowerCase().includes(category));

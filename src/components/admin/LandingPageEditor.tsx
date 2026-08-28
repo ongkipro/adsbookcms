@@ -12,6 +12,9 @@ import {
   Settings,
   Smartphone,
   Globe,
+  Image,
+  List,
+  Type,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
@@ -22,6 +25,7 @@ import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Badge } from "../ui/badge";
 import { formatIdr } from "../../lib/format-idr";
+import { MAX_ENCODED_BYTES, convertImageToWebP } from "../../lib/client-image";
 
 type Variant = {
   id: number;
@@ -48,11 +52,21 @@ type FormConfig = {
   button_text?: string;
 };
 
+type ContentConfig = {
+  text?: string;
+  align?: "left" | "center" | "right";
+  size?: "small" | "medium" | "large";
+  items?: string[];
+  src?: string;
+  alt?: string;
+};
+
 type Section = {
   id: string;
-  type: "html" | "form";
+  type: "html" | "form" | "headline" | "paragraph" | "numbered_list" | "bullet_list" | "image";
   content_html?: string;
   form_config?: FormConfig;
+  content_config: ContentConfig;
 };
 
 type Props = {
@@ -190,6 +204,16 @@ export function sanitizePreviewHtml(value: string) {
 const previewOrigin =
   typeof window === "undefined" ? "" : window.location.origin;
 
+/**
+ * Tailscale serves local dev over HTTP, where Web Crypto's randomUUID is not
+ * exposed. These IDs exist only inside unsaved React state; D1 assigns durable
+ * IDs on save, so a time/random fallback is sufficient here.
+ */
+function createSectionId() {
+  return globalThis.crypto?.randomUUID?.() ??
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function LandingPageEditor({ landingPageId }: Props) {
   const [loading, setLoading] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -204,6 +228,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
 
   // Section editing states inside 480px canvas
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [uploadingSectionId, setUploadingSectionId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -237,11 +262,12 @@ export default function LandingPageEditor({ landingPageId }: Props) {
 
       if (Array.isArray(data.sections)) {
         setSections(
-          data.sections.map((s: { type: "html" | "form"; content_html?: string; form_config?: FormConfig }) => ({
-            id: crypto.randomUUID(),
+          data.sections.map((s: Section) => ({
+            id: createSectionId(),
             type: s.type,
             content_html: s.content_html || "",
             form_config: s.form_config || {},
+            content_config: s.content_config ?? {},
           }))
         );
       }
@@ -267,19 +293,64 @@ export default function LandingPageEditor({ landingPageId }: Props) {
   };
 
   const addHtmlSection = () => {
-    const newId = crypto.randomUUID();
-    setSections([...sections, { id: newId, type: "html", content_html: "" }]);
-    setEditingSectionId(newId);
+    const id = createSectionId();
+    setSections((current) => [...current, { id, type: "html", content_html: "", content_config: {} }]);
+    setEditingSectionId(id);
+    toast.success("HTML section ditambahkan ke canvas.");
   };
 
   const addFormSection = () => {
-    const newId = crypto.randomUUID();
-    setSections([
-      ...sections,
-      { id: newId, type: "form", form_config: { mode: "hybrid" } },
-    ]);
-    setEditingSectionId(newId);
+    const id = createSectionId();
+    setSections((current) => [...current, { id, type: "form", form_config: { mode: "hybrid" }, content_config: {} }]);
+    setEditingSectionId(id);
+    toast.success("Form COD ditambahkan ke canvas.");
   };
+
+  const addSection = (type: Section["type"]) => {
+    const id = createSectionId();
+    const content_config: ContentConfig =
+      type === "headline" ? { text: "", align: "left", size: "medium" } :
+      type === "paragraph" ? { text: "", align: "left" } :
+      type === "numbered_list" || type === "bullet_list" ? { items: [""] } :
+      type === "image" ? { src: "", alt: "" } : {};
+    setSections((current) => [...current, { id, type, content_config }]);
+    setEditingSectionId(id);
+    toast.success(`${type === "headline" ? "Headline" : type === "paragraph" ? "Paragraf" : type === "numbered_list" ? "Daftar angka" : type === "bullet_list" ? "Bullet" : "Gambar"} ditambahkan ke canvas.`);
+  };
+
+  async function uploadImage(sectionId: string, file: File) {
+    if (file.size > MAX_ENCODED_BYTES) return toast.error("Ukuran file maksimal 2 MB.");
+    setUploadingSectionId(sectionId);
+    try {
+      const image = await convertImageToWebP(file);
+      const formData = new FormData();
+      formData.set("file", image);
+      const response = await fetch("/api/admin/upload-r2", { method: "POST", body: formData });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || "Gagal mengunggah gambar.");
+      setSections((current) =>
+        current.map((section) =>
+          section.id === sectionId
+            ? { ...section, content_config: { ...section.content_config, src: payload.data.url } }
+            : section,
+        ),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal mengolah gambar.");
+    } finally {
+      setUploadingSectionId(null);
+    }
+  }
+
+  function focusSection(id: string) {
+    setEditingSectionId(id);
+    requestAnimationFrame(() => {
+      document.getElementById(`landing-section-${id}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  }
 
   const moveSection = (index: number, direction: "up" | "down") => {
     if (direction === "up" && index > 0) {
@@ -321,10 +392,20 @@ export default function LandingPageEditor({ landingPageId }: Props) {
         is_active: isActive ? 1 : 0,
         meta_title: metaTitle.trim(),
         meta_description: metaDescription.trim(),
-        sections: sections.map(({ type, content_html, form_config }) => ({
+        sections: sections.map(({ type, content_html, form_config, content_config }) => ({
           type,
           content_html,
           form_config,
+          // A list is authored as free text, one item per line, so the
+          // operator's closing Enter leaves a trailing empty item and the
+          // server refuses the whole save. Filtering while they type would
+          // make Enter impossible to press, so it is done once, here.
+          content_config: content_config.items
+            ? {
+                ...content_config,
+                items: content_config.items.map((item) => item.trim()).filter(Boolean),
+              }
+            : content_config,
         })),
       };
 
@@ -598,11 +679,20 @@ export default function LandingPageEditor({ landingPageId }: Props) {
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span className="flex items-center gap-1.5 font-medium text-slate-700">
                 <Smartphone className="w-4 h-4 text-blue-600" />
-                WYSIWYG Mobile Canvas (<strong>480px</strong>)
+                Mobile preview (<strong>480px</strong>)
               </span>
-              <span className="text-[11px] text-slate-400">100% Canvas Parity</span>
+              <span className="text-[11px] text-slate-500">{sections.length} section{sections.length === 1 ? "" : "s"}</span>
             </div>
 
+            {sections.length > 0 && (
+              <nav aria-label="Navigasi section" className="flex max-w-[480px] mx-auto gap-1 overflow-x-auto pb-1">
+                {sections.map((section, index) => (
+                  <Button key={section.id} type="button" variant={editingSectionId === section.id ? "secondary" : "outline"} size="sm" onClick={() => focusSection(section.id)} className="h-7 shrink-0 px-2 text-[11px]">
+                    {index + 1}
+                  </Button>
+                ))}
+              </nav>
+            )}
             {/* Stable Centered Mobile Device Mockup Frame */}
             <div className="w-full max-w-[480px] mx-auto bg-white border border-slate-300 rounded-2xl shadow-sm overflow-hidden min-h-[680px] flex flex-col">
               {/* Device Header Bar */}
@@ -622,9 +712,11 @@ export default function LandingPageEditor({ landingPageId }: Props) {
 
                   return (
                     <div
+                      id={`landing-section-${section.id}`}
                       key={section.id}
-                      className={`rounded-xl border bg-white shadow-sm transition-all overflow-hidden ${
-                        isEditing ? "border-blue-400 ring-4 ring-blue-50" : "border-slate-200 hover:border-slate-300"
+                      onClick={() => setEditingSectionId(section.id)}
+                      className={`rounded-xl border bg-white shadow-sm transition-all overflow-hidden cursor-pointer ${
+                        isEditing ? "border-blue-400 ring-4 ring-blue-50" : "border-slate-200 hover:border-slate-400"
                       }`}
                     >
                       {/* Section Header */}
@@ -634,12 +726,13 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                             {index + 1}
                           </span>
                           {section.type === "html" ? (
-                            <span className="flex items-center gap-1 text-blue-700">
-                              <Code className="w-3.5 h-3.5" /> HTML Content
-                            </span>
+                            <span className="flex items-center gap-1 text-blue-700"><Code className="w-3.5 h-3.5" /> HTML Content</span>
+                          ) : section.type === "form" ? (
+                            <span className="flex items-center gap-1 text-emerald-700"><Sparkles className="w-3.5 h-3.5" /> Native Form COD</span>
                           ) : (
-                            <span className="flex items-center gap-1 text-emerald-700">
-                              <Sparkles className="w-3.5 h-3.5" /> Native Form COD
+                            <span className="flex items-center gap-1 text-slate-700">
+                              {section.type === "image" ? <Image className="w-3.5 h-3.5" /> : section.type.includes("list") ? <List className="w-3.5 h-3.5" /> : <Type className="w-3.5 h-3.5" />}
+                              {section.type === "headline" ? "Headline" : section.type === "paragraph" ? "Paragraf" : section.type === "numbered_list" ? "Daftar angka" : section.type === "bullet_list" ? "Bullet" : "Gambar"}
                             </span>
                           )}
                         </div>
@@ -737,6 +830,84 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                             )}
                           </div>
                         )}
+                        {section.type !== "html" && section.type !== "form" && (
+                          <div className="space-y-3 text-xs">
+                            {isEditing ? (
+                              <>
+                                {(section.type === "headline" || section.type === "paragraph") && (
+                                  <div className="space-y-2">
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="space-y-1">
+                                        <label className="text-[11px] font-semibold text-slate-600">Perataan</label>
+                                        <Select value={section.content_config.align ?? "left"} onValueChange={(align) => align && updateSection(section.id, { content_config: { ...section.content_config, align } })}>
+                                          <SelectTrigger aria-label="Perataan teks" className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="left">Rata kiri</SelectItem>
+                                            <SelectItem value="center">Tengah</SelectItem>
+                                            <SelectItem value="right">Rata kanan</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      {section.type === "headline" ? (
+                                        <div className="space-y-1">
+                                          <label className="text-[11px] font-semibold text-slate-600">Ukuran</label>
+                                          <Select value={section.content_config.size ?? "medium"} onValueChange={(size) => size && updateSection(section.id, { content_config: { ...section.content_config, size } })}>
+                                            <SelectTrigger aria-label="Ukuran headline" className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="small">Kecil</SelectItem>
+                                              <SelectItem value="medium">Sedang</SelectItem>
+                                              <SelectItem value="large">Besar</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                      ) : <p className="flex items-end text-slate-500">Body text</p>}
+                                    </div>
+                                    <Textarea
+                                      aria-label={section.type === "headline" ? "Headline" : "Paragraf"}
+                                      value={section.content_config.text ?? ""}
+                                      onChange={(event) => updateSection(section.id, { content_config: { ...section.content_config, text: event.target.value } })}
+                                      placeholder={section.type === "headline" ? "Headline utama..." : "Tulis paragraf..."}
+                                      className="min-h-20 bg-white"
+                                    />
+                                  </div>
+                                )}
+                                {(section.type === "numbered_list" || section.type === "bullet_list") && (
+                                  <Textarea
+                                    aria-label="Item daftar, satu baris per item"
+                                    value={(section.content_config.items ?? []).join("\n")}
+                                    onChange={(event) => updateSection(section.id, { content_config: { items: event.target.value.split("\n") } })}
+                                    placeholder="Satu manfaat per baris"
+                                    className="min-h-24 bg-white"
+                                  />
+                                )}
+                                {section.type === "image" && (
+                                  <div className="space-y-2">
+                                    <Input aria-label="Upload gambar" type="file" accept="image/jpeg,image/png,image/webp" disabled={uploadingSectionId === section.id} onChange={(event) => {
+                                      const file = event.target.files?.[0];
+                                      if (file) void uploadImage(section.id, file);
+                                      event.target.value = "";
+                                    }} />
+                                    {uploadingSectionId === section.id && <p className="text-slate-500" role="status">Mengolah dan mengunggah gambar…</p>}
+                                    {section.content_config.src && <img src={section.content_config.src} alt="" className="max-w-full h-auto rounded-lg border" />}
+                                    <Input aria-label="Deskripsi gambar" disabled={uploadingSectionId === section.id} value={section.content_config.alt ?? ""} onChange={(event) => updateSection(section.id, { content_config: { ...section.content_config, alt: event.target.value } })} placeholder="Deskripsi gambar" />
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {section.type === "headline" && <h2 className="text-xl font-bold">{section.content_config.text || "Headline belum diisi"}</h2>}
+                                {section.type === "paragraph" && <p className="leading-relaxed">{section.content_config.text || "Paragraf belum diisi"}</p>}
+                                {(section.type === "numbered_list" || section.type === "bullet_list") && (
+                                  section.type === "numbered_list"
+                                    ? <ol className="list-decimal pl-5 space-y-1">{(section.content_config.items ?? []).map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</ol>
+                                    : <ul className="list-disc pl-5 space-y-1">{(section.content_config.items ?? []).map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</ul>
+                                )}
+                                {section.type === "image" && section.content_config.src && <img src={section.content_config.src} alt={section.content_config.alt ?? ""} className="max-w-full h-auto rounded-lg" />}
+                              </>
+                            )}
+                          </div>
+                        )}
+
 
                         {section.type === "form" && (
                           <div className="space-y-3">
@@ -833,25 +1004,15 @@ export default function LandingPageEditor({ landingPageId }: Props) {
               </div>
 
               {/* Add Section Buttons */}
-              <div className="p-3 bg-white border-t border-slate-200 flex items-center justify-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addHtmlSection}
-                  className="h-8 text-xs bg-white border-slate-300 hover:bg-blue-50 hover:text-blue-700"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1 text-blue-600" /> + HTML Section
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addFormSection}
-                  className="h-8 text-xs bg-white border-slate-300 hover:bg-emerald-50 hover:text-emerald-700"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1 text-emerald-600" /> + Form COD
-                </Button>
+              <div className="p-3 bg-white border-t border-slate-200 flex flex-wrap items-center justify-center gap-2">
+                <p className="w-full text-center text-[11px] font-medium text-slate-600">Tambah section ke canvas</p>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("headline")} className="h-8 text-xs"><Type className="w-3.5 h-3.5 mr-1" />Headline</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("paragraph")} className="h-8 text-xs"><Type className="w-3.5 h-3.5 mr-1" />Paragraf</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("numbered_list")} className="h-8 text-xs"><List className="w-3.5 h-3.5 mr-1" />Daftar angka</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("bullet_list")} className="h-8 text-xs"><List className="w-3.5 h-3.5 mr-1" />Bullet</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("image")} className="h-8 text-xs"><Image className="w-3.5 h-3.5 mr-1" />Gambar</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={addHtmlSection} className="h-8 text-xs"><Code className="w-3.5 h-3.5 mr-1" />HTML</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={addFormSection} className="h-8 text-xs"><Plus className="w-3.5 h-3.5 mr-1" />Form COD</Button>
               </div>
             </div>
           </div>

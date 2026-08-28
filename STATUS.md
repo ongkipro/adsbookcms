@@ -1,13 +1,88 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
+> Verified against disk: 2026-08-28 @ `f18ca76` + landing-builder and tracking-review working tree
 
 > Last executed baseline: 2026-08-27 @ `1acbd7e` + review-hardening working tree.
 > `npm run check` 399 files / 0 errors / 0 warnings / 0 hints · `npm test`
-> 592 / 592 · `npm run build` Cloudflare server bundle complete · local
+> 609 / 609 · `npm run build` Cloudflare server bundle complete · local
 > `wrangler dev` run: fresh install applied `0049`–`0050` (51 claims),
 > login/logout/session revocation, local district search, the 60/min and
 > 5/10min public limits, and a recorded AutoLaris callback all observed.
+> Landing builder local proof: a Tailscale HTTP fixture had no
+> `crypto.randomUUID`, yet Headline insertion created a selected canvas card
+> without a browser error or mobile horizontal overflow. The fallback applies
+> only to transient unsaved section IDs; D1 remains the durable ID authority.
+> The local landing canvas now reports its section count and offers numbered
+> focus navigation; section cards remain directly selectable and movable with
+> up/down controls, with no drag-only interaction.
+>
+> Ad signal audit 2026-08-28 (BUILD-LOG entries 89 and 90). Three signal
+> paths were losing conversions silently and are now fixed and covered:
+> Google Ads offline discovery was head-of-line blocked and uploaded nothing
+> once fifty unattributable orders accumulated; the headless
+> `/api/v1/tracking/events` Purchase never opened a connection to Meta at all
+> while answering `200 { queued: true }`; and a plain `?utm_source=` link
+> erased a stored `gclid` before the COD sale it belonged to was confirmed.
+> One legacy product row no longer 500s both catalog feeds.
+>
+> Landing builder browser proof: a page carrying all five typed section kinds
+> plus legacy `html` and `form`, served by `astro dev` against local D1, in
+> headless Chrome at 390 px / DPR 2.625 — semantic markup, one checkout form
+> with 18 fields, zero horizontal overflow. Headline sizes rendered 18/20/24 px
+> only after `.lp-headline-*` was scoped to `.lp-section`; before that all
+> three rendered 20 px. Fixture rows were removed from the local D1.
+>
+> Admin editor proof (BUILD-LOG entry 91): a headless-Chrome operator session
+> against `astro dev` and local D1 — login, product picker, section insertion,
+> the numbered navigator, save and redirect, zero console errors. A list ending
+> in the operator's closing Enter now saves (`400` before the fix); a headline
+> containing markup answers `400` with an Indonesian message and keeps the
+> draft on screen. At 390 px the login page, the empty editor and an editor
+> holding all seven section kinds each measured `scrollWidth === clientWidth`.
+> The session's throwaway `auditbot` account and every fixture row were removed
+> afterwards; the local D1 ends as it started.
+>
+> Upstreamed from the zvarashop install (BUILD-LOG entry 92): the browser
+> Purchase was matching on one key, not eight — `fbq('init')` is honoured once
+> per pixel id and three files init'd behind the pixel's bootstrap, so their
+> hashed matching was discarded. Probed against the live `fbevents.js`: one key
+> before, eight after. The conversion also no longer waits on the 2.5 s
+> deferral, and a minted `<phone>@<store host>` provider address is no longer
+> hashed into Meta's `em`.
+>
+> **Open decision (A-202):** the install repo added a deploy preflight after
+> `wrangler deploy` uploaded a stale tree over a live release. AGENTS.md says
+> this repository deploys nothing, yet `deploy`/`cf:deploy` exist here and
+> `wrangler.jsonc` is the `adsbookcms-your-store` placeholder. Scripts out, or
+> guard in — not decided here.
+>
+> Product audit (BUILD-LOG entry 93). `/api/meta-event` was the only public
+> POST with no rate limit — an unauthenticated caller could write unpruned
+> outbox rows, burn CAPI quota, and push fabricated funnel events into a
+> merchant's pixel. Now 60/minute per IP. Admin authorization, SQL construction,
+> the checkout price boundary, the payment webhook and the fee math were swept
+> and found sound.
+>
+> The whole signal chain was then run rather than reasoned about: Pixel
+> `Purchase` on `/thanks` carried `eid=INV-19001` byte-identical to the CAPI
+> leg, `value=135000` (goods, not the 214000 invoice), and eight `ud[...]` keys.
+> That run caught a hole in this session's own earlier fix — a minted
+> `<phone>@<host>` address still reached the CAPI payload because minting used
+> two different hosts. Fixed and re-verified.
+>
+> Validation audit (BUILD-LOG entry 94). `getStorefrontProduct` ran the
+> *throwing* catalogue id inside a `.find` predicate, so one legacy product row
+> answered 500 on the product page, the landing page, every form route,
+> `/api/form-config` and `/api/v1/products/<slug>` — the whole storefront, not
+> that row's page. Four sibling escapes fixed with it, and an allowlist scan now
+> stops a sixth. Landing-page fields are bounded and must name a product the
+> store carries; `maskSecretValue` no longer discloses most of a short secret.
+>
+> **Not verified: no live Meta, Google Ads or Merchant Center call was made —
+> the pixel id used was valid in shape only, so what is proven is what leaves
+> the browser and what this app enqueues, not what Events Manager reports.
+> Landing image upload was not exercised; it needs an R2 bucket the local run
+> does not bind.**
 >
 > `main` was re-founded as AdsBookCMS and its history rewritten (ADR-012), so
 > commit ranges older documents cite may not exist on this branch; the
@@ -210,7 +285,7 @@ Known data issues, all tracked:
 
 - The local development D1 may hold a previously provisioned warehouse row with address, phone, and Mengantar identifiers. Remote state was not read and is explicitly unverified; any local or remote scrub is a separate destructive-data decision.
 - No seed ships. `scripts/seed-catalog.sql`, `public/images/products/` and `db:reset:demo:local` were removed on 2026-08-17 (ADR-016); whether to reintroduce sample data, and in what form, is deferred rather than decided against. The earlier `src/db/seed.sql`, which held two previous merchants' catalogs plus genuine-looking provider ids, a real address and a real phone number, was deleted on 2026-08-16.
-- Migration `0017` once aborted the chain on an empty database; that insert was removed 2026-08-16. All 44 migrations now apply from zero, and the Worker applies a valid missing suffix automatically before database-backed requests. Migration `0040` adds persisted provider status text, provider event time, and synchronization time to `orders`; migration `0041` adds persisted missed-order follow-up state; migration `0042` restores the neutral courier catalogue only for stores with an empty policy; migration `0043` adds immutable manual-payment reconciliation evidence.
+- Migration `0017` once aborted the chain on an empty database; that insert was removed 2026-08-16. All 52 migrations now apply from zero, and the Worker applies a valid missing suffix automatically before database-backed requests. Migration `0040` adds persisted provider status text, provider event time, and synchronization time to `orders`; migration `0041` adds persisted missed-order follow-up state; migration `0042` restores the neutral courier catalogue only for stores with an empty policy; later migrations add manual payment reconciliation, the retired wide catalog marker, notifications, landing-page product claims and native rows, a Google Ads outbox, D1-backed sessions/rate limits, captured AutoLaris callbacks, and typed landing sections.
 
 ---
 

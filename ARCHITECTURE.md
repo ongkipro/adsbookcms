@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
+> Verified against disk: 2026-08-28 @ `f18ca76` + landing-builder working tree
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -181,7 +181,7 @@ Stock is not part of this flow: a variant is sellable when it is active and pric
 Two independent content systems:
 
 - **Storefront content** (`storefront_content`) — legacy draft/published presentation records remain preserved for migration compatibility. Public homepage availability no longer depends on a published home record; active catalog rows remain the authority for product identity, price, stock, and listing.
-- **Landing pages** (`landing_pages` + `landing_sections`) — an ordered section builder with `html` and `form` section types, rendered by the `/[slug]` catch-all.
+- **Landing pages** (`landing_pages` + `landing_sections`) — an ordered section builder with bounded `headline`, `paragraph`, `numbered_list`, `bullet_list`, `image`, legacy `html`, and `form` types, rendered by the `/[slug]` catch-all.
 
 Missing optional homepage content falls back to a neutral catalog composition.
 The current `admin/content` JSON/AI workbench is retired from navigation; A18

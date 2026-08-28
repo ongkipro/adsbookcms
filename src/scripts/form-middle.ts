@@ -107,7 +107,16 @@ export function initMiddleOrderForm(
     const signature = JSON.stringify(advancedMatching);
     if ((window as any).__META_AM_SIGNATURE__ === signature) return;
     (window as any).__META_AM_SIGNATURE__ = signature;
-    (window as any).fbq("init", pixelId, advancedMatching);
+    // Routed into the one init `MetaPixelBase` owns, never a second `fbq('init')`.
+    // fbevents honours advanced matching once per pixel id and discards later
+    // calls silently, so this used to hash a full matching object and throw it
+    // away. On a form page the pixel has already initialised by the time the
+    // buyer types anything, so this returns false and the browser leg keeps the
+    // `external_id` it was initialised with — the phone and name still reach
+    // Meta on the CAPI leg, which reads them server-side and is not subject to
+    // this constraint. Deleting the call instead would lose the one case that
+    // does land: a buyer who fills the form before the pixel has initialised.
+    (window as any).__PS_META_INIT__?.(advancedMatching);
   };
   const postMetaEvent = (payload: Record<string, unknown>) =>
     fetch("/api/meta-event", {

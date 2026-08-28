@@ -1,6 +1,124 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
+> Verified against disk: 2026-08-28 @ `f18ca76`
+
+## A27 — Bounded landing-page content and images
+
+**Status:** Accepted — implementation has not started.
+
+### Goals
+
+- Let an operator compose a CMS landing page without writing HTML for the common
+  text and image sections.
+- Keep image processing in the browser and object storage, so upload conversion
+  cannot consume Cloudflare Worker CPU.
+- Render every supported image at its natural aspect ratio within the existing
+  responsive landing column.
+
+
+### Visual builder UX
+
+- **Actor and permission:** authenticated `owner`, `admin`, and `advertiser`
+  compose their store's CMS landing pages; only `owner` and `admin` retain the
+  existing product-page claim action.
+- **Primary flow:** select **Tambah section**, choose one bounded type, edit its
+  named fields in the selected section card, use the numbered canvas navigator
+  or existing up/down controls to reach and order it, then save the page. The
+  480px storefront canvas is the primary live preview, not a separate editor or
+  a pixel-positioning workspace.
+- **Section cards:** retain the numbered header and selected blue ring. The
+  navigator shall focus and smoothly reveal the selected card in a long canvas.
+  Type labels/icons and controls remain labelled; first/last movement disables
+  correctly. Text fields edit in place. Lists use one item per row, with explicit
+  add/remove item controls. Image cards show upload progress, preview, alt-text
+  input, deterministic rejection reason, and retry without discarding the
+  current section.
+- **Responsive and accessible behavior:** at desktop, keep configuration beside
+  the 480px preview; below `lg`, stack configuration before the canvas. Every
+  input has a visible label, errors are adjacent to the affected field, icon
+  actions have accessible names, focus remains in the edited card after adding
+  or removing an item, and no drag-only interaction is required.
+- **States:** an empty canvas offers the bounded section choices; an upload
+  pending state disables only that image card's upload action; failed conversion
+  or upload keeps the source configuration and offers retry; saving does not
+  discard unsaved input on a recoverable request error.
+
+### Non-goals
+
+- A free-form visual canvas, rich-text editor, arbitrary CSS, arbitrary HTML,
+  video, carousel, gallery, image cropper, or drag-and-drop asset library.
+- Server-side image decoding, resizing, or format conversion; Cloudflare Images,
+  Workers AI, a queue, and a new image dependency.
+- A claim that every file named or declared as an image is convertible. SVG,
+  animated images, HEIC, and any type the operator's browser cannot decode are
+  rejected rather than uploaded or silently changed.
+- Changing existing `html` and `form` section behavior or rewriting existing
+  R2 objects.
+
+### Requirements
+
+- **REQ-173** — The system shall support ordered CMS landing sections of type
+  `headline`, `paragraph`, `numbered_list`, `bullet_list`, and `image`, in
+  addition to the existing `html` and `form` types; each new type shall persist
+  only its typed plain-text or image configuration, never generated HTML.
+- **REQ-174** — When an operator adds or edits a new text or list section, the
+  admin shall provide named plain-text controls, preserve the landing page's
+  existing section order and draft state, and reject an empty required value or
+  malformed typed configuration before replacing the stored sections.
+- **REQ-175** — When an operator selects a landing image no larger than 2 MiB,
+  the browser shall decode a supported static raster image, resize it to the
+  existing image-edge budget, encode it as WebP, and upload only a WebP no
+  larger than 2 MiB; if decoding or encoding fails, or either size limit is
+  exceeded, then the upload shall fail without an R2 write.
+- **REQ-176** — The image upload endpoint shall accept a landing image only as
+  a signature-validated WebP under 2 MiB, retain the existing authenticated
+  rate-limit boundary, and return an install-local `/assets/uploads/...webp`
+  URL; it shall not trust a file extension or browser MIME declaration alone.
+
+- **REQ-177** — The public landing route shall render the new section types as
+  semantic text, list, and image elements; images shall be fluid
+  (`max-width: 100%`, automatic height), retain their intrinsic aspect ratio,
+  avoid forced cropping, lazy-load below the fold, and never cause horizontal
+  page overflow at supported widths.
+- **REQ-178** — Existing `html` and `form` landing sections and their URLs,
+  previews, shortcodes, product-page claims, and draft/published behavior shall
+  remain unchanged; malformed new-section data shall fail safely without
+  rendering raw markup or another product's asset.
+- **REQ-179** — When an operator edits a `headline`, the admin shall offer
+  left, center, and right alignment plus small, medium, and large text-size
+  choices. A `paragraph` shall offer alignment and render as the standard body
+  style. Valid selections shall persist in typed section configuration and
+  render consistently in the preview and public landing route. New and legacy
+  text configurations shall default to left alignment, medium headline size,
+  and body paragraph style.
+
+### Technical decisions
+
+- **Browser Canvas encoding, not Worker conversion.** The repository already
+  has `client-image.ts` and browser-side WebP encoding. Bounding the original
+  file at 2 MiB keeps Canvas memory bounded while R2 receives one small object;
+  the Worker only validates bytes and performs one R2 `put`.
+- **Typed JSON configuration, not HTML synthesis.** A new nullable JSON
+  configuration column avoids HTML as a storage format for plain text and lists,
+  while preserving `content_html` for legacy sections. The type CHECK change
+  needs a forward migration that rebuilds `landing_sections` and copies every
+  current row unchanged.
+- **Browser-decodable static raster is the honest boundary.** “All image
+  formats” is not portable: Canvas can only encode images the current browser
+  decodes, and animated or vector inputs cannot become one equivalent WebP.
+  The UI must state this boundary and reject unsupported files before upload.
+- **Local HTTP compatibility.** The admin builder shall not require
+  `crypto.randomUUID()` in browser code: a Tailscale HTTP origin is not a
+  secure context and does not expose that method. Transient unsaved-section
+  identifiers may use a timestamp/random fallback because D1 assigns the
+  durable identifier on save.
+
+### Milestones
+
+- [ ] Data and validation: forward migration plus typed section parser.
+- [ ] Authoring: bounded text/list controls and landing-image uploader.
+- [ ] Rendering: semantic public sections with responsive image behavior and
+  executable compatibility/browser evidence.
 
 ## A22 — Release-driven updates for isolated installs
 

@@ -2,7 +2,9 @@ import { defineMiddleware } from 'astro:middleware';
 import {
   CLICK_ID_COOKIE,
   hasClickId,
+  mergeClickIds,
   parseClickIdsFromUrl,
+  readClickIdCookie,
   serializeClickIds,
 } from './lib/click-ids';
 import { canAccessAdminRoute, getDefaultAdminRoute } from './lib/auth';
@@ -389,8 +391,13 @@ export function createMiddleware(
 
   // Persist ad attribution click ids (Google, Meta, UTMs) from landing/embed URL.
   if (!isPrivate) {
-    const clickIds = parseClickIdsFromUrl(url);
-    if (hasClickId(clickIds)) {
+    const incoming = parseClickIdsFromUrl(url);
+    if (hasClickId(incoming)) {
+      // Merged, not overwritten. A bare `utm_source` is enough to reach this
+      // branch, so writing the parsed URL straight over the cookie let an
+      // ordinary WhatsApp or email link erase a `gclid` the merchant had paid
+      // for — days before the COD sale that needed it was confirmed.
+      const clickIds = mergeClickIds(readClickIdCookie(context.request), incoming);
       const sameSiteAttr = url.protocol === 'https:' ? ' SameSite=None; Secure;' : ' SameSite=Lax;';
       response.headers.append(
         'Set-Cookie',

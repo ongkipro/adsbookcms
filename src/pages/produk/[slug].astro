@@ -1,6 +1,6 @@
 ---
 import Breadcrumb from '../../components/storefront/shared/Breadcrumb.astro';
-import MetaViewContentTracker from '../../components/storefront/tracking/MetaViewContentTracker.astro';
+import MetaLandingTracker from '../../components/storefront/tracking/MetaLandingTracker.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { getStorefrontProduct } from '../../lib/catalog';
 import { getProductPageLanding } from '../../lib/landing-pages';
@@ -158,7 +158,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     { name: product.productName, url: canonical },
   ]}
 >
-  <MetaViewContentTracker
+  <MetaLandingTracker
     slug={product.slug}
     contentId={defaultCatalogContentId(product)}
     contentName={product.productName}

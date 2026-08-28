@@ -57,19 +57,34 @@ export function getEnvValue(key: string, env?: EnvSource) {
   return '';
 }
 
+/** Nothing of a secret this short may be shown. */
+const SECRET_FULLY_MASKED_BELOW = 24;
+export const SECRET_MASK = '••••';
+
+/**
+ * The browser-safe form of a stored credential.
+ *
+ * `AGENTS.md` forbids echoing a stored credential back through a browser API,
+ * and this is the one function standing between three of them —
+ * `meta_capi_token`, and the Mengantar and AutoLaris API keys — and the admin
+ * screen. It had no test at all.
+ *
+ * It also had a branch that revealed most of a short value: five to eight
+ * characters came back as `ab••••de`, which for a five-character secret is four
+ * of five. The credentials actually in play are long provider tokens, so this
+ * was never exploited — but nothing in the type, the column, or the provider
+ * contract guarantees a length, and a placeholder an operator pastes while
+ * setting up is exactly the short value that branch handled worst.
+ *
+ * Anything below `SECRET_FULLY_MASKED_BELOW` is therefore shown as mask alone.
+ * Above it, four leading and four trailing characters stay — enough for an
+ * operator to tell two keys apart, at most a third of a 24-character value and
+ * far less of a real one. The dot run is fixed width, so the length of the
+ * secret is not disclosed either.
+ */
 export function maskSecretValue(value: string) {
   const normalized = normalizeEnvValue(value);
-  if (normalized === '') {
-    return '';
-  }
-
-  if (normalized.length <= 4) {
-    return '••••';
-  }
-
-  if (normalized.length <= 8) {
-    return `${normalized.slice(0, 2)}••••${normalized.slice(-2)}`;
-  }
-
-  return `${normalized.slice(0, 4)}••••${normalized.slice(-4)}`;
+  if (normalized === '') return '';
+  if (normalized.length < SECRET_FULLY_MASKED_BELOW) return SECRET_MASK;
+  return `${normalized.slice(0, 4)}${SECRET_MASK}${normalized.slice(-4)}`;
 }

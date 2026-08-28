@@ -13,6 +13,7 @@ import { catalogProductId } from "./catalog-feed.ts";
 import { deliverCapiEvent, drainCapiOutbox, enqueueCapiEvent } from "./capi-outbox.ts";
 import { getStoreAdsConfig } from "./store-ads.ts";
 import { toE164Digits } from "./meta-capi.ts";
+import { matchableCustomerEmail } from "./autolaris-payment.ts";
 
 type PaidOrderRow = {
   order_number: string;
@@ -86,7 +87,8 @@ export async function enqueuePurchaseForPaidOrder(
     userData: {
       phone: order.customer_phone,
       name: order.customer_name,
-      email: order.customer_email || undefined,
+      // See `/api/meta-event`: a minted provider address is not a match key.
+      email: matchableCustomerEmail(order.customer_email, siteUrl),
       city: order.city,
       province: order.province,
       postalCode: order.postal_code || undefined,

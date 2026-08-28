@@ -3,6 +3,7 @@ import { jsonError, jsonOk } from "../../../../lib/api";
 import {
   deleteLandingPage,
   getLandingPageById,
+  LandingPageValidationError,
   NativeLandingReadOnlyError,
   updateLandingPage,
 } from "../../../../lib/landing-pages";
@@ -36,6 +37,11 @@ export const PUT: APIRoute = async ({ request, params, locals }) => {
   } catch (error: unknown) {
     if (error instanceof NativeLandingReadOnlyError) {
       return jsonError(error.message, 409, { code: "NATIVE_LANDING_READ_ONLY" });
+    }
+    // Refused input is the operator's to fix and is reported as such; only a
+    // genuine failure is logged and returned as 500.
+    if (error instanceof LandingPageValidationError) {
+      return jsonError(error.message, error.status);
     }
     console.error("PUT landing-pages/[id]", error);
     const message = error instanceof Error ? error.message : "Unknown error";

@@ -113,6 +113,62 @@ export function buyerEmail(
   return `${customerPhone.replace(/\D/g, "")}@${new URL(siteUrl).hostname}`;
 }
 
+/**
+ * True when `orders.customer_email` holds an address this system minted rather
+ * than one a buyer gave.
+ *
+ * The provider requires an email and a COD checkout collects none, so two
+ * places synthesise `<phone digits>@<store host>`: `buyerEmail` above, and
+ * `submit-order.ts` when a non-COD order is created. Nobody owns that address
+ * and no message will ever be delivered to it.
+ *
+ * It matters because Meta scores Event Match Quality on the keys it is given.
+ * Hashing a fabricated `em` does not merely fail to match — it spends a match
+ * key on a value no Meta user carries, which reads as a real signal that never
+ * resolves. Both CAPI legs read this column straight into `em`.
+ *
+ * The test is deliberately two-part. An all-digits local part alone is not
+ * enough: numeric Gmail addresses are ordinary in Indonesia, and dropping one
+ * would throw away a genuine match key. No buyer, however, has an address at
+ * the merchant's own storefront host.
+ */
+export function isSyntheticBuyerEmail(
+  email: string | null | undefined,
+  ...siteUrls: (string | null | undefined)[]
+): boolean {
+  const value = email?.trim().toLowerCase();
+  if (!value) return false;
+  const [localPart, domain] = value.split("@");
+  if (!localPart || !domain || !/^\d+$/.test(localPart)) return false;
+  // Every host this store answers on, not just one. `buyerEmail` mints against
+  // the configured `siteUrl`, but `submit-order.ts` used to mint against the
+  // *request* host — a store reachable on a workers.dev address, a preview
+  // deployment, or any second domain therefore produced addresses the
+  // single-host check did not recognise, and they went to Meta as real match
+  // keys. Found by watching a live `/thanks` enqueue its payload, not by
+  // reading the code. Minting is unified now; this stays for the rows already
+  // written on the other host.
+  for (const siteUrl of siteUrls) {
+    if (!siteUrl) continue;
+    try {
+      if (domain === new URL(siteUrl).hostname.toLowerCase()) return true;
+    } catch {
+      // An unparseable configured URL simply matches nothing.
+    }
+  }
+  return false;
+}
+
+/** The email worth handing to Meta, or nothing when the stored one is minted. */
+export function matchableCustomerEmail(
+  email: string | null | undefined,
+  ...siteUrls: (string | null | undefined)[]
+): string | undefined {
+  const value = email?.trim();
+  if (!value || isSyntheticBuyerEmail(value, ...siteUrls)) return undefined;
+  return value;
+}
+
 function mapPaymentRecord(row: PaymentTransactionRow): AutoLarisPaymentRecord {
   return {
     id: row.id,

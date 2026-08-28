@@ -45,6 +45,14 @@ const productCatalog = products.map((item) => ({
     if (window.location.search) {
       window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
     }
+    // `MetaPixelBase` gets exactly one `fbq('init')` per pixel id — fbevents
+    // discards every later one in silence — and on this page the eight keys
+    // worth matching on are only known once `/api/order-status` has answered.
+    // BaseLayout renders this head slot ahead of the pixel, so declaring the
+    // wait here is what leaves that single init unspent for the Purchase.
+    // The wait is bounded inside the pixel: a failed fetch costs the matching,
+    // never the PageView.
+    window.__PS_META_AWAIT_MATCHING__ = true;
   </script>
   <main id="thanks-shell" hidden class="min-h-screen bg-white py-4 font-sans text-[14px] text-[#111111] antialiased sm:py-8">
     <MetaThanksTracker tenantName={Astro.locals.tenant.name} tenantSlug={Astro.locals.tenant.slug} />

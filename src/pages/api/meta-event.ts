@@ -4,8 +4,13 @@ import { getStoreAdsConfig } from '../../lib/store-ads';
 import { validateMetaEventPayload } from '../../lib/meta-event-contract';
 import { getRuntimeEnv } from '../../lib/env';
 import { toE164Digits } from '../../lib/meta-capi';
-import { getClientIp } from '../../lib/rate-limit';
+import { checkRateLimit, getClientIp, rateLimitHeaders } from '../../lib/rate-limit';
 import { readMetaBrowserIds } from '../../lib/click-ids';
+import { matchableCustomerEmail } from '../../lib/autolaris-payment';
+import {
+  findPurchaseOrderByStatusToken,
+  type MetaPurchaseOrder,
+} from '../../lib/meta-purchase-order';
 
 export const prerender = false;
 
@@ -14,19 +19,6 @@ const json = (body: Record<string, unknown>, status: number) =>
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
-
-type PurchaseOrderRow = {
-  order_number: string;
-  customer_name: string;
-  customer_phone: string;
-  customer_email: string | null;
-  province: string;
-  city: string;
-  postal_code: string | null;
-  total_amount: number;
-  /** Variant price x quantity, summed from order_items. See the Purchase value. */
-  product_value: number;
-};
 
 type PurchaseReference = {
   orderLocator: string;
@@ -75,31 +67,40 @@ function getPurchaseReference(
   return orderLocator ? { orderLocator, statusToken: statusToken || undefined } : null;
 }
 
-async function findPurchaseOrder(
-  database: D1Database,
-  reference: PurchaseReference & { statusToken: string },
-): Promise<PurchaseOrderRow | null> {
-  return database
-    .prepare(
-      `SELECT
-         o.order_number, o.customer_name, o.customer_phone, o.customer_email,
-         o.province, o.city, o.postal_code, o.total_amount,
-         (
-           SELECT COALESCE(SUM(oi.unit_price * oi.quantity), 0)
-           FROM order_items oi
-           WHERE oi.order_id = o.id
-         ) AS product_value
-       FROM orders o
-       WHERE (CAST(o.id AS TEXT) = ? OR o.order_number = ?)
-         AND o.public_status_token = ?
-       LIMIT 1`,
-    )
-    .bind(reference.orderLocator, reference.orderLocator, reference.statusToken)
-    .first<PurchaseOrderRow>();
-}
-
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
+    // The only public POST in this repository that carried no rate limit, and
+    // the one with the most to spend: each accepted event inserts a row into
+    // `capi_event_outbox` — which nothing prunes — and then makes a real call
+    // to graph.facebook.com, with `drainCapiOutbox` free to make ten more.
+    //
+    // `event_id` deduplication stops a *replay*, not a flood: an attacker
+    // minting fresh ids is never deduplicated. The cost is not only D1 rows
+    // and Worker subrequests. Purchase is safe — it must resolve to an order
+    // and its status token — but `PageView` and `ViewContent` are not, so
+    // fabricated funnel events could be injected into a merchant's pixel and
+    // quietly degrade the optimisation data they are paying Meta to learn
+    // from, while burning the CAPI quota real conversions need.
+    //
+    // 60/minute per IP, the same ceiling `/api/shipping-rates` uses. A real
+    // session fires a handful of events per page; this bites only a machine.
+    const database = getRuntimeEnv(locals)?.OMS_DB as D1Database | undefined;
+    const clientIp = getClientIp(request.headers);
+    const rateLimit = await checkRateLimit(database, `public-meta-event:${clientIp}`, 60, 60_000);
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Terlalu banyak event. Coba lagi sebentar.', code: 'RATE_LIMITED' }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store',
+            ...rateLimitHeaders(rateLimit.remaining, rateLimit.resetAt),
+          },
+        },
+      );
+    }
+
     const rawPayload = await request.json().catch(() => null);
     const validated = validateMetaEventPayload(rawPayload, request.url);
     if (validated.ok === false) return json({ success: false, error: validated.error }, 400);
@@ -112,12 +113,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
         202,
       );
     }
-    const database = getRuntimeEnv(locals)?.OMS_DB as D1Database | undefined;
     if (!database?.prepare) {
       return json({ success: false, error: 'Event store belum tersedia.' }, 503);
     }
 
-    let purchaseOrder: PurchaseOrderRow | null = null;
+    let purchaseOrder: MetaPurchaseOrder | null = null;
     let purchaseOrderNumber: string | undefined;
     if (payload.eventName === 'Purchase') {
       const reference = getPurchaseReference(rawPayload, payload.eventSourceUrl);
@@ -127,10 +127,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
           400,
         );
       }
-      purchaseOrder = await findPurchaseOrder(database, {
-        orderLocator: reference.orderLocator,
-        statusToken: reference.statusToken,
-      });
+      purchaseOrder = await findPurchaseOrderByStatusToken(
+        database,
+        reference.orderLocator,
+        reference.statusToken,
+      );
       if (!purchaseOrder) {
         return json({ success: false, error: 'Order Purchase tidak ditemukan atau token tidak valid.' }, 404);
       }
@@ -155,7 +156,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
       userData: {
         phone: purchaseOrder?.customer_phone || payload.phone,
         name: purchaseOrder?.customer_name || payload.name,
-        email: purchaseOrder?.customer_email || payload.email,
+        // Never the address `buyerEmail`/`submit-order` mint for the payment
+        // provider: it is `<phone digits>@<store host>`, nobody owns it, and Meta
+        // scores match quality on every key it is handed.
+        email:
+          matchableCustomerEmail(
+            purchaseOrder?.customer_email,
+            locals.tenant.siteUrl,
+            request.url,
+          ) ||
+          payload.email,
         city: purchaseOrder?.city || payload.city,
         province: purchaseOrder?.province || payload.province,
         postalCode: purchaseOrder?.postal_code || payload.postalCode,

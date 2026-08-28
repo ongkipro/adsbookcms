@@ -6,8 +6,11 @@ import {
 } from "./autolaris-client.ts";
 import { summarizePaymentBuckets } from "./autolaris-balance.ts";
 import {
+  buyerEmail,
   createAutoLarisPaymentForOrder,
   effectivePaymentStatus,
+  isSyntheticBuyerEmail,
+  matchableCustomerEmail,
 } from "./autolaris-payment.ts";
 
 function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
@@ -349,4 +352,80 @@ test("payment status expiry is derived at read time, never stored", () => {
   // A final state is final regardless of the clock.
   assert.equal(effectivePaymentStatus("paid", past), "paid");
   assert.equal(effectivePaymentStatus("failed", past), "failed");
+});
+
+/**
+ * The provider needs an email; a COD checkout collects none. So two places mint
+ * `<phone digits>@<store host>` — `buyerEmail` and `submit-order.ts` — and both
+ * write it into `orders.customer_email`, where all three CAPI legs read it
+ * straight into Meta's `em`.
+ *
+ * Meta scores Event Match Quality on the keys it is given. A fabricated `em`
+ * does not merely fail to match; it spends a match key on a value no Meta user
+ * carries, which reads as real signal that never resolves.
+ */
+test("a minted provider email is recognised, a real one is never thrown away", () => {
+  const site = "https://permatamall.shop";
+
+  // Both shapes the system actually mints.
+  assert.equal(isSyntheticBuyerEmail("6281234567890@permatamall.shop", site), true);
+  assert.equal(isSyntheticBuyerEmail("081234567890@permatamall.shop", site), true);
+  assert.equal(matchableCustomerEmail("6281234567890@permatamall.shop", site), undefined);
+
+  // A numeric local part is ordinary in Indonesia — plenty of real Gmail
+  // addresses are the owner's phone number. Dropping one would throw away a
+  // genuine match key, so the store's own host has to be part of the test.
+  assert.equal(isSyntheticBuyerEmail("081234567890@gmail.com", site), false);
+  assert.equal(
+    matchableCustomerEmail("081234567890@gmail.com", site),
+    "081234567890@gmail.com",
+  );
+  assert.equal(isSyntheticBuyerEmail("siti@permatamall.shop", site), false);
+
+  // Absent, blank and unparseable inputs answer without throwing inside a
+  // conversion path.
+  assert.equal(isSyntheticBuyerEmail(null, site), false);
+  assert.equal(isSyntheticBuyerEmail("   ", site), false);
+  assert.equal(isSyntheticBuyerEmail("6281234567890@permatamall.shop", "not a url"), false);
+  assert.equal(matchableCustomerEmail(undefined, site), undefined);
+  assert.equal(matchableCustomerEmail("  siti@example.com  ", site), "siti@example.com");
+
+  // The guard has to recognise exactly what buyerEmail produces, or the two
+  // drift and the fabricated address reaches Meta again.
+  const minted = buyerEmail(null, "0812-3456-7890", site);
+  assert.equal(minted, "081234567890@permatamall.shop");
+  assert.equal(isSyntheticBuyerEmail(minted, site), true);
+  // A stored, real address passes straight through both directions.
+  assert.equal(buyerEmail("siti@example.com", "081234567890", site), "siti@example.com");
+});
+
+/**
+ * Found by watching a live `/thanks` enqueue its own CAPI payload, not by
+ * reading the code — the first version of this guard checked one host and the
+ * fabricated address sailed past it.
+ *
+ * The cause was two minting shapes for one concept: `buyerEmail` used the
+ * configured `siteUrl`, while `submit-order.ts` hand-rolled the same string
+ * against `new URL(request.url).hostname`. A store reachable on a workers.dev
+ * address, a preview deployment, or any second domain therefore wrote
+ * addresses the guard did not recognise. Minting is unified now; the guard
+ * still takes every host the store answers on, for the rows already written.
+ */
+test("a store answering on more than one host is still recognised", () => {
+  const configured = "https://permatamall.shop";
+  const requestHost = "https://adsbookcms-permata.workers.dev/api/meta-event";
+
+  const legacy = "6281234567890@adsbookcms-permata.workers.dev";
+  assert.equal(isSyntheticBuyerEmail(legacy, configured), false, "one host cannot see it");
+  assert.equal(isSyntheticBuyerEmail(legacy, configured, requestHost), true);
+  assert.equal(matchableCustomerEmail(legacy, configured, requestHost), undefined);
+
+  // Widening the check must not start swallowing real addresses.
+  assert.equal(
+    matchableCustomerEmail("081234567890@gmail.com", configured, requestHost),
+    "081234567890@gmail.com",
+  );
+  // An unset or unparseable host contributes nothing rather than throwing.
+  assert.equal(isSyntheticBuyerEmail(legacy, undefined, null, "not a url", requestHost), true);
+  assert.equal(isSyntheticBuyerEmail(legacy, undefined, null, "not a url"), false);
 });

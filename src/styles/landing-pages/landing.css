@@ -67,6 +67,41 @@
   font-size: 16px;
 }
 
+/* Scoped to `.lp-section` deliberately. The element these land on is an `h2`
+ * inside a landing section, so `.lp-section h2` above already claims its
+ * font-size at specificity 0-1-1; a bare `.lp-headline-large` is 0-1-0 and
+ * loses. Measured, not assumed: with the bare selectors all three sizes
+ * rendered at 20px, so the operator's Kecil/Sedang/Besar control did nothing
+ * at all. Sizes stay on the shared ramp (18 / 20 / 24). */
+.lp-section .lp-headline-small {
+  font-size: 18px;
+}
+
+.lp-section .lp-headline-medium {
+  font-size: 20px;
+}
+
+.lp-section .lp-headline-large {
+  font-size: 24px;
+}
+
+.lp-section .lp-body {
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.lp-align-left {
+  text-align: left;
+}
+
+.lp-align-center {
+  text-align: center;
+}
+
+.lp-align-right {
+  text-align: right;
+}
+
 .lp-section p {
   color: #3f3f46;
 }

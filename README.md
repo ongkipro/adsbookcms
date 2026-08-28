@@ -1,6 +1,6 @@
 # AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-08-28 @ `f18ca76` + landing-builder planning working tree
 
 A self-contained direct-response commerce CMS that installs onto Cloudflare Workers. One install runs one store: storefront, landing-page builder, checkout with COD and online payment, order management, courier dispatch, ad-signal tracking, and an admin dashboard — in a single Worker with its own database.
 
@@ -31,7 +31,7 @@ Full procedure, including creating the Cloudflare resources: `INSTALLATION.md`.
 
 ```bash
 npm ci
-npm run db:migrate:local      # 44 migrations, applied to a local D1
+npm run db:migrate:local      # 52 migrations, applied to a local D1
 npm run cf:dev                # wrangler dev --local, closest to production
 ```
 
@@ -67,7 +67,7 @@ Every command below exists in `package.json`.
 npm run dev            # astro dev on :4321 — no Worker bindings
 npm run cf:dev         # wrangler dev --local
 
-npm test               # node --test over src/lib/*.test.ts  (354 tests)
+npm test               # node --test over src/lib/*.test.ts  (593 tests)
 npm run check          # astro check && tsc --noEmit
 npm run build          # astro build
 
@@ -100,7 +100,7 @@ src/
   pages/           storefront, admin, /api/*, /api/v1/*, feeds, media
   components/      admin/ forms/ home/ seo/ shared/ storefront/ tracking/ ui/
   lib/             business logic and colocated tests
-  db/              44 hand-authored migrations — the only schema description
+  db/              52 hand-authored migrations — the only schema description
   layouts/         BaseLayout, AdminLayout, EmbedLayout
   styles/           foundation.css (shared) + one entry per surface:
                     admin.css, storefront.css, form-hybrid.css (checkout)

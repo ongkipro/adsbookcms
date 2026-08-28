@@ -188,11 +188,35 @@ test("advanced matching omits a field entirely rather than hashing an empty stri
 
 test("the inline thanks tracker's browser Pixel leg hashes city, state, zip and country like the server CAPI leg does", () => {
   // The CAPI leg (postMeta's user_data, further down this same file) has
-  // always sent ct/st/zp/country for Purchase. The browser Pixel's
-  // `fbq('init', pixelId, {...})` object used to stop at ph/fn/ln, so the two
-  // legs of one Purchase described the same person with different keys.
+  // always sent ct/st/zp/country for Purchase. The browser Pixel's advanced
+  // matching used to stop at ph/fn/ln, so the two legs of one Purchase
+  // described the same person with different keys.
+  //
+  // The keys must also reach `MetaPixelBase`'s single init rather than a
+  // second `fbq('init')`, which fbevents discards without a word. The
+  // behavioural half of that is in `meta-purchase-dedup.test.ts`; the source
+  // scan below is what stops one from being reintroduced here.
+  // Comments in this file discuss `fbq('init')` at length — deliberately, it
+  // is the trap being guarded — so the scan is of code with comment bodies
+  // removed, not of prose.
+  const trackerCode = THANKS_TRACKER.replace(/^\s*\/\/.*$/gm, "");
+  assert.doesNotMatch(
+    trackerCode,
+    /fbq\(\s*['"]init['"]/,
+    "the thanks tracker must hand matching to __PS_META_INIT__, never re-init the Pixel",
+  );
+  assert.match(
+    trackerCode,
+    /__PS_META_INIT__\(advancedMatching\)/,
+    "the hashed matching object must reach MetaPixelBase's single init",
+  );
+  assert.doesNotMatch(
+    trackerCode,
+    /client_user_agent/,
+    "client_user_agent is a Conversions API field, not a Pixel advanced-matching key",
+  );
   const initCall = THANKS_TRACKER.slice(
-    THANKS_TRACKER.indexOf("window.fbq('init', pixelId,"),
+    THANKS_TRACKER.indexOf("const advancedMatching = {"),
     THANKS_TRACKER.indexOf("window.fbq('track', eventName, data"),
   );
   for (const key of ["ct:", "st:", "zp:", "country:"]) {

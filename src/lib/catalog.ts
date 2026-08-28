@@ -9,7 +9,7 @@ import {
   loadPublishedProductContent,
   mergeRuntimeProductContent,
 } from "./storefront-content.ts";
-import { catalogProductId } from "./catalog-feed.ts";
+import { catalogProductIdOrNull } from "./catalog-feed.ts";
 
 async function loadCatalogRows(database: D1Database) {
   const [products, variants] = await database.batch([
@@ -80,6 +80,22 @@ export async function getStorefrontProducts(
   }
 }
 
+/**
+ * Resolve one storefront product by slug, Product ID, or catalogue id.
+ *
+ * The catalogue id is read through `catalogProductIdOrNull`, and that is not a
+ * style preference. The strict `catalogProductId` throws on a row that predates
+ * the five-digit scheme, and this predicate runs against **every** product
+ * until one matches — so a single legacy row sorted ahead of the match threw
+ * before the match was ever reached. Nothing here catches it, so it surfaced as
+ * a 500 on the product page, the landing page, every form page, `/api/form-config`
+ * and `/api/v1/products/<slug>`. One bad row took the whole storefront down,
+ * not the row's own page.
+ *
+ * Failing closed is right for an ads payload, which is why the strict function
+ * exists and keeps its callers. It is wrong for a lookup: a row that cannot
+ * carry a catalogue identity simply never matches on one.
+ */
 export async function getStorefrontProduct(locals: App.Locals, key: string) {
   const products = await getStorefrontProducts(locals);
 
@@ -88,10 +104,9 @@ export async function getStorefrontProduct(locals: App.Locals, key: string) {
       product.slug === key ||
       product.productId === key ||
       String(product.catalogId) === key ||
-      // `/api/v1/products` hands a caller the numeric Product ID as content_id.
-      // Accepting it back keeps the documented list/detail round trip stable.
-      // is the difference between a documented round trip and a 404 on the value
-      // the API just returned.
-      catalogProductId(product.productId) === key,
+      // `/api/v1/products` hands a caller the numeric Product ID as its
+      // `content_id`. Accepting it back is the difference between a documented
+      // list/detail round trip and a 404 on the value the API just returned.
+      catalogProductIdOrNull(product.productId) === key,
   );
 }

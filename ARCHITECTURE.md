@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-08-28 @ `f18ca76` + landing-builder working tree
+> Verified against disk: 2026-08-29 @ `9766ad6`
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -227,8 +227,20 @@ live in `UNIMPLEMENTED_SPECS.md`.
 | ~~G6~~ | ~~Theme set is compile-time~~ | **Closed 2026-08-17.** Migration `0039` adds editable D1 template definitions; built-in layouts render runtime composition and operator-created definitions require no rebuild | `src/lib/storefront-template.ts`, `/admin/settings/store` |
 | ~~G7~~ | ~~Partial observability with no alerting~~ | **Closed 2026-08-17 for actionable per-install alerts.** The scheduled Worker evaluates schema and CAPI outbox health, persists transition state in KV, and sends deduplicated firing/recovery webhook events without commerce payloads. External uptime and cross-install aggregation remain separate product decisions | `src/lib/operational-alerts.ts`, `src/worker.ts`, `OBSERVABILITY.md` |
 | ~~G8~~ | ~~Drizzle journal broken~~ | **Closed 2026-08-16.** Drizzle retired rather than repaired: its snapshots could not represent the stock trigger, so a repaired generator would have emitted SQL that silently dropped a data-integrity guarantee (ADR-005) | — |
-| ~~G9~~ | ~~Meta Purchase deduplication is broken~~ | **Closed 2026-08-16.** Both legs now key on the `INV-` order number. Historical data stays inflated — Meta offers no retroactive merge | `src/components/tracking/MetaThanksTracker.astro` |
+| ~~G9~~ | ~~Meta Purchase deduplication is broken~~ | **Closed 2026-08-16.** Both legs now key on the `INV-` order number. Historical data stays inflated — Meta offers no retroactive merge | `src/components/storefront/tracking/MetaThanksTracker.astro` |
 | ~~G10~~ | ~~Embedded checkout fired Purchase before verified confirmation~~ | **Closed 2026-08-16.** Embedded forms now send only a constrained completion-navigation message; the parent navigates to the same verified `/payment` or `/thanks` flow, whose browser and CAPI legs share the order number as `event_id` | `src/lib/embed-markup.ts`, `src/lib/checkout-navigation.ts` |
+
+**One caveat on G7, so the register is not read as more than it says.** Its
+closure covers schema and the **Meta** CAPI outbox. The Google Ads offline
+outbox (`google_ads_conversion_outbox`, migration `0048`) arrived afterwards
+with the same retry discipline and **no health signal and no alert** —
+`HealthSignalId` is `capi-outbox | meta-capi | mengantar | autolaris`,
+`OperationalAlertId` is `schema | capi-outbox`. That blind spot is why a
+head-of-line block stopped Google uploads entirely while the hourly cron logged
+`queuedGoogleAdsConversions: 0`, which is also what a quiet week looks like
+(BUILD-LOG 89). It is recorded in `OBSERVABILITY.md` §3 and queued as **A-227**;
+it is not a reopened architecture gap, but outbox observability is not a solved
+category either.
 
 ---
 

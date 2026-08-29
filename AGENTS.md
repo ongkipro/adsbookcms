@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
+> Verified against disk: 2026-08-29 @ `9766ad6`
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -70,6 +70,8 @@ failure mode this section exists to prevent.
 - Binding names are fixed: `OMS_DB`, `SESSION`, `ASSET_BUCKET`, `AI`, `ASSETS`.
 - Provider credentials are D1-first, env-fallback. Never echo a stored credential back through a browser API.
 - Meta CAPI tokens are server-only. Browser and server Purchase share one per-order `event_id`.
+- **One `fbq('init')` per pixel id, and `MetaPixelBase` owns it.** fbevents honours advanced matching exactly once per pixel id and discards every later call in silence — not an error, not a warning. Three files once init'd behind the pixel's bootstrap, so the browser Purchase reached Meta matched on one key while the server leg matched on eight. A page with better matching supplies it through `window.__PS_META_INIT__` and declares `__PS_META_AWAIT_MATCHING__` ahead of the pixel; nothing else calls `fbq('init')`. Tests assert this at both source and runtime (TRACKING_SPECS §4a).
+- **The catalogue identity fails closed for an ads payload and degrades everywhere else.** `catalogProductId` throws on a row that predates the five-digit scheme, which is right for one payload and wrong wherever the throw outlives the row — a feed, a list, a `.find` predicate, a React render. Those read `catalogProductIdOrNull`. An allowlist test in `catalog-identity.test.ts` refuses a new strict call site.
 - Every Headless route is registered in `HEADLESS_OPERATIONS` with one minimum scope. API-key usage quotas and write audit events are D1-backed and part of the request boundary, not UI-only policy.
 
 **Content**

@@ -1,6 +1,6 @@
 # Observability — AdsBookCMS
 
-> Verified against disk: 2026-08-28 @ `0042e75` + forward-backlog working tree
+> Verified against disk: 2026-08-29 @ `9766ad6`
 
 This document describes what an operator can observe and what AdsBookCMS now alerts on for one running install. Cross-install aggregation and an external uptime probe remain separate decisions.
 

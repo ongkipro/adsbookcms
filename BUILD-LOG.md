@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
+> Verified against disk: 2026-08-29 @ `9766ad6`
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -5034,3 +5034,36 @@ documents to be developed where that helps.
 - **Evidence.** `npm test` 618/618, `npm run check` 400 files / 0 errors.
   Nothing executable changed in this entry; it is planning and three document
   corrections.
+
+### Entry 97: Making the documents true before pausing
+
+A documentation pass, not a code pass. `npm test` 618/618 and `npm run check`
+400 files / 0 errors both before and after; nothing executable moved.
+
+- **Two documents were wrong because of code this session changed, not because
+  anyone edited them.** `STOREFRONT_INTEGRATION.md` §4.8 still described a
+  headless `Purchase` with no order resolution — the behaviour that could never
+  reach Meta — and §4.6/4.7 did not know that a row with no catalogue identity
+  is now omitted from the list and 404s on detail. Both corrected, with a note
+  telling an existing integrator that nothing in their code changes; the events
+  simply start arriving.
+- **`ARCHITECTURE.md` G7 read as more than it says.** Its closure covers schema
+  and the *Meta* CAPI outbox; the Google Ads outbox arrived later with the same
+  retry discipline and no observability at all. The register stays historical
+  and closed — this is a caveat beneath it pointing at OBSERVABILITY §3 and
+  A-227, so "outbox observability" is not read as a solved category. G9's cited
+  path was also two directories stale and now matches disk.
+- **Two invariants added to `AGENTS.md`**, because both are traps someone will
+  otherwise walk into again: one `fbq('init')` per pixel id with `MetaPixelBase`
+  owning it, and the catalogue identity failing closed for an ads payload while
+  degrading everywhere the throw would outlive the row.
+- **`STATUS.md` opens with a handoff block** rather than making the next reader
+  reconstruct the state from six BUILD-LOG entries: what is committed, the one
+  line of what changed, that A-227 is the most valuable next item, that live
+  verification is the gap local work cannot close, and that `npm run deploy`
+  refuses here on purpose.
+- **Restamped only what was actually read.** Seven documents this session
+  changed carry the new date and SHA. `DESIGN-SYSTEM.md`,
+  `MENGANTAR_INTEGRATION_SPEC.md`, `PLAN.md`, `PRD-ADMIN-LOGIN.md` and the
+  `docs/` set keep their older stamps, because restamping a document nobody
+  verified is precisely the lie the header exists to prevent.

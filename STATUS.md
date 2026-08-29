@@ -1,9 +1,38 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-08-28 @ `f18ca76` + landing-builder and tracking-review working tree
+> Verified against disk: 2026-08-29 @ `9766ad6`
 
-> Last executed baseline: 2026-08-27 @ `1acbd7e` + review-hardening working tree.
-> `npm run check` 399 files / 0 errors / 0 warnings / 0 hints · `npm test`
+## Where this stands, for whoever picks it up next
+
+**Committed and pushed** through `9766ad6`. Working tree clean; nothing from the
+2026-08-28/29 audit is left uncommitted. Six BUILD-LOG entries cover it (89–96),
+tasks **A-182 … A-231**.
+
+**What changed, in one line:** the ad-signal chain went from losing conversions
+on three paths in silence to being correct and browser-proven, and one legacy
+product row no longer takes the storefront down.
+
+**The single most valuable next item is A-227** — the Google Ads offline outbox
+has no health signal and no alert, which is exactly why its head-of-line block
+ran invisibly. Everything else queued is in `TASKS.md` §Forward backlog: 22
+items across QA, security, Cloudflare, Meta Ads and Google Ads, five of them
+marked as needing an ADR that has not been written because the decision has not
+been made.
+
+**The gap that no amount of local work can close** is live verification. No call
+has ever been made to Meta, Google Ads, Merchant Center or Mengantar from this
+repository. Deploying one install, configuring the pixel from the dashboard, and
+reading Events Manager closes more of it in an afternoon than another audit
+pass would. `UNIMPLEMENTED_SPECS.md` §3 now lists those blockers explicitly.
+
+**Do not run `npm run deploy` here** — it refuses, correctly. This repository is
+the product and its `wrangler.jsonc` is placeholders; an install deploys from
+its own clone (RELEASE §1).
+
+---
+
+> Last executed baseline: 2026-08-29 @ `9766ad6`.
+> `npm run check` 400 files / 0 errors / 0 warnings / 0 hints · `npm test`
 > 618 / 618 · `npm run build` Cloudflare server bundle complete · local
 > `wrangler dev` run: fresh install applied `0049`–`0050` (51 claims),
 > login/logout/session revocation, local district search, the 60/min and

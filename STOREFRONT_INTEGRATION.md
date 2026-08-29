@@ -1,6 +1,6 @@
 # AdsBookCMS — Storefront, Form, and Ads Integration Contract
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-08-29 @ `9766ad6`
 
 This document is the implementation handoff for anyone — human or agent — building a public storefront experience against an **AdsBookCMS** install. Two integration shapes are supported and both are shipping today:
 
@@ -128,6 +128,15 @@ Cache: `Cache-Control: no-store`; storefront configuration changes take effect o
 
 Query: `limit` (1–100, default 20), `offset` (≥0, default 0), `q` or `search`, `category`. Filtering by search and category happens **in memory after loading the full catalog**, so `total` reflects the filtered set.
 
+A product whose row predates the five-digit Product ID scheme cannot form a
+`content_id`, which this contract declares required. Such a row is **omitted
+from the catalogue**, before `total` is counted — so the count and the
+pagination window stay consistent — and `/api/v1/products/<slug>` answers 404
+`PRODUCT_NOT_FOUND` for it, matching what the list omits. It is the same stance
+both catalog feeds take: a row with no catalogue identity is not publishable to
+an ads surface. Previously such a row threw inside the response map and returned
+500 for the whole list.
+
 Returns `total`, `limit`, `offset`, `has_more`, and `products[]`. Each product carries `id` (the canonical numeric D1 Product ID), `content_id` (the same decimal Product ID, with at least five digits), `slug`, `name`, `category`, `headline`, `subheadline`, `price`, `compare_price`, `image`, `hero_image`, `rating_value`, `review_count`, `sold_count`, `variants[]` (`id`, the raw selectable variant ID; `content_id`, the parent Product ID used by ads; `label`, `price`, `compare_price`), and a `urls` block.
 
 Cache: `Cache-Control: private, max-age=60, stale-while-revalidate=600`; browser clients may reuse a response, shared caches may not. Failure: 500 `PRODUCTS_LOAD_ERROR`.
@@ -179,6 +188,23 @@ Other failures: 409 `DUPLICATE_ORDER` (idempotent `submit_token` replay), the sh
 `src/pages/api/v1/tracking/events.ts`. Methods: `POST`, `OPTIONS` only.
 
 Payload is validated by `validateMetaEventPayload` (400 `INVALID_TRACKING_PAYLOAD`). If the store has no Pixel ID or no CAPI token the route returns **200** with `{ skipped: true, reason }` rather than an error — check `skipped`, not the status code. With D1 unavailable it returns 503 `DATABASE_UNAVAILABLE`.
+
+**A `Purchase` resolves against D1 before anything is enqueued.** The `event_id`
+*is* the order number (§7), so it is also the locator: the route reads that
+order and takes the canonical `order_number`, the customer identity and
+`product_value` from the row. An `event_id` naming no known order is **404
+`PURCHASE_ORDER_NOT_FOUND`**. The API key authorises the ask; it does not
+replace the lookup.
+
+Until 2026-08-28 the route did none of that, and the consequence was total
+rather than partial: `resolveMetaEventId` substitutes the order number for a
+Purchase, nothing set it, and `sendMetaCapiEvent` therefore refused every
+headless Purchase **before opening a connection to Meta** — enqueued, five
+retries, `failed`, while this route had already answered `200 { queued: true }`.
+A headless storefront's entire Purchase signal was discarded, and §8's checklist
+could not detect it because the route reported success. If you integrated
+against the old behaviour, nothing in your code changes; the events simply start
+arriving.
 
 Accepted events are written to the `capi_event_outbox` through `enqueueCapiEvent`. A repeated `event_id` returns 200 `{ deduplicated: true, event_id }` without re-sending. Otherwise the event is delivered immediately, the rest of the outbox is drained in the background via `waitUntil`, and the response reports `{ event_id, event_name, delivered, queued }`.
 

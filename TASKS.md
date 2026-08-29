@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-08-28 @ `0042e75` + forward-backlog working tree
+> Verified against disk: 2026-08-29 @ `9766ad6`
 
 ## A21 — A landing page may become the product page
 

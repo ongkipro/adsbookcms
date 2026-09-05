@@ -57,6 +57,14 @@ Runs on every request, in order: canonical host redirect (`www` → apex), ad cl
 
 ## 3. Route Surface
 
+> The table below is a summary and has drifted before — it said `/admin/*` was
+> 27 pages when there were 28, and §4 described a 41-file migration chain that
+> was already 52. **`docs/ROUTE-MAP.md` and `docs/route-map.xml` are the map to
+> trust**: `npm run route-map` derives all 111 routes from `src/pages/` with
+> their files, HTTP verbs, auth boundary and the roles `canAccessAdminRoute`
+> actually admits, and `src/lib/route-map.test.ts` fails when the committed map
+> and the filesystem disagree.
+
 | Family | Entry points |
 | --- | --- |
 | Storefront | `/`, `/produk`, `/produk/[slug]`, `/404`, `/thanks`, `/payment` |
@@ -65,7 +73,7 @@ Runs on every request, in order: canonical host redirect (`www` → apex), ad cl
 | Checkout forms | `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`. `/form-hybrid`, `/form-middle`, `/form-full` are query-preserving 308 redirects that **do** exist |
 | Feeds | `/sitemap.xml`, `/feed/google-catalog.xml`, `/feed/meta-catalog.xml`, static `/robots.txt` |
 | Media | `/assets/[...key]` (R2 `uploads/` prefix), `/media/[...key]` (R2 `content/` prefix) |
-| Admin | `/hello` (login), `/admin/*` — 27 pages |
+| Admin | `/hello` (login), `/admin/*` — 28 pages |
 | Public API | `/api/*` — checkout, locations, shipping rates, payment methods, order status, Meta events |
 | Headless API | `/api/v1/*` — storefront descriptor, products, geo, shipping rates, checkout, tracking events |
 | Admin payment reconciliation | `/api/admin/payment-reconciliation` |
@@ -88,7 +96,8 @@ Stock integrity is enforced by the database, not the application: trigger `produ
 
 ### Migration chain
 
-41 files, `0000`–`0040`. The Worker bundle contains the exact checked-in SQL and applies any missing suffix automatically before serving a database-backed request. Each migration's SQL statements and `d1_migrations` claim row execute in one D1 batch; concurrent requests serialize on the claim, re-read history, and continue without double-applying. `wrangler d1 migrations apply OMS_DB` remains an optional operator preflight, not the runtime correctness boundary. Migration `0040` adds provider status text, provider event time, and synchronization time to `orders`.
+56 files, `0000`–`0055` (ADR-024 gave the product sole ownership of the
+numbering after three different `0051` files appeared across the fleet). The Worker bundle contains the exact checked-in SQL and applies any missing suffix automatically before serving a database-backed request. Each migration's SQL statements and `d1_migrations` claim row execute in one D1 batch; concurrent requests serialize on the claim, re-read history, and continue without double-applying. `wrangler d1 migrations apply OMS_DB` remains an optional operator preflight, not the runtime correctness boundary. Migration `0040` adds provider status text, provider event time, and synchronization time to `orders`.
 
 **Migrations are hand-authored.** There is no generator to keep in sync, which is deliberate: the schema contains data-integrity triggers, ordered indexes, CHECK constraints, and data migrations that a schema generator cannot represent safely.
 

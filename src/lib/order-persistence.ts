@@ -28,6 +28,7 @@ export type PersistOrderInput = {
   courierCode?: string;
   courierService?: string;
   adClickIds?: string;
+  metaRequestContext?: string;
 };
 
 export type PersistedOrder = {
@@ -44,10 +45,118 @@ export type PersistedOrder = {
   sellerBankName?: string;
   sellerAccountHolder?: string;
   sellerAccountNumber?: string;
+  created: boolean;
 };
 
 export class DuplicateSubmissionError extends Error {}
 export class OrderInputError extends Error {}
+
+export const CHECKOUT_DEDUPE_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+type CanonicalOrderRow = {
+  id: number;
+  order_number: string;
+  public_status_token: string;
+  total_amount: number;
+  unit_price: number;
+  cod_service_fee: number;
+  cod_service_fee_vat: number;
+  cod_fee_bearer: string;
+  seller_bank_account_id: number | null;
+  seller_bank_code: string | null;
+  seller_bank_name: string | null;
+  seller_account_holder: string | null;
+  seller_account_number: string | null;
+};
+
+function normalizeFingerprintText(value: string | undefined) {
+  return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+async function createCheckoutFingerprint(input: {
+  storeId: number;
+  variantId: number;
+  order: PersistOrderInput;
+  totalAmount: number;
+}) {
+  const order = input.order;
+  const payload = JSON.stringify([
+    input.storeId,
+    input.variantId,
+    order.quantity,
+    normalizeFingerprintText(order.customerName),
+    normalizePhone(order.customerPhone),
+    normalizeFingerprintText(order.address),
+    normalizeFingerprintText(order.province),
+    normalizeFingerprintText(order.city),
+    normalizeFingerprintText(order.district),
+    normalizeFingerprintText(order.postalCode),
+    order.paymentMethod,
+    order.sellerBankAccountId || 0,
+    order.warehouseId || 0,
+    normalizeFingerprintText(order.destinationAreaId),
+    normalizeFingerprintText(order.courierCode),
+    normalizeFingerprintText(order.courierService),
+    order.shippingCost,
+    input.totalAmount,
+  ]);
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(payload),
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+function persistedOrderFromRow(
+  row: CanonicalOrderRow,
+  created: boolean,
+): PersistedOrder {
+  return {
+    id: row.id,
+    orderNumber: row.order_number,
+    publicStatusToken: row.public_status_token,
+    totalAmount: Number(row.total_amount),
+    unitPrice: Number(row.unit_price),
+    codServiceFee: Number(row.cod_service_fee),
+    codServiceFeeVat: Number(row.cod_service_fee_vat),
+    codFeeBearer: normalizePaymentFeeBearer(row.cod_fee_bearer),
+    sellerBankAccountId: row.seller_bank_account_id || undefined,
+    sellerBankCode: row.seller_bank_code || undefined,
+    sellerBankName: row.seller_bank_name || undefined,
+    sellerAccountHolder: row.seller_account_holder || undefined,
+    sellerAccountNumber: row.seller_account_number || undefined,
+    created,
+  };
+}
+
+async function findCanonicalOrder(
+  database: D1Database,
+  fingerprint: string,
+  submitToken: string,
+  now: string,
+) {
+  return database
+    .prepare(
+      `SELECT o.id, o.order_number, o.public_status_token, o.total_amount,
+              oi.unit_price, o.cod_service_fee, o.cod_service_fee_vat,
+              o.cod_fee_bearer, o.seller_bank_account_id, o.seller_bank_code,
+              o.seller_bank_name, o.seller_account_holder, o.seller_account_number
+       FROM orders o
+       INNER JOIN order_items oi ON oi.order_id = o.id
+       WHERE (
+           (o.checkout_fingerprint = ? AND o.checkout_dedupe_expires_at > ?)
+           OR o.submit_token = ?
+         )
+         AND o.shipping_status IN ('pending', 'processing', 'shipped')
+         AND o.payment_status NOT IN ('failed', 'refunded', 'cancelled')
+       ORDER BY o.id DESC, oi.id ASC
+       LIMIT 1`,
+    )
+    .bind(fingerprint, now, submitToken)
+    .first<CanonicalOrderRow>();
+}
 
 export type OrderNumberPrefix = "INV" | "ABN";
 
@@ -358,6 +467,37 @@ export async function persistOrder(
     throw new OrderInputError("Rekening transfer tidak tersedia.");
   }
 
+  const unitPrice = Number(variant.price);
+  const orderAmount = unitPrice * input.quantity + input.shippingCost;
+  const codFeeBearer = normalizePaymentFeeBearer(store.cod_fee_bearer);
+  const codFee =
+    input.paymentMethod === "cod"
+      ? calculateCodFeeBreakdown(orderAmount)
+      : calculateCodFeeBreakdown(0);
+  const totalAmount =
+    input.paymentMethod === "cod"
+      ? calculateCodCustomerTotal(orderAmount, codFeeBearer)
+      : orderAmount;
+  const createdAt = new Date().toISOString();
+  const paymentStatus =
+    input.paymentMethod === "cod" ? "unpaid" : "pending";
+  const checkoutFingerprint = await createCheckoutFingerprint({
+    storeId: store.id,
+    variantId: variant.id,
+    order: input,
+    totalAmount,
+  });
+  const dedupeExpiresAt = new Date(
+    new Date(createdAt).getTime() + CHECKOUT_DEDUPE_WINDOW_MS,
+  ).toISOString();
+  const existingOrder = await findCanonicalOrder(
+    database,
+    checkoutFingerprint,
+    input.submitToken,
+    createdAt,
+  );
+  if (existingOrder) return persistedOrderFromRow(existingOrder, false);
+
   const abandonedOrder = await database
     .prepare(
       `SELECT id, order_number, public_status_token
@@ -379,20 +519,6 @@ export async function persistOrder(
     : (await allocateOrderNumber(database, "INV"));
   const publicStatusToken =
     abandonedOrder?.public_status_token || crypto.randomUUID();
-  const unitPrice = Number(variant.price);
-  const orderAmount = unitPrice * input.quantity + input.shippingCost;
-  const codFeeBearer = normalizePaymentFeeBearer(store.cod_fee_bearer);
-  const codFee =
-    input.paymentMethod === "cod"
-      ? calculateCodFeeBreakdown(orderAmount)
-      : calculateCodFeeBreakdown(0);
-  const totalAmount =
-    input.paymentMethod === "cod"
-      ? calculateCodCustomerTotal(orderAmount, codFeeBearer)
-      : orderAmount;
-  const createdAt = new Date().toISOString();
-  const paymentStatus =
-    input.paymentMethod === "cod" ? "unpaid" : "pending";
 
   try {
     const orderStatement = abandonedOrder
@@ -424,14 +550,18 @@ export async function persistOrder(
                  courier_code = ?,
                  courier_service = ?,
                  ad_click_ids = COALESCE(?, ad_click_ids),
+                 meta_request_context = COALESCE(?, meta_request_context),
                  seller_bank_account_id = ?,
                  seller_bank_code = ?,
                  seller_bank_name = ?,
                  seller_account_holder = ?,
-                 seller_account_number = ?
+                 seller_account_number = ?,
+                 checkout_fingerprint = ?,
+                 checkout_dedupe_expires_at = ?
              WHERE id = ?
                AND customer_phone = ?
                AND shipping_status = 'abandoned'
+               AND checkout_fingerprint IS NULL
                AND unixepoch(created_at) >= unixepoch('now', '-2 hours')`,
           )
           .bind(
@@ -458,6 +588,7 @@ export async function persistOrder(
             input.courierCode || null,
             input.courierService || null,
             input.adClickIds || null,
+            input.metaRequestContext || null,
             sellerBankAccount?.id || null,
             sellerBankAccount?.bank_code || null,
             sellerBankAccount
@@ -465,22 +596,26 @@ export async function persistOrder(
               : null,
             sellerBankAccount?.account_holder || null,
             sellerBankAccount?.account_number || null,
+            checkoutFingerprint,
+            dedupeExpiresAt,
             abandonedOrder.id,
             input.customerPhone,
           )
       : database
           .prepare(
-            `INSERT INTO orders (
+            `INSERT OR IGNORE INTO orders (
               order_number, submit_token, public_status_token, store_id, warehouse_id,
               customer_name, customer_phone, customer_email, address, province, city, district, postal_code,
               total_amount, shipping_cost, cod_service_fee, cod_service_fee_vat,
               cod_fee_bearer, payment_method, payment_status, shipping_status,
               destination_area_id, courier_code, courier_service, ad_click_ids,
+              meta_request_context,
               seller_bank_account_id, seller_bank_code, seller_bank_name,
-              seller_account_holder, seller_account_number, created_at
+              seller_account_holder, seller_account_number, created_at,
+              checkout_fingerprint, checkout_dedupe_expires_at
             ) VALUES (
               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending',
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )`,
           )
           .bind(
@@ -508,6 +643,7 @@ export async function persistOrder(
             input.courierCode || null,
             input.courierService || null,
             input.adClickIds || null,
+            input.metaRequestContext || null,
             sellerBankAccount?.id || null,
             sellerBankAccount?.bank_code || null,
             sellerBankAccount
@@ -516,6 +652,8 @@ export async function persistOrder(
             sellerBankAccount?.account_holder || null,
             sellerBankAccount?.account_number || null,
             createdAt,
+            checkoutFingerprint,
+            dedupeExpiresAt,
           );
 
     const identityPredicate = abandonedOrder
@@ -525,7 +663,22 @@ export async function persistOrder(
       abandonedOrder?.id || orderNumber,
       input.submitToken,
     ];
-    const statements = [orderStatement];
+    const statements = [
+      database
+        .prepare(
+          `UPDATE orders
+           SET checkout_fingerprint = NULL,
+               checkout_dedupe_expires_at = NULL
+           WHERE checkout_fingerprint = ?
+             AND (
+               checkout_dedupe_expires_at <= ?
+               OR shipping_status NOT IN ('pending', 'processing', 'shipped')
+               OR payment_status IN ('failed', 'refunded', 'cancelled')
+             )`,
+        )
+        .bind(checkoutFingerprint, createdAt),
+      orderStatement,
+    ];
     if (abandonedOrder) {
       statements.push(
         database
@@ -554,48 +707,53 @@ export async function persistOrder(
         ),
       database
         .prepare(
-          `SELECT id FROM orders
-           WHERE ${identityPredicate}
+          `SELECT o.id, o.order_number, o.public_status_token, o.total_amount,
+                  oi.unit_price, o.cod_service_fee, o.cod_service_fee_vat,
+                  o.cod_fee_bearer, o.seller_bank_account_id, o.seller_bank_code,
+                  o.seller_bank_name, o.seller_account_holder, o.seller_account_number
+           FROM orders o
+           INNER JOIN order_items oi ON oi.order_id = o.id
+           WHERE (
+               (o.checkout_fingerprint = ? AND o.checkout_dedupe_expires_at > ?)
+               OR o.submit_token = ?
+             )
+             AND o.shipping_status IN ('pending', 'processing', 'shipped')
+             AND o.payment_status NOT IN ('failed', 'refunded', 'cancelled')
+           ORDER BY o.id DESC, oi.id ASC
            LIMIT 1`,
         )
-        .bind(...identityBindings),
+        .bind(checkoutFingerprint, createdAt, input.submitToken),
     );
     const results = await database.batch(statements);
-    const row = results.at(-1)?.results?.[0] as { id?: number } | undefined;
-    if (!row?.id) throw new Error("Order gagal disimpan.");
+    const row = results.at(-1)?.results?.[0] as CanonicalOrderRow | undefined;
+    const created = Number(results[1]?.meta?.changes || 0) > 0;
+    if (!row?.id) {
+      if (!created) {
+        throw new DuplicateSubmissionError(
+          "Permintaan duplikat terdeteksi. Pesanan sudah diproses.",
+        );
+      }
+      throw new Error("Order gagal disimpan.");
+    }
     // Recorded here rather than in each of the three checkout routes that call
     // this, so a new entry point cannot forget it. Fail-open by contract: the
     // order is already committed and a buyer must never see a checkout fail
     // because an operator convenience could not be stored (REQ-149).
-    await recordNotification(database, {
-      type: "order",
-      orderId: row.id,
-      orderNumber,
-      ...buildOrderNotification({
-        orderNumber,
-        customerName: input.customerName,
-        totalAmount,
-        district: input.district,
-        city: input.city,
-      }),
-    });
-    return {
-      id: row.id,
-      orderNumber,
-      publicStatusToken,
-      totalAmount,
-      unitPrice,
-      codServiceFee: codFee.serviceFee,
-      codServiceFeeVat: codFee.vat,
-      codFeeBearer,
-      sellerBankAccountId: sellerBankAccount?.id,
-      sellerBankCode: sellerBankAccount?.bank_code,
-      sellerBankName: sellerBankAccount
-        ? paymentBrandLabel(sellerBankAccount.bank_code)
-        : undefined,
-      sellerAccountHolder: sellerBankAccount?.account_holder,
-      sellerAccountNumber: sellerBankAccount?.account_number,
-    };
+    if (created) {
+      await recordNotification(database, {
+        type: "order",
+        orderId: row.id,
+        orderNumber: row.order_number,
+        ...buildOrderNotification({
+          orderNumber: row.order_number,
+          customerName: input.customerName,
+          totalAmount: Number(row.total_amount),
+          district: input.district,
+          city: input.city,
+        }),
+      });
+    }
+    return persistedOrderFromRow(row, created);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (

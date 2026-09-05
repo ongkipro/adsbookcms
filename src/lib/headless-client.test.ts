@@ -145,15 +145,33 @@ function createJourneyDatabase(keyHash: string, providerBaseUrl: string) {
             meta: { changes: 0 },
           };
         }
-        if (statement.query.includes("INSERT INTO orders")) {
+        if (statement.query.includes("INSERT OR IGNORE INTO orders")) {
           savedOrder = {
             orderNumber: String(statement.values[0]),
             statusToken: String(statement.values[2]),
             totalAmount: Number(statement.values[13]),
           };
         }
-        if (statement.query.includes("SELECT id FROM orders")) {
-          return { success: true, results: [{ id: 99 }], meta: { changes: 0 } };
+        if (statement.query.includes("checkout_fingerprint") && statement.query.includes("FROM orders o")) {
+          return {
+            success: true,
+            results: savedOrder ? [{
+              id: 99,
+              order_number: savedOrder.orderNumber,
+              public_status_token: savedOrder.statusToken,
+              total_amount: savedOrder.totalAmount,
+              unit_price: 100_000,
+              cod_service_fee: 3450,
+              cod_service_fee_vat: 380,
+              cod_fee_bearer: "buyer",
+              seller_bank_account_id: null,
+              seller_bank_code: null,
+              seller_bank_name: null,
+              seller_account_holder: null,
+              seller_account_number: null,
+            }] : [],
+            meta: { changes: 0 },
+          };
         }
         return { success: true, results: [], meta: { changes: 1 } };
       });

@@ -101,7 +101,7 @@ class SqliteD1Database {
       "0046_landing_page_as_product_page.sql",
       // Native Astro pages are recorded in the same table (A-133).
       "0047_native_landing_pages.sql",
-      "0051_typed_landing_sections.sql",
+      "0055_typed_landing_sections.sql",
     ]) {
       this.#database.exec(
         readFileSync(

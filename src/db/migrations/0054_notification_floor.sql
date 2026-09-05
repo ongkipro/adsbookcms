@@ -1,0 +1,21 @@
+-- Per-operator notification floor and retention (NOT1).
+--
+-- Notifications are global to the install while read state is per operator, so
+-- an operator added to a store that already holds a long history saw the whole
+-- backlog as unread on first login — and clearing it wrote one
+-- `notification_reads` row per historical notification. That table therefore
+-- grew as notifications x operators, for a backlog that was never theirs.
+--
+-- The floor is the newest notification id at the moment the operator is
+-- created. Reads count and list only above it, so the backlog is neither shown
+-- nor claimed, and no read rows are written for it.
+--
+-- Existing operators are deliberately backfilled to 0 rather than to the
+-- current maximum: they may hold genuinely unread notifications right now, and
+-- a floor applied retroactively would silently mark those read. A floor only
+-- ever describes what existed *before* an operator did.
+--
+-- `admin_credentials.updated_at` was the obvious no-new-column alternative and
+-- is wrong for this: it doubles as the session revision, so rotating a
+-- password would move the floor and blind the operator to everything older.
+ALTER TABLE `admin_credentials` ADD COLUMN `notification_floor_id` integer NOT NULL DEFAULT 0;

@@ -13,6 +13,6 @@ export const CMS_VERSION: CmsVersionInfo = {
   // Stock stops gating a sale (ADR-023). No migration: the column is retained, inert.
   releaseTag: "2026.08-stock-unlimited",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
-  schemaVersion: 52,
+  schemaVersion: 56,
   lastUpdated: "2026-08-28",
 };

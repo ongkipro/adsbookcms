@@ -711,3 +711,94 @@ rules disagreeing about one column. *Setting every counter to `NULL` to mean
 but as **unpublished** in the read path, which is the bug in the first place;
 making the representation carry the meaning would have left that trap in place
 for whoever typed a number next.
+
+---
+
+## ADR-024 — The product owns migration numbers; an install that authors one renumbers around it
+
+**Status.** Accepted, 2026-09-05.
+
+**Context.** `zvarashop` and `permatamall` each authored migrations against
+their own live databases while the product moved on. Three different `0051`
+files now exist, and two of them are already applied in production D1:
+
+| | 0051 | 0052 | 0053 | 0054 |
+| --- | --- | --- | --- | --- |
+| product | `typed_landing_sections` | — | — | — |
+| zvarashop | `product_catalog_fields` | `meta_order_context` | `checkout_order_deduplication` | `notification_floor` |
+| permatamall | `product_brand` | `product_description` | `checkout_order_deduplication` | `meta_order_context` |
+
+`assertKnownHistory` compares the applied ledger to the bundled chain **by
+index and name** (`src/lib/schema-version.ts`). So the next `git merge
+product/main` in either store ships a bundle whose slot 51 disagrees with the
+row already claimed there, and the store answers `SCHEMA_UPGRADE_HISTORY_UNKNOWN`
+— a fail-closed 503 on every database-backed request. Not a degraded store: a
+dark one.
+
+The schemas themselves had already converged. Verified against live D1 rather
+than assumed: `products` and `orders` are column-for-column identical in both
+stores (`brand`, `description`, `meta_request_context`, `checkout_fingerprint`,
+`checkout_dedupe_expires_at`), and only `zvarashop` carries
+`admin_credentials.notification_floor_id`. Two stores solved the same problems
+and wrote the same DDL under different file names. Nothing needs to be
+reconciled but the ledger.
+
+**Decision.** Migration numbers belong to the product. The canonical chain
+adopts the four install-authored migrations at the numbers `zvarashop` already
+holds, and moves the product's own `0051_typed_landing_sections.sql` to `0055`:
+
+```
+0051_product_catalog_fields.sql
+0052_meta_order_context.sql
+0053_checkout_order_deduplication.sql
+0054_notification_floor.sql
+0055_typed_landing_sections.sql
+```
+
+This renames an applied migration, which RELEASE.md §3 otherwise forbids. The
+prohibition exists to stop a schema change being edited under a database that
+already ran it; here the SQL is untouched and only its position moves, and the
+alternative — leaving three chains to collide — is the outcome the rule is
+meant to prevent.
+
+The numbering was chosen by counting who has to be repaired, not by seniority:
+
+| Store | Ledger before | Repair needed |
+| --- | --- | --- |
+| zvarashop | 55 rows, `0000`–`0054` | **none** — already an exact prefix |
+| carukesi, skincarebpom, taniniaga | 51 rows, `0000`–`0050` | **none** — prefix; applies `0051`–`0055` |
+| permatamall | 55 rows, order differs | ledger rewrite |
+| beranda-tani | 52 rows, holds `0051_typed_landing_sections` | ledger rewrite (no orders yet) |
+
+Adopting `permatamall`'s ordering instead would have moved the repair onto
+`zvarashop`; keeping the product's `0051` in place would have required
+repairing both live stores. This ordering leaves exactly one store with orders
+needing surgery.
+
+**Consequences.** `schemaVersion` becomes 56. Two ledgers must be rewritten
+before their next merge, each against a backup, in one batch, and never by
+blanking `d1_migrations` — a half-applied repair would leave the gate seeing an
+empty history and attempting the whole chain against a populated database.
+`permatamall`'s two rows for `brand` and `description` collapse into the single
+`product_catalog_fields` row that produced the same two columns.
+
+**Rehearsed, not theorised.** `beranda-tani` went first, chosen because it had
+no orders and no products. Deploying the merged bundle against its old ledger
+returned **503 on `/`** — the gate refusing an indeterminate schema, which is
+precisely the failure the two live stores were headed for. Deleting the single
+stale row let the chain re-derive itself: 56 rows, `0051`–`0055` applied in
+canonical order, `200` on the request after.
+
+The store was unavailable for **under 40 seconds**, deploy to recovery, and
+almost all of it was the human between the two steps — the `DELETE` changed one
+row and the site answered on the next request. So `permatamall`'s window is a
+scheduling problem, not a technical one: stage the repair SQL, deploy, run it.
+
+**Rejected.** *Comparing the ledger by content hash instead of name* — it would
+have made all three chains valid without touching a live database, and it is
+the more permissive rule this gate exists to refuse: a forked schema is exactly
+what index-and-name equality is there to catch. *Leaving each install its own
+numbering* — the collision is then permanent, and every future merge is a
+manual reconciliation. *Squashing the install migrations into one* — the four
+land in different releases and one of them (`notification_floor`) exists in
+only one store.

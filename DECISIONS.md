@@ -782,6 +782,18 @@ empty history and attempting the whole chain against a populated database.
 `permatamall`'s two rows for `brand` and `description` collapse into the single
 `product_catalog_fields` row that produced the same two columns.
 
+**Rehearsed, not theorised.** `beranda-tani` went first, chosen because it had
+no orders and no products. Deploying the merged bundle against its old ledger
+returned **503 on `/`** — the gate refusing an indeterminate schema, which is
+precisely the failure the two live stores were headed for. Deleting the single
+stale row let the chain re-derive itself: 56 rows, `0051`–`0055` applied in
+canonical order, `200` on the request after.
+
+The store was unavailable for **under 40 seconds**, deploy to recovery, and
+almost all of it was the human between the two steps — the `DELETE` changed one
+row and the site answered on the next request. So `permatamall`'s window is a
+scheduling problem, not a technical one: stage the repair SQL, deploy, run it.
+
 **Rejected.** *Comparing the ledger by content hash instead of name* — it would
 have made all three chains valid without touching a live database, and it is
 the more permissive rule this gate exists to refuse: a forked schema is exactly

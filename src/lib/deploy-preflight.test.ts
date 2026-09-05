@@ -16,16 +16,26 @@ const installTarget = {
 test("a real install passes, and the product's own config never does", () => {
   assert.deepEqual(checkDeployTarget(installTarget), { ok: true });
 
-  // This repository, read from disk. RELEASE.md §1: "there is no production
-  // Worker to reach" here, so refusing is the correct answer, not a false
-  // positive to be worked around.
-  const product = parseWranglerConfig(
+  // The config on disk, whichever repository this is. In the product,
+  // RELEASE.md §1 says "there is no production Worker to reach", so refusing
+  // is the correct answer. In an install the same file is a real target and
+  // must pass, which is why this cannot assert one outcome unconditionally:
+  // the previous version read the file as if it were always the product's, so
+  // it went red in every install the moment one carried this test — turning a
+  // documented pre-deploy gate into noise operators learn to skip.
+  const onDisk = parseWranglerConfig(
     readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8"),
   );
-  const result = checkDeployTarget(product);
-  assert.equal(result.ok, false);
-  assert.ok(result.ok === false && result.reasons.length >= 3, "name, D1 and R2 each report");
-  assert.match(String(product.name), new RegExp(PRODUCT_PLACEHOLDER_PREFIX));
+  const result = checkDeployTarget(onDisk);
+  if (String(onDisk.name).startsWith(PRODUCT_PLACEHOLDER_PREFIX)) {
+    assert.equal(result.ok, false);
+    assert.ok(result.ok === false && result.reasons.length >= 3, "name, D1 and R2 each report");
+  } else {
+    // An install must pass its own preflight. This is the stronger half: a
+    // merge that drags the product's placeholders back into a live store's
+    // wrangler.jsonc now fails the suite before anyone runs `npm run deploy`.
+    assert.deepEqual(result, { ok: true }, "an install must pass its own deploy preflight");
+  }
 });
 
 /**

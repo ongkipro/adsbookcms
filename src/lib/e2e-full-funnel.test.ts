@@ -162,6 +162,9 @@ class SqliteD1Database {
         seller_bank_name TEXT,
         seller_account_holder TEXT,
         seller_account_number TEXT,
+        meta_request_context TEXT,
+        checkout_fingerprint TEXT,
+        checkout_dedupe_expires_at TEXT,
         created_at TEXT NOT NULL
       );
 

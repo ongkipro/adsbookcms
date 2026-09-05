@@ -151,7 +151,28 @@ export function hasClickId(ids: ClickIds): boolean {
 // step with the identical pattern in `meta-event-contract.ts`, which guards the
 // browser-supplied copy of the same two values.
 const FB_BROWSER_ID_PATTERN = /^fb\.\d\.\d{10,20}\..+$/;
+
+/**
+ * `_fbp` and `_fbc` are only usable as CAPI match keys in Meta's own
+ * `fb.N.timestamp.payload` shape; anything else degrades event match quality
+ * rather than improving it. Exported so the order context that carries these
+ * to the server-side Purchase validates them with the same rule this module
+ * already applies when it reads the cookie.
+ */
+export function isValidMetaBrowserId(value: unknown): value is string {
+  return typeof value === "string" && FB_BROWSER_ID_PATTERN.test(value);
+}
 const META_EXTERNAL_ID_PATTERN = /^[a-f0-9]{32}$/;
+
+/**
+ * The 32-hex `external_id` the storefront mints and stores in its own cookie.
+ * Exported alongside `isValidMetaBrowserId` so a caller carrying these values
+ * to a server-side Purchase cannot invent a looser rule than the one this
+ * module enforces when it reads them back.
+ */
+export function isValidMetaExternalId(value: unknown): value is string {
+  return typeof value === "string" && META_EXTERNAL_ID_PATTERN.test(value);
+}
 
 function readCookieValue(cookieHeader: string, name: string): string | undefined {
   const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));

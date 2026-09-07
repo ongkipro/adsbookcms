@@ -5067,3 +5067,89 @@ A documentation pass, not a code pass. `npm test` 618/618 and `npm run check`
   `MENGANTAR_INTEGRATION_SPEC.md`, `PLAN.md`, `PRD-ADMIN-LOGIN.md` and the
   `docs/` set keep their older stamps, because restamping a document nobody
   verified is precisely the lie the header exists to prevent.
+
+### Entry 175: Parity with the live stores, and a dictionary to audit by
+
+Nine merges on 2026-09-07, every one screened against `zvarashop` and
+`permatamall` and taken only where the product had nothing of its own to
+lose. `npm test` 618 → 656, `npm run check` 411 files / 0 errors throughout.
+Each behaviour below was already running in production on at least one
+install; what changed is that the product now carries it, so the four
+installs that track `main` gained it the same day and the two that fork it
+have nothing left to teach.
+
+- **`docs/ROUTE-MAP.md` / `docs/route-map.xml` became a dictionary.** Beyond
+  URL → file, every route now names the `src/lib` modules it imports, the D1
+  tables that surface touches (one level: its own SQL plus its direct imports',
+  and only tables a migration actually created), and the tests where a
+  regression would show; a `<modules>` section reads the same book from the
+  module side. All derived, none typed, drift-tested. On its first run it
+  named the 14 of 99 modules with no sibling test. `README.md`, `AGENTS.md`
+  §2 and `ARCHITECTURE.md` §3 point at it and stop carrying counts of their
+  own — they had 52 migrations and 593 tests when the tree had 56 and 628.
+- **Checkout deduplication** (`0053` had shipped the columns without the
+  guard). A double-tap or a retried POST used to create two orders, two
+  invoices and two Purchases from one sale. `persistOrder` now fingerprints
+  the checkout and reuses the live order inside a two-hour window. The
+  installs shipped it untested; the test here was verified by disabling the
+  guard.
+- **Meta identity carried to a Purchase sent hours later.** Three capture
+  points store `_fbp`, `_fbc`, external id, IP and user agent on the order;
+  the paid-order Purchase and the headless tracking endpoint read them back.
+  Country is sent; Meta reads its absence as a missing key, not a default.
+  Ported by hand: the installs' copies of `submit-order.ts` and
+  `paid-order-purchase.ts` predate `buyerEmail` and `matchableCustomerEmail`,
+  and copying them would have traded a fix for a feature.
+- **CAPI outbox hardened.** Two drains — a visitor's `waitUntil` and the
+  cron — used to select the same due rows and both transmit them; an install
+  showed `attempts` of 9 against a budget of 5. Rows are now claimed with one
+  `UPDATE … RETURNING` and a five-minute lease, Purchases first. Settled rows
+  are purged after thirty days (one install carried 3,464 with nothing left
+  to send). `requeueRecoverableEvents` offers terminal rows back after an
+  outage once a live probe proves the destination reachable; the predicate is
+  structural, because a destination misconfiguration that honestly exhausted
+  107 rows is exactly as recoverable as a dead token. Tests run on a real
+  in-memory SQLite: the claim is a property of how the database serializes
+  two writers, and a mock returning rows on demand would prove nothing.
+- **AutoLaris submits digital orders and reconciles them hourly.** The
+  webhook was retired (ADR-022) and nothing scheduled the Advice inquiry, so
+  a QRIS/VA payment could be created and never learned about. The cron now
+  asks Advice for each pending transaction and marks it paid on `rc: "00"`
+  alone — `02` stays pending, anything else is unproven and moves nothing —
+  then hands the order to the Purchase path. The health card reads `paid_at`.
+  `RELEASE.md`, `STATUS.md` and `UNIMPLEMENTED_SPECS.md` said the opposite
+  and were corrected, honest that a settled response is still unobserved.
+- **The Pixel ID field refuses a Business Manager ID.** `^\d{5,25}$` accepted
+  one and both signal legs died silently for a day on an install. Meta is
+  asked for a field only an AdsPixel node carries; a resolvable non-pixel is
+  refused and named, an inconclusive answer warns and never blocks. Each ads
+  setting now reports its source — database, environment or none — and a
+  Google Ads destination is taken whole from one source, closing a defect
+  where a database ID could pair with an environment label.
+- **A new operator inherits no notification backlog** (`0054` had shipped the
+  column unread). The floor is stamped in the `INSERT` that creates them;
+  every read filters above it. Notifications are purged after ninety days —
+  the `// lazy:` note in the module had named exactly that ceiling.
+- **The deploy preflight refuses a stale tree.** `wrangler deploy` uploads the
+  working tree, and that reverted production twice — once on 2026-08-28, once
+  during this session. `evaluateDeployPreflight` now refuses a HEAD behind its
+  upstream (after fetching), uncommitted tracked changes, detached HEAD and an
+  untracked branch; the placeholder refusal stays and cannot be overridden.
+  `RELEASE.md` §7 rewritten to match.
+- **A Purchase is a submitted order with the order's own catalog identity.**
+  An abandoned lead's status token used to be enough to send Meta a Purchase;
+  both routes now gate on eligibility (COD at submit, prepaid when paid, never
+  abandoned/failed/cancelled/returned/refunded) and replace the caller's
+  `content_ids` with the order's `products.id` list in the feed's own shape.
+- **Two small truths.** Every page shipped two robots directives, and on
+  `/thanks` and `/payment` they disagreed; `astro-seo` now owns the one tag.
+  The feeds sent the store name as every product's brand though
+  `products.brand` has existed since `0051`.
+
+What this pass did **not** take: the installs' Meta Pixel loading strategy
+(they load synchronously "for immediate detection"; the product defers and
+measured Purchase 2522 ms → 45 ms — a decision for the owner, not a port),
+their `aria-label` sweep (browser-visible, routes to the designer lane), and
+their landing pages (ADR-016). `zvarashop` and `zanobyshop` remain forks; with
+their proven behaviour upstream, bringing them forward is a merge of pages and
+config and needs its own release session.

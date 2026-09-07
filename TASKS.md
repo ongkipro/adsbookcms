@@ -1204,6 +1204,34 @@ A-50 install topology (blocked until A-10 removes the build-time constraint)
 
 ---
 
+## Phase A — added 2026-09-07
+
+Parity with the two forked installs, taken upstream after screening each
+behaviour against both. BUILD-LOG Entry 175 carries the evidence.
+
+- [x] **A-257** — The route map is a dictionary: libs, tables and tests per route, and a module index. **Done 2026-09-07.**
+ -> `src/lib/route-map.ts` derives every column; `route-map.test.ts` fails on drift. 14 of 99 modules named as untested.
+- [x] **A-258** — Checkout deduplication guard for the columns `0053` shipped. **Done 2026-09-07.**
+ -> `persistOrder` fingerprints and reuses inside two hours; test verified by disabling the guard.
+- [x] **A-259** — Meta identity captured at checkout reaches the Purchase sent later. **Done 2026-09-07.**
+ -> three capture points, two consumers, `country` sent; ported by hand around `buyerEmail`/`matchableCustomerEmail`.
+- [x] **A-260** — CAPI outbox: claim-before-send lease, thirty-day purge, recovery requeue. **Done 2026-09-07.**
+ -> `UPDATE … RETURNING` claim, Purchases first; tests on real SQLite for the two-writer property.
+- [x] **A-261** — AutoLaris digital orders submitted; Advice reconciliation hourly, paid on `rc: "00"` only. **Done 2026-09-07.**
+ -> `reconcileAutoLarisPaymentStatuses` from the cron; health reads `paid_at`; RELEASE/STATUS/UNIMPLEMENTED corrected.
+- [x] **A-262** — Pixel ID verified against Meta before save; ads settings report their source. **Done 2026-09-07.**
+ -> `verifyMetaPixelIdentity`; `AdsConfigSource`; Google Ads destination taken whole from one source.
+- [x] **A-263** — Notification floor stamped at operator creation; ninety-day purge. **Done 2026-09-07.**
+ -> the `// lazy:` ceiling in `notifications.ts` is closed.
+- [x] **A-264** — Deploy preflight refuses a stale or dirty tree, after fetching. **Done 2026-09-07.**
+ -> `evaluateDeployPreflight`; placeholder refusal kept and non-overridable; `ALLOW_STALE_DEPLOY=1` documented in RELEASE §7.
+- [x] **A-265** — A Purchase requires an eligible order and carries the order's catalog identity. **Done 2026-09-07.**
+ -> `isMetaPurchaseOrderEligible` (409 on both routes); `resolveMetaPurchaseContentIds` replaces the caller's list.
+- [x] **A-266** — One robots directive per page; product brand in the feeds. **Done 2026-09-07.**
+ -> `nofollow={noindex}` through `astro-seo`; `<g:brand>` from `products.brand`, store name as fallback.
+- [ ] **A-267** — Decide the fleet's Meta Pixel loading strategy: deferred (product, measured 2522 → 45 ms Purchase) or synchronous (two installs, "immediate detection"). Owner decision; not a port.
+- [ ] **A-268** — Bring `zvarashop` and `zanobyshop` forward. Proven behaviour is upstream; what remains is pages and config. Each needs a backup, a maintenance window and its own session.
+
 ## Phase A — added 2026-08-17
 
 Found by an adversarial audit of the install and auth paths against the built

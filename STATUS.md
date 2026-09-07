@@ -1,29 +1,30 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-08-29 @ `9766ad6`
+> Verified against disk: 2026-09-07 @ `93ccb52`
 
 ## Where this stands, for whoever picks it up next
 
-**Committed and pushed** through `9766ad6`. Working tree clean; nothing from the
-2026-08-28/29 audit is left uncommitted. Six BUILD-LOG entries cover it (89–96),
-tasks **A-182 … A-231**.
+**Committed and pushed** through `93ccb52`. Working tree clean. BUILD-LOG
+Entry 175 covers the 2026-09-07 pass, tasks **A-257 … A-266** done, **A-267**
+and **A-268** open.
 
-**What changed, in one line:** the ad-signal chain went from losing conversions
-on three paths in silence to being correct and browser-proven, and one legacy
-product row no longer takes the storefront down.
+**What changed, in one line:** everything the two forked installs had proven
+in production — checkout dedupe, Meta identity on late Purchases, a claimed
+and purged CAPI outbox with recovery, hourly AutoLaris reconciliation, Pixel
+ID verification, notification floor, a preflight that refuses a stale tree,
+Purchase eligibility and order-owned content_ids — is now the product's, and
+the four installs tracking `main` run it. Start any audit at
+`docs/ROUTE-MAP.md`.
 
-**The single most valuable next item is A-227** — the Google Ads offline outbox
-has no health signal and no alert, which is exactly why its head-of-line block
-ran invisibly. Everything else queued is in `TASKS.md` §Forward backlog: 22
-items across QA, security, Cloudflare, Meta Ads and Google Ads, five of them
-marked as needing an ADR that has not been written because the decision has not
-been made.
+**The two open decisions are A-267 and A-268.** A-267 is the fleet's Meta
+Pixel loading strategy — deferred here, synchronous on two installs — and is
+the owner's call, not a port. A-268 brings `zvarashop` and `zanobyshop`
+forward; their behaviour is upstream, so what remains is pages and config,
+each in its own release session with a backup.
 
-**The gap that no amount of local work can close** is live verification. No call
-has ever been made to Meta, Google Ads, Merchant Center or Mengantar from this
-repository. Deploying one install, configuring the pixel from the dashboard, and
-reading Events Manager closes more of it in an afternoon than another audit
-pass would. `UNIMPLEMENTED_SPECS.md` §3 now lists those blockers explicitly.
+**Still unobserved on this product:** a settled AutoLaris Advice response, and
+a real Purchase's event match quality in Events Manager. Both are one live
+order away, not another local pass.
 
 **Do not run `npm run deploy` here** — it refuses, correctly. This repository is
 the product and its `wrangler.jsonc` is placeholders; an install deploys from

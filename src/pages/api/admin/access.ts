@@ -88,8 +88,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       .prepare(
         `INSERT INTO admin_credentials (
           username, display_name, email, role, password_hash,
-          must_change_password, updated_at
-        ) VALUES (?, ?, ?, ?, ?, 1, ?)`,
+          must_change_password, updated_at, notification_floor_id
+        ) VALUES (?, ?, ?, ?, ?, 1, ?,
+          COALESCE((SELECT MAX(id) FROM notifications), 0))`,
       )
       .bind(username, displayName, email || null, role, passwordHash, now)
       .run();

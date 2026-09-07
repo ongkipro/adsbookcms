@@ -11,6 +11,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   notificationHref,
+  purgeExpiredNotifications,
   recordNotification,
 } from "./notifications.ts";
 import { GET, POST } from "../pages/api/admin/notifications.ts";
@@ -81,16 +82,27 @@ class NotificationDatabase {
         order_number TEXT NOT NULL,
         shipping_status TEXT NOT NULL
       );
+      CREATE TABLE admin_credentials (
+        id INTEGER PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        updated_at TEXT NOT NULL
+      );
       INSERT INTO stores VALUES (1);
       INSERT INTO orders VALUES (5, 1, 'INV-10005', 'pending');
       INSERT INTO orders VALUES (6, 1, 'ABN-10006', 'abandoned');
+      INSERT INTO admin_credentials VALUES (1, 'owner.one', '2026-01-01T00:00:00.000Z');
     `);
-    this.sqlite.exec(
-      readFileSync(
-        new URL("../db/migrations/0045_operator_notifications.sql", import.meta.url),
-        "utf8",
-      ).replaceAll("--> statement-breakpoint", ""),
-    );
+    for (const migration of [
+      "0045_operator_notifications.sql",
+      "0054_notification_floor.sql",
+    ]) {
+      this.sqlite.exec(
+        readFileSync(
+          new URL(`../db/migrations/${migration}`, import.meta.url),
+          "utf8",
+        ).replaceAll("--> statement-breakpoint", ""),
+      );
+    }
   }
 
   prepare(sql: string) {
@@ -348,4 +360,91 @@ test("notification copy states the money and the destination", () => {
   });
   assert.equal(payment.title, "Pembayaran lunas INV-10041");
   assert.match(payment.body, /Rp 118\.400/);
+});
+
+// NOT1 — a newly added operator must inherit no backlog. Without the floor,
+// their first login shows every historical notification as unread, and
+// clearing the badge writes one `notification_reads` row per historical
+// notification, so that table grows as notifications x operators.
+
+const addOperator = (database: NotificationDatabase, username: string, floor: number) =>
+  database.sqlite.exec(
+    `INSERT INTO admin_credentials (username, updated_at, notification_floor_id)
+     VALUES ('${username}', '2026-01-01T00:00:00.000Z', ${floor})`,
+  );
+
+test("an operator added after the fact sees neither the backlog nor its badge", async () => {
+  const database = new NotificationDatabase();
+  await recordNotification(asD1(database), orderInput());
+  await recordNotification(asD1(database), orderInput({ type: "payment" }));
+
+  // Joined at the newest notification that already existed.
+  const floor = database.sqlite
+    .prepare("SELECT MAX(id) AS newest FROM notifications")
+    .get() as { newest: number };
+  addOperator(database, "cs.new", floor.newest);
+
+  assert.equal(await countUnreadNotifications(asD1(database), "cs.new"), 0);
+  assert.deepEqual(await listNotifications(asD1(database), "cs.new"), []);
+
+  // The operator who was already there is untouched by someone else joining.
+  assert.equal(await countUnreadNotifications(asD1(database), "owner.one"), 2);
+  assert.equal((await listNotifications(asD1(database), "owner.one")).length, 2);
+});
+
+test("clearing the badge claims no notification from below the floor", async () => {
+  const database = new NotificationDatabase();
+  await recordNotification(asD1(database), orderInput());
+  await recordNotification(asD1(database), orderInput({ type: "payment" }));
+  addOperator(database, "cs.new", 2);
+
+  await markAllNotificationsRead(asD1(database), "cs.new");
+  const claimed = database.sqlite
+    .prepare("SELECT COUNT(*) AS rows FROM notification_reads WHERE operator_username = 'cs.new'")
+    .get() as { rows: number };
+  assert.equal(claimed.rows, 0, "the backlog must not cost one read row per historical event");
+});
+
+test("an event after the operator joined is theirs", async () => {
+  const database = new NotificationDatabase();
+  await recordNotification(asD1(database), orderInput());
+  addOperator(database, "cs.new", 1);
+
+  await recordNotification(asD1(database), orderInput({ type: "lead", orderId: 6, orderNumber: "ABN-10006" }));
+  assert.equal(await countUnreadNotifications(asD1(database), "cs.new"), 1);
+
+  await markAllNotificationsRead(asD1(database), "cs.new");
+  assert.equal(await countUnreadNotifications(asD1(database), "cs.new"), 0);
+  const claimed = database.sqlite
+    .prepare("SELECT COUNT(*) AS rows FROM notification_reads WHERE operator_username = 'cs.new'")
+    .get() as { rows: number };
+  assert.equal(claimed.rows, 1, "exactly the one event that happened after they joined");
+});
+
+test("an unknown operator fails open rather than being shown nothing", async () => {
+  const database = new NotificationDatabase();
+  await recordNotification(asD1(database), orderInput());
+  assert.equal(await countUnreadNotifications(asD1(database), "never.seen"), 1);
+});
+
+test("notifications are pruned on schedule and take their read rows with them", async () => {
+  const database = new NotificationDatabase();
+  await recordNotification(asD1(database), orderInput());
+  await markAllNotificationsRead(asD1(database), "owner.one");
+  database.sqlite.exec("UPDATE notifications SET created_at = '2026-01-01T00:00:00.000Z'");
+  await recordNotification(asD1(database), orderInput({ type: "payment" }));
+
+  const purged = await purgeExpiredNotifications(asD1(database), new Date("2026-06-01T00:00:00.000Z"));
+  assert.equal(purged, 1, "only the row past its retention window");
+  assert.equal((await listNotifications(asD1(database), "owner.one")).length, 1);
+  const orphans = database.sqlite
+    .prepare("SELECT COUNT(*) AS rows FROM notification_reads")
+    .get() as { rows: number };
+  assert.equal(orphans.rows, 0, "ON DELETE cascade must clear the read rows too");
+});
+
+test("a fresh notification is never pruned", async () => {
+  const database = new NotificationDatabase();
+  await recordNotification(asD1(database), orderInput());
+  assert.equal(await purgeExpiredNotifications(asD1(database), new Date()), 0);
 });

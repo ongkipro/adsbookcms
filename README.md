@@ -67,7 +67,7 @@ Every command below exists in `package.json`.
 npm run dev            # astro dev on :4321 — no Worker bindings
 npm run cf:dev         # wrangler dev --local
 
-npm test               # node --test over src/lib/*.test.ts  (628 tests)
+npm test               # node --test over src/lib/*.test.ts  (656 tests)
 npm run route-map      # regenerate docs/ROUTE-MAP.md + route-map.xml from src/pages
 npm run check          # astro check && tsc --noEmit
 npm run build          # astro build

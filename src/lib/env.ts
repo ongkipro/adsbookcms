@@ -7,7 +7,7 @@ try {
   // Fallback for non-Cloudflare environments (e.g. Node unit test runner)
 }
 
-type EnvSource = Record<string, unknown> | null | undefined;
+type EnvSource = CloudflareRuntimeEnv | Record<string, unknown> | null | undefined;
 
 function normalizeEnvValue(value: unknown) {
   if (value === undefined || value === null) {
@@ -18,8 +18,10 @@ function normalizeEnvValue(value: unknown) {
   return normalized === '' ? '' : normalized;
 }
 
-export function getRuntimeEnv(locals?: App.Locals): EnvSource {
-  const localEnv = (locals as { runtimeEnv?: Record<string, unknown> } | undefined)?.runtimeEnv;
+export function getRuntimeEnv(
+  locals?: { runtimeEnv?: CloudflareRuntimeEnv | Record<string, unknown> },
+): EnvSource {
+  const localEnv = locals?.runtimeEnv;
   if (localEnv && typeof localEnv === 'object') {
     return localEnv;
   }
@@ -27,7 +29,9 @@ export function getRuntimeEnv(locals?: App.Locals): EnvSource {
 }
 
 export function getEnvValue(key: string, env?: EnvSource) {
-  const runtimeValue = normalizeEnvValue(env?.[key]);
+  const runtimeValue = normalizeEnvValue(
+    (env as Record<string, unknown> | null | undefined)?.[key],
+  );
   if (runtimeValue !== '') {
     return runtimeValue;
   }

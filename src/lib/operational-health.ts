@@ -77,7 +77,7 @@ export type MengantarWindow = {
 export type AutoLarisWindow = {
   rowsScanned: number;
   lastOutboundAt: string | null;
-  lastManualConfirmationAt: string | null;
+  lastPaidAt: string | null;
   failedInWindow: number;
 };
 
@@ -187,10 +187,9 @@ export function classifyMengantar(
  * When AutoLaris was last reached and when an operator last verified payment.
  *
  * Outbound: a `payment_transactions` row that received a
- * `provider_transaction_id` proves AutoLaris accepted a create-payment call.
- * Manual confirmation is authoritative only when an immutable reconciliation
- * audit exists. Payments created but never confirmed is "nobody verified one
- * yet", not evidence of an upstream outage.
+ * `provider_transaction_id` proves AutoLaris accepted a Create Order call.
+ * `paid_at` is written by either guarded Advice reconciliation or the audited
+ * manual fallback. Payments created but never paid are not an upstream outage.
  */
 export function classifyAutoLaris(
   window: AutoLarisWindow | null,
@@ -209,16 +208,15 @@ export function classifyAutoLaris(
       ? signal("autolaris", "degraded", "create-failing", null, now, metrics)
       : signal("autolaris", "unknown", "no-accepted-request", null, now, metrics);
   }
-  if (!window.lastManualConfirmationAt) {
+  if (!window.lastPaidAt) {
     // Not "unknown": the provider has accepted requests, so there IS data and
     // the badge must not say "Belum ada data" beside eleven transactions.
-    // What has not happened yet is a manual confirmation, which the reason
-    // text already states. That is a healthy integration awaiting an
-    // operator step, not a missing one.
+    // What has not happened yet is a confirmed payment. That is a healthy
+    // integration awaiting a buyer, not a missing one.
     return signal(
       "autolaris",
       "healthy",
-      "awaiting-first-manual-confirmation",
+      "awaiting-first-payment",
       window.lastOutboundAt,
       now,
       metrics,
@@ -227,8 +225,8 @@ export function classifyAutoLaris(
   return signal(
     "autolaris",
     "healthy",
-    "manually-confirmed",
-    window.lastManualConfirmationAt,
+    "payment-confirmed",
+    window.lastPaidAt,
     now,
     metrics,
   );
@@ -286,7 +284,7 @@ async function readMengantarWindow(
 
 /**
  * lazy: same bounded window, same reason — neither transaction `created_at` nor
- * audit `confirmed_at` is indexed for this exact query. `created_at` rather
+ * `paid_at` is indexed for this exact query. `created_at` rather
  * than `updated_at` dates the outbound call independently of reconciliation.
  */
 async function readAutoLarisWindow(
@@ -298,13 +296,11 @@ async function readAutoLarisWindow(
         `SELECT
            COUNT(*) AS rows_scanned,
            MAX(CASE WHEN provider_transaction_id IS NOT NULL THEN created_at END) AS last_outbound_at,
-           MAX(confirmed_at) AS last_manual_confirmation_at,
+           MAX(paid_at) AS last_paid_at,
            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_in_window
          FROM (
-           SELECT pt.provider_transaction_id, pt.created_at, audit.confirmed_at, pt.status
+           SELECT pt.provider_transaction_id, pt.created_at, pt.paid_at, pt.status
            FROM payment_transactions pt
-           LEFT JOIN payment_reconciliation_audits audit
-             ON audit.payment_transaction_id = pt.id
            ORDER BY pt.id DESC LIMIT ?
          )`,
       )
@@ -312,13 +308,13 @@ async function readAutoLarisWindow(
       .first<{
         rows_scanned: number | null;
         last_outbound_at: string | null;
-        last_manual_confirmation_at: string | null;
+        last_paid_at: string | null;
         failed_in_window: number | null;
       }>();
     return {
       rowsScanned: Number(row?.rows_scanned ?? 0),
       lastOutboundAt: row?.last_outbound_at ?? null,
-      lastManualConfirmationAt: row?.last_manual_confirmation_at ?? null,
+      lastPaidAt: row?.last_paid_at ?? null,
       failedInWindow: Number(row?.failed_in_window ?? 0),
     };
   } catch (error) {

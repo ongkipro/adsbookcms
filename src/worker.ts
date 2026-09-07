@@ -1,4 +1,4 @@
-import type { ExportedHandler } from "@cloudflare/workers-types";
+import type { ExecutionContext, ExportedHandler } from "@cloudflare/workers-types";
 import { handle } from "@astrojs/cloudflare/handler";
 import { purgeExpiredAbandonedOrders } from "./lib/order-persistence.ts";
 import { getEnvValue } from "./lib/env.ts";
@@ -12,7 +12,10 @@ import { purgeExpiredRateLimits } from "./lib/rate-limit.ts";
 import {
   expirePendingPaymentTransactions,
   purgeExpiredAutoLarisCallbacks,
+  reconcileAutoLarisPaymentStatuses,
 } from "./lib/autolaris-payment.ts";
+import { enqueuePurchaseForPaidOrder } from "./lib/paid-order-purchase.ts";
+import { envTenantConfig } from "./lib/tenant.ts";
 import { drainCapiOutbox, purgeExpiredCapiOutboxEvents } from "./lib/capi-outbox.ts";
 import { getStoreAdsConfig } from "./lib/store-ads.ts";
 import {
@@ -25,6 +28,7 @@ type AstroRequest = Parameters<typeof handle>[0];
 async function runScheduledMaintenance(
   env: CloudflareRuntimeEnv,
   scheduledTime: number,
+  context: ExecutionContext,
 ) {
   await ensureSchemaUpgraded(env.OMS_DB);
   const purgedAbandonedOrders = await purgeExpiredAbandonedOrders(
@@ -57,6 +61,41 @@ async function runScheduledMaintenance(
     "scheduled-capi-outbox-purge-failed",
     () => purgeExpiredCapiOutboxEvents(env.OMS_DB, new Date(scheduledTime)),
   );
+  // Payment truth for QRIS/VA. The retired webhook never answered; the
+  // provider's Advice endpoint does, and this is the only clock that asks it.
+  // A transaction is marked paid solely when the provider's own response says
+  // so — an operator can still reconcile by hand from /admin/payments, and
+  // every transition either way is audited.
+  const scheduledLocals = {
+    runtimeEnv: env,
+    tenant: envTenantConfig,
+    cfContext: context,
+  } satisfies App.Locals;
+  let autoLarisReconciliation = {
+    checked: 0,
+    pending: 0,
+    unproven: 0,
+    failed: 0,
+    paidOrderIds: [] as number[],
+  };
+  try {
+    autoLarisReconciliation = await reconcileAutoLarisPaymentStatuses(
+      env.OMS_DB,
+      scheduledLocals,
+      new Date(scheduledTime),
+    );
+  } catch (error) {
+    console.error("scheduled-autolaris-advice-failed", error);
+  }
+  for (const orderId of autoLarisReconciliation.paidOrderIds) {
+    try {
+      await enqueuePurchaseForPaidOrder(env.OMS_DB, scheduledLocals, orderId);
+    } catch (error) {
+      // Payment truth is authoritative. Conversion delivery is independently
+      // retried by its outbox and must never roll a paid order back.
+      console.error("scheduled-paid-order-purchase-failed", { orderId, error });
+    }
+  }
   // The outbox had no clock of its own: `drainCapiOutbox` was reachable only
   // from `/api/meta-event` and `/api/v1/tracking/events`, so a delivery that
   // failed was retried when the next visitor arrived rather than when its
@@ -100,6 +139,13 @@ async function runScheduledMaintenance(
     expiredPaymentInstructions,
     purgedProviderCallbacks,
     purgedCapiOutboxEvents,
+    autoLarisReconciliation: {
+      checked: autoLarisReconciliation.checked,
+      paid: autoLarisReconciliation.paidOrderIds.length,
+      pending: autoLarisReconciliation.pending,
+      unproven: autoLarisReconciliation.unproven,
+      failed: autoLarisReconciliation.failed,
+    },
     drainedCapiEvents,
     queuedGoogleAdsConversions,
     drainedGoogleAdsConversions,
@@ -120,7 +166,7 @@ export default {
     return handle(request as unknown as AstroRequest, env, ctx);
   },
 
-  async scheduled(controller, env) {
-    await runScheduledMaintenance(env, controller.scheduledTime);
+  async scheduled(controller, env, ctx) {
+    await runScheduledMaintenance(env, controller.scheduledTime, ctx);
   },
 } satisfies ExportedHandler<CloudflareRuntimeEnv>;

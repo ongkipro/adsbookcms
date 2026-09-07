@@ -5,12 +5,14 @@ import {
   parseAutoLarisPaymentResponse,
 } from "./autolaris-client.ts";
 import { summarizePaymentBuckets } from "./autolaris-balance.ts";
+import { envTenantConfig } from "./tenant.ts";
 import {
   buyerEmail,
   createAutoLarisPaymentForOrder,
   effectivePaymentStatus,
   isSyntheticBuyerEmail,
   matchableCustomerEmail,
+  reconcileAutoLarisPaymentStatuses,
 } from "./autolaris-payment.ts";
 
 function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
@@ -20,12 +22,32 @@ function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
   const order = {
     id: 41,
     order_number: "INV-10041",
+    store_id: 1,
     customer_name: "Buyer",
     customer_phone: "081331000000",
     customer_email: "buyer@example.test",
+    address: "Buyer Street",
+    province: "Jawa Timur",
+    city: "Nganjuk",
+    district: "Sawahan",
+    postal_code: "64475",
     total_amount: 118_400,
     payment_method: "qris",
     payment_fee_bearer: "seller",
+    store_name: "QA Store",
+    warehouse_name: "QA Warehouse",
+    warehouse_contact_name: "Warehouse PIC",
+    warehouse_contact_phone: "08123456789",
+    warehouse_address: "Warehouse Street",
+    warehouse_city: "Surabaya",
+    warehouse_province: "Jawa Timur",
+  };
+  const item = {
+    quantity: 2,
+    unit_price: 50_000,
+    weight_grams: 600,
+    product_title: "QA Product",
+    variant_title: "500 ml",
   };
 
   const database = {
@@ -50,6 +72,12 @@ function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
             };
           }
           throw new Error(`Unexpected first query: ${sql}`);
+        },
+        async all() {
+          if (sql.includes("FROM order_items oi")) {
+            return { success: true, results: [item], meta: {} };
+          }
+          throw new Error(`Unexpected all query: ${sql}`);
         },
         async run() {
           if (sql.includes("INSERT INTO payment_transactions")) {
@@ -97,6 +125,7 @@ function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
               qr_payload: statement.args[5],
               payment_code: statement.args[6],
               provider_payment_url: statement.args[7],
+              expires_at: statement.args[8],
               failed_reason: null,
             });
           } else if (sql.includes("SET status = 'failed'")) {
@@ -118,10 +147,15 @@ function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
 }
 
 const QA_LOCALS = {
-  tenant: { siteUrl: "https://store.example.test" },
+  tenant: { ...envTenantConfig, siteUrl: "https://store.example.test" },
+  runtimeEnv: {
+    AUTOLARIS_ORDER_ORIGIN_ID: "3517100",
+    AUTOLARIS_ORDER_DESTINATION_ID: "3518010",
+  },
+  cfContext: { waitUntil() {} } as App.Locals["cfContext"],
 } as App.Locals;
 
-test("payment orchestration sends only payment identity to AutoLaris", async (context) => {
+test("payment orchestration sends one complete Create Order payload to AutoLaris", async (context) => {
   const originalFetch = globalThis.fetch;
   context.after(() => {
     globalThis.fetch = originalFetch;
@@ -135,14 +169,15 @@ test("payment orchestration sends only payment identity to AutoLaris", async (co
     return Response.json({
       rc: "00",
       data: {
-        trx_id: "TRX-PAY-41",
-        virtual_account: "",
-        qr: "QR-PAYLOAD",
-        payment_code: "",
-        url: "",
-        amount: 117_576,
-        admin: 824,
+        transaction_id: "TRX-PAY-41",
+        biaya_admin: 824,
         total: 118_400,
+        payment_info: {
+          expired: "2026-09-03 16:42:00",
+          va: "",
+          qr: "QR-PAYLOAD",
+          url: "",
+        },
       },
     });
   };
@@ -154,34 +189,56 @@ test("payment orchestration sends only payment identity to AutoLaris", async (co
 
   assert.equal(
     requestedUrl,
-    "https://autolaris.example.test/api/h2h/create_payment",
+    "https://autolaris.example.test/api/h2h/submit",
   );
-  // `INV-10041` is not a legal provider reference; the digits are.
-  assert.equal(requestedBody?.reff_id, "10041");
-  assert.equal(requestedBody?.customer_id, "41");
-  assert.equal(requestedBody?.customer_name, "Buyer");
-  assert.equal(requestedBody?.customer_email, "buyer@example.test");
-  assert.equal(
-    requestedBody?.callback_url,
-    "https://store.example.test/api/webhooks/autolaris",
+  assert.deepEqual(
+    {
+      reff_id: requestedBody?.reff_id,
+      channel_code: requestedBody?.channel_code,
+      courir_id: requestedBody?.courir_id,
+      origin: requestedBody?.origin,
+      destination: requestedBody?.destination,
+      weight: requestedBody?.weight,
+      length: requestedBody?.length,
+      width: requestedBody?.width,
+      height: requestedBody?.height,
+      shipper_name: requestedBody?.shipper_name,
+      shipper_email: requestedBody?.shipper_email,
+      receiver_name: requestedBody?.receiver_name,
+      receiver_address: requestedBody?.receiver_address,
+      callback_url: requestedBody?.callback_url,
+      grand_total: requestedBody?.grand_total,
+      cod_value: requestedBody?.cod_value,
+      remark: requestedBody?.remark,
+      order_details: requestedBody?.order_details,
+    },
+    {
+      reff_id: "10041",
+      channel_code: "QRIS",
+      courir_id: 1,
+      origin: 3517100,
+      destination: 3518010,
+      weight: "1200",
+      length: "1",
+      width: "1",
+      height: "1",
+      shipper_name: "Warehouse PIC",
+      shipper_email: "buyer@example.test",
+      receiver_name: "Buyer",
+      receiver_address: "Buyer Street, Sawahan, Nganjuk, Jawa Timur, 64475",
+      callback_url: "",
+      grand_total: "118400",
+      cod_value: "0",
+      remark: "INV-10041",
+      order_details: [
+        { name: "QA Product - 500 ml", qty: "2", unit_price: "50000" },
+      ],
+    },
   );
-  // The seller bears the QRIS fee here, so the provider is asked for the net
-  // amount and bills the buyer the order total (`payment-fee-policy.ts`).
-  assert.equal(requestedBody?.amount, "117576");
-  // The buyer's address, courier and parcel never leave for the gateway.
-  for (const shippingField of [
-    "origin",
-    "destination",
-    "courir_id",
-    "weight",
-    "receiver_address",
-    "order_details",
-  ]) {
-    assert.equal(shippingField in (requestedBody || {}), false, shippingField);
-  }
   assert.equal(payment.qrPayload, "QR-PAYLOAD");
   assert.equal(payment.adminFee, 824);
   assert.equal(payment.totalAmount, 118_400);
+  assert.equal(payment.expiresAt, "2026-09-03T09:42:00.000Z");
 });
 
 test("payment orchestration records failure without a provider call when AutoLaris is unconfigured", async (context) => {
@@ -204,6 +261,31 @@ test("payment orchestration records failure without a provider call when AutoLar
   assert.equal(providerCalls, 0);
   assert.equal(payment.status, "failed");
   assert.match(payment.failedReason || "", /belum dikonfigurasi/i);
+});
+
+test("Create Order fails before fetch when AutoLaris mirror area ids are missing", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const { database } = createAutoLarisOrderDatabase("qa-key");
+  let providerCalls = 0;
+  globalThis.fetch = async () => {
+    providerCalls += 1;
+    return new Response(null, { status: 500 });
+  };
+  const locals = {
+    ...QA_LOCALS,
+    runtimeEnv: {},
+  } as App.Locals;
+
+  const payment = await createAutoLarisPaymentForOrder(database, locals, {
+    orderId: 41,
+    channelCode: "QRIS",
+  });
+  assert.equal(providerCalls, 0);
+  assert.equal(payment.status, "failed");
+  assert.match(payment.failedReason || "", /origin AutoLaris tidak lengkap/i);
 });
 
 test("AutoLaris response parsing preserves provider instructions and billed total", () => {
@@ -229,6 +311,37 @@ test("AutoLaris response parsing preserves provider instructions and billed tota
     amount: 180000,
     admin: 2500,
     total: 182500,
+  });
+});
+
+test("AutoLaris Create Order response preserves VA instructions and Jakarta expiry", () => {
+  const payment = parseAutoLarisPaymentResponse(
+    {
+      rc: "00",
+      data: {
+        transaction_id: "986771",
+        biaya_admin: 6500,
+        total: 106500,
+        payment_info: {
+          expired: "2026-09-04 08:15:30",
+          va: "1234567890123456",
+          qr: "",
+          url: "https://pay.example.test/986771",
+        },
+      },
+    },
+    100000,
+  );
+  assert.deepEqual(payment, {
+    transactionId: "986771",
+    virtualAccount: "1234567890123456",
+    qr: undefined,
+    paymentCode: undefined,
+    url: "https://pay.example.test/986771",
+    amount: 100000,
+    admin: 6500,
+    total: 106500,
+    expiresAt: "2026-09-04T01:15:30.000Z",
   });
 });
 
@@ -428,4 +541,144 @@ test("a store answering on more than one host is still recognised", () => {
   // An unset or unparseable host contributes nothing rather than throwing.
   assert.equal(isSyntheticBuyerEmail(legacy, undefined, null, "not a url", requestHost), true);
   assert.equal(isSyntheticBuyerEmail(legacy, undefined, null, "not a url"), false);
+});
+
+function createAdviceReconciliationDatabase() {
+  const state = {
+    transactionStatus: "pending",
+    orderPaymentStatus: "pending",
+    notifications: 0,
+  };
+  const database = {
+    prepare(sql: string) {
+      const statement = {
+        sql,
+        args: [] as unknown[],
+        bind(...args: unknown[]) {
+          statement.args = args;
+          return statement;
+        },
+        async first() {
+          if (sql.includes("SELECT mengantar_api_key")) {
+            return {
+              mengantar_api_key: null,
+              mengantar_base_url: null,
+              autolaris_api_key: "qa-key",
+              autolaris_base_url: "https://autolaris.example.test",
+            };
+          }
+          throw new Error(`Unexpected first query: ${sql}`);
+        },
+        async all() {
+          if (sql.includes("pt.provider_transaction_id")) {
+            return {
+              success: true,
+              results:
+                state.transactionStatus === "pending" &&
+                state.orderPaymentStatus === "pending"
+                  ? [
+                      {
+                        transaction_id: 91,
+                        order_id: 41,
+                        order_number: "INV-10041",
+                        customer_name: "Buyer",
+                        provider_transaction_id: "986770",
+                        total_amount: 118_400,
+                      },
+                    ]
+                  : [],
+              meta: {},
+            };
+          }
+          throw new Error(`Unexpected all query: ${sql}`);
+        },
+        async run() {
+          if (sql.includes("INSERT OR IGNORE INTO notifications")) {
+            state.notifications += 1;
+            return { success: true, meta: { changes: 1 }, results: [] };
+          }
+          throw new Error(`Unexpected run query: ${sql}`);
+        },
+      };
+      return statement;
+    },
+    async batch(statements: Array<{ sql: string }>) {
+      return statements.map((statement) => {
+        if (statement.sql.includes("UPDATE payment_transactions")) {
+          const changes = state.transactionStatus === "pending" ? 1 : 0;
+          if (changes) state.transactionStatus = "paid";
+          return { success: true, meta: { changes }, results: [] };
+        }
+        if (statement.sql.includes("UPDATE orders")) {
+          const changes =
+            state.transactionStatus === "paid" &&
+            state.orderPaymentStatus === "pending"
+              ? 1
+              : 0;
+          if (changes) state.orderPaymentStatus = "paid";
+          return { success: true, meta: { changes }, results: [] };
+        }
+        throw new Error(`Unexpected batch query: ${statement.sql}`);
+      });
+    },
+  } as unknown as D1Database;
+  return { database, state };
+}
+
+test("scheduled Advice reconciliation moves a paid order exactly once", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const { database, state } = createAdviceReconciliationDatabase();
+  let providerCalls = 0;
+  let requestedBody: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    providerCalls += 1;
+    requestedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({ rc: "00", ket: "SUCCESS", data: { awb: "" } });
+  };
+
+  const first = await reconcileAutoLarisPaymentStatuses(
+    database,
+    QA_LOCALS,
+    new Date("2026-09-02T17:00:00.000Z"),
+  );
+  assert.deepEqual(requestedBody, { transaction_id: "986770" });
+  assert.deepEqual(first, {
+    checked: 1,
+    pending: 0,
+    unproven: 0,
+    failed: 0,
+    paidOrderIds: [41],
+  });
+  assert.equal(state.transactionStatus, "paid");
+  assert.equal(state.orderPaymentStatus, "paid");
+  assert.equal(state.notifications, 1);
+
+  const duplicate = await reconcileAutoLarisPaymentStatuses(
+    database,
+    QA_LOCALS,
+    new Date("2026-09-02T18:00:00.000Z"),
+  );
+  assert.equal(providerCalls, 1);
+  assert.deepEqual(duplicate.paidOrderIds, []);
+  assert.equal(state.notifications, 1);
+});
+
+test("scheduled Advice reconciliation leaves pending money untouched", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const { database, state } = createAdviceReconciliationDatabase();
+  globalThis.fetch = async () =>
+    Response.json({ rc: "02", ket: "PENDING", data: { awb: "" } });
+
+  const result = await reconcileAutoLarisPaymentStatuses(database, QA_LOCALS);
+  assert.equal(result.pending, 1);
+  assert.deepEqual(result.paidOrderIds, []);
+  assert.equal(state.transactionStatus, "pending");
+  assert.equal(state.orderPaymentStatus, "pending");
+  assert.equal(state.notifications, 0);
 });

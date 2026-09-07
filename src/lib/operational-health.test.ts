@@ -154,7 +154,7 @@ test("a store that has never taken a gateway payment is unknown", () => {
     {
       rowsScanned: 0,
       lastOutboundAt: null,
-      lastManualConfirmationAt: null,
+      lastPaidAt: null,
       failedInWindow: 0,
     },
     NOW,
@@ -168,7 +168,7 @@ test("payments created but not yet paid is nobody paid today, not an outage", ()
     {
       rowsScanned: 9,
       lastOutboundAt: minutesAgo(10),
-      lastManualConfirmationAt: null,
+      lastPaidAt: null,
       failedInWindow: 0,
     },
     NOW,
@@ -178,7 +178,7 @@ test("payments created but not yet paid is nobody paid today, not an outage", ()
   // data" beside a column of real transactions. Healthy, awaiting an operator
   // step the reason already names.
   assert.equal(health.state, "healthy");
-  assert.equal(health.reason, "awaiting-first-manual-confirmation");
+  assert.equal(health.reason, "awaiting-first-payment");
   assert.equal(health.ageMinutes, 10, "outbound contact is still reported");
 });
 
@@ -187,7 +187,7 @@ test("create-payment calls that all failed are degraded", () => {
     {
       rowsScanned: 9,
       lastOutboundAt: null,
-      lastManualConfirmationAt: null,
+      lastPaidAt: null,
       failedInWindow: 9,
     },
     NOW,
@@ -201,13 +201,13 @@ test("an audited manual confirmation reports the last verified payment", () => {
     {
       rowsScanned: 9,
       lastOutboundAt: minutesAgo(90),
-      lastManualConfirmationAt: minutesAgo(3),
+      lastPaidAt: minutesAgo(3),
       failedInWindow: 1,
     },
     NOW,
   );
   assert.equal(health.state, "healthy");
-  assert.equal(health.reason, "manually-confirmed");
+  assert.equal(health.reason, "payment-confirmed");
   assert.equal(health.ageMinutes, 3);
 });
 

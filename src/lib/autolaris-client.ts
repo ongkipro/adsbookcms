@@ -79,43 +79,22 @@ export const AUTOLARIS_CHANNEL_OPTIONS: ReadonlyArray<{
 
 
 /**
- * AutoLaris is this repository's payment gateway only. Shipping is Mengantar's
- * (`mengantar-client.ts`), so the combined shipping-and-payment Create Order
- * path `/api/h2h/submit` is deliberately not used: it requires AutoLaris' own
- * `id_area` district identifiers, and it registers a shipment nobody fulfils.
+ * AutoLaris creates the payment instruction and its dashboard order in one
+ * request through `/api/h2h/submit`. Physical fulfilment remains Mengantar's;
+ * the install supplies the provider-specific mirror area ids and fixed
+ * `courir_id: 1` separately from Mengantar's identifiers.
  *
- * Contract observed against the provider's published development key on
- * 2026-08-19, not inferred from the documentation:
+ * Contract verified against the provider's published Postman collection on
+ * 2026-09-02:
  *
- *   POST /api/h2h/create_payment  -> { rc, ket, data: { trx_id, virtual_account,
- *                                      qr, payment_code, url, amount, admin, total } }
+ *   POST /api/h2h/submit          -> { rc, ket, data: { transaction_id,
+ *                                      biaya_admin, total, payment_info } }
  *   POST /api/h2h/advice          -> { rc, ket, data: { awb } }
  *   GET  /api/h2h/list_payment    -> { rc, ket, data: [ { channel_code, ... } ] }
  *
- * Three request constraints were established by isolating one field at a time
- * against a payload the provider had already accepted. Each returns
- * `rc: "01" / "Invalid parameter"` with no further detail, so they are enforced
- * here rather than discovered by a customer at checkout:
- *
- *   - `reff_id` accepts digits only. `INV-10001` is rejected.
- *   - `customer_id` must be present and non-empty; any digits are accepted.
- *   - `callback_url` must be present and non-empty.
+ * `reff_id` is digits-only; payment instructions are nested under
+ * `payment_info` for both QRIS and VA channels.
  */
-export type AutoLarisCreatePaymentInput = {
-  /** Digits only, at most 30 — the provider rejects any other shape. */
-  reffId: string;
-  channelCode: AutoLarisChannel;
-  /** Digits only. The provider does not require a customer it already knows. */
-  customerId: string;
-  customerName: string;
-  customerPhone: string;
-  customerEmail: string;
-  expiresAt: Date;
-  amount: number;
-  /** Must be non-empty and absolute. */
-  callbackUrl: string;
-};
-
 export type AutoLarisPayment = {
   transactionId: string;
   virtualAccount?: string;
@@ -125,6 +104,7 @@ export type AutoLarisPayment = {
   amount: number;
   admin: number;
   total: number;
+  expiresAt?: string;
 };
 
 export type AutoLarisCredentialVerification = {
@@ -137,20 +117,26 @@ export type AutoLarisCredentialVerification = {
 /**
  * A read of one transaction's settlement state.
  *
- * `pending` is the only settlement this repository claims to understand: a
- * freshly created, unpaid transaction returns `rc: "02" / "PENDING"`, observed
- * directly. No response from a *settled* transaction has been observed, so
- * every other code is `unproven` and must never be read as paid — see
- * `UNIMPLEMENTED_SPECS.md`.
+ * AutoLaris' Advice contract uses `02/PENDING` for an unpaid instruction and
+ * `00` plus an explicit success status for a settled one. Any other shape stays
+ * unproven and cannot move money-bearing state.
  */
 export type AutoLarisPaymentInquiry = {
   code: string;
   status: string;
   awb?: string;
-  settlement: "pending" | "unproven";
+  settlement: "pending" | "paid" | "unproven";
 };
 
 export const AUTOLARIS_PENDING_CODE = "02";
+export const AUTOLARIS_PAID_CODE = "00";
+const AUTOLARIS_PAID_STATUSES = new Set([
+  "SUCCESS",
+  "PAID",
+  "SETTLED",
+  "BERHASIL",
+  "LUNAS",
+]);
 
 type AutoLarisResponse = {
   rc?: string;
@@ -171,9 +157,22 @@ type AutoLarisResponse = {
       va?: string;
       qr?: string;
       url?: string;
+      expired?: string;
     };
   };
 };
+
+/** Provider timestamps are documented as Jakarta local time without an offset. */
+export function parseAutoLarisExpiry(value: unknown): string | undefined {
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) return undefined;
+  const date = new Date(
+    `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}+07:00`,
+  );
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
 
 export function parseAutoLarisPaymentResponse(
   payload: unknown,
@@ -205,6 +204,7 @@ export function parseAutoLarisPaymentResponse(
     throw new Error("AutoLaris mengembalikan data pembayaran yang tidak lengkap.");
   }
 
+  const expiresAt = parseAutoLarisExpiry(response.data.payment_info?.expired);
   return {
     transactionId,
     virtualAccount: nonEmpty(
@@ -216,6 +216,7 @@ export function parseAutoLarisPaymentResponse(
     amount,
     admin,
     total,
+    ...(expiresAt ? { expiresAt } : {}),
   };
 }
 
@@ -240,6 +241,15 @@ function requiredDigits(value: string, field: string, max: number) {
     throw new Error(`Data ${field} AutoLaris harus berupa angka.`);
   }
   return normalized;
+}
+
+function requiredAreaId(value: string, field: string) {
+  const normalized = requiredDigits(value, field, 20);
+  const areaId = Number(normalized);
+  if (!Number.isSafeInteger(areaId) || areaId <= 0) {
+    throw new Error(`Data ${field} AutoLaris tidak valid.`);
+  }
+  return areaId;
 }
 
 function requiredPhone(value: string, field: string) {
@@ -272,52 +282,6 @@ function requiredCallbackUrl(value: string) {
   return parsed.toString();
 }
 
-/** `yyyyMMddHHmmss` in Asia/Jakarta, the format the provider's examples use. */
-export function formatAutoLarisExpiry(expiresAt: Date) {
-  if (Number.isNaN(expiresAt.getTime())) {
-    throw new Error("Masa berlaku pembayaran AutoLaris tidak valid.");
-  }
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Asia/Jakarta",
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    })
-      .formatToParts(expiresAt)
-      .filter((part) => part.type !== "literal")
-      .map((part) => [part.type, part.value]),
-  );
-  const hour = parts.hour === "24" ? "00" : parts.hour;
-  return `${parts.year}${parts.month}${parts.day}${hour}${parts.minute}${parts.second}`;
-}
-
-export function buildAutoLarisCreatePaymentPayload(
-  input: AutoLarisCreatePaymentInput,
-) {
-  if (!Number.isSafeInteger(input.amount) || input.amount <= 0) {
-    throw new Error(
-      "Nominal pembayaran AutoLaris harus berupa bilangan bulat positif.",
-    );
-  }
-
-  return {
-    reff_id: requiredDigits(input.reffId, "referensi", 30),
-    channel_code: input.channelCode,
-    customer_id: requiredDigits(input.customerId, "id pembeli", 30),
-    customer_name: requiredText(input.customerName, "nama pembeli", 100),
-    customer_phone: requiredPhone(input.customerPhone, "telepon pembeli"),
-    customer_email: requiredEmail(input.customerEmail),
-    expired: formatAutoLarisExpiry(input.expiresAt),
-    amount: String(input.amount),
-    callback_url: requiredCallbackUrl(input.callbackUrl),
-  };
-}
-
 function requiredPositiveIntString(value: number, field: string) {
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new Error(`Data ${field} AutoLaris harus bilangan bulat positif.`);
@@ -339,25 +303,20 @@ export type AutoLarisOrderDetail = {
 };
 
 /**
- * Create Order / `POST /api/h2h/submit`. In this repository AutoLaris is a
- * money channel only: an order is submitted with `courirId: 1`, which the
- * provider treats as a **digital product** — no courier is booked and no
- * physical shipment is registered (physical delivery is Mengantar's, dispatched
- * separately). For a prepaid QRIS/VA order the money is already collected, so
- * `codValue` is 0; `grandTotal` is the order total. `origin`/`destination` are
- * AutoLaris' own area codes and, with nothing to deliver, are supplied from
- * configuration (the same code for both is fine) rather than the buyer address.
+ * Create Order / `POST /api/h2h/submit`. The install's accepted AutoLaris
+ * contract assigns `courirId: 1` and provider-specific origin/destination area
+ * ids. This record supplies the payment instruction; this CMS still dispatches
+ * physical fulfilment only through its explicit Mengantar operator action. For
+ * prepaid QRIS/VA, `codValue` is 0 and `grandTotal` is the committed order total.
  *
- * The `/submit` response shape is NOT contract-verified here (only
- * create_payment/advice/list_payment are — see the header note); `createOrder`
- * therefore returns the raw provider fields and treats only `rc: "00"` as
- * accepted, never inferring settlement beyond that.
+ * The `/submit` response shape is contract-verified against the provider's
+ * published collection; `createOrder` maps its nested payment instructions.
  */
 export type AutoLarisCreateOrderInput = {
   /** Digits only, at most 30 — same rule the provider enforces on reff_id. */
   reffId: string;
-  channelCode: string;
-  /** Defaults to 1 = digital product (no courier, no shipment). */
+  channelCode: AutoLarisCheckoutChannel;
+  /** Defaults to the install's accepted operational assignment, 1. */
   courirId?: number;
   origin: string;
   destination: string;
@@ -381,14 +340,6 @@ export type AutoLarisCreateOrderInput = {
   orderDetails: AutoLarisOrderDetail[];
 };
 
-export type AutoLarisOrderResult = {
-  accepted: boolean;
-  code: string;
-  message: string;
-  orderId?: string;
-  awb?: string;
-};
-
 export function buildAutoLarisCreateOrderPayload(input: AutoLarisCreateOrderInput) {
   if (!Array.isArray(input.orderDetails) || input.orderDetails.length === 0) {
     throw new Error("Rincian order AutoLaris tidak boleh kosong.");
@@ -402,8 +353,8 @@ export function buildAutoLarisCreateOrderPayload(input: AutoLarisCreateOrderInpu
     reff_id: requiredDigits(input.reffId, "referensi", 30),
     channel_code: requiredText(input.channelCode, "channel order", 30),
     courir_id: courirId,
-    origin: requiredText(input.origin, "origin", 20),
-    destination: requiredText(input.destination, "destination", 20),
+    origin: requiredAreaId(input.origin, "origin"),
+    destination: requiredAreaId(input.destination, "destination"),
     weight: nonNegativeIntString(input.weight ?? 1000, "berat"),
     length: nonNegativeIntString(input.length ?? 1, "panjang"),
     width: nonNegativeIntString(input.width ?? 1, "lebar"),
@@ -488,49 +439,23 @@ export class AutoLarisClient {
     }
   }
 
-  async createPayment(
-    input: AutoLarisCreatePaymentInput,
+  /** Create one dashboard order and its single QRIS/VA instruction. */
+  async createOrder(
+    input: AutoLarisCreateOrderInput,
   ): Promise<AutoLarisPayment> {
     if (autoLarisChannelLockReason(input.channelCode)) {
       throw new Error("Channel pembayaran tidak aktif di provider.");
     }
     const payload = await this.request(
-      "/api/h2h/create_payment",
-      buildAutoLarisCreatePaymentPayload(input),
-    );
-    return parseAutoLarisPaymentResponse(payload, input.amount);
-  }
-
-  /**
-   * Create Order (`/api/h2h/submit`) as a digital product (`courir_id: 1` — no
-   * courier, no shipment; physical delivery stays Mengantar's). This endpoint
-   * ISSUES ITS OWN PAYMENT (its body carries `channel_code`, like
-   * `createPayment`), so it must never run on top of a checkout that already
-   * called `createPayment` — that would mint a second VA/QRIS for one order.
-   * It is transport only and intentionally unwired; see the "AutoLaris Create
-   * Order" row in `UNIMPLEMENTED_SPECS.md` for when it would replace
-   * `createPayment` at checkout. Only `rc: "00"` is treated as accepted.
-   */
-  async createOrder(
-    input: AutoLarisCreateOrderInput,
-  ): Promise<AutoLarisOrderResult> {
-    const payload = await this.request(
       "/api/h2h/submit",
       buildAutoLarisCreateOrderPayload(input),
     );
-    const code = String(payload.rc || "").trim();
-    return {
-      accepted: code === "00",
-      code,
-      message: nonEmpty(payload.ket) || "",
-      orderId: nonEmpty(payload.data?.transaction_id || payload.data?.trx_id),
-      awb: nonEmpty(payload.data?.awb),
-    };
+    return parseAutoLarisPaymentResponse(payload, input.grandTotal);
   }
 
   /**
-   * Reads one transaction's settlement state. This never mutates payment state
-   * and never returns "paid" — see `AutoLarisPaymentInquiry`.
+   * Reads one transaction's settlement state. This method never mutates local
+   * payment state; callers decide whether an explicit paid result may do so.
    */
   async inquirePayment(transactionId: string): Promise<AutoLarisPaymentInquiry> {
     const payload = await this.request("/api/h2h/advice", {
@@ -540,11 +465,21 @@ export class AutoLarisClient {
       transaction_id: requiredText(transactionId, "id transaksi", 64),
     });
     const code = String(payload.rc || "").trim();
+    const status = String(payload.ket || "").trim();
+    const normalizedStatus = status.toUpperCase();
+    const paid =
+      code === AUTOLARIS_PAID_CODE &&
+      AUTOLARIS_PAID_STATUSES.has(normalizedStatus);
     return {
       code,
-      status: String(payload.ket || "").trim(),
+      status,
       awb: nonEmpty(payload.data?.awb),
-      settlement: code === AUTOLARIS_PENDING_CODE ? "pending" : "unproven",
+      settlement:
+        paid
+          ? "paid"
+          : code === AUTOLARIS_PENDING_CODE
+            ? "pending"
+            : "unproven",
     };
   }
 

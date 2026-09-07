@@ -46,9 +46,9 @@ const REASONS: Record<string, string> = {
   "never-used": "Belum pernah ada transaksi payment gateway.",
   "no-accepted-request": "Belum ada request pembayaran yang diterima AutoLaris.",
   "create-failing": "Semua request pembuatan pembayaran gagal.",
-  "awaiting-first-manual-confirmation":
-    "Create Order diterima AutoLaris; belum ada pembayaran yang dikonfirmasi manual.",
-  "manually-confirmed": "Pembayaran terakhir dikonfirmasi manual dengan audit operator.",
+  "awaiting-first-payment":
+    "Create Order diterima AutoLaris; belum ada pembayaran yang terkonfirmasi.",
+  "payment-confirmed": "Pembayaran terakhir telah dikonfirmasi AutoLaris atau operator.",
 };
 
 const STATE_LABEL: Record<HealthState, string> = {
@@ -91,8 +91,8 @@ function describeMetrics(signal: HealthSignal) {
 
 function ageLabel(signal: HealthSignal) {
   if (signal.id === "autolaris") {
-    return signal.reason === "manually-confirmed"
-      ? "Verifikasi terakhir"
+    return signal.reason === "payment-confirmed"
+      ? "Pembayaran terakhir"
       : "Create Order terakhir";
   }
   return signal.id === "capi-outbox" ? "Antrean tertua" : "Terakhir sukses";

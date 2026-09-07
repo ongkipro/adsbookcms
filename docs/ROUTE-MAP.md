@@ -208,7 +208,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `autolaris-client` | 22 | — | ✓ | `/api/order-status` `/api/payment-methods` `/admin/payments` `/api/admin/settings` |
 | `autolaris-payment` | 13 | `autolaris_callbacks` `orders` `payment_transactions` `stores` | ✓ | `/api/meta-event` `/api/order-status` `/api/submit-order` `/api/v1/tracking/events` `/api/admin/orders/[id]` |
 | `bundled-migrations` | 1 | — | **none** | — |
-| `capi-outbox` | 12 | `capi_event_outbox` | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
+| `capi-outbox` | 14 | `capi_event_outbox` | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
 | `catalog-data` | 4 | — | ✓ | `/api/admin/products` |
 | `catalog-feed` | 8 | — | ✓ | `/produk/[slug]` `/[slug]` `/contoh-landing` `/full-form` `/geoipform` `/hybrid-form` `/middle-form` `/feed/google-catalog.xml` `/feed/meta-catalog.xml` `/api/form-config` `/api/v1/products` `/api/v1/products/[slug]` |
 | `catalog` | 2 | `product_variants` `products` | ✓ | `/` `/404` `/produk` `/produk/[slug]` `/thanks` `/sitemap` `/[slug]` `/contoh-landing` `/embed/form` `/full-form` `/geoipform` `/hybrid-form` `/middle-form` `/feed/google-catalog.xml` `/feed/meta-catalog.xml` `/sitemap.xml` `/api/form-config` `/api/v1/products` `/api/v1/products/[slug]` |

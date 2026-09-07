@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decideRetry } from "./capi-outbox.ts";
+import { DatabaseSync } from "node:sqlite";
+import {
+  CAPI_DRAIN_LEASE_MS,
+  decideRetry,
+  drainCapiOutbox,
+  purgeExpiredCapiOutboxEvents,
+} from "./capi-outbox.ts";
 
 const MINUTE = 60_000;
 
@@ -34,4 +40,106 @@ test("events stop retrying once the attempt budget is spent", () => {
 
 test("backoff is capped so a stale event cannot schedule itself years out", () => {
   assert.equal(decideRetry({ success: false }, 20, 50).delayMs, 60 * MINUTE);
+});
+
+/**
+ * A real SQLite behind the D1 shape, because the claim is a property of how
+ * the database serializes two writers — a hand-rolled mock that returns rows
+ * on demand would prove nothing about it.
+ */
+function outboxDatabase(seed: string) {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(`
+    CREATE TABLE capi_event_outbox (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_id TEXT NOT NULL UNIQUE, event_name TEXT NOT NULL, payload TEXT NOT NULL,
+      status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+      max_attempts INTEGER NOT NULL DEFAULT 5, last_error TEXT,
+      next_retry_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    ${seed}
+  `);
+  const database = {
+    prepare: (sql: string) => {
+      const bound: unknown[] = [];
+      const statement = {
+        bind: (...values: unknown[]) => { bound.push(...values); return statement; },
+        run: async () => ({ meta: { changes: Number(sqlite.prepare(sql).run(...bound as never[]).changes) } }),
+        first: async () => sqlite.prepare(sql).get(...bound as never[]) ?? null,
+        all: async () => ({ results: sqlite.prepare(sql).all(...bound as never[]) }),
+      };
+      return statement;
+    },
+  } as unknown as D1Database;
+  return { sqlite, database };
+}
+
+const pageView = (eventId: string) =>
+  JSON.stringify({ eventName: "PageView", eventId, eventSourceUrl: "https://toko.test/", userData: {}, customData: {} });
+
+test("two concurrent drains never claim the same row", async () => {
+  const now = new Date("2026-09-04T04:00:00.000Z");
+  const seeded = Array.from({ length: 14 }, (_, i) =>
+    `(${i + 1},'e-${i + 1}','PageView','${pageView(`e-${i + 1}`)}','pending',0,5,NULL,'2026-09-04T03:00:00.000Z','2026-09-04T03:00:00.000Z','t')`,
+  ).join(",");
+  const { sqlite, database } = outboxDatabase(`INSERT INTO capi_event_outbox VALUES ${seeded};`);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    // Slow enough that a second drain would overlap a naive select-then-send.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    return new Response(JSON.stringify({ events_received: 1 }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    // Both drains claim before either transmits — two visitors arriving
+    // together, each firing a drain in `waitUntil`, or the cron and a visitor.
+    await Promise.all([
+      drainCapiOutbox(database, "1234567890", "token", now),
+      drainCapiOutbox(database, "1234567890", "token", now),
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  const sent = (sqlite.prepare("SELECT event_id FROM capi_event_outbox WHERE status = 'sent' ORDER BY id").all() as { event_id: string }[]).map((r) => r.event_id);
+  // Ten claimed by the first drain, four by the second: disjoint, and every
+  // one of the fourteen accounted for exactly once.
+  assert.equal(new Set(sent).size, sent.length, "no row may be claimed twice");
+  assert.equal(sent.length, 14);
+  const overBudget = sqlite.prepare("SELECT COUNT(*) AS c FROM capi_event_outbox WHERE attempts > max_attempts").get() as { c: number };
+  assert.equal(overBudget.c, 0, "a double transmission is what pushed attempts past its budget in production");
+});
+
+test("a claimed row is hidden from the next drain until its lease expires", async () => {
+  const now = new Date("2026-09-04T04:00:00.000Z");
+  const { sqlite, database } = outboxDatabase(
+    `INSERT INTO capi_event_outbox VALUES (1,'e-1','PageView','${pageView("e-1")}','pending',0,5,NULL,'2026-09-04T03:00:00.000Z','2026-09-04T03:00:00.000Z','t');`,
+  );
+  const originalFetch = globalThis.fetch;
+  // A transmission that never resolves is a Worker killed mid-drain.
+  globalThis.fetch = (async () => new Promise(() => {})) as typeof fetch;
+  try {
+    void drainCapiOutbox(database, "1234567890", "token", now);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const leased = sqlite.prepare("SELECT next_retry_at FROM capi_event_outbox WHERE id = 1").get() as { next_retry_at: string };
+    assert.ok(Date.parse(leased.next_retry_at) > now.getTime(), "the claim must push the row out of the due window");
+    // The lease is a delay, not a grave: the row returns on its own.
+    assert.ok(Date.parse(leased.next_retry_at) <= now.getTime() + CAPI_DRAIN_LEASE_MS, "and it must come back once the lease expires");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("the purge removes only settled rows past retention, and keeps the queue", async () => {
+  const now = new Date("2026-09-05T00:00:00.000Z");
+  const { sqlite, database } = outboxDatabase(`
+    INSERT INTO capi_event_outbox VALUES
+      (1,'old-sent','PageView','{}','sent',1,5,NULL,'t','2026-07-01T00:00:00.000Z','2026-07-01T00:00:00.000Z'),
+      (2,'old-failed','PageView','{}','failed',5,5,'x','t','2026-07-01T00:00:00.000Z','2026-07-01T00:00:00.000Z'),
+      (3,'old-pending','Purchase','{}','pending',2,5,NULL,'t','2026-07-01T00:00:00.000Z','2026-07-01T00:00:00.000Z'),
+      (4,'new-sent','PageView','{}','sent',1,5,NULL,'t','2026-09-04T00:00:00.000Z','2026-09-04T00:00:00.000Z');
+  `);
+  assert.equal(await purgeExpiredCapiOutboxEvents(database, now), 2);
+  const left = (sqlite.prepare("SELECT event_id FROM capi_event_outbox ORDER BY id").all() as { event_id: string }[]).map((r) => r.event_id);
+  // A pending row is never purged however old — that is a stuck queue to be
+  // drained or recovered, not history to be swept.
+  assert.deepEqual(left, ["old-pending", "new-sent"]);
 });

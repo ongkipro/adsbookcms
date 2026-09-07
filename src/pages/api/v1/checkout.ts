@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { captureMetaOrderContext, serializeMetaOrderContext } from '../../../lib/meta-order-context';
 import { handleOptions, headlessError, headlessOk, validateHeadlessRequest } from '../../../lib/headless-api';
 import { orderSubmitSchema } from '../../../lib/order-schema';
 import { getRuntimeEnv } from '../../../lib/env';
@@ -73,6 +74,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const clickIds = readClickIdCookie(request);
     const storedClickIds = hasClickId(clickIds) ? serializeClickIds(clickIds) : undefined;
 
+    // The headless caller's own request carries the buyer's Meta cookies when
+    // the storefront forwards them; capture here so an API-placed order is not
+    // a second-class conversion.
+    const metaRequestContext = serializeMetaOrderContext(captureMetaOrderContext(request));
+
     const order = await persistOrder(database, {
       submitToken: data.submit_token,
       customerName: data.customer_name.trim(),
@@ -93,6 +99,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       courierCode: shipping.courierCode,
       courierService: shipping.courierService,
       adClickIds: storedClickIds,
+      metaRequestContext,
     });
 
     return validation.finalize(headlessOk(

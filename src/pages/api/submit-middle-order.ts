@@ -1,4 +1,8 @@
 import type { APIRoute } from "astro";
+import {
+  captureMetaOrderContext,
+  serializeMetaOrderContext,
+} from "../../lib/meta-order-context";
 import { hasClickId, readClickIdCookie, serializeClickIds } from "../../lib/click-ids";
 import { normalizePhoneNumber } from "../../lib/order-schema";
 import { getRuntimeEnv } from "../../lib/env";
@@ -175,6 +179,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // order so a COD sale confirmed later can be uploaded to Google Ads.
     const clickIds = readClickIdCookie(request);
     const storedClickIds = hasClickId(clickIds) ? serializeClickIds(clickIds) : undefined;
+    // Same reason as the full form: the Purchase that matters is sent later,
+    // from a request this buyer will never make again.
+    const metaRequestContext = serializeMetaOrderContext(
+      captureMetaOrderContext(request),
+    );
 
     const order = await persistOrder(database, {
       submitToken,
@@ -189,6 +198,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       shippingCost: 0,
       paymentMethod: "cod",
       adClickIds: storedClickIds,
+      metaRequestContext,
     });
     scheduleReceiverPerformanceRefresh(
       database,

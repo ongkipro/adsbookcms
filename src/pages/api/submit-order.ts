@@ -1,4 +1,8 @@
 import type { CourierRateResult } from "../../lib/mengantar-client";
+import {
+  captureMetaOrderContext,
+  serializeMetaOrderContext,
+} from "../../lib/meta-order-context";
 import { hasClickId, readClickIdCookie, serializeClickIds } from "../../lib/click-ids";
 import type { ResolvedShippingRates } from "../../lib/shipping-quote";
 import type { APIRoute } from "astro";
@@ -261,6 +265,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // order so a COD sale confirmed later can be uploaded to Google Ads.
     const clickIds = readClickIdCookie(request);
     const storedClickIds = hasClickId(clickIds) ? serializeClickIds(clickIds) : undefined;
+    // The browser's own Meta identity, taken at the moment of the sale. A COD
+    // Purchase is confirmed hours or days later from a cron with no request of
+    // its own, so `_fbp`, `_fbc`, the user agent and the client IP have to be
+    // carried on the order or the server-side event goes out without them.
+    const metaRequestContext = serializeMetaOrderContext(
+      captureMetaOrderContext(request),
+    );
 
     const order = await persistOrder(database, {
       submitToken: data.submit_token,
@@ -294,6 +305,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       courierCode: selectedRate.courier_code,
       courierService: selectedRate.courier_service,
       adClickIds: storedClickIds,
+      metaRequestContext,
     });
 
     let payment: AutoLarisPaymentRecord | undefined;

@@ -7,7 +7,7 @@ import { getStoreAdsConfig } from '../../../../lib/store-ads';
 import { getRuntimeEnv } from '../../../../lib/env';
 import { getClientIp } from '../../../../lib/rate-limit';
 import { enqueueCapiEvent, deliverCapiEvent, drainCapiOutbox } from '../../../../lib/capi-outbox';
-import { findPurchaseOrderForApiKeyCaller, isMetaPurchaseOrderEligible } from '../../../../lib/meta-purchase-order';
+import { findPurchaseOrderForApiKeyCaller, isMetaPurchaseOrderEligible, resolveMetaPurchaseContentIds } from '../../../../lib/meta-purchase-order';
 import { toE164Digits } from '../../../../lib/meta-capi';
 import { matchableCustomerEmail } from '../../../../lib/autolaris-payment';
 
@@ -119,7 +119,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       },
       customData: {
         contentName: payload.contentName,
-        contentIds: payload.contentIds,
+        contentIds: resolveMetaPurchaseContentIds(purchaseOrder, payload.contentIds),
         // The goods, not the invoice, and read from D1 rather than from the
         // caller — the two legs of one Purchase must not disagree on revenue.
         value: purchaseOrder?.product_value ?? payload.value,

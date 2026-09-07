@@ -7,6 +7,8 @@ import {
   findPurchaseOrderByStatusToken,
   findPurchaseOrderForApiKeyCaller,
   isMetaPurchaseOrderEligible,
+  parseMetaPurchaseContentIds,
+  resolveMetaPurchaseContentIds,
 } from "./meta-purchase-order.ts";
 import { sendMetaCapiEvent } from "./meta-capi.ts";
 
@@ -44,15 +46,20 @@ function purchaseDatabase() {
     );
     CREATE TABLE order_items (
       id INTEGER PRIMARY KEY, order_id INTEGER NOT NULL,
-      unit_price INTEGER NOT NULL, quantity INTEGER NOT NULL
+      unit_price INTEGER NOT NULL, quantity INTEGER NOT NULL,
+      variant_id INTEGER
     );
+    CREATE TABLE products (id INTEGER PRIMARY KEY, title TEXT NOT NULL);
+    CREATE TABLE product_variants (id INTEGER PRIMARY KEY, product_id INTEGER NOT NULL);
+    INSERT INTO products VALUES (100001, 'Pupuk Organik');
+    INSERT INTO product_variants VALUES (1, 100001);
     INSERT INTO orders VALUES (
       41, 'INV-10041', 'Nur Aisyah', '081234567890', NULL,
       'Jawa Barat', 'Bandung', '40111', 214000, 'cod', 'unpaid', 'tok-41',
       NULL, NULL, 'pending'
     );
     -- 135000 of goods; the 214000 invoice also carries shipping and the COD fee.
-    INSERT INTO order_items VALUES (1, 41, 45000, 3);
+    INSERT INTO order_items VALUES (1, 41, 45000, 3, 1);
   `);
   return { sqlite, database: { prepare: (sql: string) => new Statement(sqlite, sql) } as unknown as D1Database };
 }
@@ -204,4 +211,19 @@ test("a Purchase is only ever a submitted order, never a lead", () => {
   assert.equal(isMetaPurchaseOrderEligible({ payment_method: "qris", payment_status: "paid", shipping_status: "pending" }), true);
   for (const shipping_status of ["failed", "cancelled", "returned"]) assert.equal(isMetaPurchaseOrderEligible({ ...cod, shipping_status }), false, shipping_status);
   for (const payment_status of ["failed", "refunded", "cancelled"]) assert.equal(isMetaPurchaseOrderEligible({ payment_method: "qris", payment_status, shipping_status: "pending" }), false, payment_status);
+});
+
+test("a Purchase carries the order's catalog identity, whatever the caller sent", async () => {
+  const { database } = purchaseDatabase();
+  const order = await findPurchaseOrderForApiKeyCaller(database, "INV-10041");
+  assert.ok(order);
+  assert.equal(order.product_ids, "100001");
+  // The caller's list is discarded for a Purchase: attribution must agree
+  // with the invoice, and only the order knows the invoice.
+  assert.deepEqual(resolveMetaPurchaseContentIds(order, ["999999", "100001"]), ["100001"]);
+  // No order — a ViewContent or AddToCart — keeps what was submitted.
+  assert.deepEqual(resolveMetaPurchaseContentIds(null, ["100002"]), ["100002"]);
+  // Ids that cannot be a catalog id are dropped, not forwarded.
+  assert.deepEqual(parseMetaPurchaseContentIds("100001, 42, abc, 100001, 07777"), ["100001"]);
+  assert.equal(resolveMetaPurchaseContentIds({ product_ids: "42" }, ["100003"]), undefined);
 });

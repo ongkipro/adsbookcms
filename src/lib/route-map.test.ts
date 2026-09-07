@@ -6,7 +6,11 @@ import {
   authFor,
   buildRouteMap,
   classify,
+  exportsOf,
+  knownTables,
+  libImportsOf,
   methodsOf,
+  tablesOf,
   toRoutePath,
   toXml,
 } from "./route-map.ts";
@@ -70,4 +74,27 @@ test("the committed route map still matches the filesystem", () => {
     "run `npm run route-map` — src/pages and docs/route-map.xml disagree",
   );
   assert.equal(generated, committed, "run `npm run route-map` to regenerate the map");
+});
+
+test("the dictionary columns are derived, and only from what exists", () => {
+  // Imports resolve by name, whatever the relative depth.
+  const source = `
+    import { a } from "../../lib/order-persistence";
+    import { b } from '../../../../lib/click-ids.ts';
+    import Layout from "../../layouts/AdminLayout.astro";
+    const sql = "SELECT id FROM orders o JOIN order_items oi UPDATE stores INSERT INTO nowhere";
+    export function persist() {}
+    export const LIMIT = 1;
+    export type Row = {};
+  `;
+  assert.deepEqual(libImportsOf(source), ["click-ids", "order-persistence"]);
+  // A table is only a table if a migration created it: `nowhere` is dropped,
+  // so a typo in SQL cannot mint a phantom dependency in the map.
+  const known = new Set(["orders", "order_items", "stores"]);
+  assert.deepEqual(tablesOf(source, known), ["order_items", "orders", "stores"]);
+  assert.deepEqual(exportsOf(source), ["LIMIT", "Row", "persist"]);
+  // The real migrations: the rebuild scratch table never counts.
+  const tables = knownTables();
+  assert.ok(tables.has("orders") && tables.has("landing_sections"));
+  assert.equal(tables.has("landing_sections_next"), false);
 });

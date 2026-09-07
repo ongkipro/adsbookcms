@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-08-29 @ `9766ad6`
+> Verified against disk: 2026-09-07 @ `134a137`
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -42,6 +42,7 @@ Exactly one document owns each subject. Do not restate another document's truth;
 | `PRD-ADMIN-LOGIN.md` | Admin login, first-run access, session |
 | `docs/GOOGLE_ADS_SETUP.md` | Google Ads / Merchant Center setup |
 | `docs/LANDING-PAGES.md` | Building a landing page, CMS or native Astro |
+| `docs/ROUTE-MAP.md` / `docs/route-map.xml` | **Generated, never edited.** The route and module dictionary: URL → file → verbs → auth → roles → libs → tables → tests, and each `src/lib` module's exports, tables, test and callers. `npm run route-map` writes it; `src/lib/route-map.test.ts` fails when it and the filesystem disagree. The first thing to open for an audit, and the thing ARCHITECTURE.md §3 defers to for counts |
 | `docs/AUDIT-<date>.md` | Point-in-time audit report. Findings only; every fix is owned by the document or issue it names. Never a source of truth, never maintained after its date |
 
 Every document carries a `> Verified against disk: <date> @ <sha>` line, this one
@@ -92,7 +93,13 @@ failure mode this section exists to prevent.
 npm test          # node --test over src/lib/*.test.ts
 npm run check     # astro check && tsc --noEmit
 npm run build     # astro build
+npm run route-map # after adding, moving or deleting a page or a lib module
 ```
+
+`npm test` includes the route-map drift check: add a page under `src/pages/`
+or a module under `src/lib/` without regenerating and the suite fails naming
+what changed. That is deliberate — a map you must remember to update is a map
+that lies, and the previous prose map in ARCHITECTURE.md §3 did.
 
 A React island is **not** covered by any of these three. `npm test` globs
 `src/lib/*.test.ts` only, and a component that throws during SSR answers `200`
@@ -103,7 +110,7 @@ admin order list blank for a day.
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **593 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
+Current verified working-tree baseline: **628 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 

@@ -9,6 +9,7 @@ import {
 import { collectOperationalHealth } from "./lib/operational-health.ts";
 import { ensureSchemaUpgraded } from "./lib/schema-version.ts";
 import { purgeExpiredRateLimits } from "./lib/rate-limit.ts";
+import { purgeExpiredNotifications } from "./lib/notifications.ts";
 import {
   expirePendingPaymentTransactions,
   purgeExpiredAutoLarisCallbacks,
@@ -56,6 +57,10 @@ async function runScheduledMaintenance(
   const purgedProviderCallbacks = await housekeeping(
     "scheduled-callback-purge-failed",
     () => purgeExpiredAutoLarisCallbacks(env.OMS_DB, new Date(scheduledTime)),
+  );
+  const purgedNotifications = await housekeeping(
+    "scheduled-notification-purge-failed",
+    () => purgeExpiredNotifications(env.OMS_DB, new Date(scheduledTime)),
   );
   const purgedCapiOutboxEvents = await housekeeping(
     "scheduled-capi-outbox-purge-failed",
@@ -138,6 +143,7 @@ async function runScheduledMaintenance(
     purgedRateLimitWindows,
     expiredPaymentInstructions,
     purgedProviderCallbacks,
+    purgedNotifications,
     purgedCapiOutboxEvents,
     autoLarisReconciliation: {
       checked: autoLarisReconciliation.checked,

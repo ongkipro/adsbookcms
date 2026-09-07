@@ -139,6 +139,25 @@ export async function recordNotification(
   }
 }
 
+/**
+ * Everything an operator was never meant to see (NOT1).
+ *
+ * Notifications are global to the install and read state is per operator, so
+ * without a floor a newly added operator inherits the entire history as unread
+ * — and clearing it writes one `notification_reads` row per historical
+ * notification, which is how that table grows as notifications x operators.
+ *
+ * The floor is the newest notification id when the operator was created
+ * (`admin_credentials.notification_floor_id`, migration 0054). It is a
+ * subquery rather than an argument so no caller can forget it: every read and
+ * every clear goes through the same predicate. An unknown username yields no
+ * row, and `COALESCE` turns that into 0 — see everything, which is the safe
+ * direction to fail.
+ */
+const ABOVE_FLOOR = `n.id > COALESCE(
+  (SELECT notification_floor_id FROM admin_credentials WHERE username = ?), 0
+)`;
+
 export async function countUnreadNotifications(
   database: D1Database,
   operatorUsername: string,
@@ -149,9 +168,9 @@ export async function countUnreadNotifications(
          FROM notifications n
          LEFT JOIN notification_reads r
            ON r.notification_id = n.id AND r.operator_username = ?
-        WHERE r.notification_id IS NULL`,
+        WHERE r.notification_id IS NULL AND ${ABOVE_FLOOR}`,
     )
-    .bind(operatorUsername)
+    .bind(operatorUsername, operatorUsername)
     .first<{ unread: number }>();
   return Number(row?.unread || 0);
 }
@@ -161,11 +180,6 @@ export async function listNotifications(
   operatorUsername: string,
   limit = 30,
 ): Promise<NotificationView[]> {
-  // lazy: no retention job, so this table grows one row per order forever.
-  // The list is bounded by LIMIT and the unread count is an indexed COUNT, so
-  // reads stay flat; add a scheduled prune beside the abandoned-order
-  // retention cron if a store ever carries more rows than D1 is comfortable
-  // holding.
   const bounded = Math.max(1, Math.min(100, Math.trunc(limit) || 30));
   // Joins `orders` for the CURRENT number and status, which is what the link
   // must follow — a converted lead has been renumbered and has left the
@@ -180,10 +194,11 @@ export async function listNotifications(
          INNER JOIN orders o ON o.id = n.order_id
          LEFT JOIN notification_reads r
            ON r.notification_id = n.id AND r.operator_username = ?
+        WHERE ${ABOVE_FLOOR}
         ORDER BY n.id DESC
         LIMIT ?`,
     )
-    .bind(operatorUsername, bounded)
+    .bind(operatorUsername, operatorUsername, bounded)
     .all<
       NotificationRecord & {
         current_order_number: string;
@@ -231,8 +246,40 @@ export async function markAllNotificationsRead(
          FROM notifications n
          LEFT JOIN notification_reads r
            ON r.notification_id = n.id AND r.operator_username = ?
-        WHERE r.notification_id IS NULL`,
+        WHERE r.notification_id IS NULL AND ${ABOVE_FLOOR}`,
     )
-    .bind(operatorUsername, new Date().toISOString(), operatorUsername)
+    .bind(
+      operatorUsername,
+      new Date().toISOString(),
+      operatorUsername,
+      operatorUsername,
+    )
     .run();
+}
+
+/**
+ * Notifications are an operator convenience, not a commerce record: the order
+ * they point at is the durable thing and outlives them. Pruned beside the
+ * other scheduled retention jobs so the table stops growing one row per order
+ * forever. `notification_reads` has `ON DELETE cascade`, so its rows go with
+ * them and no second statement is needed.
+ */
+export const NOTIFICATION_RETENTION_DAYS = 90;
+
+export async function purgeExpiredNotifications(
+  database: D1Database,
+  now = new Date(),
+): Promise<number> {
+  if (!Number.isFinite(now.getTime())) {
+    throw new Error("Waktu retensi notifikasi tidak valid.");
+  }
+  const result = await database
+    .prepare(
+      `DELETE FROM notifications
+        WHERE unixepoch(created_at)
+              < unixepoch(?, '-${NOTIFICATION_RETENTION_DAYS} days')`,
+    )
+    .bind(now.toISOString())
+    .run();
+  return Number(result.meta?.changes || 0);
 }

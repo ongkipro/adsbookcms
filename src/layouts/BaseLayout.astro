@@ -97,11 +97,25 @@ const preloadImageUrls =
         )
       )
     }
+    {/*
+      `astro-seo` always emits exactly one robots meta, built from its
+      `noindex`/`nofollow` props. `extend.meta` used to add a second one, so
+      every page shipped the directive twice — and on `/thanks` and `/payment`
+      the two disagreed: astro-seo's `noindex, follow` beside a hand-written
+      `noindex, nofollow`. A crawler resolves a conflict by taking the most
+      restrictive, so the outcome was right by luck while the page stated two
+      different things. `nofollow={noindex}` carries the intended semantics
+      through the one tag that is actually owned here.
+
+      A JSX comment, not an HTML one: an HTML comment here would ship in the
+      <head> of every page on the site.
+    */}
     <SEO
       title={titleForHead}
       description={description}
       canonical={canonical}
       noindex={noindex}
+      nofollow={noindex}
       openGraph={{
         basic: {
           title,
@@ -128,7 +142,6 @@ const preloadImageUrls =
       }}
       extend={{
         meta: [
-          { name: 'robots', content: noindex ? 'noindex, nofollow' : 'index, follow' },
           { name: 'theme-color', content: Astro.locals.tenant.themeColor },
           { name: 'author', content: Astro.locals.tenant.name },
           { name: 'publisher', content: Astro.locals.tenant.name },

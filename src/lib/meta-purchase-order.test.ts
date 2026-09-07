@@ -6,6 +6,7 @@ import { checkRateLimit } from "./rate-limit.ts";
 import {
   findPurchaseOrderByStatusToken,
   findPurchaseOrderForApiKeyCaller,
+  isMetaPurchaseOrderEligible,
 } from "./meta-purchase-order.ts";
 import { sendMetaCapiEvent } from "./meta-capi.ts";
 
@@ -38,7 +39,8 @@ function purchaseDatabase() {
       province TEXT NOT NULL, city TEXT NOT NULL, postal_code TEXT,
       total_amount INTEGER NOT NULL, payment_method TEXT NOT NULL,
       payment_status TEXT NOT NULL, public_status_token TEXT,
-      ad_click_ids TEXT, meta_request_context TEXT
+      ad_click_ids TEXT, meta_request_context TEXT,
+      shipping_status TEXT NOT NULL DEFAULT 'pending'
     );
     CREATE TABLE order_items (
       id INTEGER PRIMARY KEY, order_id INTEGER NOT NULL,
@@ -47,7 +49,7 @@ function purchaseDatabase() {
     INSERT INTO orders VALUES (
       41, 'INV-10041', 'Nur Aisyah', '081234567890', NULL,
       'Jawa Barat', 'Bandung', '40111', 214000, 'cod', 'unpaid', 'tok-41',
-      NULL, NULL
+      NULL, NULL, 'pending'
     );
     -- 135000 of goods; the 214000 invoice also carries shipping and the COD fee.
     INSERT INTO order_items VALUES (1, 41, 45000, 3);
@@ -190,4 +192,16 @@ test("the public Meta event endpoint counts sixty a minute per IP and fails open
   // The route wires exactly this key and ceiling.
   const route = readFileSync(new URL("../pages/api/meta-event.ts", import.meta.url), "utf8");
   assert.match(route, /checkRateLimit\(database, `public-meta-event:\$\{clientIp\}`, 60, 60_000\)/);
+});
+
+test("a Purchase is only ever a submitted order, never a lead", () => {
+  const cod = { payment_method: "cod", payment_status: "unpaid", shipping_status: "pending" };
+  assert.equal(isMetaPurchaseOrderEligible(cod), true, "COD is purchased at submit");
+  // The failure this exists for: an abandoned lead carries COD-like defaults
+  // and its own status token, and used to be enough to send Meta a Purchase.
+  assert.equal(isMetaPurchaseOrderEligible({ ...cod, shipping_status: "abandoned" }), false);
+  assert.equal(isMetaPurchaseOrderEligible({ payment_method: "qris", payment_status: "pending", shipping_status: "pending" }), false, "prepaid waits for payment");
+  assert.equal(isMetaPurchaseOrderEligible({ payment_method: "qris", payment_status: "paid", shipping_status: "pending" }), true);
+  for (const shipping_status of ["failed", "cancelled", "returned"]) assert.equal(isMetaPurchaseOrderEligible({ ...cod, shipping_status }), false, shipping_status);
+  for (const payment_status of ["failed", "refunded", "cancelled"]) assert.equal(isMetaPurchaseOrderEligible({ payment_method: "qris", payment_status, shipping_status: "pending" }), false, payment_status);
 });

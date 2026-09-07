@@ -361,3 +361,84 @@ export async function purgeExpiredCapiOutboxEvents(database: D1Database, now = n
     .run();
   return result.meta.changes;
 }
+
+/**
+ * Undelivered rows offered back once the destination is proven live again.
+ *
+ * `decideRetry` makes a dead token terminal immediately, which is right —
+ * retrying a dead token only burns quota — but it also means every event that
+ * arrived during an outage is lost the moment the operator fixes the
+ * credential. Nothing else in the system ever un-terminates them.
+ *
+ * The first version of this selected `attempts < max_attempts`, on the
+ * reasoning that `decideRetry` terminates for exactly two reasons and the other
+ * one increments `attempts`, so that predicate was precisely the dead-token
+ * case. It was precise and too narrow. On 2026-09-03 an install started
+ * getting "Object with ID … does not exist, cannot be loaded due to missing
+ * permissions" on every event: a destination-side misconfiguration, entirely
+ * fixable, that let 107 rows exhaust their budget honestly. Those are exactly
+ * as recoverable as a token failure and that predicate excluded all of them.
+ *
+ * So the classification is no longer a guess about *why* a row failed. The
+ * caller proves the destination works — `/api/admin/ads` sends a probe event
+ * and refuses to requeue at all if Meta rejects it — and every failed row then
+ * gets one more go. Meta still deduplicates on `event_id`, so a row that did
+ * reach it cannot double-count.
+ *
+ * Two exclusions remain, and both are absolute:
+ *
+ * - A payload that cannot be parsed can never succeed; retrying it is waste.
+ * - Meta rejects an event whose `event_time` is more than seven days old, and
+ *   retries deliberately preserve the original time so a Purchase is still
+ *   attributed to when it happened. Without this bound a requeue would take
+ *   rows the 30-day retention still holds, send them, have Meta refuse them for
+ *   being stale, and re-terminate them — spending the operator's recovery on
+ *   events that could never land.
+ *
+ * Deliberately not automatic: resending conversions has a real advertising
+ * consequence, so it stays an explicit operator decision.
+ */
+export const CAPI_REQUEUE_MAX_AGE_DAYS = 7;
+
+const RECOVERABLE_PREDICATE = `status = 'failed'
+   AND COALESCE(last_error, '') <> 'payload tidak dapat dibaca'
+   AND unixepoch(created_at) >= unixepoch(?, '-${CAPI_REQUEUE_MAX_AGE_DAYS} days')`;
+
+export async function requeueRecoverableEvents(
+  database: D1Database,
+  now = new Date(),
+  limit = 500,
+): Promise<number> {
+  const bounded = Math.max(1, Math.min(1000, Math.trunc(limit) || 500));
+  const stamp = now.toISOString();
+  const result = await database
+    .prepare(
+      `UPDATE capi_event_outbox
+          SET status = 'pending', attempts = 0, last_error = NULL,
+              next_retry_at = ?, updated_at = ?
+        WHERE id IN (
+          SELECT id FROM capi_event_outbox
+           WHERE ${RECOVERABLE_PREDICATE}
+           ORDER BY CASE WHEN event_name = 'Purchase' THEN 0 ELSE 1 END, id ASC
+           LIMIT ?
+        )`,
+    )
+    .bind(stamp, stamp, stamp, bounded)
+    .run();
+  return Number(result.meta?.changes || 0);
+}
+
+/** How many rows `requeueRecoverableEvents` would move right now. */
+export async function countRecoverableEvents(
+  database: D1Database,
+  now = new Date(),
+): Promise<number> {
+  const row = await database
+    .prepare(
+      `SELECT COUNT(*) AS recoverable FROM capi_event_outbox
+        WHERE ${RECOVERABLE_PREDICATE}`,
+    )
+    .bind(now.toISOString())
+    .first<{ recoverable: number }>();
+  return Number(row?.recoverable || 0);
+}

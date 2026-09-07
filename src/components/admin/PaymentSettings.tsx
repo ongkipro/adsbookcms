@@ -550,8 +550,8 @@ export default function PaymentSettings({ channels }: { channels: PaymentChannel
       <Collapsible open={credentialsOpen} onOpenChange={setCredentialsOpen}>
         <Card>
           <CardHeader className="border-b">
-            <CardTitle as="h3" className="font-semibold">Konfigurasi Create Order AutoLaris</CardTitle>
-            <CardDescription>Validasi lokal untuk API key dan alur checkout melalui endpoint Create Order.</CardDescription>
+            <CardTitle as="h3" className="font-semibold">Konfigurasi checkout AutoLaris</CardTitle>
+            <CardDescription>Validasi lokal untuk API key dan pengajuan pembayaran QRIS atau Virtual Account.</CardDescription>
             <CardAction className="flex items-center gap-2">
               <StatusBadge ready={apiReady}>{apiReady ? "API key tersimpan" : "API key belum diatur"}</StatusBadge>
               <CollapsibleTrigger
@@ -572,13 +572,13 @@ export default function PaymentSettings({ channels }: { channels: PaymentChannel
                 </div>
                 <div className="rounded-xl border border-border bg-muted/25 p-4">
                   <p className="text-xs font-medium text-muted-foreground">Konfirmasi pembayaran</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">Verifikasi manual oleh owner/admin</p>
+                  <p className="mt-2 text-sm font-medium text-foreground">Konfirmasi otomatis dengan fallback manual</p>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Status pembayaran dikonfirmasi manual. Operator mencocokkan transaksi di dashboard AutoLaris sebelum menandai lunas di CMS.
+                    Sistem memeriksa AutoLaris setiap jam dan menandai lunas hanya saat respons provider menyatakan pembayaran berhasil. Owner/admin tetap dapat melakukan rekonsiliasi manual.
                   </p>
                 </div>
               </div>
-              <InlineNotice notice={{ tone: "info", text: "Pemeriksaan lokal hanya memvalidasi konfigurasi Create Order; hasilnya bukan bukti kesehatan live provider atau settlement dana." }} />
+              <InlineNotice notice={{ tone: "info", text: "Pemeriksaan lokal hanya memvalidasi API key dan konfigurasi checkout; hasilnya bukan bukti kesehatan live provider atau settlement dana." }} />
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" size="xl" onClick={() => void runLocalCheck("test-autolaris")} disabled={mutationsDisabled || !apiReady}>
                   <RefreshCw className={busy === "test-autolaris" ? "animate-spin" : ""} /> Periksa konfigurasi lokal
@@ -587,7 +587,7 @@ export default function PaymentSettings({ channels }: { channels: PaymentChannel
                   <Settings2 /> Kelola kredensial API
                 </Button>
                 <Button type="button" size="xl" onClick={() => window.location.assign("/admin/balance")}>
-                  <ShieldCheck /> Buka verifikasi manual
+                  <ShieldCheck /> Buka rekonsiliasi manual
                 </Button>
               </div>
             </CardContent>

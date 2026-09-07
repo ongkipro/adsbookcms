@@ -455,7 +455,7 @@ export type AutoLarisPaymentInquiryResult = {
   provider: {
     code: string;
     status: string;
-    settlement: "pending" | "unproven";
+    settlement: "pending" | "paid" | "unproven";
     awb?: string;
   };
   /**
@@ -470,10 +470,9 @@ export type AutoLarisPaymentInquiryResult = {
 /**
  * Reads one AutoLaris transaction's state straight from the provider.
  *
- * Deliberately read-only: it writes nothing to D1 and can never mark a payment
- * paid. Only the pending response has an observed contract
- * (`UNIMPLEMENTED_SPECS.md`), so an operator gets provider evidence to judge
- * with — not an automated settlement.
+ * Deliberately read-only at this operator boundary: it writes nothing to D1.
+ * The hourly scheduled reconciliation owns automatic paid transitions through
+ * the same Advice adapter.
  */
 export async function inquireAutoLarisPaymentStatus(
   database: D1Database,

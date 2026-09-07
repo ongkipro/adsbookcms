@@ -10,6 +10,8 @@ import {
   type PaymentFeeBearer,
 } from "./payment-fee-policy.ts";
 import { getProviderConfig } from "./provider-config.ts";
+import { getEnvValue, getRuntimeEnv } from "./env.ts";
+import { buildPaymentNotification, recordNotification } from "./notifications.ts";
 
 export type AutoLarisPaymentRecord = {
   id: number;
@@ -33,12 +35,33 @@ export type AutoLarisPaymentRecord = {
 type PaymentOrderRow = {
   id: number;
   order_number: string;
+  store_id: number;
   customer_name: string;
   customer_phone: string;
   customer_email: string | null;
+  address: string;
+  province: string;
+  city: string;
+  district: string;
+  postal_code: string | null;
   total_amount: number;
   payment_method: string;
   payment_fee_bearer: string | null;
+  store_name: string;
+  warehouse_name: string | null;
+  warehouse_contact_name: string | null;
+  warehouse_contact_phone: string | null;
+  warehouse_address: string | null;
+  warehouse_city: string | null;
+  warehouse_province: string | null;
+};
+
+type PaymentOrderItemRow = {
+  quantity: number;
+  unit_price: number;
+  weight_grams: number;
+  product_title: string;
+  variant_title: string;
 };
 
 type PaymentTransactionRow = {
@@ -297,6 +320,139 @@ export async function purgeExpiredAutoLarisCallbacks(database: D1Database, now =
   return result.meta.changes;
 }
 
+type PendingAutoLarisInquiryRow = {
+  transaction_id: number;
+  order_id: number;
+  order_number: string;
+  customer_name: string;
+  provider_transaction_id: string;
+  total_amount: number;
+};
+
+export type AutoLarisScheduledReconciliation = {
+  checked: number;
+  pending: number;
+  unproven: number;
+  failed: number;
+  paidOrderIds: number[];
+};
+
+/**
+ * Hourly provider reconciliation through Advice. Only an explicit paid shape
+ * moves D1; pending, unknown, and failed reads are observable no-ops. The
+ * guarded D1 batch makes concurrent cron executions idempotent.
+ */
+export async function reconcileAutoLarisPaymentStatuses(
+  database: D1Database,
+  locals: App.Locals,
+  now = new Date(),
+  limit = 25,
+): Promise<AutoLarisScheduledReconciliation> {
+  const result: AutoLarisScheduledReconciliation = {
+    checked: 0,
+    pending: 0,
+    unproven: 0,
+    failed: 0,
+    paidOrderIds: [],
+  };
+  const config = (await getProviderConfig(database, locals)).autolaris;
+  if (!config.apiKey) return result;
+
+  const rows = await database
+    .prepare(
+      `SELECT pt.id AS transaction_id, pt.order_id, o.order_number,
+        o.customer_name, pt.provider_transaction_id, pt.total_amount
+      FROM payment_transactions pt
+      INNER JOIN orders o ON o.id = pt.order_id
+      WHERE pt.provider = 'autolaris'
+        AND pt.status IN ('pending', 'expired')
+        AND o.payment_status IN ('pending', 'unpaid')
+        AND o.shipping_status = 'pending'
+        AND o.stock_restored_at IS NULL
+        AND pt.provider_transaction_id IS NOT NULL
+        AND trim(pt.provider_transaction_id) <> ''
+      ORDER BY pt.created_at, pt.id
+      LIMIT ?`,
+    )
+    .bind(Math.max(1, Math.min(100, Math.trunc(limit))))
+    .all<PendingAutoLarisInquiryRow>();
+  const client = new AutoLarisClient(config.apiKey, config.baseUrl);
+  const paidAt = now.toISOString();
+
+  for (const row of rows.results || []) {
+    try {
+      const inquiry = await client.inquirePayment(row.provider_transaction_id);
+      result.checked += 1;
+      if (inquiry.settlement === "pending") {
+        result.pending += 1;
+        continue;
+      }
+      if (inquiry.settlement !== "paid") {
+        result.unproven += 1;
+        continue;
+      }
+
+      const changes = await database.batch([
+        database
+          .prepare(
+            `UPDATE payment_transactions
+            SET status = 'paid', paid_at = COALESCE(paid_at, ?),
+              failed_reason = NULL, updated_at = ?
+            WHERE id = ? AND provider = 'autolaris'
+              AND provider_transaction_id = ?
+              AND status IN ('pending', 'expired')
+              AND EXISTS (
+                SELECT 1 FROM orders o
+                WHERE o.id = payment_transactions.order_id
+                  AND o.payment_status IN ('pending', 'unpaid')
+                  AND o.shipping_status = 'pending'
+                  AND o.stock_restored_at IS NULL
+              )`,
+          )
+          .bind(
+            paidAt,
+            paidAt,
+            row.transaction_id,
+            row.provider_transaction_id,
+          ),
+        database
+          .prepare(
+            `UPDATE orders
+            SET payment_status = 'paid'
+            WHERE id = ? AND payment_status IN ('pending', 'unpaid')
+              AND shipping_status = 'pending' AND stock_restored_at IS NULL
+              AND EXISTS (
+                SELECT 1 FROM payment_transactions pt
+                WHERE pt.id = ? AND pt.order_id = orders.id
+                  AND pt.provider = 'autolaris' AND pt.status = 'paid'
+              )`,
+          )
+          .bind(row.order_id, row.transaction_id),
+      ]);
+      if (Number(changes[0]?.meta?.changes || 0) < 1) continue;
+
+      result.paidOrderIds.push(row.order_id);
+      await recordNotification(database, {
+        type: "payment",
+        orderId: row.order_id,
+        orderNumber: row.order_number,
+        ...buildPaymentNotification({
+          orderNumber: row.order_number,
+          customerName: row.customer_name,
+          totalAmount: row.total_amount,
+        }),
+      });
+    } catch (error) {
+      result.failed += 1;
+      console.error("autolaris-advice-failed", {
+        transactionId: row.transaction_id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return result;
+}
+
 export async function createAutoLarisPaymentForOrder(
   database: D1Database,
   locals: App.Locals,
@@ -314,11 +470,18 @@ export async function createAutoLarisPaymentForOrder(
 
   const order = await database
     .prepare(
-      `SELECT o.id, o.order_number, o.customer_name, o.customer_phone,
-        o.customer_email, o.total_amount, o.payment_method,
-        s.payment_fee_bearer
+      `SELECT o.id, o.order_number, o.store_id, o.customer_name,
+        o.customer_phone, o.customer_email, o.address, o.province, o.city,
+        o.district, o.postal_code, o.total_amount, o.payment_method,
+        s.payment_fee_bearer, s.name AS store_name,
+        w.name AS warehouse_name, w.contact_name AS warehouse_contact_name,
+        w.contact_phone AS warehouse_contact_phone,
+        w.address AS warehouse_address, w.city AS warehouse_city,
+        w.province AS warehouse_province
       FROM orders o
       INNER JOIN stores s ON s.id = o.store_id
+      LEFT JOIN warehouses w ON w.id = o.warehouse_id
+        AND w.store_id = o.store_id
       WHERE o.id = ?
       LIMIT 1`,
     )
@@ -328,6 +491,19 @@ export async function createAutoLarisPaymentForOrder(
   if (!["bank_transfer", "qris"].includes(order.payment_method)) {
     throw new Error("Metode pembayaran order tidak menggunakan AutoLaris.");
   }
+  const itemsResult = await database
+    .prepare(
+      `SELECT oi.quantity, oi.unit_price, pv.weight_grams,
+        p.title AS product_title, pv.title AS variant_title
+      FROM order_items oi
+      INNER JOIN product_variants pv ON pv.id = oi.variant_id
+      INNER JOIN products p ON p.id = pv.product_id
+      WHERE oi.order_id = ? AND p.store_id = ?
+      ORDER BY oi.id`,
+    )
+    .bind(order.id, order.store_id)
+    .all<PaymentOrderItemRow>();
+  const items = itemsResult.results || [];
   const siteUrl = locals.tenant?.siteUrl || "https://example.com";
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -426,19 +602,67 @@ export async function createAutoLarisPaymentForOrder(
   }
 
   try {
+    const env = getRuntimeEnv(locals);
+    const customerEmail = buyerEmail(
+      order.customer_email,
+      order.customer_phone,
+      siteUrl,
+    );
     const payment: AutoLarisPayment = await new AutoLarisClient(
       config.apiKey,
       config.baseUrl,
-    ).createPayment({
+    ).createOrder({
       reffId: referenceId,
       channelCode: input.channelCode,
-      customerId: String(order.id),
-      customerName: order.customer_name,
-      customerPhone: order.customer_phone,
-      customerEmail: buyerEmail(order.customer_email, order.customer_phone, siteUrl),
-      expiresAt,
-      amount: requestAmount,
-      callbackUrl: new URL("/api/webhooks/autolaris", siteUrl).toString(),
+      courirId: 1,
+      origin: getEnvValue("AUTOLARIS_ORDER_ORIGIN_ID", env),
+      destination: getEnvValue("AUTOLARIS_ORDER_DESTINATION_ID", env),
+      weight: Math.max(
+        1,
+        items.reduce(
+          (total, item) =>
+            total + Number(item.weight_grams) * Number(item.quantity),
+          0,
+        ),
+      ),
+      length: 1,
+      width: 1,
+      height: 1,
+      shipperName:
+        order.warehouse_contact_name || order.warehouse_name || order.store_name,
+      shipperPhone: order.warehouse_contact_phone || order.customer_phone,
+      shipperEmail:
+        getEnvValue("AUTOLARIS_SHIPPER_EMAIL", env) || customerEmail,
+      shipperAddress: [
+        order.warehouse_address,
+        order.warehouse_city,
+        order.warehouse_province,
+      ]
+        .filter(Boolean)
+        .join(", "),
+      receiverName: order.customer_name,
+      receiverPhone: order.customer_phone,
+      receiverEmail: customerEmail,
+      receiverAddress: [
+        order.address,
+        order.district,
+        order.city,
+        order.province,
+        order.postal_code,
+      ]
+        .filter(Boolean)
+        .join(", "),
+      callbackUrl: "",
+      grandTotal: order.total_amount,
+      codValue: 0,
+      remark: order.order_number,
+      orderDetails: items.map((item) => ({
+        name: [item.product_title, item.variant_title]
+          .filter(Boolean)
+          .join(" - "),
+        qty: Number(item.quantity),
+        unitPrice: Number(item.unit_price),
+      })),
     });
 
     if (payment.total !== expectedBilledTotal) {
@@ -458,7 +682,7 @@ export async function createAutoLarisPaymentForOrder(
         `UPDATE payment_transactions SET
           provider_transaction_id = ?, status = 'pending', amount = ?,
           admin_fee = ?, total_amount = ?, virtual_account = ?, qr_payload = ?,
-          payment_code = ?, provider_payment_url = ?, failed_reason = NULL,
+          payment_code = ?, provider_payment_url = ?, expires_at = ?, failed_reason = NULL,
           updated_at = ?
         WHERE id = ?`,
       )
@@ -471,6 +695,7 @@ export async function createAutoLarisPaymentForOrder(
         payment.qr || null,
         payment.paymentCode || null,
         payment.url || null,
+        payment.expiresAt || expiresAt.toISOString(),
         new Date().toISOString(),
         transaction.id,
       )

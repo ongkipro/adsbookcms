@@ -367,7 +367,7 @@ System-wide security, correctness, documentation, navigation, and UX audit:
 
 | Severity | Current fact |
 | --- | --- |
-| Release blocker | Automatic AutoLaris paid marking stays disabled. The inquiry endpoint `POST /api/h2h/advice` exists and is implemented, but only its **pending** response has been observed; capturing a settled one means paying a real virtual account. Owner/admin manual confirmation remains the sole path that marks a payment paid. Since 1.3.3 provider callbacks are recorded in `autolaris_callbacks`, so the settled shape can be read from evidence once one arrives. |
+| Release note | Automatic AutoLaris paid marking is **on**, gated on the provider: the hourly cron calls `POST /api/h2h/advice` for each pending transaction and marks it paid only on `rc: "00"`; `02` stays pending, anything else is unproven and moves nothing. Manual owner/admin reconciliation remains as the audited fallback. A settled response has still not been observed on this product — capturing one means paying a real virtual account — so the first live paid transition on any install should be checked against `payment_transactions.paid_at` and the operational-health card. |
 | Release blocker | AutoLaris production access requires an IP allowlist of at most five addresses. Cloudflare Workers have no fixed egress address, so no install is AutoLaris-production-ready on current evidence. |
 | Medium | Product-grain feeds still need a truthful standard-identifier policy and stable out-of-stock publication contract. |
 | Medium | Theme colour, locale, and admin display name resolve from D1 but still lack complete admin editors. |

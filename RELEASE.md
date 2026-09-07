@@ -62,15 +62,19 @@ release evidence is still missing:
   first-request runtime migration;
 - read-only or approved sandbox/live smoke evidence for the active Mengantar
   account's tracking, pickup, and insufficient-wallet responses;
-- the canonical AutoLaris transaction-inquiry endpoint and paid/pending/expired/
-  failed schemas required by any future automated reconciliation job.
+- a settled AutoLaris payment observed end to end on a live install.
 
 COD and manual seller-bank transfer can be considered for a controlled canary
 after install-specific configuration, backup/rollback preparation, and provider
 smoke checks. AutoLaris QRIS/VA no longer depends on the retired webhook path:
-the accepted production-safe path today is owner/admin manual confirmation from
-the provider dashboard with immutable audit evidence. Any automatic paid marking
-must remain disabled until authoritative provider inquiry is implemented and proven.
+since 1.4.x the hourly cron calls the provider's Advice endpoint for every
+pending transaction and marks one paid **only** when the response carries
+`rc: "00"`; `02` stays pending and every other code is unproven and moves
+nothing. The owner/admin manual reconciliation from `/admin/payments` remains
+as the audited fallback, and both paths write `paid_at`. Automatic marking is
+therefore enabled by construction, gated on the provider's own paid code —
+what remains unobserved is a real settled response, which only a paid virtual
+account produces.
 
 A green build is not proof the storefront works. For any browser-visible change, open the affected page before merging. Neither `tsc` nor `astro check` catches a route that fails to compose — an unterminated `.astro` frontmatter block silently produced a 404 on `/disclaimer` while every static check stayed green.
 

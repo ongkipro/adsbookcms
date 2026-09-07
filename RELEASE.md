@@ -233,19 +233,30 @@ anyway, because they are what an install shows before the wizard runs.
 
 **Confirm the target before deploying.** `npx wrangler deploy --dry-run` prints the resolved Worker name, bindings and routes. If it prints `adsbookcms-your-store`, or a database id of all zeros, the merge overwrote the install's configuration — stop and restore it.
 
-**That last check is now mechanical.** `npm run deploy` and `npm run cf:deploy`
-both run `preflight:deploy` first (npm's `pre*` hook), which reads
-`wrangler.jsonc` and refuses when the Worker name, a D1 database name or id, or
-an R2 bucket name is still the product's placeholder. It adds no deploy step and
-holds no credentials — it refuses the one target this section already says to
-refuse, because the paragraph below used to be true of it. `npm run preflight:deploy`
-runs the check alone. In **this** repository it always fails, which is correct:
-§1 says there is no production Worker to reach here. Logic and decisions:
-`src/lib/deploy-preflight.ts`.
+**Both checks are mechanical.** `npm run deploy` and `npm run cf:deploy`
+run `preflight:deploy` first (npm's `pre*` hook), and it refuses twice over:
+
+- **the config** — when the Worker name, a D1 database name or id, or an R2
+  bucket name is still the product's placeholder. Not overridable; in **this**
+  repository it always fails, which is correct: §1 says there is no production
+  Worker to reach here.
+- **the tree** — when HEAD is behind its upstream (after a fetch, so the count
+  is real), when tracked files carry uncommitted changes, when HEAD is detached
+  or the branch tracks no remote. `wrangler deploy` uploads the working tree,
+  not the branch, and that has reverted production twice: a verified fix
+  silently undone 36 minutes later by a clone that had not pulled it, and a
+  live landing page removed by a stale clone. Nothing failed either time.
+  `ALLOW_STALE_DEPLOY=1` overrides this half only, and prints in full what it
+  is overriding.
+
+It adds no deploy step and holds no credentials. It cannot cover a bare
+`npx wrangler deploy` — wrangler has no pre-deploy hook — so `npm run deploy`
+is the deploy command, and reaching for wrangler directly is choosing to skip
+this. Logic and decisions: `src/lib/deploy-preflight.ts`.
 
 ### What this procedure does not solve
 
-The rest is still manual, and nothing verifies that an install ran it. Drift between the product and its installs is the accepted cost of ADR-012, and closing it properly is task **A-51**; making the product an installable, versioned artifact is **A-52**.
+The rest is still manual. The preflight proves the tree is the branch, not that the branch is current with the product: drift between the product and its installs is the accepted cost of ADR-012, and closing it properly is task **A-51**; making the product an installable, versioned artifact is **A-52**.
 
 ---
 

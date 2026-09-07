@@ -22,6 +22,8 @@ export type MetaPurchaseOrder = {
   postal_code: string | null;
   total_amount: number;
   shipping_status: string;
+  /** `products.id` of every line, comma-joined by D1. The catalog identity. */
+  product_ids: string | null;
   /** Attribution captured at checkout; both may be null on pre-0052 orders. */
   ad_click_ids: string | null;
   meta_request_context: string | null;
@@ -52,6 +54,37 @@ export function isMetaPurchaseOrderEligible(
   return order.payment_method === "cod" || order.payment_status === "paid";
 }
 
+/**
+ * The order's own catalog identity, in the shape the feeds advertise: product
+ * id, content_id and <g:id> are one value (`catalogProductId`). Anything that
+ * does not fit that shape is dropped rather than sent — a content_id Meta
+ * cannot match to the catalog is worse than none.
+ */
+export function parseMetaPurchaseContentIds(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const seen = new Set<string>();
+  for (const value of raw.split(",")) {
+    const id = value.trim();
+    if (/^[1-9]\d{4,15}$/.test(id) && Number.isSafeInteger(Number(id))) seen.add(id);
+  }
+  return [...seen];
+}
+
+/**
+ * For a Purchase the order decides what was bought, not the caller. A browser
+ * or an API client can send any content_ids it likes; the catalog attribution
+ * that pays for the ad has to agree with the invoice. Non-Purchase events have
+ * no order and keep what was submitted.
+ */
+export function resolveMetaPurchaseContentIds(
+  order: Pick<MetaPurchaseOrder, "product_ids"> | null,
+  submitted: string[] | undefined,
+): string[] | undefined {
+  if (!order) return submitted;
+  const authoritative = parseMetaPurchaseContentIds(order.product_ids);
+  return authoritative.length ? authoritative : undefined;
+}
+
 const PURCHASE_ORDER_SELECT = `
   SELECT
     o.order_number, o.customer_name, o.customer_phone, o.customer_email,
@@ -62,7 +95,14 @@ const PURCHASE_ORDER_SELECT = `
       SELECT COALESCE(SUM(oi.unit_price * oi.quantity), 0)
       FROM order_items oi
       WHERE oi.order_id = o.id
-    ) AS product_value
+    ) AS product_value,
+    (
+      SELECT GROUP_CONCAT(DISTINCT p.id)
+      FROM order_items oi
+      INNER JOIN product_variants pv ON pv.id = oi.variant_id
+      INNER JOIN products p ON p.id = pv.product_id
+      WHERE oi.order_id = o.id
+    ) AS product_ids
   FROM orders o
   WHERE (CAST(o.id AS TEXT) = ? OR o.order_number = ?)
 `;

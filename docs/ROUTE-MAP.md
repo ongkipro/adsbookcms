@@ -252,7 +252,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `meta-event-contract` | 4 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
 | `meta-identity` | 6 | — | ✓ | — |
 | `meta-order-context` | 4 | — | ✓ | `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` |
-| `meta-purchase-order` | 4 | `order_items` `orders` | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
+| `meta-purchase-order` | 6 | `order_items` `orders` `product_variants` `products` | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
 | `native-landing-pages` | 7 | — | ✓ | — |
 | `notification-chime` | 3 | — | ✓ | — |
 | `notifications` | 15 | `admin_credentials` `notification_reads` `notifications` `orders` | ✓ | `/api/admin/notifications` `/api/admin/orders/[id]` |

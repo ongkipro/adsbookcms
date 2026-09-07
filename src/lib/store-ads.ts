@@ -25,7 +25,13 @@ export type StoreAdsConfig = {
   googleTagManagerId: string;
   googleAdsConversionId: string;
   googleAdsConversionLabel: string;
+  metaPixelSource: AdsConfigSource;
+  metaCapiSource: AdsConfigSource;
+  googleTagManagerSource: AdsConfigSource;
+  googleAdsConversionSource: AdsConfigSource;
 };
+
+export type AdsConfigSource = 'database' | 'environment' | 'none';
 
 export async function getStoreAdsConfig(locals?: App.Locals): Promise<StoreAdsConfig> {
   let dbPixelId = '';
@@ -67,37 +73,55 @@ export async function getStoreAdsConfig(locals?: App.Locals): Promise<StoreAdsCo
   }
 
   const envSource = getRuntimeEnv(locals);
-  const metaPixelId =
-    dbPixelId ||
+  const envPixelId =
     getEnvValue('NEXT_PUBLIC_FB_PIXEL_ID', envSource) ||
     getEnvValue('PUBLIC_FB_PIXEL_ID', envSource) ||
     getEnvValue('FB_PIXEL_ID', envSource) ||
     getEnvValue('META_PIXEL_ID', envSource);
+  const metaPixelId = dbPixelId || envPixelId;
 
-  const metaCapiToken =
-    dbCapiToken ||
+  const envCapiToken =
     getEnvValue('META_CAPI_ACCESS_TOKEN', envSource) ||
     getEnvValue('META_CAPI_TOKEN', envSource);
+  const metaCapiToken = dbCapiToken || envCapiToken;
 
-  const googleTagManagerId =
-    dbGoogleTagManagerId ||
+  const envGoogleTagManagerId =
     getEnvValue('PUBLIC_GTM_ID', envSource) ||
     getEnvValue('GTM_ID', envSource);
+  const googleTagManagerId = dbGoogleTagManagerId || envGoogleTagManagerId;
 
-  const candidateGoogleAdsConversionId =
-    dbGoogleId || getEnvValue('GOOGLE_ADS_CONVERSION_ID', envSource);
-  const candidateGoogleAdsConversionLabel =
-    dbGoogleLabel || getEnvValue('GOOGLE_ADS_CONVERSION_LABEL', envSource);
-  const hasGoogleAdsConversion = hasValidGoogleAdsConversion(
-    candidateGoogleAdsConversionId,
-    candidateGoogleAdsConversionLabel,
-  );
+  const envGoogleId = getEnvValue('GOOGLE_ADS_CONVERSION_ID', envSource);
+  const envGoogleLabel = getEnvValue('GOOGLE_ADS_CONVERSION_LABEL', envSource);
+  const hasDatabaseGoogleAdsConversion = hasValidGoogleAdsConversion(dbGoogleId, dbGoogleLabel);
+  const hasEnvironmentGoogleAdsConversion = hasValidGoogleAdsConversion(envGoogleId, envGoogleLabel);
+  const googleAdsConversionId = hasDatabaseGoogleAdsConversion
+    ? dbGoogleId
+    : hasEnvironmentGoogleAdsConversion
+      ? envGoogleId
+      : '';
+  const googleAdsConversionLabel = hasDatabaseGoogleAdsConversion
+    ? dbGoogleLabel
+    : hasEnvironmentGoogleAdsConversion
+      ? envGoogleLabel
+      : '';
 
   return {
     metaPixelId,
     metaCapiToken,
     googleTagManagerId,
-    googleAdsConversionId: hasGoogleAdsConversion ? candidateGoogleAdsConversionId : '',
-    googleAdsConversionLabel: hasGoogleAdsConversion ? candidateGoogleAdsConversionLabel : '',
+    googleAdsConversionId,
+    googleAdsConversionLabel,
+    metaPixelSource: dbPixelId ? 'database' : envPixelId ? 'environment' : 'none',
+    metaCapiSource: dbCapiToken ? 'database' : envCapiToken ? 'environment' : 'none',
+    googleTagManagerSource: dbGoogleTagManagerId
+      ? 'database'
+      : envGoogleTagManagerId
+        ? 'environment'
+        : 'none',
+    googleAdsConversionSource: hasDatabaseGoogleAdsConversion
+      ? 'database'
+      : hasEnvironmentGoogleAdsConversion
+        ? 'environment'
+        : 'none',
   };
 }

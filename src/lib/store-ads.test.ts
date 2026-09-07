@@ -90,6 +90,10 @@ test("the store's own configuration wins over a leftover Worker secret", async (
     googleTagManagerId: "GTM-DBSTORE",
     googleAdsConversionId: "AW-111111111",
     googleAdsConversionLabel: "db-label",
+    metaPixelSource: "database",
+    metaCapiSource: "database",
+    googleTagManagerSource: "database",
+    googleAdsConversionSource: "database",
   });
 });
 
@@ -110,6 +114,8 @@ test("a store row that leaves a field blank falls through to the environment", a
   assert.equal(config.metaPixelId, "111111111111111");
   assert.equal(config.metaCapiToken, "env-capi-token");
   assert.equal(config.googleTagManagerId, "GTM-ENVONLY");
+  assert.equal(config.metaCapiSource, "environment");
+  assert.equal(config.googleTagManagerSource, "environment");
 });
 
 test("Google Ads direct conversion requires a valid complete destination", async (context) => {
@@ -177,7 +183,7 @@ test("a failed store read degrades to the environment instead of throwing", asyn
   assert.equal(config.metaCapiToken, "env-capi-token");
 });
 
-test("an unconfigured store resolves to empty strings, never undefined", async (context) => {
+test("an unconfigured store resolves to empty values with explicit sources", async (context) => {
   withoutAdsSecrets(context);
   // Callers gate on truthiness and interpolate these into tag payloads; a
   // literal "undefined" pixel id would be worse than none.
@@ -185,8 +191,31 @@ test("an unconfigured store resolves to empty strings, never undefined", async (
     runtimeEnv: { OMS_DB: storeDatabase(null) },
   } as never);
 
-  for (const [key, value] of Object.entries(config)) {
-    assert.equal(typeof value, "string", key);
-    assert.equal(value, "", key);
-  }
+  assert.equal(config.metaPixelId, "");
+  assert.equal(config.metaCapiToken, "");
+  assert.equal(config.googleTagManagerId, "");
+  assert.equal(config.googleAdsConversionId, "");
+  assert.equal(config.googleAdsConversionLabel, "");
+  assert.equal(config.metaPixelSource, "none");
+  assert.equal(config.metaCapiSource, "none");
+  assert.equal(config.googleTagManagerSource, "none");
+  assert.equal(config.googleAdsConversionSource, "none");
+});
+
+test("Google Ads destination never mixes a database ID with an environment label", async (context) => {
+  withoutAdsSecrets(context);
+  const config = await getStoreAdsConfig({
+    runtimeEnv: {
+      OMS_DB: storeDatabase({
+        ...CONFIGURED_ROW,
+        google_ads_conversion_id: "AW-111111111",
+        google_ads_conversion_label: null,
+      }),
+      GOOGLE_ADS_CONVERSION_ID: "AW-999999999",
+      GOOGLE_ADS_CONVERSION_LABEL: "env-label",
+    },
+  } as never);
+  assert.equal(config.googleAdsConversionId, "AW-999999999");
+  assert.equal(config.googleAdsConversionLabel, "env-label");
+  assert.equal(config.googleAdsConversionSource, "environment");
 });

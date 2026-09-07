@@ -197,3 +197,66 @@ export async function sendMetaCapiEvent(
     };
   }
 }
+
+/**
+ * Whether an ID the operator typed is actually a Pixel/Dataset. `^\d{5,25}$`
+ * accepts a Business Manager, Page or Ad Account ID just as happily, and
+ * saving one of those kills the browser Pixel and the Conversions API
+ * together, silently — an install lost a day of signal that way on
+ * 2026-09-03. Asking Meta for a field only an AdsPixel node carries settles
+ * it while the operator is still on the screen.
+ */
+export type MetaPixelIdentity =
+  | { state: "pixel"; name?: string }
+  | { state: "not-a-pixel"; name?: string }
+  | { state: "unknown"; reason: string };
+
+/** Present only on an AdsPixel node, and cheap to ask for. */
+const PIXEL_ONLY_FIELD = "last_fired_time";
+
+export async function verifyMetaPixelIdentity(
+  pixelId: string,
+  accessToken: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<MetaPixelIdentity> {
+  const ask = async (fields: string) => {
+    const url = new URL(`https://graph.facebook.com/${META_GRAPH_API_VERSION}/${pixelId}`);
+    url.searchParams.set("fields", fields);
+    url.searchParams.set("access_token", accessToken);
+    const response = await fetchImpl(url);
+    return {
+      ok: response.ok,
+      body: (await response.json().catch(() => null)) as {
+        name?: string;
+        error?: { code?: number; error_subcode?: number; message?: string };
+      } | null,
+    };
+  };
+
+  try {
+    const probe = await ask(`id,name,${PIXEL_ONLY_FIELD}`);
+    if (probe.ok) return { state: "pixel", name: probe.body?.name };
+
+    const error = probe.body?.error;
+    if (error?.code !== 100) {
+      return { state: "unknown", reason: error?.message ?? "Meta tidak memberi jawaban yang dikenali." };
+    }
+    // Subcode 33 is "cannot be loaded", which a missing asset permission also
+    // produces. Refusing on it would block a correct ID behind a fixable
+    // permission problem.
+    if (error.error_subcode === 33) {
+      return { state: "unknown", reason: error.message ?? "Objek tidak terjangkau oleh token ini." };
+    }
+    if (!/nonexisting field/i.test(error.message ?? "")) {
+      return { state: "unknown", reason: error.message ?? "Meta menolak pemeriksaan ID." };
+    }
+    // The object resolves and is not a pixel. Name it if Meta will say.
+    const named = await ask("id,name");
+    return { state: "not-a-pixel", name: named.ok ? named.body?.name : undefined };
+  } catch (error) {
+    return {
+      state: "unknown",
+      reason: error instanceof Error ? error.message : "Pemeriksaan ID gagal dihubungi.",
+    };
+  }
+}

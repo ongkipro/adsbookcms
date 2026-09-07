@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getEnvValue, getRuntimeEnv, maskSecretValue } from '../../../lib/env';
-import { sendMetaCapiEvent } from '../../../lib/meta-capi';
+import { sendMetaCapiEvent, verifyMetaPixelIdentity } from '../../../lib/meta-capi';
 import {
   GOOGLE_ADS_CONVERSION_ID_PATTERN,
   GOOGLE_ADS_CONVERSION_LABEL_PATTERN,
@@ -124,8 +124,35 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       );
     }
 
+    let identityWarning: string | undefined;
     if (body.action === 'save-meta') {
       if (submittedPixelId && !PIXEL_ID_PATTERN.test(submittedPixelId)) return json({ success: false, error: 'Meta Pixel ID hanya boleh berisi 5–25 digit.' }, 400);
+      // A digit check cannot tell a pixel from a Business Manager ID, and
+      // saving the wrong one kills the browser Pixel and the Conversions API
+      // together, silently, until someone reads Graph API error codes. Ask Meta
+      // what the ID actually is while the operator is still on the screen.
+      if (submittedPixelId && submittedPixelId !== current.meta_pixel_id && storedToken) {
+        const identity = await verifyMetaPixelIdentity(submittedPixelId, storedToken);
+        if (identity.state === 'not-a-pixel') {
+          return json(
+            {
+              success: false,
+              error:
+                `ID ${submittedPixelId} ada di Meta${identity.name ? ` dengan nama "${identity.name}"` : ''}, ` +
+                'tetapi bukan Pixel/Dataset — kemungkinan ID Business Manager, Page, atau Ad Account. ' +
+                'Ambil Dataset ID dari Events Manager → Data Sources → Settings.',
+            },
+            400,
+          );
+        }
+        if (identity.state === 'unknown') {
+          // Never block on an inconclusive answer: a permission gap or a
+          // network blip must not stop an operator saving a correct ID.
+          identityWarning =
+            `ID tersimpan, tetapi belum dapat dipastikan sebagai Pixel/Dataset (${identity.reason}). ` +
+            'Jalankan "Kirim test event" untuk memastikan.';
+        }
+      }
       await database.prepare(`
         UPDATE stores
         SET meta_pixel_id = ?,
@@ -152,7 +179,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
     const updated = await getAdsRow(database);
     return json({
       success: true,
-      message: 'Konfigurasi tracking berhasil disimpan.',
+      message: identityWarning ?? 'Konfigurasi tracking berhasil disimpan.',
       data: updated ? publicConfig(updated, getEnvValue('META_CAPI_ACCESS_TOKEN', getRuntimeEnv(locals))) : undefined,
     });
   } catch (error) {

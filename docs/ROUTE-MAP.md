@@ -248,7 +248,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `mengantar-client` | 17 | — | ✓ | `/api/locations` `/api/submit-order` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` |
 | `mengantar-dispatch` | 2 | `order_items` `orders` `product_variants` `products` `provider_dispatch_locks` `warehouses` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` |
 | `mengantar-order` | 10 | — | ✓ | `/api/admin/orders` `/api/admin/shipping` |
-| `meta-capi` | 5 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` `/admin/ads/meta` `/api/admin/ads` |
+| `meta-capi` | 7 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` `/admin/ads/meta` `/api/admin/ads` |
 | `meta-event-contract` | 4 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
 | `meta-identity` | 6 | — | ✓ | — |
 | `meta-order-context` | 4 | — | ✓ | `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` |
@@ -281,7 +281,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `shipping-queue` | 3 | — | ✓ | — |
 | `shipping-quote` | 6 | `courier_rules` `product_variants` `products` `warehouses` | ✓ | `/api/shipping-rates` `/api/submit-order` `/api/v1/checkout` `/api/v1/geo/shipping-rates` `/api/admin/abandoned-orders` `/api/admin/orders/[id]` |
 | `social-proof-visibility` | 4 | — | **none** | — |
-| `store-ads` | 5 | `stores` | ✓ | `/api/meta-event` `/api/v1/storefront` `/api/v1/tracking/events` `/api/admin/ads` |
+| `store-ads` | 6 | `stores` | ✓ | `/api/meta-event` `/api/v1/storefront` `/api/v1/tracking/events` `/api/admin/ads` |
 | `store-config-cache` | 3 | — | ✓ | `/api/form-config` `/api/admin/expeditions` |
 | `storefront-content` | 12 | `storefront_content` | ✓ | `/api/admin/content` |
 | `storefront-media` | 3 | — | ✓ | `/api/admin/media` |

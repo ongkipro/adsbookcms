@@ -7,10 +7,21 @@
  * update is a map that lies, so this one is generated and drift-tested instead
  * (`npm run route-map`, `src/lib/route-map.test.ts`).
  *
+ * It answers the questions an audit actually asks, in the order it asks them:
+ * which file serves this URL, which `src/lib` modules it leans on, which D1
+ * tables that surface touches, and which test would catch a regression. The
+ * table list is read from `CREATE TABLE` in the migrations, so a table name
+ * that appears in SQL but was never created is not silently invented here.
+ *
+ * Table attribution is one level deep — a route's own SQL plus the SQL of the
+ * modules it imports directly. Deeper chains exist (a lib importing a lib) and
+ * are deliberately not followed: the map names where to look, it does not
+ * replace reading the code.
+ *
  * Nothing in the Worker imports this module. It is tooling: the generator
  * script and its test are the only consumers, so it never reaches the bundle.
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { ADMIN_ROLES, canAccessAdminRoute, type AdminRole } from "./auth.ts";
@@ -46,7 +57,27 @@ export type RouteEntry = {
   auth: RouteAuth;
   /** Empty unless the route is role-gated. */
   roles: AdminRole[];
+  /** `src/lib` modules the route file imports directly, by name. */
+  libs: string[];
+  /** D1 tables named in the route's SQL and in its direct lib imports' SQL. */
+  tables: string[];
+  /** Sibling `*.test.ts` files of those libs — where a regression would show. */
+  tests: string[];
 };
+
+export type ModuleEntry = {
+  name: string;
+  file: string;
+  exports: string[];
+  tables: string[];
+  /** Path of the sibling test, or null when the module has none. */
+  test: string | null;
+  /** Route paths that import this module directly. */
+  usedBy: string[];
+};
+
+export const LIB_DIR = "src/lib";
+export const MIGRATIONS_DIR = "src/db/migrations";
 
 /** The order families are presented in — public surface first, operator last. */
 export const FAMILY_ORDER: readonly RouteFamily[] = [
@@ -149,6 +180,45 @@ export function methodsOf(source: string, file: string): string[] {
   return [...found].sort();
 }
 
+const LIB_IMPORT = /from\s+["'](?:\.\.\/)+lib\/([a-z0-9-]+)(?:\.ts)?["']/g;
+const SQL_TABLE = /\b(?:FROM|INTO|UPDATE|JOIN)\s+`?([a-z_]+)`?/g;
+const CREATE_TABLE = /CREATE TABLE (?:IF NOT EXISTS )?`?([a-z_]+)`?/g;
+const EXPORTED = /^\s*export\s+(?:async\s+)?(?:function|const|class|type|interface|enum)\s+([A-Za-z0-9_]+)/gm;
+
+/** Tables the migrations actually create. `*_next` is a rebuild scratch name. */
+export function knownTables(dir: string = MIGRATIONS_DIR): Set<string> {
+  const names = new Set<string>();
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith(".sql")) continue;
+    for (const m of readFileSync(join(dir, file), "utf8").matchAll(CREATE_TABLE)) {
+      if (!m[1].endsWith("_next")) names.add(m[1]);
+    }
+  }
+  return names;
+}
+
+export function libImportsOf(source: string): string[] {
+  return [...new Set([...source.matchAll(LIB_IMPORT)].map((m) => m[1]))].sort();
+}
+
+export function tablesOf(source: string, known: Set<string>): string[] {
+  return [...new Set([...source.matchAll(SQL_TABLE)].map((m) => m[1]).filter((t) => known.has(t)))].sort();
+}
+
+export function exportsOf(source: string): string[] {
+  return [...new Set([...source.matchAll(EXPORTED)].map((m) => m[1]))].sort();
+}
+
+/** Every non-test module under `src/lib`, keyed by its import name. */
+export function listLibModules(dir: string = LIB_DIR): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const file of readdirSync(dir).sort()) {
+    if (!file.endsWith(".ts") || file.endsWith(".test.ts") || file.endsWith(".d.ts")) continue;
+    out.set(file.replace(/\.ts$/, ""), `${dir}/${file}`);
+  }
+  return out;
+}
+
 /** Every page file under `dir`, relative to it, sorted. */
 export function listPageFiles(dir: string = PAGES_DIR): string[] {
   const walk = (current: string, prefix: string): string[] =>
@@ -162,23 +232,58 @@ export function listPageFiles(dir: string = PAGES_DIR): string[] {
 }
 
 export function buildRouteMap(dir: string = PAGES_DIR): RouteEntry[] {
+  const known = knownTables();
+  const modules = listLibModules();
+  const libSource = new Map<string, string>();
+  const readLib = (name: string) => {
+    if (!libSource.has(name)) libSource.set(name, readFileSync(modules.get(name)!, "utf8"));
+    return libSource.get(name)!;
+  };
   return listPageFiles(dir)
     .map((relative) => {
       const path = toRoutePath(relative);
       const family = classify(path);
+      const source = readFileSync(join(dir, relative), "utf8");
+      // Only libs that exist on disk: a stale import would otherwise be listed
+      // as a dependency and, worse, be looked up for its SQL.
+      const libs = libImportsOf(source).filter((name) => modules.has(name));
+      const tables = new Set(tablesOf(source, known));
+      for (const name of libs) for (const t of tablesOf(readLib(name), known)) tables.add(t);
+      const tests = libs
+        .map((name) => `${LIB_DIR}/${name}.test.ts`)
+        .filter((file) => existsSync(file));
       return {
         path,
         file: `${dir}/${relative}`,
         family,
-        methods: methodsOf(readFileSync(join(dir, relative), "utf8"), relative),
+        methods: methodsOf(source, relative),
         auth: authFor(path, family),
         roles: rolesFor(path, family),
+        libs,
+        tables: [...tables].sort(),
+        tests,
       };
     })
     .sort((a, b) => {
       const byFamily = FAMILY_ORDER.indexOf(a.family) - FAMILY_ORDER.indexOf(b.family);
       return byFamily !== 0 ? byFamily : a.path.localeCompare(b.path);
     });
+}
+
+export function buildModuleMap(routes: RouteEntry[]): ModuleEntry[] {
+  const known = knownTables();
+  return [...listLibModules()].map(([name, file]) => {
+    const source = readFileSync(file, "utf8");
+    const test = `${LIB_DIR}/${name}.test.ts`;
+    return {
+      name,
+      file,
+      exports: exportsOf(source),
+      tables: tablesOf(source, known),
+      test: existsSync(test) ? test : null,
+      usedBy: routes.filter((r) => r.libs.includes(name)).map((r) => r.path),
+    };
+  });
 }
 
 const escape = (value: string) =>
@@ -196,18 +301,32 @@ export function toXml(routes: RouteEntry[], version: string): string {
     lines.push(`  <family name="${escape(family)}" count="${inFamily.length}">`);
     for (const route of inFamily) {
       const roles = route.roles.length > 0 ? ` roles="${route.roles.join(",")}"` : "";
+      const opt = (k: string, v: string[]) => (v.length > 0 ? ` ${k}="${escape(v.join(","))}"` : "");
       lines.push(
         `    <route path="${escape(route.path)}" methods="${route.methods.join(",")}"` +
-          ` auth="${escape(route.auth)}"${roles} file="${escape(route.file)}"/>`,
+          ` auth="${escape(route.auth)}"${roles} file="${escape(route.file)}"` +
+          `${opt("libs", route.libs)}${opt("tables", route.tables)}${opt("tests", route.tests)}/>`,
       );
     }
     lines.push("  </family>");
   }
+  const modules = buildModuleMap(routes);
+  lines.push(`  <modules count="${modules.length}" source="${LIB_DIR}">`);
+  for (const m of modules) {
+    const opt = (k: string, v: string[]) => (v.length > 0 ? ` ${k}="${escape(v.join(","))}"` : "");
+    lines.push(
+      `    <module name="${escape(m.name)}" file="${escape(m.file)}"` +
+        ` test="${m.test ? escape(m.test) : "none"}"` +
+        `${opt("exports", m.exports)}${opt("tables", m.tables)}${opt("used-by", m.usedBy)}/>`,
+    );
+  }
+  lines.push("  </modules>");
   lines.push("</route-map>", "");
   return lines.join("\n");
 }
 
 export function toMarkdown(routes: RouteEntry[], version: string): string {
+  const list = (v: string[]) => (v.length > 0 ? v.map((x) => `\`${x}\``).join(" ") : "—");
   const lines = [
     "# Route Map",
     "",
@@ -222,21 +341,50 @@ export function toMarkdown(routes: RouteEntry[], version: string): string {
     "`admin session` means the middleware requires a signed session, and `roles` lists",
     "which of them `canAccessAdminRoute` actually admits.",
     "",
+    "Read it as a dictionary, left to right: **URL → file → libs → tables → tests**.",
+    "`libs` are the `src/lib` modules the file imports directly; `tables` are the D1",
+    "tables named in that file's SQL and in those libs' SQL (one level, not deeper);",
+    "`tests` are the libs' sibling test files — the first place a regression shows.",
+    "A route with no `tests` is a route whose behaviour only a browser can prove.",
+    "The [Modules](#modules) section is the same book read from the other side.",
+    "",
   ];
   for (const family of FAMILY_ORDER) {
     const inFamily = routes.filter((route) => route.family === family);
     if (inFamily.length === 0) continue;
     lines.push(`## ${family} (${inFamily.length})`, "");
-    lines.push("| Route | Methods | Auth | Roles | File |");
-    lines.push("| --- | --- | --- | --- | --- |");
+    lines.push("| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |");
+    lines.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
     for (const route of inFamily) {
       lines.push(
         `| \`${route.path}\` | ${route.methods.join(", ") || "—"} | ${route.auth} | ${
           route.roles.length > 0 ? route.roles.join(", ") : "—"
-        } | \`${route.file}\` |`,
+        } | \`${route.file}\` | ${list(route.libs)} | ${list(route.tables)} | ${list(
+          route.tests.map((t) => t.replace(`${LIB_DIR}/`, "")),
+        )} |`,
       );
     }
     lines.push("");
   }
+  const modules = buildModuleMap(routes);
+  const untested = modules.filter((m) => !m.test);
+  lines.push(
+    "## Modules",
+    "",
+    `${modules.length} modules under \`${LIB_DIR}\`; ${untested.length} without a sibling test.`,
+    "`used by` lists routes importing the module directly — a module used by nothing",
+    "is either transitive (imported by another lib) or dead, and only reading tells which.",
+    "",
+    "| Module | Exports | Tables | Test | Used by |",
+    "| --- | --- | --- | --- | --- |",
+  );
+  for (const m of modules) {
+    lines.push(
+      `| \`${m.name}\` | ${m.exports.length} | ${list(m.tables)} | ${
+        m.test ? "✓" : "**none**"
+      } | ${m.usedBy.length > 0 ? m.usedBy.map((p) => `\`${p}\``).join(" ") : "—"} |`,
+    );
+  }
+  lines.push("");
   return lines.join("\n");
 }

@@ -9,173 +9,288 @@ AdsBookCMS 1.4.0 — **111 routes** across 12 families.
 `admin session` means the middleware requires a signed session, and `roles` lists
 which of them `canAccessAdminRoute` actually admits.
 
+Read it as a dictionary, left to right: **URL → file → libs → tables → tests**.
+`libs` are the `src/lib` modules the file imports directly; `tables` are the D1
+tables named in that file's SQL and in those libs' SQL (one level, not deeper);
+`tests` are the libs' sibling test files — the first place a regression shows.
+A route with no `tests` is a route whose behaviour only a browser can prove.
+The [Modules](#modules) section is the same book read from the other side.
+
 ## Storefront (6)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/` | GET | public | — | `src/pages/index.astro` |
-| `/404` | GET | public | — | `src/pages/404.astro` |
-| `/payment` | GET | public | — | `src/pages/payment.astro` |
-| `/produk` | GET | public | — | `src/pages/produk/index.astro` |
-| `/produk/[slug]` | GET | public | — | `src/pages/produk/[slug].astro` |
-| `/thanks` | GET | public | — | `src/pages/thanks.astro` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/` | GET | public | — | `src/pages/index.astro` | `catalog` `daily-rotation` `env` `storefront-template` `tenant-content` | `product_variants` `products` `storefront_templates` `stores` | `catalog.test.ts` `daily-rotation.test.ts` `env.test.ts` `storefront-template.test.ts` |
+| `/404` | GET | public | — | `src/pages/404.astro` | `catalog` `image-derivative` | `product_variants` `products` | `catalog.test.ts` `image-derivative.test.ts` |
+| `/payment` | GET | public | — | `src/pages/payment.astro` | `format-idr` `payment-brand` | — | `format-idr.test.ts` `payment-brand.test.ts` |
+| `/produk` | GET | public | — | `src/pages/produk/index.astro` | `catalog` `format-idr` | `product_variants` `products` | `catalog.test.ts` `format-idr.test.ts` |
+| `/produk/[slug]` | GET | public | — | `src/pages/produk/[slug].astro` | `catalog` `catalog-feed` `form-mode` `image-derivative` `landing-pages` | `landing_pages` `landing_sections` `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `form-mode.test.ts` `image-derivative.test.ts` `landing-pages.test.ts` |
+| `/thanks` | GET | public | — | `src/pages/thanks.astro` | `catalog` `cn` `public-store` `ui-variants` | `product_variants` `products` `stores` | `catalog.test.ts` |
 
 ## Content page (9)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/disclaimer` | GET | public | — | `src/pages/disclaimer.astro` |
-| `/kebijakan-cookie` | GET | public | — | `src/pages/kebijakan-cookie.astro` |
-| `/kebijakan-privasi` | GET | public | — | `src/pages/kebijakan-privasi.astro` |
-| `/kontak` | GET | public | — | `src/pages/kontak.astro` |
-| `/pengiriman` | GET | public | — | `src/pages/pengiriman.astro` |
-| `/sitemap` | GET | public | — | `src/pages/sitemap.astro` |
-| `/syarat-ketentuan` | GET | public | — | `src/pages/syarat-ketentuan.astro` |
-| `/tentang` | GET | public | — | `src/pages/tentang.astro` |
-| `/testimoni` | GET | public | — | `src/pages/testimoni.astro` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/disclaimer` | GET | public | — | `src/pages/disclaimer.astro` | — | — | — |
+| `/kebijakan-cookie` | GET | public | — | `src/pages/kebijakan-cookie.astro` | — | — | — |
+| `/kebijakan-privasi` | GET | public | — | `src/pages/kebijakan-privasi.astro` | — | — | — |
+| `/kontak` | GET | public | — | `src/pages/kontak.astro` | `public-store` | `stores` | — |
+| `/pengiriman` | GET | public | — | `src/pages/pengiriman.astro` | — | — | — |
+| `/sitemap` | GET | public | — | `src/pages/sitemap.astro` | `catalog` `landing-pages` | `landing_pages` `landing_sections` `product_variants` `products` | `catalog.test.ts` `landing-pages.test.ts` |
+| `/syarat-ketentuan` | GET | public | — | `src/pages/syarat-ketentuan.astro` | — | — | — |
+| `/tentang` | GET | public | — | `src/pages/tentang.astro` | — | — | — |
+| `/testimoni` | GET | public | — | `src/pages/testimoni.astro` | — | — | — |
 
 ## Landing page (4)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/[slug]` | GET | public | — | `src/pages/[slug].astro` |
-| `/contoh-landing` | GET | public | — | `src/pages/contoh-landing.astro` |
-| `/landing-page` | GET | public | — | `src/pages/landing-page/index.astro` |
-| `/solusi-terbaru` | GET | public | — | `src/pages/solusi-terbaru.astro` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/[slug]` | GET | public | — | `src/pages/[slug].astro` | `admin-session` `catalog` `catalog-feed` `env` `image-derivative` `landing-pages` `public-store` | `admin_credentials` `admin_sessions` `landing_pages` `landing_sections` `product_variants` `products` `stores` | `admin-session.test.ts` `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `image-derivative.test.ts` `landing-pages.test.ts` |
+| `/contoh-landing` | GET | public | — | `src/pages/contoh-landing.astro` | `catalog` `catalog-feed` `landing-pages` | `landing_pages` `landing_sections` `product_variants` `products` | `catalog.test.ts` `catalog-feed.test.ts` `landing-pages.test.ts` |
+| `/landing-page` | GET | public | — | `src/pages/landing-page/index.astro` | `landing-pages` | `landing_pages` `landing_sections` `products` | `landing-pages.test.ts` |
+| `/solusi-terbaru` | GET | public | — | `src/pages/solusi-terbaru.astro` | — | — | — |
 
 ## Checkout form (8)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/embed/form` | GET | public | — | `src/pages/embed/form.astro` |
-| `/form-full` | GET | public | — | `src/pages/form-full.astro` |
-| `/form-hybrid` | GET | public | — | `src/pages/form-hybrid.astro` |
-| `/form-middle` | GET | public | — | `src/pages/form-middle.astro` |
-| `/full-form` | GET | public | — | `src/pages/full-form.astro` |
-| `/geoipform` | GET | public | — | `src/pages/geoipform.astro` |
-| `/hybrid-form` | GET | public | — | `src/pages/hybrid-form.astro` |
-| `/middle-form` | GET | public | — | `src/pages/middle-form.astro` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/embed/form` | GET | public | — | `src/pages/embed/form.astro` | `catalog` `embed-markup` `form-config` | `product_variants` `products` | `catalog.test.ts` `embed-markup.test.ts` `form-config.test.ts` |
+| `/form-full` | GET | public | — | `src/pages/form-full.astro` | — | — | — |
+| `/form-hybrid` | GET | public | — | `src/pages/form-hybrid.astro` | — | — | — |
+| `/form-middle` | GET | public | — | `src/pages/form-middle.astro` | — | — | — |
+| `/full-form` | GET | public | — | `src/pages/full-form.astro` | `catalog` `catalog-feed` `form-config` | `product_variants` `products` | `catalog.test.ts` `catalog-feed.test.ts` `form-config.test.ts` |
+| `/geoipform` | GET | public | — | `src/pages/geoipform.astro` | `catalog` `catalog-feed` `form-mode` | `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `form-mode.test.ts` |
+| `/hybrid-form` | GET | public | — | `src/pages/hybrid-form.astro` | `catalog` `catalog-feed` `env` `form-config` `form-mode` | `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `form-config.test.ts` `form-mode.test.ts` |
+| `/middle-form` | GET | public | — | `src/pages/middle-form.astro` | `catalog` `catalog-feed` `form-config` | `product_variants` `products` | `catalog.test.ts` `catalog-feed.test.ts` `form-config.test.ts` |
 
 ## Feed (4)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/feed/google-catalog.xml` | GET | public | — | `src/pages/feed/google-catalog.xml.ts` |
-| `/feed/meta-catalog.xml` | GET | public | — | `src/pages/feed/meta-catalog.xml.ts` |
-| `/robots.txt` | GET | public | — | `src/pages/robots.txt.ts` |
-| `/sitemap.xml` | GET | public | — | `src/pages/sitemap.xml.ts` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/feed/google-catalog.xml` | GET | public | — | `src/pages/feed/google-catalog.xml.ts` | `catalog` `catalog-feed` | `product_variants` `products` | `catalog.test.ts` `catalog-feed.test.ts` |
+| `/feed/meta-catalog.xml` | GET | public | — | `src/pages/feed/meta-catalog.xml.ts` | `catalog` `catalog-feed` | `product_variants` `products` | `catalog.test.ts` `catalog-feed.test.ts` |
+| `/robots.txt` | GET | public | — | `src/pages/robots.txt.ts` | — | — | — |
+| `/sitemap.xml` | GET | public | — | `src/pages/sitemap.xml.ts` | `catalog` `landing-pages` | `landing_pages` `landing_sections` `product_variants` `products` | `catalog.test.ts` `landing-pages.test.ts` |
 
 ## Media (2)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/assets/[...key]` | GET | public | — | `src/pages/assets/[...key].ts` |
-| `/media/[...key]` | GET | public | — | `src/pages/media/[...key].ts` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/assets/[...key]` | GET | public | — | `src/pages/assets/[...key].ts` | `env` | — | `env.test.ts` |
+| `/media/[...key]` | GET | public | — | `src/pages/media/[...key].ts` | `env` | — | `env.test.ts` |
 
 ## Install & auth (2)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/hello` | GET | public | — | `src/pages/hello.astro` |
-| `/install` | GET | install token | — | `src/pages/install.astro` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/hello` | GET | public | — | `src/pages/hello.astro` | `admin-credentials` `admin-session` `auth` `env` `rate-limit` | `admin_credentials` `admin_sessions` `rate_limits` | `admin-credentials.test.ts` `admin-session.test.ts` `auth.test.ts` `env.test.ts` `rate-limit.test.ts` |
+| `/install` | GET | install token | — | `src/pages/install.astro` | — | — | — |
 
 ## Public API (12)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/api/form-config` | GET | public | — | `src/pages/api/form-config.ts` |
-| `/api/geo-province` | GET | public | — | `src/pages/api/geo-province.ts` |
-| `/api/install` | POST | install token | — | `src/pages/api/install.ts` |
-| `/api/locations` | GET | public | — | `src/pages/api/locations.ts` |
-| `/api/meta-event` | POST | public | — | `src/pages/api/meta-event.ts` |
-| `/api/order-status` | POST | public | — | `src/pages/api/order-status.ts` |
-| `/api/payment-methods` | GET | public | — | `src/pages/api/payment-methods.ts` |
-| `/api/record-abandoned-order` | POST | public | — | `src/pages/api/record-abandoned-order.ts` |
-| `/api/shipping-options` | GET | public | — | `src/pages/api/shipping-options.ts` |
-| `/api/shipping-rates` | GET | public | — | `src/pages/api/shipping-rates.ts` |
-| `/api/submit-middle-order` | POST | public | — | `src/pages/api/submit-middle-order.ts` |
-| `/api/submit-order` | POST | public | — | `src/pages/api/submit-order.ts` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/api/form-config` | GET | public | — | `src/pages/api/form-config.ts` | `api` `catalog` `catalog-feed` `env` `form-config` `form-mode` `store-config-cache` | `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `form-config.test.ts` `form-mode.test.ts` `store-config-cache.test.ts` |
+| `/api/geo-province` | GET | public | — | `src/pages/api/geo-province.ts` | `env` `form-mode` | `stores` | `env.test.ts` `form-mode.test.ts` |
+| `/api/install` | POST | install token | — | `src/pages/api/install.ts` | `auth` `env` `install` `tenant` | `admin_credentials` `courier_rules` `stores` | `auth.test.ts` `env.test.ts` `install.test.ts` `tenant.test.ts` |
+| `/api/locations` | GET | public | — | `src/pages/api/locations.ts` | `district-catalog` `env` `location-cache` `location-search` `mengantar-client` `provider-config` `rate-limit` | `rate_limits` `stores` | `district-catalog.test.ts` `env.test.ts` `location-cache.test.ts` `location-search.test.ts` `mengantar-client.test.ts` `provider-config.test.ts` `rate-limit.test.ts` |
+| `/api/meta-event` | POST | public | — | `src/pages/api/meta-event.ts` | `autolaris-payment` `capi-outbox` `click-ids` `env` `meta-capi` `meta-event-contract` `meta-purchase-order` `rate-limit` `store-ads` | `autolaris_callbacks` `capi_event_outbox` `order_items` `orders` `payment_transactions` `rate_limits` `stores` | `autolaris-payment.test.ts` `capi-outbox.test.ts` `click-ids.test.ts` `env.test.ts` `meta-capi.test.ts` `meta-event-contract.test.ts` `meta-purchase-order.test.ts` `rate-limit.test.ts` `store-ads.test.ts` |
+| `/api/order-status` | POST | public | — | `src/pages/api/order-status.ts` | `autolaris-client` `autolaris-payment` `env` `order-status` `rate-limit` | `autolaris_callbacks` `order_items` `orders` `payment_transactions` `rate_limits` `stores` | `autolaris-client.test.ts` `autolaris-payment.test.ts` `env.test.ts` `order-status.test.ts` `rate-limit.test.ts` |
+| `/api/payment-methods` | GET | public | — | `src/pages/api/payment-methods.ts` | `autolaris-client` `env` `payment-brand` `payment-fee-policy` `provider-config` | `seller_bank_accounts` `stores` | `autolaris-client.test.ts` `env.test.ts` `payment-brand.test.ts` `payment-fee-policy.test.ts` `provider-config.test.ts` |
+| `/api/record-abandoned-order` | POST | public | — | `src/pages/api/record-abandoned-order.ts` | `api` `env` `order-persistence` `rate-limit` `validation` | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `seller_bank_accounts` `stores` | `env.test.ts` `order-persistence.test.ts` `rate-limit.test.ts` `validation.test.ts` |
+| `/api/shipping-options` | GET | public | — | `src/pages/api/shipping-options.ts` | — | — | — |
+| `/api/shipping-rates` | GET | public | — | `src/pages/api/shipping-rates.ts` | `env` `rate-limit` `shipping-quote` | `courier_rules` `product_variants` `products` `rate_limits` `warehouses` | `env.test.ts` `rate-limit.test.ts` `shipping-quote.test.ts` |
+| `/api/submit-middle-order` | POST | public | — | `src/pages/api/submit-middle-order.ts` | `click-ids` `env` `excluded-area` `form-mode` `geo` `meta-order-context` `order-persistence` `order-schema` `province` `rate-limit` `rts-scoring` | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `seller_bank_accounts` `stores` | `click-ids.test.ts` `env.test.ts` `excluded-area.test.ts` `form-mode.test.ts` `meta-order-context.test.ts` `order-persistence.test.ts` `order-schema.test.ts` `province.test.ts` `rate-limit.test.ts` `rts-scoring.test.ts` |
+| `/api/submit-order` | POST | public | — | `src/pages/api/submit-order.ts` | `autolaris-payment` `click-ids` `courier-rules` `env` `form-mode` `mengantar-client` `meta-order-context` `order-persistence` `order-schema` `provider-config` `rate-limit` `rts-scoring` `shipping-quote` `validation` | `autolaris_callbacks` `courier_rules` `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `seller_bank_accounts` `stores` `warehouses` | `autolaris-payment.test.ts` `click-ids.test.ts` `courier-rules.test.ts` `env.test.ts` `form-mode.test.ts` `mengantar-client.test.ts` `meta-order-context.test.ts` `order-persistence.test.ts` `order-schema.test.ts` `provider-config.test.ts` `rate-limit.test.ts` `rts-scoring.test.ts` `shipping-quote.test.ts` `validation.test.ts` |
 
 ## Headless API (9)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/api/v1/checkout` | OPTIONS, POST | api key | — | `src/pages/api/v1/checkout.ts` |
-| `/api/v1/geo/districts` | GET, OPTIONS | api key | — | `src/pages/api/v1/geo/districts.ts` |
-| `/api/v1/geo/shipping-rates` | GET, OPTIONS, POST | api key | — | `src/pages/api/v1/geo/shipping-rates.ts` |
-| `/api/v1/openapi.json` | GET, OPTIONS | api key | — | `src/pages/api/v1/openapi.json.ts` |
-| `/api/v1/orders/status` | OPTIONS, POST | api key | — | `src/pages/api/v1/orders/status.ts` |
-| `/api/v1/products` | GET, OPTIONS | api key | — | `src/pages/api/v1/products/index.ts` |
-| `/api/v1/products/[slug]` | GET, OPTIONS | api key | — | `src/pages/api/v1/products/[slug].ts` |
-| `/api/v1/storefront` | GET, OPTIONS | api key | — | `src/pages/api/v1/storefront.ts` |
-| `/api/v1/tracking/events` | OPTIONS, POST | api key | — | `src/pages/api/v1/tracking/events.ts` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/api/v1/checkout` | OPTIONS, POST | api key | — | `src/pages/api/v1/checkout.ts` | `click-ids` `env` `form-mode` `headless-api` `headless-checkout` `meta-order-context` `order-persistence` `order-schema` `province` `rate-limit` `shipping-quote` | `courier_rules` `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `seller_bank_accounts` `stores` `warehouses` | `click-ids.test.ts` `env.test.ts` `form-mode.test.ts` `headless-api.test.ts` `headless-checkout.test.ts` `meta-order-context.test.ts` `order-persistence.test.ts` `order-schema.test.ts` `province.test.ts` `rate-limit.test.ts` `shipping-quote.test.ts` |
+| `/api/v1/geo/districts` | GET, OPTIONS | api key | — | `src/pages/api/v1/geo/districts.ts` | `district-catalog` `headless-api` `location-search` | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `stores` | `district-catalog.test.ts` `headless-api.test.ts` `location-search.test.ts` |
+| `/api/v1/geo/shipping-rates` | GET, OPTIONS, POST | api key | — | `src/pages/api/v1/geo/shipping-rates.ts` | `env` `headless-api` `shipping-quote` | `courier_rules` `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `product_variants` `products` `stores` `warehouses` | `env.test.ts` `headless-api.test.ts` `shipping-quote.test.ts` |
+| `/api/v1/openapi.json` | GET, OPTIONS | api key | — | `src/pages/api/v1/openapi.json.ts` | `headless-api` `headless-openapi` | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `stores` | `headless-api.test.ts` `headless-openapi.test.ts` |
+| `/api/v1/orders/status` | OPTIONS, POST | api key | — | `src/pages/api/v1/orders/status.ts` | `env` `headless-api` `order-status` | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `order_items` `orders` `payment_transactions` `stores` | `env.test.ts` `headless-api.test.ts` `order-status.test.ts` |
+| `/api/v1/products` | GET, OPTIONS | api key | — | `src/pages/api/v1/products/index.ts` | `catalog` `catalog-feed` `headless-api` | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `headless-api.test.ts` |
+| `/api/v1/products/[slug]` | GET, OPTIONS | api key | — | `src/pages/api/v1/products/[slug].ts` | `catalog` `catalog-feed` `headless-api` | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `headless-api.test.ts` |
+| `/api/v1/storefront` | GET, OPTIONS | api key | — | `src/pages/api/v1/storefront.ts` | `env` `form-mode` `headless-api` `store-ads` `tenant-content` | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `stores` | `env.test.ts` `form-mode.test.ts` `headless-api.test.ts` `store-ads.test.ts` |
+| `/api/v1/tracking/events` | OPTIONS, POST | api key | — | `src/pages/api/v1/tracking/events.ts` | `autolaris-payment` `capi-outbox` `click-ids` `env` `headless-api` `meta-capi` `meta-event-contract` `meta-order-context` `meta-purchase-order` `rate-limit` `store-ads` | `autolaris_callbacks` `capi_event_outbox` `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `order_items` `orders` `payment_transactions` `rate_limits` `stores` | `autolaris-payment.test.ts` `capi-outbox.test.ts` `click-ids.test.ts` `env.test.ts` `headless-api.test.ts` `meta-capi.test.ts` `meta-event-contract.test.ts` `meta-order-context.test.ts` `meta-purchase-order.test.ts` `rate-limit.test.ts` `store-ads.test.ts` |
 
 ## Webhook (1)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/api/webhooks/autolaris` | POST | provider signature | — | `src/pages/api/webhooks/autolaris.ts` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/api/webhooks/autolaris` | POST | provider signature | — | `src/pages/api/webhooks/autolaris.ts` | `api` `env` `rate-limit` | `autolaris_callbacks` `rate_limits` | `env.test.ts` `rate-limit.test.ts` |
 
 ## Admin page (28)
 
-| Route | Methods | Auth | Roles | File |
-| --- | --- | --- | --- | --- |
-| `/admin` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/admin/index.astro` |
-| `/admin/ads` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads.astro` |
-| `/admin/ads/google` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads/google.astro` |
-| `/admin/ads/meta` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads/meta.astro` |
-| `/admin/balance` | GET | admin session | owner, admin | `src/pages/admin/balance.astro` |
-| `/admin/check` | GET | admin session | owner, admin, customer_service | `src/pages/admin/check.astro` |
-| `/admin/content` | GET | admin session | owner, admin, advertiser | `src/pages/admin/content.astro` |
-| `/admin/couriers` | GET | admin session | owner, admin | `src/pages/admin/couriers.astro` |
-| `/admin/dashboard` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/admin/dashboard.astro` |
-| `/admin/expeditions` | GET | admin session | owner, admin | `src/pages/admin/expeditions.astro` |
-| `/admin/landing-pages` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/index.astro` |
-| `/admin/landing-pages/[id]/edit` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/[id]/edit.astro` |
-| `/admin/landing-pages/new` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/new.astro` |
-| `/admin/orders` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/index.astro` |
-| `/admin/orders/[invoice]` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/[invoice].astro` |
-| `/admin/orders/abandoned` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/abandoned.astro` |
-| `/admin/payments` | GET | admin session | owner, admin | `src/pages/admin/payments.astro` |
-| `/admin/products` | GET | admin session | owner, admin, advertiser | `src/pages/admin/products.astro` |
-| `/admin/products/edit` | GET | admin session | owner, admin, advertiser | `src/pages/admin/products/edit.astro` |
-| `/admin/products/new` | GET | admin session | owner, admin, advertiser | `src/pages/admin/products/new.astro` |
-| `/admin/profile` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/admin/profile.astro` |
-| `/admin/settings` | GET | admin session | owner, admin | `src/pages/admin/settings.astro` |
-| `/admin/settings/access` | GET | admin session | owner | `src/pages/admin/settings/access.astro` |
-| `/admin/settings/crm` | GET | admin session | owner, admin | `src/pages/admin/settings/crm.astro` |
-| `/admin/settings/developer` | GET | admin session | owner, admin | `src/pages/admin/settings/developer.astro` |
-| `/admin/settings/store` | GET | admin session | owner, admin | `src/pages/admin/settings/store.astro` |
-| `/admin/settings/warehouse` | GET | admin session | owner, admin | `src/pages/admin/settings/warehouse.astro` |
-| `/admin/shipping` | GET | admin session | owner, admin, customer_service | `src/pages/admin/shipping.astro` |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/admin` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/admin/index.astro` | — | — | — |
+| `/admin/ads` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads.astro` | — | — | — |
+| `/admin/ads/google` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads/google.astro` | — | — | — |
+| `/admin/ads/meta` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads/meta.astro` | `meta-capi` | — | `meta-capi.test.ts` |
+| `/admin/balance` | GET | admin session | owner, admin | `src/pages/admin/balance.astro` | — | — | — |
+| `/admin/check` | GET | admin session | owner, admin, customer_service | `src/pages/admin/check.astro` | `env` `format-idr` | `warehouses` | `env.test.ts` `format-idr.test.ts` |
+| `/admin/content` | GET | admin session | owner, admin, advertiser | `src/pages/admin/content.astro` | — | — | — |
+| `/admin/couriers` | GET | admin session | owner, admin | `src/pages/admin/couriers.astro` | — | — | — |
+| `/admin/dashboard` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/admin/dashboard.astro` | `auth` | — | `auth.test.ts` |
+| `/admin/expeditions` | GET | admin session | owner, admin | `src/pages/admin/expeditions.astro` | — | — | — |
+| `/admin/landing-pages` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/index.astro` | — | — | — |
+| `/admin/landing-pages/[id]/edit` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/[id]/edit.astro` | — | — | — |
+| `/admin/landing-pages/new` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/new.astro` | — | — | — |
+| `/admin/orders` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/index.astro` | `env` | `order_items` `orders` `payment_transactions` `product_variants` `products` `stores` | `env.test.ts` |
+| `/admin/orders/[invoice]` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/[invoice].astro` | — | — | — |
+| `/admin/orders/abandoned` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/abandoned.astro` | — | — | — |
+| `/admin/payments` | GET | admin session | owner, admin | `src/pages/admin/payments.astro` | `autolaris-client` `payment-fee-policy` | — | `autolaris-client.test.ts` `payment-fee-policy.test.ts` |
+| `/admin/products` | GET | admin session | owner, admin, advertiser | `src/pages/admin/products.astro` | `env` | `product_variants` `products` | `env.test.ts` |
+| `/admin/products/edit` | GET | admin session | owner, admin, advertiser | `src/pages/admin/products/edit.astro` | — | — | — |
+| `/admin/products/new` | GET | admin session | owner, admin, advertiser | `src/pages/admin/products/new.astro` | — | — | — |
+| `/admin/profile` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/admin/profile.astro` | — | — | — |
+| `/admin/settings` | GET | admin session | owner, admin | `src/pages/admin/settings.astro` | — | — | — |
+| `/admin/settings/access` | GET | admin session | owner | `src/pages/admin/settings/access.astro` | — | — | — |
+| `/admin/settings/crm` | GET | admin session | owner, admin | `src/pages/admin/settings/crm.astro` | — | — | — |
+| `/admin/settings/developer` | GET | admin session | owner, admin | `src/pages/admin/settings/developer.astro` | — | — | — |
+| `/admin/settings/store` | GET | admin session | owner, admin | `src/pages/admin/settings/store.astro` | — | — | — |
+| `/admin/settings/warehouse` | GET | admin session | owner, admin | `src/pages/admin/settings/warehouse.astro` | `location-search` | — | `location-search.test.ts` |
+| `/admin/shipping` | GET | admin session | owner, admin, customer_service | `src/pages/admin/shipping.astro` | — | — | — |
 
 ## Admin API (26)
 
-| Route | Methods | Auth | Roles | File |
+| Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `/api/admin/abandoned-orders` | GET, PATCH, POST | admin session | owner, admin, customer_service | `src/pages/api/admin/abandoned-orders.ts` | `abandoned-lead` `api` `courier-rules` `env` `shipping-quote` | `courier_rules` `order_items` `orders` `product_variants` `products` `stores` `warehouses` | `abandoned-lead.test.ts` `courier-rules.test.ts` `env.test.ts` `shipping-quote.test.ts` |
+| `/api/admin/access` | DELETE, GET, PATCH, POST | admin session | owner | `src/pages/api/admin/access.ts` | `admin-credentials` `admin-session` `api` `auth` `env` | `admin_credentials` `admin_sessions` | `admin-credentials.test.ts` `admin-session.test.ts` `auth.test.ts` `env.test.ts` |
+| `/api/admin/ads` | GET, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/ads.ts` | `env` `meta-capi` `store-ads` | `stores` | `env.test.ts` `meta-capi.test.ts` `store-ads.test.ts` |
+| `/api/admin/analytics` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/api/admin/analytics.ts` | `api` `env` | `orders` | `env.test.ts` |
+| `/api/admin/check` | GET | admin session | owner, admin, customer_service | `src/pages/api/admin/check.ts` | `api` `env` `rts-scoring` | `orders` | `env.test.ts` `rts-scoring.test.ts` |
+| `/api/admin/content` | GET, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/content.ts` | `ai-content-instructions` `env` `storefront-content` | `product_variants` `products` `storefront_content` `stores` | `ai-content-instructions.test.ts` `env.test.ts` `storefront-content.test.ts` |
+| `/api/admin/expeditions` | GET, PATCH | admin session | owner, admin | `src/pages/api/admin/expeditions.ts` | `api` `env` `province` `store-config-cache` | `courier_rules` `stores` `warehouses` | `env.test.ts` `province.test.ts` `store-config-cache.test.ts` |
+| `/api/admin/health` | GET | admin session | owner, admin | `src/pages/api/admin/health.ts` | `api` `env` `operational-alerts` `operational-health` | `orders` `payment_reconciliation_audits` `payment_transactions` | `env.test.ts` `operational-alerts.test.ts` `operational-health.test.ts` |
+| `/api/admin/landing-pages` | GET, POST | admin session | owner, admin, advertiser | `src/pages/api/admin/landing-pages/index.ts` | `api` `landing-pages` | `landing_pages` `landing_sections` `products` | `landing-pages.test.ts` |
+| `/api/admin/landing-pages/[id]` | DELETE, GET, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/landing-pages/[id].ts` | `api` `landing-pages` | `landing_pages` `landing_sections` `products` | `landing-pages.test.ts` |
+| `/api/admin/logout` | POST | admin session | owner, admin, advertiser, customer_service | `src/pages/api/admin/logout.ts` | `admin-session` `auth` `env` | `admin_credentials` `admin_sessions` | `admin-session.test.ts` `auth.test.ts` `env.test.ts` |
+| `/api/admin/media` | POST | admin session | owner, admin, advertiser | `src/pages/api/admin/media.ts` | `api` `env` `storefront-media` | — | `env.test.ts` `storefront-media.test.ts` |
+| `/api/admin/notifications` | GET, POST | admin session | owner, admin, customer_service | `src/pages/api/admin/notifications.ts` | `api` `env` `notifications` | `notification_reads` `notifications` `orders` | `env.test.ts` `notifications.test.ts` |
+| `/api/admin/ongkir` | GET | admin session | owner, admin, customer_service | `src/pages/api/admin/ongkir.ts` | `api` `env` `mengantar-client` `provider-config` | `stores` | `env.test.ts` `mengantar-client.test.ts` `provider-config.test.ts` |
+| `/api/admin/orders` | DELETE, GET, POST | admin session | owner, admin, customer_service | `src/pages/api/admin/orders/index.ts` | `admin-date-filter` `api` `crm-template` `env` `mengantar-dispatch` `mengantar-order` `order-lifecycle` `payment-dispatch-policy` `rts-scoring` | `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` `product_variants` `products` `provider_dispatch_locks` `stores` `warehouses` | `admin-date-filter.test.ts` `crm-template.test.ts` `env.test.ts` `mengantar-dispatch.test.ts` `mengantar-order.test.ts` `order-lifecycle.test.ts` `payment-dispatch-policy.test.ts` `rts-scoring.test.ts` |
+| `/api/admin/orders/[id]` | DELETE, GET, PATCH | admin session | owner, admin, customer_service | `src/pages/api/admin/orders/[id].ts` | `api` `autolaris-payment` `courier-rules` `env` `mengantar-dispatch` `notifications` `order-lifecycle` `order-schema` `payment-dispatch-policy` `payment-fee-policy` `receiver-performance` `rts-scoring` `shipping-quote` `validation` | `autolaris_callbacks` `courier_rules` `notification_reads` `notifications` `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` `pickup_schedules` `product_variants` `products` `provider_dispatch_locks` `stores` `warehouses` | `autolaris-payment.test.ts` `courier-rules.test.ts` `env.test.ts` `mengantar-dispatch.test.ts` `notifications.test.ts` `order-lifecycle.test.ts` `order-schema.test.ts` `payment-dispatch-policy.test.ts` `payment-fee-policy.test.ts` `receiver-performance.test.ts` `rts-scoring.test.ts` `shipping-quote.test.ts` `validation.test.ts` |
+| `/api/admin/orders/retention` | POST | admin session | owner, admin, customer_service | `src/pages/api/admin/orders/retention.ts` | `api` `env` `order-persistence` | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `seller_bank_accounts` `stores` | `env.test.ts` `order-persistence.test.ts` |
+| `/api/admin/payment-reconciliation` | GET, POST | admin session | owner, admin | `src/pages/api/admin/payment-reconciliation.ts` | `api` `env` `manual-payment-reconciliation` `paid-order-purchase` | `admin_credentials` `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` `product_variants` `products` `stores` | `env.test.ts` `manual-payment-reconciliation.test.ts` `paid-order-purchase.test.ts` |
+| `/api/admin/products` | DELETE, GET, PATCH, POST, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/products.ts` | `api` `catalog-data` `env` `product-mutation` | `order_items` `product_variants` `products` `storefront_content` `stores` | `catalog-data.test.ts` `env.test.ts` `product-mutation.test.ts` |
+| `/api/admin/profile` | GET, PUT | admin session | owner, admin, advertiser, customer_service | `src/pages/api/admin/profile.ts` | `admin-credentials` `admin-session` `api` `auth` `env` | `admin_credentials` `admin_sessions` | `admin-credentials.test.ts` `admin-session.test.ts` `auth.test.ts` `env.test.ts` |
+| `/api/admin/rules` | GET, PUT | admin session | owner, admin | `src/pages/api/admin/rules.ts` | `api` `env` | `courier_rules` | `env.test.ts` |
+| `/api/admin/seller-bank-accounts` | DELETE, GET, POST, PUT | admin session | owner, admin | `src/pages/api/admin/seller-bank-accounts.ts` | `api` `env` `seller-bank-account` | `seller_bank_accounts` `stores` | `env.test.ts` `seller-bank-account.test.ts` |
+| `/api/admin/settings` | GET, POST, PUT | admin session | owner, admin | `src/pages/api/admin/settings.ts` | `api` `autolaris-client` `crm-template` `embed-security` `env` `headless-api` `mengantar-client` `provider-config` `storefront-template` | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `storefront_templates` `stores` `warehouses` | `autolaris-client.test.ts` `crm-template.test.ts` `embed-security.test.ts` `env.test.ts` `headless-api.test.ts` `mengantar-client.test.ts` `provider-config.test.ts` `storefront-template.test.ts` |
+| `/api/admin/settings/developer` | DELETE, GET, PATCH, POST | admin session | owner, admin | `src/pages/api/admin/settings/developer.ts` | `api` `developer-api-keys` `env` | `developer_api_keys` `headless_api_audit_events` | `developer-api-keys.test.ts` `env.test.ts` |
+| `/api/admin/shipping` | GET, PATCH, POST | admin session | owner, admin, customer_service | `src/pages/api/admin/shipping.ts` | `admin-date-filter` `api` `env` `mengantar-client` `mengantar-order` `order-lifecycle` `payment-dispatch-policy` `provider-config` | `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` `pickup_schedules` `stores` `warehouses` | `admin-date-filter.test.ts` `env.test.ts` `mengantar-client.test.ts` `mengantar-order.test.ts` `order-lifecycle.test.ts` `payment-dispatch-policy.test.ts` `provider-config.test.ts` |
+| `/api/admin/upload-r2` | POST | admin session | owner, admin, advertiser | `src/pages/api/admin/upload-r2.ts` | `api` `env` `rate-limit` | `rate_limits` | `env.test.ts` `rate-limit.test.ts` |
+
+## Modules
+
+99 modules under `src/lib`; 14 without a sibling test.
+`used by` lists routes importing the module directly — a module used by nothing
+is either transitive (imported by another lib) or dead, and only reading tells which.
+
+| Module | Exports | Tables | Test | Used by |
 | --- | --- | --- | --- | --- |
-| `/api/admin/abandoned-orders` | GET, PATCH, POST | admin session | owner, admin, customer_service | `src/pages/api/admin/abandoned-orders.ts` |
-| `/api/admin/access` | DELETE, GET, PATCH, POST | admin session | owner | `src/pages/api/admin/access.ts` |
-| `/api/admin/ads` | GET, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/ads.ts` |
-| `/api/admin/analytics` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/api/admin/analytics.ts` |
-| `/api/admin/check` | GET | admin session | owner, admin, customer_service | `src/pages/api/admin/check.ts` |
-| `/api/admin/content` | GET, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/content.ts` |
-| `/api/admin/expeditions` | GET, PATCH | admin session | owner, admin | `src/pages/api/admin/expeditions.ts` |
-| `/api/admin/health` | GET | admin session | owner, admin | `src/pages/api/admin/health.ts` |
-| `/api/admin/landing-pages` | GET, POST | admin session | owner, admin, advertiser | `src/pages/api/admin/landing-pages/index.ts` |
-| `/api/admin/landing-pages/[id]` | DELETE, GET, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/landing-pages/[id].ts` |
-| `/api/admin/logout` | POST | admin session | owner, admin, advertiser, customer_service | `src/pages/api/admin/logout.ts` |
-| `/api/admin/media` | POST | admin session | owner, admin, advertiser | `src/pages/api/admin/media.ts` |
-| `/api/admin/notifications` | GET, POST | admin session | owner, admin, customer_service | `src/pages/api/admin/notifications.ts` |
-| `/api/admin/ongkir` | GET | admin session | owner, admin, customer_service | `src/pages/api/admin/ongkir.ts` |
-| `/api/admin/orders` | DELETE, GET, POST | admin session | owner, admin, customer_service | `src/pages/api/admin/orders/index.ts` |
-| `/api/admin/orders/[id]` | DELETE, GET, PATCH | admin session | owner, admin, customer_service | `src/pages/api/admin/orders/[id].ts` |
-| `/api/admin/orders/retention` | POST | admin session | owner, admin, customer_service | `src/pages/api/admin/orders/retention.ts` |
-| `/api/admin/payment-reconciliation` | GET, POST | admin session | owner, admin | `src/pages/api/admin/payment-reconciliation.ts` |
-| `/api/admin/products` | DELETE, GET, PATCH, POST, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/products.ts` |
-| `/api/admin/profile` | GET, PUT | admin session | owner, admin, advertiser, customer_service | `src/pages/api/admin/profile.ts` |
-| `/api/admin/rules` | GET, PUT | admin session | owner, admin | `src/pages/api/admin/rules.ts` |
-| `/api/admin/seller-bank-accounts` | DELETE, GET, POST, PUT | admin session | owner, admin | `src/pages/api/admin/seller-bank-accounts.ts` |
-| `/api/admin/settings` | GET, POST, PUT | admin session | owner, admin | `src/pages/api/admin/settings.ts` |
-| `/api/admin/settings/developer` | DELETE, GET, PATCH, POST | admin session | owner, admin | `src/pages/api/admin/settings/developer.ts` |
-| `/api/admin/shipping` | GET, PATCH, POST | admin session | owner, admin, customer_service | `src/pages/api/admin/shipping.ts` |
-| `/api/admin/upload-r2` | POST | admin session | owner, admin, advertiser | `src/pages/api/admin/upload-r2.ts` |
+| `abandoned-lead-session` | 6 | — | ✓ | — |
+| `abandoned-lead` | 8 | `order_items` `orders` `product_variants` `products` `stores` | ✓ | `/api/admin/abandoned-orders` |
+| `ad-taxonomy` | 2 | — | ✓ | — |
+| `admin-credentials` | 12 | `admin_credentials` | ✓ | `/hello` `/api/admin/access` `/api/admin/profile` |
+| `admin-date-filter` | 25 | — | ✓ | `/api/admin/orders` `/api/admin/shipping` |
+| `admin-session` | 6 | `admin_credentials` `admin_sessions` | ✓ | `/[slug]` `/hello` `/api/admin/access` `/api/admin/logout` `/api/admin/profile` |
+| `ai-content-instructions` | 2 | — | ✓ | `/api/admin/content` |
+| `api` | 3 | — | **none** | `/api/form-config` `/api/record-abandoned-order` `/api/webhooks/autolaris` `/api/admin/abandoned-orders` `/api/admin/access` `/api/admin/analytics` `/api/admin/check` `/api/admin/expeditions` `/api/admin/health` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` `/api/admin/media` `/api/admin/notifications` `/api/admin/ongkir` `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/orders/retention` `/api/admin/payment-reconciliation` `/api/admin/products` `/api/admin/profile` `/api/admin/rules` `/api/admin/seller-bank-accounts` `/api/admin/settings` `/api/admin/settings/developer` `/api/admin/shipping` `/api/admin/upload-r2` |
+| `auth` | 13 | — | ✓ | `/hello` `/api/install` `/admin/dashboard` `/api/admin/access` `/api/admin/logout` `/api/admin/profile` |
+| `autolaris-balance` | 5 | `orders` `payment_transactions` | **none** | — |
+| `autolaris-client` | 22 | — | ✓ | `/api/order-status` `/api/payment-methods` `/admin/payments` `/api/admin/settings` |
+| `autolaris-payment` | 13 | `autolaris_callbacks` `orders` `payment_transactions` `stores` | ✓ | `/api/meta-event` `/api/order-status` `/api/submit-order` `/api/v1/tracking/events` `/api/admin/orders/[id]` |
+| `bundled-migrations` | 1 | — | **none** | — |
+| `capi-outbox` | 12 | `capi_event_outbox` | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
+| `catalog-data` | 4 | — | ✓ | `/api/admin/products` |
+| `catalog-feed` | 8 | — | ✓ | `/produk/[slug]` `/[slug]` `/contoh-landing` `/full-form` `/geoipform` `/hybrid-form` `/middle-form` `/feed/google-catalog.xml` `/feed/meta-catalog.xml` `/api/form-config` `/api/v1/products` `/api/v1/products/[slug]` |
+| `catalog` | 2 | `product_variants` `products` | ✓ | `/` `/404` `/produk` `/produk/[slug]` `/thanks` `/sitemap` `/[slug]` `/contoh-landing` `/embed/form` `/full-form` `/geoipform` `/hybrid-form` `/middle-form` `/feed/google-catalog.xml` `/feed/meta-catalog.xml` `/sitemap.xml` `/api/form-config` `/api/v1/products` `/api/v1/products/[slug]` |
+| `checkout-navigation` | 2 | — | ✓ | — |
+| `click-ids` | 17 | — | ✓ | `/api/meta-event` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` |
+| `client-image` | 8 | — | ✓ | — |
+| `cn` | 1 | — | **none** | `/thanks` |
+| `courier-rules` | 3 | — | ✓ | `/api/submit-order` `/api/admin/abandoned-orders` `/api/admin/orders/[id]` |
+| `crm-template` | 6 | — | ✓ | `/api/admin/orders` `/api/admin/settings` |
+| `daily-rotation` | 2 | — | ✓ | `/` |
+| `deploy-preflight` | 5 | — | ✓ | — |
+| `developer-api-keys` | 18 | — | ✓ | `/api/admin/settings/developer` |
+| `district-catalog` | 1 | — | ✓ | `/api/locations` `/api/v1/geo/districts` |
+| `embed-markup` | 5 | — | ✓ | `/embed/form` |
+| `embed-security` | 6 | — | ✓ | `/api/admin/settings` |
+| `env` | 4 | — | ✓ | `/` `/[slug]` `/hybrid-form` `/assets/[...key]` `/media/[...key]` `/hello` `/api/form-config` `/api/geo-province` `/api/install` `/api/locations` `/api/meta-event` `/api/order-status` `/api/payment-methods` `/api/record-abandoned-order` `/api/shipping-rates` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/geo/shipping-rates` `/api/v1/orders/status` `/api/v1/storefront` `/api/v1/tracking/events` `/api/webhooks/autolaris` `/admin/check` `/admin/orders` `/admin/products` `/api/admin/abandoned-orders` `/api/admin/access` `/api/admin/ads` `/api/admin/analytics` `/api/admin/check` `/api/admin/content` `/api/admin/expeditions` `/api/admin/health` `/api/admin/logout` `/api/admin/media` `/api/admin/notifications` `/api/admin/ongkir` `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/orders/retention` `/api/admin/payment-reconciliation` `/api/admin/products` `/api/admin/profile` `/api/admin/rules` `/api/admin/seller-bank-accounts` `/api/admin/settings` `/api/admin/settings/developer` `/api/admin/shipping` `/api/admin/upload-r2` |
+| `excluded-area` | 1 | — | ✓ | `/api/submit-middle-order` |
+| `form-config` | 6 | — | ✓ | `/embed/form` `/full-form` `/hybrid-form` `/middle-form` `/api/form-config` |
+| `form-mode` | 8 | `stores` | ✓ | `/produk/[slug]` `/geoipform` `/hybrid-form` `/api/form-config` `/api/geo-province` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/storefront` |
+| `format-idr` | 1 | — | ✓ | `/payment` `/produk` `/admin/check` |
+| `geo` | 2 | — | **none** | `/api/submit-middle-order` |
+| `google-ads-offline` | 9 | `google_ads_conversion_outbox` `order_items` `orders` | ✓ | — |
+| `gtm` | 3 | — | **none** | — |
+| `headless-api` | 16 | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `stores` | ✓ | `/api/v1/checkout` `/api/v1/geo/districts` `/api/v1/geo/shipping-rates` `/api/v1/openapi.json` `/api/v1/orders/status` `/api/v1/products` `/api/v1/products/[slug]` `/api/v1/storefront` `/api/v1/tracking/events` `/api/admin/settings` |
+| `headless-checkout` | 4 | — | ✓ | `/api/v1/checkout` |
+| `headless-client` | 14 | — | ✓ | — |
+| `headless-openapi` | 1 | — | ✓ | `/api/v1/openapi.json` |
+| `html-escape` | 1 | — | ✓ | — |
+| `image-derivative` | 1 | — | ✓ | `/404` `/produk/[slug]` `/[slug]` |
+| `install` | 6 | `admin_credentials` `courier_rules` `stores` | ✓ | `/api/install` |
+| `json-ld` | 14 | — | ✓ | — |
+| `json-script` | 1 | — | ✓ | — |
+| `landing-pages` | 29 | `landing_pages` `landing_sections` `products` | ✓ | `/produk/[slug]` `/sitemap` `/[slug]` `/contoh-landing` `/landing-page` `/sitemap.xml` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` |
+| `location-cache` | 5 | — | ✓ | `/api/locations` |
+| `location-search` | 14 | — | ✓ | `/api/locations` `/api/v1/geo/districts` `/admin/settings/warehouse` |
+| `manual-payment-reconciliation` | 6 | `admin_credentials` `orders` `payment_reconciliation_audits` `payment_transactions` `stores` | ✓ | `/api/admin/payment-reconciliation` |
+| `mengantar-client` | 17 | — | ✓ | `/api/locations` `/api/submit-order` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` |
+| `mengantar-dispatch` | 2 | `order_items` `orders` `product_variants` `products` `provider_dispatch_locks` `warehouses` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` |
+| `mengantar-order` | 10 | — | ✓ | `/api/admin/orders` `/api/admin/shipping` |
+| `meta-capi` | 5 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` `/admin/ads/meta` `/api/admin/ads` |
+| `meta-event-contract` | 4 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
+| `meta-identity` | 6 | — | ✓ | — |
+| `meta-order-context` | 4 | — | ✓ | `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` |
+| `meta-purchase-order` | 3 | `order_items` `orders` | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
+| `native-landing-pages` | 7 | — | ✓ | — |
+| `notification-chime` | 3 | — | ✓ | — |
+| `notifications` | 13 | `notification_reads` `notifications` `orders` | ✓ | `/api/admin/notifications` `/api/admin/orders/[id]` |
+| `operational-alerts` | 9 | — | ✓ | `/api/admin/health` |
+| `operational-health` | 13 | `orders` `payment_reconciliation_audits` `payment_transactions` | ✓ | `/api/admin/health` |
+| `order-instruction-hint` | 2 | — | ✓ | — |
+| `order-lifecycle` | 12 | `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
+| `order-persistence` | 13 | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `seller_bank_accounts` `stores` | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/admin/orders/retention` |
+| `order-schema` | 3 | — | ✓ | `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/admin/orders/[id]` |
+| `order-status` | 4 | `order_items` `orders` `payment_transactions` | ✓ | `/api/order-status` `/api/v1/orders/status` |
+| `paid-order-purchase` | 2 | `order_items` `orders` `product_variants` `products` | ✓ | `/api/admin/payment-reconciliation` |
+| `payment-brand` | 6 | — | ✓ | `/payment` `/api/payment-methods` |
+| `payment-dispatch-policy` | 5 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
+| `payment-fee-policy` | 10 | — | ✓ | `/api/payment-methods` `/admin/payments` `/api/admin/orders/[id]` |
+| `product-mutation` | 9 | `order_items` `product_variants` `products` `storefront_content` | ✓ | `/api/admin/products` |
+| `provider-config` | 5 | `stores` | ✓ | `/api/locations` `/api/payment-methods` `/api/submit-order` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` |
+| `province` | 12 | — | ✓ | `/api/submit-middle-order` `/api/v1/checkout` `/api/admin/expeditions` |
+| `public-store` | 1 | `stores` | **none** | `/thanks` `/kontak` `/[slug]` |
+| `rate-limit` | 10 | `rate_limits` | ✓ | `/hello` `/api/locations` `/api/meta-event` `/api/order-status` `/api/record-abandoned-order` `/api/shipping-rates` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` `/api/webhooks/autolaris` `/api/admin/upload-r2` |
+| `receiver-performance` | 5 | — | ✓ | `/api/admin/orders/[id]` |
+| `route-map` | 23 | — | ✓ | — |
+| `rts-scoring` | 2 | `orders` | ✓ | `/api/submit-middle-order` `/api/submit-order` `/api/admin/check` `/api/admin/orders` `/api/admin/orders/[id]` |
+| `schema-version` | 12 | — | ✓ | — |
+| `seller-bank-account` | 3 | — | ✓ | `/api/admin/seller-bank-accounts` |
+| `shipping-fallback` | 2 | — | **none** | — |
+| `shipping-queue` | 3 | — | ✓ | — |
+| `shipping-quote` | 6 | `courier_rules` `product_variants` `products` `warehouses` | ✓ | `/api/shipping-rates` `/api/submit-order` `/api/v1/checkout` `/api/v1/geo/shipping-rates` `/api/admin/abandoned-orders` `/api/admin/orders/[id]` |
+| `social-proof-visibility` | 4 | — | **none** | — |
+| `store-ads` | 5 | `stores` | ✓ | `/api/meta-event` `/api/v1/storefront` `/api/v1/tracking/events` `/api/admin/ads` |
+| `store-config-cache` | 3 | — | ✓ | `/api/form-config` `/api/admin/expeditions` |
+| `storefront-content` | 12 | `storefront_content` | ✓ | `/api/admin/content` |
+| `storefront-media` | 3 | — | ✓ | `/api/admin/media` |
+| `storefront-template` | 9 | `storefront_templates` `stores` | ✓ | `/` `/api/admin/settings` |
+| `tenant-content` | 3 | — | **none** | `/` `/api/v1/storefront` |
+| `tenant-contract` | 3 | — | **none** | — |
+| `tenant` | 7 | `stores` | ✓ | `/api/install` |
+| `traffic-source` | 3 | — | ✓ | — |
+| `ui-variants` | 8 | — | **none** | `/thanks` |
+| `utils` | 0 | — | **none** | — |
+| `validation` | 8 | — | ✓ | `/api/record-abandoned-order` `/api/submit-order` `/api/admin/orders/[id]` |
+| `version` | 2 | — | **none** | — |

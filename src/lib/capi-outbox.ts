@@ -284,19 +284,54 @@ export async function deliverCapiEvent(
  * Retries events whose backoff has elapsed. Bounded per call so a burst of
  * failures cannot turn one storefront request into a long-running drain.
  */
+/**
+ * How long a claimed row is hidden from other drains. Long enough to transmit
+ * a batch, short enough that a Worker killed mid-drain returns its rows to the
+ * queue rather than stranding them.
+ */
+export const CAPI_DRAIN_LEASE_MS = 5 * 60_000;
+
+/**
+ * Rows are **claimed** before they are sent, not merely selected. Every
+ * `/api/meta-event` request fires a drain in `waitUntil`, and since 1.4.0 the
+ * hourly cron fires one too, so two drains arriving together selected the same
+ * due rows and both transmitted them. Live evidence from an install on
+ * 2026-09-04: rows carrying `attempts` of 9 against a `max_attempts` of 5,
+ * unreachable through any single sequential path. Meta deduplicates on
+ * `event_id` so nothing double-counted, but the quota was spent twice over and
+ * the attempt budget stopped meaning anything — a row could be terminated in
+ * half the retries it was granted.
+ *
+ * The claim is one `UPDATE … RETURNING` that pushes `next_retry_at` a lease
+ * into the future. SQLite serializes writers, so a concurrent drain runs after
+ * it, sees the moved timestamps and selects a disjoint set. `transmit` then
+ * overwrites `next_retry_at` with the real backoff, so the lease only ever
+ * governs rows nobody got to. Purchases go first: they are the rows whose
+ * loss costs money.
+ */
 export async function drainCapiOutbox(
   database: D1Database,
   pixelId: string,
   accessToken: string,
+  now = new Date(),
 ): Promise<number> {
   const due = await database
     .prepare(
-      `SELECT id, event_id, event_name, payload, attempts, max_attempts
-       FROM capi_event_outbox
-       WHERE status = 'pending' AND next_retry_at <= ? AND attempts < max_attempts
-       ORDER BY id ASC LIMIT ?`,
+      `UPDATE capi_event_outbox
+          SET next_retry_at = ?
+        WHERE id IN (
+          SELECT id FROM capi_event_outbox
+           WHERE status = 'pending' AND next_retry_at <= ? AND attempts < max_attempts
+           ORDER BY CASE WHEN event_name = 'Purchase' THEN 0 ELSE 1 END, id ASC
+           LIMIT ?
+        )
+       RETURNING id, event_id, event_name, payload, attempts, max_attempts`,
     )
-    .bind(new Date().toISOString(), MAX_DRAIN_BATCH)
+    .bind(
+      new Date(now.getTime() + CAPI_DRAIN_LEASE_MS).toISOString(),
+      now.toISOString(),
+      MAX_DRAIN_BATCH,
+    )
     .all<OutboxRow>();
 
   let sent = 0;
@@ -304,4 +339,25 @@ export async function drainCapiOutbox(
     if (await transmit(database, row, pixelId, accessToken)) sent += 1;
   }
   return sent;
+}
+
+/**
+ * Settled and terminal rows older than the retention window. The outbox is a
+ * queue, not an archive: one install carried 3,464 rows on 2026-09-05 with
+ * nothing left to send, every one of them scanned by the depth and health
+ * queries each hour. Thirty days keeps enough to answer "did this Purchase go
+ * out" for any order still inside a dispute window.
+ */
+const OUTBOX_RETENTION_DAYS = 30;
+
+export async function purgeExpiredCapiOutboxEvents(database: D1Database, now = new Date()) {
+  const result = await database
+    .prepare(
+      `DELETE FROM capi_event_outbox
+        WHERE status IN ('sent', 'failed')
+          AND unixepoch(updated_at) < unixepoch(?, '-${OUTBOX_RETENTION_DAYS} days')`,
+    )
+    .bind(now.toISOString())
+    .run();
+  return result.meta.changes;
 }

@@ -1,4 +1,6 @@
 import type { APIRoute } from 'astro';
+import { parseMetaOrderContext } from '../../../../lib/meta-order-context';
+import { parseClickIds } from '../../../../lib/click-ids';
 import { handleOptions, headlessError, headlessOk, validateHeadlessRequest } from '../../../../lib/headless-api';
 import { validateMetaEventPayload } from '../../../../lib/meta-event-contract';
 import { getStoreAdsConfig } from '../../../../lib/store-ads';
@@ -73,6 +75,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
     }
 
     const eventId = purchaseOrder?.order_number || payload.eventId;
+    // A headless caller is another server: it may know the order but not the
+    // buyer's browser. Whatever it does send wins; these fill the gaps from
+    // what the checkout stored, so an API-reported Purchase is not weaker than
+    // the one the storefront sends.
+    const storedContext = parseMetaOrderContext(purchaseOrder?.meta_request_context);
+    const storedClickIds = parseClickIds(purchaseOrder?.ad_click_ids);
     const event = {
       eventName: payload.eventName,
       eventId,
@@ -94,9 +102,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
         country: payload.country,
         externalId:
           payload.externalId ||
+          storedContext.externalId ||
           (purchaseOrder ? toE164Digits(purchaseOrder.customer_phone) : undefined),
-        fbp: payload.fbp,
-        fbc: payload.fbc,
+        fbp: payload.fbp || storedContext.fbp || storedClickIds._fbp,
+        fbc: payload.fbc || storedContext.fbc || storedClickIds._fbc,
         clientIp: getClientIp(request.headers),
         userAgent: request.headers.get('user-agent') || '',
       },

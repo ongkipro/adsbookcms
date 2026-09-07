@@ -13,6 +13,8 @@ import { catalogProductId } from "./catalog-feed.ts";
 import { deliverCapiEvent, drainCapiOutbox, enqueueCapiEvent } from "./capi-outbox.ts";
 import { getStoreAdsConfig } from "./store-ads.ts";
 import { toE164Digits } from "./meta-capi.ts";
+import { parseMetaOrderContext } from "./meta-order-context.ts";
+import { parseClickIds } from "./click-ids.ts";
 import { matchableCustomerEmail } from "./autolaris-payment.ts";
 
 type PaidOrderRow = {
@@ -24,6 +26,8 @@ type PaidOrderRow = {
   city: string;
   postal_code: string | null;
   payment_status: string;
+  ad_click_ids: string | null;
+  meta_request_context: string | null;
   product_value: number;
 };
 
@@ -47,6 +51,7 @@ export async function enqueuePurchaseForPaidOrder(
     .prepare(
       `SELECT o.order_number, o.customer_name, o.customer_phone, o.customer_email,
               o.province, o.city, o.postal_code, o.payment_status,
+              o.ad_click_ids, o.meta_request_context,
               (SELECT COALESCE(SUM(oi.unit_price * oi.quantity), 0)
                  FROM order_items oi WHERE oi.order_id = o.id) AS product_value
          FROM orders o
@@ -80,6 +85,12 @@ export async function enqueuePurchaseForPaidOrder(
   }
 
   const siteUrl = locals.tenant?.siteUrl || "https://example.com";
+  // This Purchase is sent from a cron or an admin confirmation, long after the
+  // buyer's browser is gone. Without the identity captured at checkout the
+  // event reaches Meta with a phone and a name and nothing else, and event
+  // match quality is what decides whether the conversion is attributed at all.
+  const requestContext = parseMetaOrderContext(order.meta_request_context);
+  const legacyClickIds = parseClickIds(order.ad_click_ids);
   const queued = await enqueueCapiEvent(database, {
     eventName: "Purchase",
     eventId: order.order_number,
@@ -92,7 +103,15 @@ export async function enqueuePurchaseForPaidOrder(
       city: order.city,
       province: order.province,
       postalCode: order.postal_code || undefined,
-      externalId: toE164Digits(order.customer_phone),
+      // Meta treats a missing country as a missing match key, not as a default.
+      country: "id",
+      externalId: requestContext.externalId || toE164Digits(order.customer_phone),
+      // The order's own copy wins; `ad_click_ids` is the pre-0052 fallback for
+      // orders placed before the context column existed.
+      fbp: requestContext.fbp || legacyClickIds._fbp,
+      fbc: requestContext.fbc || legacyClickIds._fbc,
+      clientIp: requestContext.clientIp,
+      userAgent: requestContext.userAgent,
     },
     customData: {
       contentName: rows[0]?.title,

@@ -21,6 +21,9 @@ export type MetaPurchaseOrder = {
   city: string;
   postal_code: string | null;
   total_amount: number;
+  /** Attribution captured at checkout; both may be null on pre-0052 orders. */
+  ad_click_ids: string | null;
+  meta_request_context: string | null;
   /**
    * Variant price x quantity, summed from `order_items`. Excludes shipping,
    * the COD service fee and its VAT, and the payment channel's admin fee —
@@ -36,7 +39,7 @@ const PURCHASE_ORDER_SELECT = `
   SELECT
     o.order_number, o.customer_name, o.customer_phone, o.customer_email,
     o.province, o.city, o.postal_code, o.total_amount,
-    o.payment_method, o.payment_status,
+    o.payment_method, o.payment_status, o.ad_click_ids, o.meta_request_context,
     (
       SELECT COALESCE(SUM(oi.unit_price * oi.quantity), 0)
       FROM order_items oi

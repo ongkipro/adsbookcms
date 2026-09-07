@@ -37,7 +37,8 @@ function purchaseDatabase() {
       customer_name TEXT NOT NULL, customer_phone TEXT NOT NULL, customer_email TEXT,
       province TEXT NOT NULL, city TEXT NOT NULL, postal_code TEXT,
       total_amount INTEGER NOT NULL, payment_method TEXT NOT NULL,
-      payment_status TEXT NOT NULL, public_status_token TEXT
+      payment_status TEXT NOT NULL, public_status_token TEXT,
+      ad_click_ids TEXT, meta_request_context TEXT
     );
     CREATE TABLE order_items (
       id INTEGER PRIMARY KEY, order_id INTEGER NOT NULL,
@@ -45,7 +46,8 @@ function purchaseDatabase() {
     );
     INSERT INTO orders VALUES (
       41, 'INV-10041', 'Nur Aisyah', '081234567890', NULL,
-      'Jawa Barat', 'Bandung', '40111', 214000, 'cod', 'unpaid', 'tok-41'
+      'Jawa Barat', 'Bandung', '40111', 214000, 'cod', 'unpaid', 'tok-41',
+      NULL, NULL
     );
     -- 135000 of goods; the 214000 invoice also carries shipping and the COD fee.
     INSERT INTO order_items VALUES (1, 41, 45000, 3);

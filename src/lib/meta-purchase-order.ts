@@ -21,6 +21,7 @@ export type MetaPurchaseOrder = {
   city: string;
   postal_code: string | null;
   total_amount: number;
+  shipping_status: string;
   /** Attribution captured at checkout; both may be null on pre-0052 orders. */
   ad_click_ids: string | null;
   meta_request_context: string | null;
@@ -35,11 +36,28 @@ export type MetaPurchaseOrder = {
   payment_status: string;
 };
 
+/**
+ * Only a real submitted order may become a Purchase. COD is purchased at
+ * submit; prepaid methods require a confirmed payment. An abandoned lead is
+ * neither, even though its capture row historically carries COD-like defaults
+ * — and before this check, a lead's own status token was enough to send Meta a
+ * Purchase for a sale that never happened.
+ */
+export function isMetaPurchaseOrderEligible(
+  order: Pick<MetaPurchaseOrder, "payment_method" | "payment_status" | "shipping_status">,
+): boolean {
+  if (order.shipping_status === "abandoned") return false;
+  if (["failed", "cancelled", "returned"].includes(order.shipping_status)) return false;
+  if (["failed", "refunded", "cancelled"].includes(order.payment_status)) return false;
+  return order.payment_method === "cod" || order.payment_status === "paid";
+}
+
 const PURCHASE_ORDER_SELECT = `
   SELECT
     o.order_number, o.customer_name, o.customer_phone, o.customer_email,
     o.province, o.city, o.postal_code, o.total_amount,
-    o.payment_method, o.payment_status, o.ad_click_ids, o.meta_request_context,
+    o.payment_method, o.payment_status, o.shipping_status,
+    o.ad_click_ids, o.meta_request_context,
     (
       SELECT COALESCE(SUM(oi.unit_price * oi.quantity), 0)
       FROM order_items oi

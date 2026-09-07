@@ -14,6 +14,8 @@ export type CatalogProduct = {
   slug: string;
   productName: string;
   category?: string;
+  /** The product's own brand. Falls back to the store name when absent. */
+  brand?: string;
   headline?: string;
   description?: string;
   seoDescription?: string;
@@ -169,7 +171,7 @@ function buildCatalogXml(
       <g:price>${escapeXml(basePriceFormatted)}</g:price>${salePriceXml}
 ${flavor.categoryXml(taxonomy)}
       <g:product_type>${escapeXml(taxonomy.productType)}</g:product_type>
-      <g:brand>${escapeXml(siteTitle)}</g:brand>
+      <g:brand>${escapeXml(product.brand?.trim() || siteTitle)}</g:brand>
       <g:condition>new</g:condition>${flavor.identityXml(variant)}
     </item>`;
   }

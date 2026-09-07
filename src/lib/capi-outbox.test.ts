@@ -3,9 +3,11 @@ import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import {
   CAPI_DRAIN_LEASE_MS,
+  countRecoverableEvents,
   decideRetry,
   drainCapiOutbox,
   purgeExpiredCapiOutboxEvents,
+  requeueRecoverableEvents,
 } from "./capi-outbox.ts";
 
 const MINUTE = 60_000;
@@ -142,4 +144,58 @@ test("the purge removes only settled rows past retention, and keeps the queue", 
   // A pending row is never purged however old — that is a stuck queue to be
   // drained or recovered, not history to be swept.
   assert.deepEqual(left, ["old-pending", "new-sent"]);
+});
+
+// Recovering an outage caused by a dead access token. The classification is
+// structural rather than a match on Meta's error prose, so it must stay
+// pinned to the one property that makes it exact.
+
+test("a dead token is the only reason decideRetry terminates below the attempt budget", () => {
+  // This is the invariant `requeueRecoverableEvents` selects on. If a third
+  // terminal reason is ever added without incrementing attempts, that reason
+  // would silently become "recoverable" and be resent forever.
+  assert.deepEqual(decideRetry({ success: false, errorCode: 190 }, 0, 5), {
+    status: "failed",
+    delayMs: 0,
+  });
+  assert.equal(decideRetry({ success: false, errorCode: 500 }, 0, 5).status, "pending");
+  assert.equal(decideRetry({ success: false, errorCode: 4 }, 0, 5).status, "pending");
+  assert.equal(decideRetry({ success: false, errorCode: 500 }, 4, 5).status, "failed");
+});
+
+
+
+test("requeue recovers a destination outage, not just a dead token", async () => {
+  const now = new Date("2026-09-04T04:00:00.000Z");
+  const { sqlite, database } = outboxDatabase(`
+    INSERT INTO capi_event_outbox VALUES
+      -- exhausted its budget honestly, against a pixel the token could not see
+      (1,'vc-1','ViewContent','{}','failed',5,5,'Unsupported post request. Object with ID ...','t','2026-09-03T12:14:00.000Z','t'),
+      -- the dead-token rows the first version of this function was built for
+      (2,'pv-1','PageView','{}','failed',2,5,'Error validating access token','t','2026-09-03T09:00:00.000Z','t'),
+      -- Purchase, and it must be requeued ahead of the rest
+      (3,'INV-9','Purchase','{}','failed',9,5,'Unsupported post request. Object with ID ...','t','2026-09-03T13:00:00.000Z','t'),
+      -- can never succeed
+      (4,'bad-1','PageView','{}','failed',0,5,'payload tidak dapat dibaca','t','2026-09-03T13:00:00.000Z','t'),
+      -- inside the 30-day retention, past Meta's 7-day event_time limit
+      (5,'old-1','PageView','{}','failed',5,5,'Unsupported post request. Object with ID ...','t','2026-08-20T00:00:00.000Z','t'),
+      -- already delivered
+      (6,'pv-2','PageView','{}','sent',1,5,NULL,'t','2026-09-03T13:00:00.000Z','t');
+  `);
+
+  assert.equal(await countRecoverableEvents(database, now), 3);
+  assert.equal(await requeueRecoverableEvents(database, now), 3);
+
+  const rows = sqlite.prepare("SELECT event_id, status, attempts, last_error FROM capi_event_outbox ORDER BY id").all() as {
+    event_id: string; status: string; attempts: number; last_error: string | null;
+  }[];
+  assert.deepEqual(
+    rows.map((r) => `${r.event_id}:${r.status}:${r.attempts}`),
+    // Budget reset, error cleared. The unreadable payload and the stale row
+    // stay terminal; sending either would spend the operator's one recovery on
+    // an event that can never land.
+    ["vc-1:pending:0", "pv-1:pending:0", "INV-9:pending:0", "bad-1:failed:0", "old-1:failed:5", "pv-2:sent:1"],
+  );
+  assert.equal(rows[0].last_error, null);
+  assert.equal(await countRecoverableEvents(database, now), 0, "requeue does not loop");
 });

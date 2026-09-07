@@ -9,6 +9,7 @@ import { readMetaBrowserIds } from '../../lib/click-ids';
 import { matchableCustomerEmail } from '../../lib/autolaris-payment';
 import {
   findPurchaseOrderByStatusToken,
+  isMetaPurchaseOrderEligible,
   type MetaPurchaseOrder,
 } from '../../lib/meta-purchase-order';
 
@@ -134,6 +135,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
       if (!purchaseOrder) {
         return json({ success: false, error: 'Order Purchase tidak ditemukan atau token tidak valid.' }, 404);
+      }
+      if (!isMetaPurchaseOrderEligible(purchaseOrder)) {
+        return json({ success: false, error: 'Order belum memenuhi syarat Purchase.' }, 409);
       }
       purchaseOrderNumber = purchaseOrder.order_number;
     }

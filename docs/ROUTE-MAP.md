@@ -162,7 +162,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `/api/admin/abandoned-orders` | GET, PATCH, POST | admin session | owner, admin, customer_service | `src/pages/api/admin/abandoned-orders.ts` | `abandoned-lead` `api` `courier-rules` `env` `shipping-quote` | `courier_rules` `order_items` `orders` `product_variants` `products` `stores` `warehouses` | `abandoned-lead.test.ts` `courier-rules.test.ts` `env.test.ts` `shipping-quote.test.ts` |
 | `/api/admin/access` | DELETE, GET, PATCH, POST | admin session | owner | `src/pages/api/admin/access.ts` | `admin-credentials` `admin-session` `api` `auth` `env` | `admin_credentials` `admin_sessions` `notifications` | `admin-credentials.test.ts` `admin-session.test.ts` `auth.test.ts` `env.test.ts` |
-| `/api/admin/ads` | GET, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/ads.ts` | `env` `meta-capi` `store-ads` | `stores` | `env.test.ts` `meta-capi.test.ts` `store-ads.test.ts` |
+| `/api/admin/ads` | GET, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/ads.ts` | `capi-outbox` `env` `meta-capi` `store-ads` | `capi_event_outbox` `stores` | `capi-outbox.test.ts` `env.test.ts` `meta-capi.test.ts` `store-ads.test.ts` |
 | `/api/admin/analytics` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/api/admin/analytics.ts` | `api` `env` | `orders` | `env.test.ts` |
 | `/api/admin/check` | GET | admin session | owner, admin, customer_service | `src/pages/api/admin/check.ts` | `api` `env` `rts-scoring` | `orders` | `env.test.ts` `rts-scoring.test.ts` |
 | `/api/admin/content` | GET, PUT | admin session | owner, admin, advertiser | `src/pages/api/admin/content.ts` | `ai-content-instructions` `env` `storefront-content` | `product_variants` `products` `storefront_content` `stores` | `ai-content-instructions.test.ts` `env.test.ts` `storefront-content.test.ts` |
@@ -208,7 +208,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `autolaris-client` | 20 | — | ✓ | `/api/order-status` `/api/payment-methods` `/admin/payments` `/api/admin/settings` |
 | `autolaris-payment` | 15 | `autolaris_callbacks` `order_items` `orders` `payment_transactions` `product_variants` `products` `stores` `warehouses` | ✓ | `/api/meta-event` `/api/order-status` `/api/submit-order` `/api/v1/tracking/events` `/api/admin/orders/[id]` |
 | `bundled-migrations` | 1 | — | **none** | — |
-| `capi-outbox` | 14 | `capi_event_outbox` | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
+| `capi-outbox` | 17 | `capi_event_outbox` | ✓ | `/api/meta-event` `/api/v1/tracking/events` `/api/admin/ads` |
 | `catalog-data` | 4 | — | ✓ | `/api/admin/products` |
 | `catalog-feed` | 8 | — | ✓ | `/produk/[slug]` `/[slug]` `/contoh-landing` `/full-form` `/geoipform` `/hybrid-form` `/middle-form` `/feed/google-catalog.xml` `/feed/meta-catalog.xml` `/api/form-config` `/api/v1/products` `/api/v1/products/[slug]` |
 | `catalog` | 2 | `product_variants` `products` | ✓ | `/` `/404` `/produk` `/produk/[slug]` `/thanks` `/sitemap` `/[slug]` `/contoh-landing` `/embed/form` `/full-form` `/geoipform` `/hybrid-form` `/middle-form` `/feed/google-catalog.xml` `/feed/meta-catalog.xml` `/sitemap.xml` `/api/form-config` `/api/v1/products` `/api/v1/products/[slug]` |
@@ -219,7 +219,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `courier-rules` | 3 | — | ✓ | `/api/submit-order` `/api/admin/abandoned-orders` `/api/admin/orders/[id]` |
 | `crm-template` | 6 | — | ✓ | `/api/admin/orders` `/api/admin/settings` |
 | `daily-rotation` | 2 | — | ✓ | `/` |
-| `deploy-preflight` | 5 | — | ✓ | — |
+| `deploy-preflight` | 9 | — | ✓ | — |
 | `developer-api-keys` | 18 | — | ✓ | `/api/admin/settings/developer` |
 | `district-catalog` | 1 | — | ✓ | `/api/locations` `/api/v1/geo/districts` |
 | `embed-markup` | 5 | — | ✓ | `/embed/form` |
@@ -252,7 +252,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `meta-event-contract` | 4 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
 | `meta-identity` | 6 | — | ✓ | — |
 | `meta-order-context` | 4 | — | ✓ | `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` |
-| `meta-purchase-order` | 3 | `order_items` `orders` | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
+| `meta-purchase-order` | 4 | `order_items` `orders` | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
 | `native-landing-pages` | 7 | — | ✓ | — |
 | `notification-chime` | 3 | — | ✓ | — |
 | `notifications` | 15 | `admin_credentials` `notification_reads` `notifications` `orders` | ✓ | `/api/admin/notifications` `/api/admin/orders/[id]` |

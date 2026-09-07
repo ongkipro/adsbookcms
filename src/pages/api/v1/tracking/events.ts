@@ -7,7 +7,7 @@ import { getStoreAdsConfig } from '../../../../lib/store-ads';
 import { getRuntimeEnv } from '../../../../lib/env';
 import { getClientIp } from '../../../../lib/rate-limit';
 import { enqueueCapiEvent, deliverCapiEvent, drainCapiOutbox } from '../../../../lib/capi-outbox';
-import { findPurchaseOrderForApiKeyCaller } from '../../../../lib/meta-purchase-order';
+import { findPurchaseOrderForApiKeyCaller, isMetaPurchaseOrderEligible } from '../../../../lib/meta-purchase-order';
 import { toE164Digits } from '../../../../lib/meta-capi';
 import { matchableCustomerEmail } from '../../../../lib/autolaris-payment';
 
@@ -74,6 +74,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }
     }
 
+    if (purchaseOrder && !isMetaPurchaseOrderEligible(purchaseOrder)) {
+      return validation.finalize(headlessError(
+        'Order belum memenuhi syarat Purchase.',
+        409,
+        { code: 'PURCHASE_ORDER_NOT_ELIGIBLE' },
+        validation.corsHeaders,
+      ));
+    }
     const eventId = purchaseOrder?.order_number || payload.eventId;
     // A headless caller is another server: it may know the order but not the
     // buyer's browser. Whatever it does send wins; these fill the gaps from

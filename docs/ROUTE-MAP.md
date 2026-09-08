@@ -257,7 +257,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `notification-chime` | 3 | — | ✓ | — |
 | `notifications` | 15 | `admin_credentials` `notification_reads` `notifications` `orders` | ✓ | `/api/admin/notifications` `/api/admin/orders/[id]` |
 | `operational-alerts` | 9 | — | ✓ | `/api/admin/health` |
-| `operational-health` | 13 | `orders` `payment_transactions` | ✓ | `/api/admin/health` |
+| `operational-health` | 14 | `orders` `payment_transactions` | ✓ | `/api/admin/health` |
 | `order-instruction-hint` | 2 | — | ✓ | — |
 | `order-lifecycle` | 12 | `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `order-persistence` | 13 | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `seller_bank_accounts` `stores` | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/admin/orders/retention` |

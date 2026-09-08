@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   classifyAutoLaris,
   classifyCapiDelivery,
@@ -7,6 +8,7 @@ import {
   classifyMengantar,
   summarizeHealth,
   type HealthSignal,
+  classifyAlerting,
 } from "./operational-health.ts";
 
 const NOW = Date.parse("2026-08-16T12:00:00.000Z");
@@ -226,4 +228,54 @@ test("a fault is louder than a blank when the panel is summarised", () => {
     summarizeHealth([of("unknown"), of("degraded"), of("healthy")]),
     "degraded",
   );
+});
+
+// On a sibling install a Meta outage turned `capi-outbox` degraded within the
+// hour and ran two days before anyone opened the panel. Two things made that
+// possible: the queue's own signal reported only half of what was wrong, and
+// nothing could tell the operator at all.
+
+test("a queue that is both stalled and holding terminal failures reports both", () => {
+  const now = Date.parse("2026-09-08T04:00:00.000Z");
+  const signal = classifyCapiOutbox(
+    { pending: 24, failed: 116, overdue: 24, oldestCreatedAt: "2026-09-05T12:31:09.595Z" },
+    now,
+  );
+  assert.equal(signal.state, "degraded");
+  assert.equal(signal.reason, "stalled-with-terminal-failures");
+});
+
+test("terminal failures alone still read as terminal failures", () => {
+  const now = Date.parse("2026-09-08T04:00:00.000Z");
+  const signal = classifyCapiOutbox(
+    { pending: 0, failed: 3, overdue: 0, oldestCreatedAt: "2026-09-08T03:55:00.000Z" },
+    now,
+  );
+  assert.equal(signal.reason, "terminal-failures");
+});
+
+test("an unwired alert channel is reported, in amber rather than red", () => {
+  const signal = classifyAlerting(false, Date.now());
+  assert.equal(signal.id, "alerting");
+  assert.equal(signal.reason, "not-configured");
+  // Deliberately not `degraded`. A store may choose to run without webhooks,
+  // and this module's own rule is that colouring a deliberate choice red
+  // produces an alarm nobody trusts.
+  assert.equal(signal.state, "unknown");
+});
+
+test("a wired alert channel reads healthy", () => {
+  const signal = classifyAlerting(true, Date.now());
+  assert.equal(signal.state, "healthy");
+  assert.equal(signal.reason, "configured");
+});
+
+test("the panel explains both new states", () => {
+  const source = readFileSync(
+    new URL("../components/admin/OperationalHealth.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /alerting: "Saluran peringatan"/);
+  assert.match(source, /OPS_ALERT_WEBHOOK_URL belum diatur/);
+  assert.match(source, /"stalled-with-terminal-failures":/);
 });

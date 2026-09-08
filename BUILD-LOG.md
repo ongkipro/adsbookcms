@@ -6,6 +6,35 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-08 — The panel now reports what it could not say
+
+Two blind spots that let a Meta outage on a sibling install run for two days.
+
+- **The queue's own signal reported half of what was wrong.**
+  `classifyCapiOutbox` returned on `failed > 0` before evaluating `stalled`, so
+  a queue that was both read as terminal failures alone. Those are different
+  problems: terminal rows are already lost, stalled rows are still recoverable
+  and nothing is moving them. Both are now reported, through a
+  `stalled-with-terminal-failures` reason.
+
+- **Nothing could tell the operator at all.** The scheduled Worker evaluates
+  every signal hourly and sends firing and recovery events to
+  `OPS_ALERT_WEBHOOK_URL`; when that is unset the evaluation still runs and goes
+  nowhere, leaving the dashboard as the only channel — so somebody has to think
+  to look. The dashboard now carries an `alerting` signal reporting its own
+  reachability. Deliberately `unknown` rather than `degraded`: a store may
+  choose to run without webhooks, and this module's own rule is that colouring a
+  deliberate choice red produces an alarm nobody trusts. The copy carries the
+  weight instead, and the age row is suppressed for it, because
+  "Terakhir sukses —" beside a configuration reads as a missing measurement
+  rather than an absent one.
+
+- An alerting system nobody wired is worse than none: it creates confidence that
+  something is watching. Setting the variable is a one-line operator action and
+  remains a production step.
+
+---
+
 ## 2026-09-08 — A honeypot that named itself
 
 - The three public checkout endpoints — `submit-order`, `submit-middle-order`,

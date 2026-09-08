@@ -182,7 +182,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | `/api/admin/profile` | GET, PUT | admin session | owner, admin, advertiser, customer_service | `src/pages/api/admin/profile.ts` | `admin-credentials` `admin-session` `api` `auth` `env` | `admin_credentials` `admin_sessions` | `admin-credentials.test.ts` `admin-session.test.ts` `auth.test.ts` `env.test.ts` |
 | `/api/admin/rules` | GET, PUT | admin session | owner, admin | `src/pages/api/admin/rules.ts` | `api` `env` | `courier_rules` | `env.test.ts` |
 | `/api/admin/seller-bank-accounts` | DELETE, GET, POST, PUT | admin session | owner, admin | `src/pages/api/admin/seller-bank-accounts.ts` | `api` `env` `seller-bank-account` | `seller_bank_accounts` `stores` | `env.test.ts` `seller-bank-account.test.ts` |
-| `/api/admin/settings` | GET, POST, PUT | admin session | owner, admin | `src/pages/api/admin/settings.ts` | `api` `autolaris-client` `crm-template` `embed-security` `env` `headless-api` `mengantar-client` `provider-config` `storefront-template` | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `storefront_templates` `stores` `warehouses` | `autolaris-client.test.ts` `crm-template.test.ts` `embed-security.test.ts` `env.test.ts` `headless-api.test.ts` `mengantar-client.test.ts` `provider-config.test.ts` `storefront-template.test.ts` |
+| `/api/admin/settings` | GET, POST, PUT | admin session | owner, admin | `src/pages/api/admin/settings.ts` | `api` `autolaris-client` `crm-template` `embed-security` `env` `headless-api` `mengantar-client` `provider-config` `storefront-template` `tenant` | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `storefront_templates` `stores` `warehouses` | `autolaris-client.test.ts` `crm-template.test.ts` `embed-security.test.ts` `env.test.ts` `headless-api.test.ts` `mengantar-client.test.ts` `provider-config.test.ts` `storefront-template.test.ts` `tenant.test.ts` |
 | `/api/admin/settings/developer` | DELETE, GET, PATCH, POST | admin session | owner, admin | `src/pages/api/admin/settings/developer.ts` | `api` `developer-api-keys` `env` | `developer_api_keys` `headless_api_audit_events` | `developer-api-keys.test.ts` `env.test.ts` |
 | `/api/admin/shipping` | GET, PATCH, POST | admin session | owner, admin, customer_service | `src/pages/api/admin/shipping.ts` | `admin-date-filter` `api` `env` `mengantar-client` `mengantar-order` `order-lifecycle` `payment-dispatch-policy` `provider-config` | `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` `pickup_schedules` `stores` `warehouses` | `admin-date-filter.test.ts` `env.test.ts` `mengantar-client.test.ts` `mengantar-order.test.ts` `order-lifecycle.test.ts` `payment-dispatch-policy.test.ts` `provider-config.test.ts` |
 | `/api/admin/upload-r2` | POST | admin session | owner, admin, advertiser | `src/pages/api/admin/upload-r2.ts` | `api` `env` `rate-limit` | `rate_limits` | `env.test.ts` `rate-limit.test.ts` |
@@ -288,7 +288,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `storefront-template` | 9 | `storefront_templates` `stores` | ✓ | `/` `/api/admin/settings` |
 | `tenant-content` | 3 | — | **none** | `/` `/api/v1/storefront` |
 | `tenant-contract` | 3 | — | **none** | — |
-| `tenant` | 7 | `stores` | ✓ | `/api/install` |
+| `tenant` | 9 | `stores` | ✓ | `/api/install` `/api/admin/settings` |
 | `traffic-source` | 3 | — | ✓ | — |
 | `ui-variants` | 8 | — | **none** | `/thanks` |
 | `utils` | 0 | — | **none** | — |

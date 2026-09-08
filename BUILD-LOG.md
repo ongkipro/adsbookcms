@@ -6,6 +6,28 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-08 — `theme_color`, `locale` and `admin_name` get an editor
+
+- All three have been stored per install and rendered ever since —
+  `<meta name="theme-color">`, `<html lang>`, JSON-LD `inLanguage`, the admin
+  `<title>` and sidebar — with no way for an operator to set any of them.
+
+- The editor and the resolver now share one definition of valid.
+  `THEME_COLOR_PATTERN` and `LOCALE_PATTERN` are exported from `tenant.ts` and
+  used by both, so a malformed value is refused at the form with a specific
+  message instead of being accepted and silently replaced by the default. An
+  operator who saves `#fff` and is shown `#111111` has been told nothing about
+  why.
+
+- A blank field clears the column back to `NULL` — "not configured here", the
+  same meaning it carries on a fresh install — rather than storing an empty
+  string the resolver would treat as a value.
+
+- Gates: 671 tests passing, `astro check` clean, build passed, route map
+  regenerated.
+
+---
+
 ## 2026-09-08 — The panel now reports what it could not say
 
 Two blind spots that let a Meta outage on a sibling install run for two days.

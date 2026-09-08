@@ -9,6 +9,7 @@ import {
   resolveEmbedAllowedOrigins,
 } from "../../../lib/embed-security.ts";
 import { parseHeadlessAllowedOrigins } from "../../../lib/headless-api.ts";
+import { LOCALE_PATTERN, THEME_COLOR_PATTERN } from "../../../lib/tenant.ts";
 import { getEnvValue, getRuntimeEnv, maskSecretValue } from "../../../lib/env.ts";
 import {
   addStorefrontTemplate,
@@ -61,6 +62,9 @@ type SettingsPayload = {
   store_logo?: string;
   storefront_template?: string;
   storefront_template_definition?: unknown;
+  theme_color?: string;
+  locale?: string;
+  admin_name?: string;
   support_whatsapp?: string;
   embed_allowed_origins?: unknown;
   headless_allowed_origins?: unknown;
@@ -95,6 +99,9 @@ type SettingsRow = {
   tagline?: string | null;
   logo?: string | null;
   storefront_template?: string | null;
+  theme_color?: string | null;
+  locale?: string | null;
+  admin_name?: string | null;
   payment_fee_bearer: string;
   cod_fee_bearer: string;
   is_cod_enabled?: number | null;
@@ -158,6 +165,9 @@ async function getSettingsRow(database: D1Database) {
         s.tagline,
         s.logo,
         s.storefront_template,
+        s.theme_color,
+        s.locale,
+        s.admin_name,
         s.payment_fee_bearer,
         s.cod_fee_bearer,
         s.is_cod_enabled,
@@ -196,6 +206,9 @@ async function getSettingsRow(database: D1Database) {
         s.tagline,
         s.logo,
         s.storefront_template,
+        s.theme_color,
+        s.locale,
+        s.admin_name,
         s.payment_fee_bearer,
         s.cod_fee_bearer,
         1 AS is_cod_enabled,
@@ -272,6 +285,9 @@ export const GET: APIRoute = async ({ locals }) => {
           tagline: row.tagline ?? "",
           logo: row.logo ?? "",
           storefront_template: row.storefront_template ?? "compact-market",
+          theme_color: row.theme_color ?? "",
+          locale: row.locale ?? "",
+          admin_name: row.admin_name ?? "",
           storefront_templates: templateList.templates,
           storefront_templates_available: templateList.state === "ready",
           payment_fee_bearer:
@@ -720,11 +736,32 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       // as "not configured here" and falls back for — the same meaning it has
       // on a fresh install, so clearing is a real action rather than a way to
       // store an empty name.
+      // Stored per install and rendered ever since — `<meta name="theme-color">`,
+      // `<html lang>`, JSON-LD `inLanguage`, the admin title — with no way for an
+      // operator to set them. Rejected rather than silently corrected:
+      // `resolveTenantConfig` falls back for a malformed value, so saving `#fff`
+      // and being shown `#111111` would tell the operator nothing about why.
+      const themeColorValue = clean(body.theme_color, 7);
+      if (themeColorValue && !THEME_COLOR_PATTERN.test(themeColorValue)) {
+        return jsonError(
+          "Warna tema harus berformat heksadesimal enam digit, contoh: #111111.",
+          400,
+        );
+      }
+      const localeValue = clean(body.locale, 10);
+      if (localeValue && !LOCALE_PATTERN.test(localeValue)) {
+        return jsonError(
+          "Locale harus berformat bahasa atau bahasa-NEGARA, contoh: id-ID.",
+          400,
+        );
+      }
+
       await db
         .prepare(
           `UPDATE stores
               SET name = ?, support_whatsapp = ?, site_url = ?, description = ?,
-                  tagline = ?, logo = ?, storefront_template = ?
+                  tagline = ?, logo = ?, storefront_template = ?,
+                  theme_color = ?, locale = ?, admin_name = ?
             WHERE id = ?`,
         )
         .bind(
@@ -735,6 +772,9 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           clean(body.store_tagline, 120) || null,
           clean(body.store_logo, 300) || null,
           storefrontTemplate || null,
+          themeColorValue || null,
+          localeValue || null,
+          clean(body.admin_name, 120) || null,
           current.store_id,
         )
         .run();

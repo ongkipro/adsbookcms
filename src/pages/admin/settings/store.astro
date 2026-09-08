@@ -53,6 +53,21 @@ export const prerender = false;
           </select>
           <span class="mt-1.5 block text-[11px] text-slate-500">Berlaku langsung tanpa build ulang.</span>
         </label>
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Warna tema</span>
+          <input id="storeThemeColor" maxlength="7" spellcheck="false" placeholder="#111111" pattern="#[0-9a-fA-F]{6}" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
+          <span class="mt-1.5 block text-[11px] text-slate-500">Heksadesimal enam digit. Mengisi <code>&lt;meta name="theme-color"&gt;</code>, yang mewarnai bilah browser di ponsel. Kosongkan untuk memakai <code>#111111</code>.</span>
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Locale</span>
+          <input id="storeLocale" maxlength="10" spellcheck="false" placeholder="id-ID" pattern="[a-z]{2}(-[A-Z]{2})?" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
+          <span class="mt-1.5 block text-[11px] text-slate-500">Mengisi <code>&lt;html lang&gt;</code>, <code>inLanguage</code> pada JSON-LD, dan locale Open Graph. Kosongkan untuk memakai <code>id-ID</code>.</span>
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-xs font-black text-slate-700">Nama panel admin</span>
+          <input id="storeAdminName" maxlength="120" placeholder="AdsBookCMS Admin" class="admin-input-flat h-11 text-base md:text-sm" />
+          <span class="mt-1.5 block text-[11px] text-slate-500">Judul halaman admin dan halaman login. Tidak pernah tampil di storefront.</span>
+        </label>
         <div class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Konten beranda</span>
           <a
@@ -131,6 +146,9 @@ export const prerender = false;
     const description = document.getElementById('storeDescription') as HTMLInputElement | null;
     const logo = document.getElementById('storeLogo') as HTMLInputElement | null;
     const template = document.getElementById('storeTemplate') as HTMLSelectElement | null;
+    const themeColor = document.getElementById('storeThemeColor') as HTMLInputElement | null;
+    const localeField = document.getElementById('storeLocale') as HTMLInputElement | null;
+    const adminName = document.getElementById('storeAdminName') as HTMLInputElement | null;
     const save = document.getElementById('saveStore') as HTMLButtonElement | null;
     const status = document.getElementById('storeStatus');
     const loading = document.getElementById('storeLoading');
@@ -234,6 +252,9 @@ export const prerender = false;
       if (tagline) tagline.value = data.tagline || '';
       if (description) description.value = data.description || '';
       if (logo) logo.value = data.logo || '';
+      if (themeColor) themeColor.value = data.theme_color || '';
+      if (localeField) localeField.value = data.locale || '';
+      if (adminName) adminName.value = data.admin_name || '';
       populateTemplateOptions(data.storefront_templates, data.storefront_template || 'compact-market');
       if (embedOrigins) embedOrigins.value = Array.isArray(data.embed_allowed_origins) ? data.embed_allowed_origins.join('\n') : '';
       templateDefinitionForm?.classList.remove('hidden');
@@ -274,6 +295,9 @@ export const prerender = false;
             store_description: description?.value,
             store_logo: logo?.value,
             storefront_template: template?.value,
+            theme_color: themeColor?.value,
+            locale: localeField?.value,
+            admin_name: adminName?.value,
           }),
         });
         const payload = await response.json().catch(() => ({}));

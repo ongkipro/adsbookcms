@@ -97,12 +97,21 @@ function siteOrigin(value: string): string {
   return defaults.siteUrl;
 }
 
+/**
+ * The shapes resolution accepts, exported so the settings editor rejects a
+ * value here instead of storing one this module will silently fall back for.
+ * An operator who saves `#fff` and is shown `#111111` has been told nothing
+ * about why.
+ */
+export const THEME_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+export const LOCALE_PATTERN = /^[a-z]{2}(?:-[A-Z]{2})?$/;
+
 function themeColor(value: string): string {
-  return /^#[0-9a-f]{6}$/i.test(value) ? value : defaults.themeColor;
+  return THEME_COLOR_PATTERN.test(value) ? value : defaults.themeColor;
 }
 
 function locale(value: string): string {
-  return /^[a-z]{2}(?:-[A-Z]{2})?$/.test(value) ? value : defaults.locale;
+  return LOCALE_PATTERN.test(value) ? value : defaults.locale;
 }
 
 /**

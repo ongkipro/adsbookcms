@@ -865,8 +865,37 @@ Implementation, contract tests, static checks, build, and focused authenticated 
       `/thanks#o=42&t=…` recovered the order, removed the fragment from the
       address bar, and rendered `Rp95.000` / `Rp89.000` with zero horizontal
       overflow and a clean console.
-- [ ] **T249** - Comprehensive Tracing & React Hydration Audit of Admin Invoice Page (`/admin/orders/[id].ts`, `/admin/orders/[invoice].astro`, `OrderDetail.tsx`).
+- [x] **T249** - Comprehensive Tracing & React Hydration Audit of Admin Invoice Page (`/admin/orders/[id].ts`, `/admin/orders/[invoice].astro`, `OrderDetail.tsx`). **Done 2026-09-09.**
   -> REQ: REQ-24 · deps: [T248] · Done when: invoice page handles numeric IDs, invoice strings (`INV-10018`), and fallback keys with 100% uptime, zero React hook order violations, and clean fallback state rendering.
+      -> **No code change was needed; what was missing was the evidence.** The
+      audit found the behaviour already correct and this entry records how that
+      was established, so the next reader does not re-open it.
+      -> Key resolution is exhaustive: the lookup matches `order_number`, a
+      case-insensitive `order_number`, `public_status_token`, `CAST(id AS TEXT)`
+      and the integer `id`. Verified live — `42`, `INV-10042`, `inv-10042` and
+      the status token all answered `200`; an unknown key answered `404`.
+      -> **Zero hook-order violations.** The two early returns sit at the end of
+      the component (`loading`, then `error || !order`), and no hook is called
+      after either — checked mechanically, not by eye. The `useMemo` bodies guard
+      `!order` *inside* the hook rather than around it, which is the correct
+      shape.
+      -> Fallback state is clean: an unknown key renders "Detail Order Tidak
+      Ditemukan" with a route back to the order list — no stuck spinner, no blank
+      island. The only console entry is the `404` the page is reporting.
+      -> Evidence: Chromium, logged in against a seeded local D1. `INV-10042`
+      and `42` both hydrated with the customer visible; `tidak-ada` rendered the
+      empty state; zero horizontal overflow on all three.
+
+- [x] **A-58** — Browser verification debt on two admin surfaces. **Cleared 2026-09-09.**
+      -> Both surfaces were seen rendered at 390 px and 1440 px, which is what
+      the entry asked for. The schema notice on `/admin/dashboard` (A-13) reads
+      `skema 56/56` against a real migrated local D1, and the operational health
+      panel renders beside it — including the two signals added this week,
+      `Saluran peringatan` and `Antrean Google Ads offline`. The renamed
+      embed-dialog strings (A-9) render as `Embed Checkout Form - <product>` with
+      the `ADSBOOKCMS WIDGET SNIPPET` label, and the dialog does not overflow the
+      viewport at 390 px.
+      -> Zero horizontal overflow on both surfaces at both widths; console clean.
 
 ## Phase 73: Cloudflare Maximum Acceleration Engine Implementation
 - [x] **T250** — Zero-Waterfall SSR Data Injection for Admin Pages (`/admin/orders`, `/admin/products`, `OrdersTable.tsx`, `ProductCatalog.tsx`).
@@ -1138,9 +1167,7 @@ A-50 install topology (blocked until A-10 removes the build-time constraint)
 - [x] **A-57** — Two maintenance scripts point at a repository that no longer exists. **Deleted 2026-08-16.** Their inputs, their dependencies and the repository they pointed at were all gone, and their outputs matched nothing in the tree.
  -> `scripts/generate-logo-assets.cjs` and `scripts/generate-webp-logo.cjs` hardcode `projectRoot = '/home/ongki/Projects/cmsads'` and `require` sharp from that checkout's `node_modules`. That repository is gone. Both are unrunnable from this tree and would write into the wrong project if it returned. Done when: they resolve paths relative to this repository and take their dependency from it, or they are deleted. They also still emit `adscms-logo.*` filenames.
 
-- [ ] **A-58** — Browser verification debt on two admin surfaces.
- -> `AGENTS.md` §1 requires opening a page for browser-visible changes. Two shipped changes have not had that: the schema-mismatch notice on `/admin/dashboard` (A-13) and the renamed embed-dialog strings (A-9). Both were verified statically only — build, typecheck, `astro check`, and for A-13 against the real local D1 — because the admin is behind auth and the tree was contended. Done when: both are seen rendered at a mobile and a desktop width.
- · Note the local D1 is 19 migrations behind the tree, so it needs migrating before it can serve a realistic admin session.
+- [x] **A-58** — Browser verification debt on two admin surfaces. **Cleared 2026-09-09**, recorded above with T249.
 
 - [x] **A-59** — A fresh install could not be logged into. **Fixed 2026-08-16.**
  -> REQ: REQ-3 · LOGIN-1 · The seeded `admin` credential accepted only a password supplied through `BOOTSTRAP_ADMIN_PASSWORD`, and nothing sets that on a new Worker — so a new install had an admin account no password could open. This is the second install blocker found today, after the migration chain (A-56); together they meant the product could not be installed at all.

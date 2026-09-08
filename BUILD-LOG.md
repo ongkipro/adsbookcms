@@ -6,6 +6,38 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-09 — T249 and A-58: the evidence, not the code
+
+- **T249 needed no code change.** The audit found the invoice page already
+  correct, and this entry records how that was established so nobody re-opens
+  it. Key resolution is exhaustive — `order_number`, a case-insensitive
+  `order_number`, `public_status_token`, `CAST(id AS TEXT)` and the integer
+  `id` — and `42`, `INV-10042`, `inv-10042` and the status token all answered
+  `200` live, while an unknown key answered `404`.
+
+- **Zero hook-order violations, checked mechanically rather than by eye.** The
+  two early returns sit at the end of the component and no hook is called after
+  either; the `useMemo` bodies guard `!order` *inside* the hook rather than
+  around it, which is the shape that keeps the call order stable.
+
+- The fallback state is clean: an unknown key renders "Detail Order Tidak
+  Ditemukan" with a route back to the list — no stuck spinner, no blank island.
+  The only console entry is the `404` the page is reporting on.
+
+- **A-58 cleared.** Both surfaces were seen at 390 px and 1440 px, which is what
+  the entry asked for. The schema notice on `/admin/dashboard` reads
+  `skema 56/56` against a real migrated local D1, with the health panel beside
+  it — including the two signals added this week, `Saluran peringatan` and
+  `Antrean Google Ads offline`. The embed dialog renders as
+  `Embed Checkout Form - <product>` with the `ADSBOOKCMS WIDGET SNIPPET` label
+  and does not overflow the viewport at 390 px.
+
+- Worth stating plainly: two of these three tasks were already satisfied by the
+  code. What they lacked was somebody opening the page. That is the debt
+  `AGENTS.md` §1 exists to prevent, and it is now paid rather than restated.
+
+---
+
 ## 2026-09-09 — T248: a committed order could lose its own confirmation
 
 - `sessionStorage.setItem("thanks_state", …)` sat **outside** the try/catch, and

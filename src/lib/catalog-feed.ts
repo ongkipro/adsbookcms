@@ -116,6 +116,10 @@ export function defaultCatalogContentId(product: {
  * three differences the only thing either caller states.
  */
 type CatalogFeedFlavor = {
+  /** Google caps title at 150 and description at 5000; Meta at 200 and 9999.
+   *  Over the cap the item is disapproved, not truncated. */
+  titleMax: number;
+  descriptionMax: number;
   /** Appended to the store name in `<channel><title>`. */
   channelSuffix: string;
   /** Category elements, in the order this platform expects them. */
@@ -163,8 +167,8 @@ function buildCatalogXml(
     itemsXml += `
     <item>
       <g:id>${escapeXml(itemId)}</g:id>
-      <g:title>${escapeXml(titleText)}</g:title>
-      <g:description>${escapeXml(itemDescription)}</g:description>
+      <g:title>${escapeXml(clampFeedText(titleText, flavor.titleMax))}</g:title>
+      <g:description>${escapeXml(clampFeedText(itemDescription, flavor.descriptionMax))}</g:description>
       <g:link>${escapeXml(productLink)}</g:link>
       <g:image_link>${escapeXml(imageLink)}</g:image_link>
       <g:availability>in_stock</g:availability>
@@ -193,6 +197,34 @@ const googleCategoryXml = (taxonomy: ReturnType<typeof getAdTaxonomy>) =>
     ? `\n      <g:google_product_category>${taxonomy.googleCategoryId}</g:google_product_category>`
     : "";
 
+/**
+ * Platform field limits, and why they are enforced here.
+ *
+ * Google Merchant Center caps `title` at 150 characters and `description` at
+ * 5000; Meta's catalog caps them at 200 and 9999. Exceeding a cap does not
+ * truncate the field — it **disapproves the item**, silently, one product at a
+ * time, and nothing in this system would show it.
+ *
+ * `product-mutation.ts` accepts a title of up to 160 characters, so a title of
+ * 151-160 saved cleanly, rendered correctly on the storefront, and vanished
+ * from Google's approved set. The clamp is here rather than at the admin
+ * boundary on purpose: the merchant's own record is not Google's to constrain,
+ * and shortening it there would lose data the storefront legitimately shows. A
+ * platform's limit belongs where that platform reads, and a shortened title is
+ * listed where an over-length one is not listed at all.
+ */
+export function clampFeedText(value: string, max: number): string {
+  const text = value.trim();
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  // `lastIndexOf` answers -1 when there is no space at all, and -1 clears any
+  // negative threshold — which would silently drop the final character of every
+  // unbroken value.
+  const useBoundary = lastSpace > 0 && lastSpace > max - 20;
+  return (useBoundary ? cut.slice(0, lastSpace) : cut).trimEnd();
+}
+
 export function generateGoogleCatalogXml(
   products: CatalogProduct[],
   siteOrigin: string,
@@ -201,6 +233,8 @@ export function generateGoogleCatalogXml(
 ): string {
   return buildCatalogXml(products, siteOrigin, title, description, {
     channelSuffix: "Google Merchant Catalog",
+    titleMax: 150,
+    descriptionMax: 5000,
     categoryXml: googleCategoryXml,
     // `sku` is nullable and merchant-editable, so it is never the catalog id —
     // but it is the best MPN available, and declaring no GTIN keeps Merchant
@@ -219,6 +253,8 @@ export function generateMetaCatalogXml(
 ): string {
   return buildCatalogXml(products, siteOrigin, title, description, {
     channelSuffix: "Meta Commerce Catalog",
+    titleMax: 200,
+    descriptionMax: 9999,
     // Meta reads its own taxonomy first and falls back to Google's, so both go
     // out, in that order.
     categoryXml: (taxonomy) =>

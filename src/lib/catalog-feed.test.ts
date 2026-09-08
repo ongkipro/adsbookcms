@@ -6,6 +6,7 @@ import {
   generateGoogleCatalogXml,
   generateMetaCatalogXml,
   type CatalogProduct,
+  clampFeedText,
 } from "./catalog-feed.ts";
 
 test("catalog identity is the numeric Product ID with a five-digit minimum", () => {
@@ -120,4 +121,39 @@ test("a feed omits the ad category it cannot determine", () => {
     "https://toko-uji.example",
   );
   assert.ok(known.includes("<g:google_product_category>"));
+});
+
+// Google caps title at 150 and description at 5000; Meta at 200 and 9999.
+// Over the cap an item is disapproved, not truncated — silently, one product at
+// a time. `product-mutation.ts` accepts a 160-character title, so a title of
+// 151-160 saved cleanly and vanished from Google's approved set.
+
+test("a title Google would reject is trimmed rather than disapproved", () => {
+  const longTitle = "Senter LED Mini Super Terang Tahan Air ".repeat(6).trim();
+  assert.ok(longTitle.length > 150, "fixture must exceed Google's cap");
+  const product: CatalogProduct = {
+    productId: 14005,
+    slug: "judul-panjang",
+    productName: longTitle,
+    heroImage: "/images/hero.jpg",
+    variants: [{ id: 1, label: "Satuan", price: 89000 }],
+  };
+  const googleTitle = /<g:title>([^<]*)<\/g:title>/.exec(
+    generateGoogleCatalogXml([product], "https://toko-uji.example"),
+  )?.[1] ?? "";
+  assert.ok(googleTitle.length <= 150, `Google title was ${googleTitle.length}`);
+  assert.ok(googleTitle.length > 0, "the item must still be listed");
+
+  const metaTitle = /<g:title>([^<]*)<\/g:title>/.exec(
+    generateMetaCatalogXml([product], "https://toko-uji.example"),
+  )?.[1] ?? "";
+  assert.ok(metaTitle.length <= 200, `Meta title was ${metaTitle.length}`);
+  assert.ok(metaTitle.length >= googleTitle.length, "Meta allows at least as much as Google");
+});
+
+test("clampFeedText trims on a word boundary when one is close", () => {
+  assert.equal(clampFeedText("satu dua tiga empat", 100), "satu dua tiga empat");
+  assert.equal(clampFeedText("satu dua tiga empat", 12), "satu dua");
+  // No nearby space: a hard cut, and never one character short of it.
+  assert.equal(clampFeedText("a".repeat(40), 10), "a".repeat(10));
 });

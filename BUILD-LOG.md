@@ -6,6 +6,36 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-08 — Catalog feed fields are clamped to what the platforms accept
+
+- Google Merchant Center caps `title` at 150 characters and `description` at
+  5000; Meta's catalog caps them at 200 and 9999. Exceeding a cap does not
+  truncate the field — it **disapproves the item**, silently, one product at a
+  time, and nothing here would have shown it.
+
+- `product-mutation.ts` accepts a title of up to 160 characters, so a title of
+  151-160 saved cleanly, rendered correctly on the storefront, and vanished from
+  Google's approved set. Ten characters wide and invisible from this side. The
+  clamp is in the feed rather than at the admin boundary on purpose: the
+  merchant's own record is not Google's to constrain, and a platform's limit
+  belongs where that platform reads. A shortened title is listed; an over-length
+  one is not listed at all.
+
+- **Left alone, and flagged instead of changed:** the Google flavor emits
+  `<g:identifier_exists>no</g:identifier_exists>` *and* `<g:mpn>` from the
+  merchant-editable `variant.sku`. Google reads those two as contradicting each
+  other — `identifier_exists: no` declares the product has no manufacturer
+  identifier, while `g:mpn` supplies one — and a merchant SKU is not a
+  manufacturer part number in any case. The existing comment argues the MPN is
+  "the best available", so this is a deliberate feed-strategy decision with a
+  written rationale rather than an oversight, and overriding it is the owner's
+  call, not this change's.
+
+- Gates: 660 tests passing, `astro check` clean, build passed, route map
+  regenerated.
+
+---
+
 ## 2026-09-08 — `country` never reached the Conversions API leg
 
 - `country` was validated by `meta-event-contract.ts`, hashed by `meta-capi.ts`,

@@ -6,6 +6,39 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-09 — AD3 and COD1 closed; one engineering gap left
+
+- **The Google feed no longer claims an MPN it does not have.**
+  `identifier_exists: no` and `g:mpn` contradict each other — the first declares
+  the product carries no manufacturer identifier, the second supplies one — and
+  the `g:mpn` was never truthful regardless: an MPN is assigned by a
+  manufacturer, while `sku` is nullable, merchant-editable and changes whenever
+  an operator edits it. The rationale in the old comment, that the MPN kept
+  Merchant Center from rejecting an item for a missing global identifier, is
+  precisely the job `identifier_exists: no` already does. The MPN was redundant
+  as well as contradictory.
+
+- **AD3's out-of-stock half turned out to be not applicable, not blocked.**
+  `mergeStorefrontCatalog` skips any product failing
+  `getPublicProductValidationError`, which requires at least one valid priced
+  variant — so a product with no sellable variant never reaches the catalog and
+  was never in the feed to disappear from. The row described a case the data
+  model cannot produce.
+
+- **COD1 settled as a price, not a bug.** The local 3% + 11% VAT figure is the
+  store's own COD service price, not an attempt to mirror Mengantar's quoted
+  `codFee`; the consistent one-rupiah spread falls out of rounding each
+  component up. `payment-fee-policy.ts` now says so at the constants, including
+  the consequence that a provider rate change does not move it.
+
+- The engineering-gap table is down to **one row**: SCR1, which needs a real
+  virtual account to be paid once and cannot be closed from a keyboard.
+
+- Gates: 681 tests passing, `astro check` clean, build passed, route map
+  regenerated.
+
+---
+
 ## 2026-09-09 — DOC1: `DESIGN-SYSTEM.md` re-extracted from the tree
 
 Restamping it would have carried the errors forward, so it was rebuilt from what

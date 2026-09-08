@@ -17,9 +17,29 @@ All ten structural gaps in `ARCHITECTURE.md` §10 are closed. This file now owns
 
 | ID | Severity | Gap | Completion boundary |
 | --- | --- | --- | --- |
-| AD3 | Low | **Reduced 2026-09-09.** The Google feed declares `identifier_exists: no`, and both feeds now clamp `title` and `description` to what each platform accepts — Google 150/5000, Meta 200/9999 — because over a cap the item is *disapproved*, not truncated, and `product-mutation.ts` accepts a 160-character title. What remains is the out-of-stock clause and the `g:mpn` question: the Google flavor still publishes the merchant-editable `variant.sku` as an MPN *alongside* `identifier_exists: no`, which Google reads as contradicting itself. That pairing is a deliberate feed-strategy decision with a written rationale in the code, so it is recorded here for a decision rather than changed. | Decide whether `g:mpn` from `sku` stays; and either give products a price of their own so a variant-less product can hold a truthful `out_of_stock` item, or accept that it legitimately leaves the feed. |
-| COD1 | Medium | This store computes its COD service fee locally (`payment-fee-policy.ts`: 3% plus 11% VAT, each rounded up) while Mengantar returns its own `codFee` on every quote that asks for it. Measured against the live account on 2026-08-19 the two disagree at every amount sampled — Rp50.000, Rp100.000, Rp199.000, Rp333.333 and Rp1.000.000 all came back exactly **one rupiah below** the local figure. The buyer is billed the local number. | Decide whether the local policy is a deliberate store markup or an attempt to mirror the provider. If it mirrors, take the provider's quoted `codFee` as the billed figure instead of recomputing it, so a provider rate change cannot silently diverge; if it is the store's own price, say so in the policy and stop treating the gap as a rounding bug. This is a pricing decision, not an engineering one, so nothing was changed. |
 | SCR1 | Low | The 2026-08-22 full-system screening proved the QRIS create path against AutoLaris but **not a settled payment**: capturing a paid `POST /api/h2h/advice` response means paying a real virtual account, so the confirmation path (`/thanks` replacement, paid-state gating, reconciliation marking an order paid) remains proven only by fixtures and the earlier manual-reconciliation browser smoke. It also did not exercise Mengantar dispatch (`POST /order`), which creates a real shipment and spends wallet balance, nor the Meta/Google outbound legs, which were verified by hand on 2026-08-19. | Prove the settled path once, deliberately, on a store that is ready to pay a small real amount, and record the observed `advice` response so `inquirePayment` can classify it. Dispatch stays a manual, operator-initiated action by design (A11) and should be screened against a provider sandbox if one is ever published. |
+
+**AD3** was closed on 2026-09-09, in two halves. The Google feed now declares
+`identifier_exists: no` **alone**: the `g:mpn` it used to publish alongside
+contradicted that declaration — one says the product carries no manufacturer
+identifier, the other supplies one — and it was never truthful, because an MPN
+is assigned by a manufacturer while `sku` is nullable, merchant-editable and
+changes whenever an operator edits it. The earlier rationale, that the MPN kept
+Merchant Center from rejecting an item for a missing global identifier, is the
+job `identifier_exists: no` already does. Both feeds also clamp `title` and
+`description` to what each platform accepts, because over a cap an item is
+disapproved rather than truncated. The out-of-stock half is **not applicable
+rather than blocked**: `mergeStorefrontCatalog` skips any product failing
+`getPublicProductValidationError`, which requires at least one valid priced
+variant, so a product with no sellable variant never reaches the catalog and
+was never in the feed to disappear from.
+
+**COD1** was settled on 2026-09-09 as what it always was: a pricing decision.
+The local 3% + 11% VAT figure is the store's own COD service price, not an
+attempt to mirror Mengantar's quoted `codFee`, and the consistent one-rupiah
+spread is a consequence of rounding each component up rather than a bug.
+`payment-fee-policy.ts` now says so at the constants, including the consequence
+that a provider rate change does not move it.
 
 **DOC1** was closed on 2026-09-09 by re-extracting `DESIGN-SYSTEM.md` from the
 tree rather than restamping it. The drift was wider than this row recorded. §1.1

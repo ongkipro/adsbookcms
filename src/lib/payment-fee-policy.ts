@@ -2,6 +2,24 @@ import type { AutoLarisCheckoutChannel } from "./autolaris-client.ts";
 
 export type PaymentFeeBearer = "buyer" | "seller";
 
+/**
+ * The store's **own** COD service price, not a mirror of the courier's.
+ *
+ * Mengantar returns its own `codFee` on every quote that asks for it, and the
+ * two disagree: measured against the live account on 2026-08-19, Rp50.000,
+ * Rp100.000, Rp199.000, Rp333.333 and Rp1.000.000 each came back exactly one
+ * rupiah below the figure below. That is not a rounding bug to be chased, and
+ * this policy is deliberately not reconciled against the provider quote —
+ * settled as a pricing decision (gap COD1).
+ *
+ * The consequence to keep in mind: because this is a price rather than a
+ * reflection, a Mengantar rate change does **not** move it. Changing what the
+ * buyer is billed for COD means editing these two rates, deliberately.
+ *
+ * Each component rounds up independently — the service fee first, then VAT on
+ * the rounded fee — which is where the one-rupiah spread comes from and is
+ * itself part of the stated price.
+ */
 export const COD_SERVICE_FEE_RATE = 0.03;
 export const COD_SERVICE_FEE_VAT_RATE = 0.11;
 

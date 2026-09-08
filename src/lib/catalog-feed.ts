@@ -236,12 +236,19 @@ export function generateGoogleCatalogXml(
     titleMax: 150,
     descriptionMax: 5000,
     categoryXml: googleCategoryXml,
-    // `sku` is nullable and merchant-editable, so it is never the catalog id —
-    // but it is the best MPN available, and declaring no GTIN keeps Merchant
-    // Center from rejecting an item for a missing global identifier.
-    identityXml: (variant) =>
-      `\n      <g:identifier_exists>no</g:identifier_exists>` +
-      (variant.sku ? `\n      <g:mpn>${escapeXml(variant.sku)}</g:mpn>` : ""),
+    // `identifier_exists: no` alone, and no `g:mpn`.
+    //
+    // The two together contradict each other: `identifier_exists: no` declares
+    // the product carries no manufacturer identifier, while `g:mpn` supplies
+    // one. Google reads that pairing as inconsistent, and the `g:mpn` was never
+    // truthful anyway — an MPN is assigned by a manufacturer, and `sku` here is
+    // nullable, merchant-editable and changes whenever an operator edits it.
+    //
+    // The previous comment argued the MPN kept Merchant Center from rejecting
+    // an item for a missing global identifier. That is exactly the job
+    // `identifier_exists: no` already does; the MPN was redundant as well as
+    // contradictory, and this schema has no column for a real one.
+    identityXml: () => `\n      <g:identifier_exists>no</g:identifier_exists>`,
   });
 }
 

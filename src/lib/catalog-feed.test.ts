@@ -157,3 +157,40 @@ test("clampFeedText trims on a word boundary when one is close", () => {
   // No nearby space: a hard cut, and never one character short of it.
   assert.equal(clampFeedText("a".repeat(40), 10), "a".repeat(10));
 });
+
+// `identifier_exists: no` and `g:mpn` together contradict each other: the first
+// declares the product carries no manufacturer identifier, the second supplies
+// one. The `g:mpn` was never truthful either — an MPN is assigned by a
+// manufacturer, and `sku` is nullable, merchant-editable and changes whenever
+// an operator edits it.
+
+test("the Google feed declares no identifier and never invents one", () => {
+  const product: CatalogProduct = {
+    productId: 14009,
+    slug: "tanpa-mpn",
+    productName: "Produk Tanpa MPN",
+    heroImage: "/images/hero.jpg",
+    variants: [{ id: 1, label: "Satuan", price: 89000, sku: "SKU-YANG-DIEDIT-PEDAGANG" }],
+  };
+  const xml = generateGoogleCatalogXml([product], "https://toko-uji.example");
+  assert.ok(xml.includes("<g:identifier_exists>no</g:identifier_exists>"));
+  assert.ok(!xml.includes("<g:mpn>"), "a merchant SKU is not a manufacturer part number");
+  assert.ok(!xml.includes("<g:gtin>"));
+  assert.ok(
+    !xml.includes("SKU-YANG-DIEDIT-PEDAGANG"),
+    "the merchant-editable sku must not reach the feed at all",
+  );
+});
+
+test("the Meta feed carries no identifier claim either", () => {
+  const product: CatalogProduct = {
+    productId: 14010,
+    slug: "meta-tanpa-mpn",
+    productName: "Produk Meta",
+    heroImage: "/images/hero.jpg",
+    variants: [{ id: 1, label: "Satuan", price: 89000, sku: "SKU-LAIN" }],
+  };
+  const xml = generateMetaCatalogXml([product], "https://toko-uji.example");
+  assert.ok(!xml.includes("<g:mpn>"));
+  assert.ok(!xml.includes("SKU-LAIN"));
+});

@@ -230,7 +230,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `form-mode` | 8 | `stores` | ✓ | `/produk/[slug]` `/geoipform` `/hybrid-form` `/api/form-config` `/api/geo-province` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/storefront` |
 | `format-idr` | 1 | — | ✓ | `/payment` `/produk` `/admin/check` |
 | `geo` | 2 | — | **none** | `/api/submit-middle-order` |
-| `google-ads-offline` | 9 | `google_ads_conversion_outbox` `order_items` `orders` | ✓ | — |
+| `google-ads-offline` | 12 | `google_ads_conversion_outbox` `order_items` `orders` | ✓ | — |
 | `gtm` | 3 | — | **none** | — |
 | `headless-api` | 16 | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `stores` | ✓ | `/api/v1/checkout` `/api/v1/geo/districts` `/api/v1/geo/shipping-rates` `/api/v1/openapi.json` `/api/v1/orders/status` `/api/v1/products` `/api/v1/products/[slug]` `/api/v1/storefront` `/api/v1/tracking/events` `/api/admin/settings` |
 | `headless-checkout` | 4 | — | ✓ | `/api/v1/checkout` |
@@ -257,7 +257,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `notification-chime` | 3 | — | ✓ | — |
 | `notifications` | 15 | `admin_credentials` `notification_reads` `notifications` `orders` | ✓ | `/api/admin/notifications` `/api/admin/orders/[id]` |
 | `operational-alerts` | 9 | — | ✓ | `/api/admin/health` |
-| `operational-health` | 14 | `orders` `payment_transactions` | ✓ | `/api/admin/health` |
+| `operational-health` | 15 | `orders` `payment_transactions` | ✓ | `/api/admin/health` |
 | `order-instruction-hint` | 2 | — | ✓ | — |
 | `order-lifecycle` | 12 | `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `order-persistence` | 13 | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `seller_bank_accounts` `stores` | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/admin/orders/retention` |

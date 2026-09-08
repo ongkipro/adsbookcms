@@ -3,6 +3,17 @@ const PAID_STATUSES = ["paid", "settled", "success"] as const;
 const MAX_RECONCILE_BATCH = 50;
 const MAX_DRAIN_BATCH = 10;
 
+/** Longest delay `decideGoogleRetry` can schedule. A pending row overdue by
+ *  more than this is not waiting its turn — nothing is draining it. */
+export const GOOGLE_ADS_MAX_BACKOFF_MS = 60 * 60_000;
+
+export type GoogleAdsOutboxDepth = {
+  pending: number;
+  failed: number;
+  overdue: number;
+  oldestCreatedAt: string | null;
+};
+
 export type GoogleAdsOfflineConfig = {
   customerId: string;
   conversionActionId: string;
@@ -336,4 +347,49 @@ export async function drainGoogleAdsConversionOutbox(
     if (decision.status === "sent") sent += 1;
   }
   return sent;
+}
+
+
+/**
+ * How much conversion signal Google is owed right now.
+ *
+ * The Google outbox had no health signal at all, which is precisely why a
+ * head-of-line block in reconciliation stopped discovery entirely and nobody
+ * saw it (`UNIMPLEMENTED_SPECS.md`, task A-227). Served by
+ * `google_ads_conversion_outbox_due_idx (status, next_retry_at)`.
+ *
+ * Returns null when the table cannot be read, which the caller must report as
+ * "unknown" rather than as a depth of zero.
+ */
+export async function readGoogleAdsOutboxDepth(
+  database: D1Database,
+  now = new Date(),
+): Promise<GoogleAdsOutboxDepth | null> {
+  try {
+    const row = await database
+      .prepare(
+        `SELECT
+           SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
+           SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed,
+           SUM(CASE WHEN status = 'pending' AND next_retry_at <= ? THEN 1 ELSE 0 END) AS overdue,
+           MIN(CASE WHEN status IN ('pending', 'failed') THEN created_at END) AS oldest_created_at
+         FROM google_ads_conversion_outbox`,
+      )
+      .bind(now.toISOString())
+      .first<{
+        pending: number | null;
+        failed: number | null;
+        overdue: number | null;
+        oldest_created_at: string | null;
+      }>();
+    return {
+      pending: Number(row?.pending ?? 0),
+      failed: Number(row?.failed ?? 0),
+      overdue: Number(row?.overdue ?? 0),
+      oldestCreatedAt: row?.oldest_created_at ?? null,
+    };
+  } catch (error) {
+    console.error("google-ads-outbox-health-unreadable", error);
+    return null;
+  }
 }

@@ -9,6 +9,7 @@ import {
   summarizeHealth,
   type HealthSignal,
   classifyAlerting,
+  classifyGoogleAdsOutbox,
 } from "./operational-health.ts";
 
 const NOW = Date.parse("2026-08-16T12:00:00.000Z");
@@ -278,4 +279,51 @@ test("the panel explains both new states", () => {
   assert.match(source, /alerting: "Saluran peringatan"/);
   assert.match(source, /OPS_ALERT_WEBHOOK_URL belum diatur/);
   assert.match(source, /"stalled-with-terminal-failures":/);
+});
+
+// The Google outbox shipped with no health signal at all, and that absence had
+// a cost: a head-of-line block in reconciliation stopped discovery entirely and
+// nothing reported it (UNIMPLEMENTED_SPECS.md, task A-227).
+
+test("the Google Ads outbox reports the same states as the Meta one", () => {
+  const now = Date.parse("2026-09-09T04:00:00.000Z");
+  assert.equal(
+    classifyGoogleAdsOutbox({ pending: 0, failed: 0, overdue: 0, oldestCreatedAt: null }, now).reason,
+    "empty",
+  );
+  assert.equal(
+    classifyGoogleAdsOutbox(
+      { pending: 3, failed: 0, overdue: 0, oldestCreatedAt: "2026-09-09T03:55:00.000Z" },
+      now,
+    ).state,
+    "healthy",
+    "a backlog inside its backoff is draining, not stalled",
+  );
+  const stalled = classifyGoogleAdsOutbox(
+    { pending: 3, failed: 0, overdue: 3, oldestCreatedAt: "2026-09-08T00:00:00.000Z" },
+    now,
+  );
+  assert.equal(stalled.reason, "stalled");
+  const both = classifyGoogleAdsOutbox(
+    { pending: 3, failed: 9, overdue: 3, oldestCreatedAt: "2026-09-08T00:00:00.000Z" },
+    now,
+  );
+  assert.equal(both.reason, "stalled-with-terminal-failures");
+  assert.deepEqual(both.metrics, { pending: 3, failed: 9, overdue: 3 });
+});
+
+test("an unreadable Google outbox is unknown, never a depth of zero", () => {
+  const signal = classifyGoogleAdsOutbox(null, Date.now());
+  assert.equal(signal.state, "unknown");
+  assert.equal(signal.reason, "unreadable");
+});
+
+test("the panel names the Google outbox and reads its counters", () => {
+  const source = readFileSync(
+    new URL("../components/admin/OperationalHealth.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /"google-ads-outbox": "Antrean Google Ads offline"/);
+  // Both queues share one vocabulary rather than the second needing its own.
+  assert.match(source, /signal\.id === "capi-outbox" \|\| signal\.id === "google-ads-outbox"/);
 });

@@ -6,6 +6,11 @@ import {
   type CapiOutboxDepth,
 } from "./capi-outbox.ts";
 import { getEnvValue, getRuntimeEnv } from "./env.ts";
+import {
+  GOOGLE_ADS_MAX_BACKOFF_MS,
+  readGoogleAdsOutboxDepth,
+  type GoogleAdsOutboxDepth,
+} from "./google-ads-offline.ts";
 import { getSchemaVersionStatus } from "./schema-version.ts";
 import { CMS_VERSION } from "./version.ts";
 
@@ -37,6 +42,7 @@ export type HealthSignalId =
   | "meta-capi"
   | "mengantar"
   | "autolaris"
+  | "google-ads-outbox"
   | "alerting";
 
 export type HealthSignal = {
@@ -147,6 +153,48 @@ export function classifyCapiOutbox(
   return signal("capi-outbox", "healthy", "draining", oldest, now, metrics);
 }
 
+
+/**
+ * How much conversion signal Google is owed.
+ *
+ * The Google outbox shipped with no health signal at all, and that absence had
+ * a cost: a head-of-line block in reconciliation stopped discovery entirely and
+ * nothing reported it (`UNIMPLEMENTED_SPECS.md`, task A-227). The shape mirrors
+ * `classifyCapiOutbox` deliberately — the two queues fail the same way and an
+ * operator should not have to learn two vocabularies.
+ */
+export function classifyGoogleAdsOutbox(
+  depth: GoogleAdsOutboxDepth | null,
+  now: number,
+): HealthSignal {
+  if (!depth) return signal("google-ads-outbox", "unknown", "unreadable", null, now);
+
+  const metrics = {
+    pending: depth.pending,
+    failed: depth.failed,
+    overdue: depth.overdue,
+  };
+  const oldest = depth.oldestCreatedAt;
+  if (depth.pending + depth.failed === 0) {
+    return signal("google-ads-outbox", "healthy", "empty", null, now, metrics);
+  }
+  const oldestAge = oldest ? now - Date.parse(oldest) : 0;
+  const stalled = depth.overdue > 0 && oldestAge > GOOGLE_ADS_MAX_BACKOFF_MS;
+  if (depth.failed > 0) {
+    return signal(
+      "google-ads-outbox",
+      "degraded",
+      stalled ? "stalled-with-terminal-failures" : "terminal-failures",
+      oldest,
+      now,
+      metrics,
+    );
+  }
+  if (stalled) {
+    return signal("google-ads-outbox", "degraded", "stalled", oldest, now, metrics);
+  }
+  return signal("google-ads-outbox", "healthy", "draining", oldest, now, metrics);
+}
 
 /**
  * Whether anything can actually tell the operator.
@@ -377,11 +425,12 @@ export async function collectOperationalHealth(
   database: D1Database,
   locals?: App.Locals,
 ): Promise<OperationalHealth> {
-  const [depth, delivery, mengantar, autolaris, schema] = await Promise.all([
+  const [depth, delivery, mengantar, autolaris, googleAdsDepth, schema] = await Promise.all([
     readCapiOutboxDepth(database),
     readCapiDeliveryWindow(database),
     readMengantarWindow(database),
     readAutoLarisWindow(database),
+    readGoogleAdsOutboxDepth(database),
     getSchemaVersionStatus(locals),
   ]);
 
@@ -391,6 +440,7 @@ export async function collectOperationalHealth(
     classifyCapiDelivery(delivery, now),
     classifyMengantar(mengantar, now),
     classifyAutoLaris(autolaris, now),
+    classifyGoogleAdsOutbox(googleAdsDepth, now),
     classifyAlerting(
       Boolean(getEnvValue("OPS_ALERT_WEBHOOK_URL", getRuntimeEnv(locals))?.trim()),
       now,

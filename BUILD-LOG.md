@@ -6,6 +6,35 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-09 — The Google Ads outbox gets a health signal (A-227)
+
+- It shipped without one, and `UNIMPLEMENTED_SPECS.md` already recorded the
+  cost: a head-of-line block in reconciliation stopped discovery entirely and
+  nothing reported it. A queue with no signal is not a quiet queue.
+
+- `readGoogleAdsOutboxDepth` and `classifyGoogleAdsOutbox` mirror the Meta pair
+  deliberately, including the `stalled-with-terminal-failures` reason. The two
+  queues fail the same way and an operator should not have to learn a second
+  vocabulary for the second one — so the panel's metric line and age label now
+  cover both rather than special-casing the first.
+
+- An unreadable table reports `unknown`, never a depth of zero. The distinction
+  matters: zero owed and cannot tell are opposite answers.
+
+- **Ledger reconciled with disk**, as ADR-010 requires. **S1** closed —
+  `theme_color`, `locale` and `admin_name` are editable and validated against
+  the patterns `resolveTenantConfig` itself resolves with. **NOT1** closed —
+  migration `0054` carries the per-operator notification floor. **AD3** reduced
+  to two open questions: the out-of-stock clause, and whether `g:mpn` from the
+  merchant-editable `sku` should keep sitting beside `identifier_exists: no`,
+  which Google reads as contradicting itself. That pairing has a written
+  rationale in the code, so it is recorded for a decision rather than changed.
+
+- Gates: 674 tests passing, `astro check` clean, build passed, route map
+  regenerated.
+
+---
+
 ## 2026-09-08 — `theme_color`, `locale` and `admin_name` get an editor
 
 - All three have been stored per install and rendered ever since —

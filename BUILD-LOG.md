@@ -6,6 +6,38 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-09 — DOC1: `DESIGN-SYSTEM.md` re-extracted from the tree
+
+Restamping it would have carried the errors forward, so it was rebuilt from what
+the code actually says. The drift was wider than the ledger recorded.
+
+- **§1.1** documented `#f8f7f4` as the storefront canvas, 49 uses, cited to
+  `SiteHeader`. It is not in the storefront at all — it survives only in the
+  landing-page stylesheets and `install.astro`. `#C5A880` survives in two CSS
+  header comments; `#8A704F` has zero occurrences. The palette table was rebuilt
+  from measured counts.
+
+- **§4 was the sharpest miss.** It described the checkout's colours as hardcoded
+  boutique hexes. `form-hybrid.css` contains **zero** `#C5A880` or `#F8F7F4`:
+  every state resolves through `var(--sf-*)`. That tokenisation is precisely
+  what makes ADR-019's re-brand surface real rather than aspirational, and the
+  document was still describing the world before it.
+
+- **§1.2, §3, §5 and §8.12** all described the `wide-catalog` template retired
+  under ADR-018, including line-numbered "exceptions" in a deleted file.
+  **§7.3** listed a deleted `ProofsSection.astro`; **§2.1** cited a line number
+  inside it and **§3** sourced its shadow rule from it. **§7.4** described a
+  scroll-snap carousel with a thumbnail rail — the component is 65 lines and
+  scriptless. **§8.2** attributed an emerald palette to `/payment` and
+  `/thanks`, where it now appears zero times.
+
+Every replacement was measured before it was written: the one surprise was that
+`#f8f7f4` is *not* simply gone, as it is on a sibling install, but relocated to
+the landing pages and the installer. Writing "zero occurrences" would have been
+false.
+
+---
+
 ## 2026-09-09 — T249 and A-58: the evidence, not the code
 
 - **T249 needed no code change.** The audit found the invoice page already

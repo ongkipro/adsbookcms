@@ -19,8 +19,22 @@ All ten structural gaps in `ARCHITECTURE.md` §10 are closed. This file now owns
 | --- | --- | --- | --- |
 | AD3 | Low | **Reduced 2026-09-09.** The Google feed declares `identifier_exists: no`, and both feeds now clamp `title` and `description` to what each platform accepts — Google 150/5000, Meta 200/9999 — because over a cap the item is *disapproved*, not truncated, and `product-mutation.ts` accepts a 160-character title. What remains is the out-of-stock clause and the `g:mpn` question: the Google flavor still publishes the merchant-editable `variant.sku` as an MPN *alongside* `identifier_exists: no`, which Google reads as contradicting itself. That pairing is a deliberate feed-strategy decision with a written rationale in the code, so it is recorded here for a decision rather than changed. | Decide whether `g:mpn` from `sku` stays; and either give products a price of their own so a variant-less product can hold a truthful `out_of_stock` item, or accept that it legitimately leaves the feed. |
 | COD1 | Medium | This store computes its COD service fee locally (`payment-fee-policy.ts`: 3% plus 11% VAT, each rounded up) while Mengantar returns its own `codFee` on every quote that asks for it. Measured against the live account on 2026-08-19 the two disagree at every amount sampled — Rp50.000, Rp100.000, Rp199.000, Rp333.333 and Rp1.000.000 all came back exactly **one rupiah below** the local figure. The buyer is billed the local number. | Decide whether the local policy is a deliberate store markup or an attempt to mirror the provider. If it mirrors, take the provider's quoted `codFee` as the billed figure instead of recomputing it, so a provider rate change cannot silently diverge; if it is the store's own price, say so in the policy and stop treating the gap as a rounding bug. This is a pricing decision, not an engineering one, so nothing was changed. |
-| DOC1 | Low | `DESIGN-SYSTEM.md` still describes deleted components, old font/CSS ownership, build-time tenant fallback, and historical gate counts. | Re-extract it from the current component and style tree instead of incrementally restamping stale sections. |
 | SCR1 | Low | The 2026-08-22 full-system screening proved the QRIS create path against AutoLaris but **not a settled payment**: capturing a paid `POST /api/h2h/advice` response means paying a real virtual account, so the confirmation path (`/thanks` replacement, paid-state gating, reconciliation marking an order paid) remains proven only by fixtures and the earlier manual-reconciliation browser smoke. It also did not exercise Mengantar dispatch (`POST /order`), which creates a real shipment and spends wallet balance, nor the Meta/Google outbound legs, which were verified by hand on 2026-08-19. | Prove the settled path once, deliberately, on a store that is ready to pay a small real amount, and record the observed `advice` response so `inquirePayment` can classify it. Dispatch stays a manual, operator-initiated action by design (A11) and should be screened against a provider sandbox if one is ever published. |
+
+**DOC1** was closed on 2026-09-09 by re-extracting `DESIGN-SYSTEM.md` from the
+tree rather than restamping it. The drift was wider than this row recorded. §1.1
+documented `#f8f7f4` as the storefront canvas with 49 uses and a `SiteHeader`
+citation; it is not in the storefront at all, surviving only in the
+landing-page stylesheets and `install.astro`. `#C5A880` survives in two CSS
+header comments and `#8A704F` has zero occurrences. §4 described the checkout's
+colours as hardcoded boutique hexes, but `form-hybrid.css` contains **zero**
+`#C5A880` or `#F8F7F4` — every state resolves through `var(--sf-*)`, which is
+what makes ADR-019's re-brand surface real. §1.2, §3, §5 and §8.12 all described
+the `wide-catalog` template retired under ADR-018. §7.3 listed a deleted
+`ProofsSection.astro` that §2.1 cited a line number inside and §3 sourced its
+shadow rule from. §7.4 described a scroll-snap carousel with a thumbnail rail;
+the component is 65 lines and scriptless. §8.2 attributed an emerald palette to
+`/payment` and `/thanks`, where it now appears zero times.
 
 Closed 2026-09-09: **S1** — `theme_color`, `locale` and `admin_name` are edited
 at `/admin/settings/store`, validated against the very patterns

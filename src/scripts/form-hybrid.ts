@@ -2085,7 +2085,17 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
       postal_code: state.selectedPostalCode || state.location.postal_code,
       guard_token: guardToken,
     };
-    sessionStorage.setItem("thanks_state", JSON.stringify(thanksState));
+    // The order already exists in D1 by this point, so nothing here may throw:
+    // a storage write that fails must not cost the buyer their confirmation.
+    // Safari's private mode has historically thrown on any write, and a browser
+    // set to block site data does the same. Unguarded, that stranded a buyer on
+    // the submitting spinner with a real order behind them — and because the
+    // CAPI Purchase is only ever triggered from `/thanks`, neither leg fired.
+    try {
+      sessionStorage.setItem("thanks_state", JSON.stringify(thanksState));
+    } catch {
+      // The fragment locator below carries the order on its own.
+    }
 
     const destinationPath =
       paymentMethodFinal !== "cod" &&
@@ -2102,11 +2112,13 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
     // The payment locator rides in the URL fragment, which browsers never send
     // to a server or a referrer, so the instructions survive a lost tab or a
     // hand-off to another device without exposing the token to analytics.
-    navigateAfterCheckout(
-      destinationPath === "/payment"
-        ? `/payment#o=${encodeURIComponent(String(thanksState.order_pk ?? ""))}&t=${encodeURIComponent(String(thanksState.status_token ?? ""))}`
-        : destinationPath,
-    );
+    // Both destinations carry the locator, not just `/payment`. The fragment is
+    // never sent to a server or a referrer, which is why it was chosen for the
+    // payment instructions; `/thanks` needs the same carrier for the same
+    // reason — it is the only other page that must survive a lost tab or a
+    // storage write that never landed.
+    const locator = `#o=${encodeURIComponent(String(thanksState.order_pk ?? ""))}&t=${encodeURIComponent(String(thanksState.status_token ?? ""))}`;
+    navigateAfterCheckout(`${destinationPath}${locator}`);
   });
 }
 

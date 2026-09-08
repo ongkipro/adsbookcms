@@ -45,6 +45,34 @@ const productCatalog = products.map((item) => ({
     if (window.location.search) {
       window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
     }
+    // A locator in the fragment (`#o=<order>&t=<token>`) wins over whatever this
+    // tab remembers, exactly as it already does on `/payment`. It is what lets a
+    // buyer reach their confirmation when the `sessionStorage` write never
+    // landed — Safari's private mode has historically thrown on any write — and
+    // it matters more here than there, because the server Purchase is only ever
+    // triggered from this page. The fragment is never sent to a server or a
+    // referrer, and it is copied into storage and removed from the address bar
+    // so it is neither on screen nor in history.
+    try {
+      const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const linkedOrder = (fragment.get('o') || '').trim();
+      const linkedToken = (fragment.get('t') || '').trim();
+      if (linkedOrder && linkedToken) {
+        let stored = {};
+        try {
+          stored = JSON.parse(sessionStorage.getItem('thanks_state') || '{}') || {};
+        } catch {
+          stored = {};
+        }
+        if (String(stored.order_pk || '') !== linkedOrder) stored = {};
+        stored = { ...stored, order_pk: linkedOrder, status_token: linkedToken };
+        sessionStorage.setItem('thanks_state', JSON.stringify(stored));
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    } catch {
+      // Storage or history unavailable: the page falls back to whatever this
+      // tab already holds, which is the behaviour that shipped before.
+    }
     // `MetaPixelBase` gets exactly one `fbq('init')` per pixel id — fbevents
     // discards every later one in silence — and on this page the eight keys
     // worth matching on are only known once `/api/order-status` has answered.
@@ -734,6 +762,23 @@ const productCatalog = products.map((item) => ({
           if (data?.status)
             document.getElementById('step-three-copy').textContent =
               `Status order: ${String(data.status).replace(/_/g, ' ')}`;
+
+          // A buyer who arrived on the fragment locator alone — a lost tab, or
+          // a `sessionStorage` write that never landed — has no local copy of
+          // the money figures, and the summary rendered `Rp0` beside a real
+          // order. Showing a wrong number is worse than showing none, and the
+          // server already answered with the right ones. Only fills what the
+          // local state could not: the normal path is untouched.
+          const serverTotal = Number(data?.total_amount || 0);
+          const serverProduct = Number(data?.product_value || 0);
+          if (!Number(totalPayment) && serverTotal > 0) {
+            const formatted = fmt(serverTotal);
+            document.getElementById('total-payment-hero').textContent = formatted;
+            document.getElementById('total-payment').textContent = formatted;
+          }
+          if (!Number(productPrice) && serverProduct > 0) {
+            document.getElementById('product-price').textContent = fmt(serverProduct);
+          }
 
           // A transaction can expire or fail after this page was first opened,
           // and sessionStorage still says "unpaid". /payment already treats

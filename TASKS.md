@@ -834,8 +834,37 @@ Implementation, contract tests, static checks, build, and focused authenticated 
 
 ## Phase 72: Full-System Heavy Audit & Code Precisioning (Order Submission & Admin Invoice Engine)
 
-- [ ] **T248** - Comprehensive Tracing & Security Audit of Submit Order APIs (`/api/submit-order`, `/api/submit-middle-order`, `cmsads-form-widget.js`, `form-middle.ts`).
+- [x] **T248** - Comprehensive Tracing & Security Audit of Submit Order APIs (`/api/submit-order`, `/api/submit-middle-order`, `cmsads-form-widget.js`, `form-middle.ts`). **Done 2026-09-09.**
   -> REQ: REQ-10, REQ-16 · deps: [] · Done when: end-to-end tracing guarantees 100% reliable redirect to `/thanks` for COD and `/payment?order=...` for online payment, with strict payload validation, D1 mutation safety, and zero unhandled errors.
+      -> **The `?order=...` half of this acceptance text is superseded and was not
+      implemented.** `payment.astro` 303-redirects away every query parameter but
+      `preview`, and `checkout-navigation.ts` clears `search` on both completion
+      paths, because no order identifier or status token belongs in a URL a
+      server or a referrer can read. The locator rides in the fragment instead,
+      which browsers never transmit. Building `?order=...` would have undone a
+      deliberate decision in two places.
+      -> **The reliability half was genuinely broken.** `sessionStorage.setItem`
+      sat outside the try/catch, *after* the order was committed to D1. Safari's
+      private mode has historically thrown on any write and a browser set to
+      block site data does the same — so that throw stranded the buyer on the
+      submitting spinner with a real order behind them, and because the server
+      Purchase is only ever triggered from `/thanks`, neither leg fired. Guarded
+      in both forms, and both now carry the fragment locator, so `/thanks` can
+      recover the order the way `/payment` already could.
+      -> Opening the page found what the tests could not: recovered that way the
+      summary rendered `Rp0` beside a real order, because the fragment carries a
+      locator and not the money. `/api/order-status` already returned the right
+      figures; the page now fills only what the local state could not.
+      -> Payload validation, D1 mutation safety and error handling were audited
+      and found sound: `orderSubmitSchema` guards the boundary, `persistOrder`
+      writes through one `db.batch`, price is server-authoritative (shipping is
+      re-quoted and `unit_price` comes from the D1 variant), and every fetch path
+      already terminates in a user-visible message.
+      -> Evidence: 679 tests, `astro check` clean, build passed, route map
+      regenerated; and in Chromium with `sessionStorage` cleared,
+      `/thanks#o=42&t=…` recovered the order, removed the fragment from the
+      address bar, and rendered `Rp95.000` / `Rp89.000` with zero horizontal
+      overflow and a clean console.
 - [ ] **T249** - Comprehensive Tracing & React Hydration Audit of Admin Invoice Page (`/admin/orders/[id].ts`, `/admin/orders/[invoice].astro`, `OrderDetail.tsx`).
   -> REQ: REQ-24 · deps: [T248] · Done when: invoice page handles numeric IDs, invoice strings (`INV-10018`), and fallback keys with 100% uptime, zero React hook order violations, and clean fallback state rendering.
 

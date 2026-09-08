@@ -835,9 +835,21 @@ export function initMiddleOrderForm(
       variant_label: label,
       guard_token: guardToken,
     };
-    sessionStorage.setItem("thanks_state", JSON.stringify(state));
+    // The order already exists in D1, so nothing here may throw: a storage
+    // write that fails must not cost the buyer their confirmation, and the
+    // CAPI Purchase is only ever triggered from `/thanks`.
+    try {
+      sessionStorage.setItem("thanks_state", JSON.stringify(state));
+    } catch {
+      // The fragment locator below carries the order on its own.
+    }
     setSubmitting(true, "Mengalihkan...");
 
-    navigateAfterCheckout("/thanks");
+    // The fragment is never sent to a server or a referrer, which is why it
+    // already carries the payment instructions; `/thanks` needs the same
+    // carrier to survive a lost tab or a storage write that never landed.
+    navigateAfterCheckout(
+      `/thanks#o=${encodeURIComponent(String(state.order_pk ?? ""))}&t=${encodeURIComponent(String(state.status_token ?? ""))}`,
+    );
   });
 }

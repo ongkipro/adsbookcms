@@ -6,6 +6,49 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-09 — T248: a committed order could lose its own confirmation
+
+- `sessionStorage.setItem("thanks_state", …)` sat **outside** the try/catch, and
+  after the order was already committed to D1. Safari's private mode has
+  historically thrown on any write, and a browser set to block site data does
+  the same. That throw stranded the buyer on the submitting spinner with a real
+  order behind them — and because the server Purchase is only ever triggered
+  from `/thanks`, neither the Pixel leg nor the Conversions API leg fired
+  either. Guarded in both checkout forms.
+
+- Both forms now carry the locator in the URL **fragment**, so `/thanks` can
+  recover an order the way `/payment` already could. The fragment is never sent
+  to a server or a referrer, which is why it was chosen for the payment
+  instructions in the first place; `/thanks` needed the same carrier for the
+  same reason, and it matters more there, because that page is the only trigger
+  for the server Purchase.
+
+- **The task's own acceptance text asked for `/payment?order=...`, and that half
+  was deliberately not built.** `payment.astro` 303-redirects away every query
+  parameter but `preview`, and `checkout-navigation.ts` clears `search` on both
+  completion paths, because no order identifier belongs in a URL a server or a
+  referrer can read. Implementing it literally would have undone a deliberate
+  decision in two places. The clause is superseded, and the task records why.
+
+- **Opening the page found what the tests could not.** Recovered from the
+  fragment alone, the summary rendered `Rp0` beside a real order, because the
+  fragment carries a locator and not the money. Showing a wrong number is worse
+  than showing none, and `/api/order-status` already returned the right figures;
+  the page now fills only what the local state could not, leaving the normal
+  path untouched.
+
+- The rest of the audit was sound: `orderSubmitSchema` guards the boundary,
+  `persistOrder` writes through one `db.batch`, price is server-authoritative,
+  and every fetch path terminates in a user-visible message.
+
+- Gates: 679 tests passing, `astro check` clean, build passed, route map
+  regenerated. Browser evidence in Chromium with `sessionStorage` cleared:
+  `/thanks#o=42&t=…` recovered the order, removed the fragment from the address
+  bar, rendered `Rp95.000` / `Rp89.000`, zero horizontal overflow, clean
+  console.
+
+---
+
 ## 2026-09-09 — The Google Ads outbox gets a health signal (A-227)
 
 - It shipped without one, and `UNIMPLEMENTED_SPECS.md` already recorded the

@@ -6,6 +6,30 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-08 — A honeypot that named itself
+
+- The three public checkout endpoints — `submit-order`, `submit-middle-order`,
+  `record-abandoned-order` — answered a filled decoy with
+  `code: "HONEYPOT_TRIGGERED"`. That tells an anonymous caller exactly which
+  control it tripped, so a bot filling every field learns to leave that one
+  empty and never trips it again. All three now answer exactly like a generic
+  invalid payload and log `checkout-honeypot-triggered` server-side, where the
+  hit stays countable by the operator and unreadable by the attacker.
+
+- **`/api/v1/checkout` deliberately keeps the explicit code.** Its caller is
+  authenticated by API key and origin allowlist — a partner debugging their own
+  integration, not a bot probing — and `HONEYPOT_TRIGGERED` is a published
+  contract in `STOREFRONT_INTEGRATION.md`. Changing it there would break a
+  partner's error handling to defend against a caller who has already
+  authenticated.
+
+- The rest of the form screening was clean: every public endpoint carries both a
+  rate limit and the honeypot, price is server-authoritative because
+  `submit-order` re-quotes shipping and reads `unit_price` from the D1 variant,
+  and `quantity` is bounded by the schema.
+
+---
+
 ## 2026-09-08 — Catalog feed fields are clamped to what the platforms accept
 
 - Google Merchant Center caps `title` at 150 characters and `description` at

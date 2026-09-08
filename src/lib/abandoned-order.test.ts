@@ -41,7 +41,10 @@ test("abandoned capture rejects a filled honeypot before any D1 operation", asyn
   } as never);
 
   assert.equal(response.status, 400);
-  assert.equal((await response.json() as { code?: string }).code, "HONEYPOT_TRIGGERED");
+  // Deliberately indistinguishable from a generic invalid payload: naming the
+  // control tells a bot which field to leave empty next time. The hit is
+  // recorded server-side instead.
+  assert.equal((await response.json() as { code?: string }).code, "VALIDATION_ERROR");
   assert.equal(databaseOperations, 0);
 });
 

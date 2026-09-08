@@ -82,11 +82,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
       400,
     );
   if (String(body.website || "").trim()) {
+    // Answered exactly like a generic invalid payload. Naming the control
+    // that caught it tells a bot which field to leave empty next time, which
+    // is the one thing a honeypot must never do. The hit stays countable
+    // server-side, where the attacker cannot read it.
+    console.warn('checkout-honeypot-triggered', { path: 'submit-order' });
     return json(
       {
         success: false,
-        error: "Request tidak valid",
-        code: "HONEYPOT_TRIGGERED",
+        error: "Payload tidak valid.",
+        code: "VALIDATION_ERROR",
       },
       400,
     );

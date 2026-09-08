@@ -6,6 +6,7 @@ import { getRuntimeEnv } from '../../lib/env';
 import { toE164Digits } from '../../lib/meta-capi';
 import { checkRateLimit, getClientIp, rateLimitHeaders } from '../../lib/rate-limit';
 import { readMetaBrowserIds } from '../../lib/click-ids';
+import { resolveMetaCountry } from '../../lib/meta-identity';
 import { matchableCustomerEmail } from '../../lib/autolaris-payment';
 import {
   findPurchaseOrderByStatusToken,
@@ -174,6 +175,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
         city: purchaseOrder?.city || payload.city,
         province: purchaseOrder?.province || payload.province,
         postalCode: purchaseOrder?.postal_code || payload.postalCode,
+        // Truthful without guessing: a resolved order is Indonesian by
+        // construction, and every other event falls back to the country
+        // Cloudflare resolved for this very request.
+        country: resolveMetaCountry(
+          payload.country,
+          request.headers.get('cf-ipcountry'),
+          Boolean(purchaseOrder),
+        ),
         externalId:
           browserIds.externalId || purchaseExternalId || payload.externalId,
         fbp: payload.fbp || browserIds.fbp,

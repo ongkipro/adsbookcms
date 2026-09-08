@@ -125,3 +125,38 @@ export async function buildMetaAdvancedMatching(
       typeof navigator !== "undefined" ? navigator.userAgent : undefined,
   };
 }
+
+
+/**
+ * `country` is a Meta match key like any other, and the one this store can
+ * always supply truthfully: every order carries an Indonesian province, is
+ * quoted in IDR, and ships domestically.
+ *
+ * It was validated by `meta-event-contract.ts`, hashed by `meta-capi.ts`, sent
+ * by the `/thanks` browser leg and forwarded by the headless route — and
+ * dropped by `/api/meta-event`, which built `userData` without it. That route
+ * carries every first-party PageView, ViewContent and `/thanks` Purchase, so
+ * the Pixel leg of an order described the buyer with `country` and the CAPI leg
+ * of the same order did not. Meta then scored match quality on the shorter set.
+ *
+ * `edgeCountry` is Cloudflare's `cf-ipcountry` for the *buyer's* request, so it
+ * is only truthful where the request came from the buyer's browser; the
+ * headless route, whose caller is another server, passes `null` rather than
+ * attribute its own egress location to a customer. `XX` (unknown) and `T1`
+ * (Tor) are Cloudflare's own not-a-country values, and a hash of either matches
+ * nobody — which is worse than an absent key, because Meta scores on the keys
+ * it is given.
+ */
+const ISO_ALPHA2 = /^[a-z]{2}$/;
+const NOT_A_COUNTRY = new Set(["xx", "t1"]);
+
+export function resolveMetaCountry(
+  supplied: string | undefined,
+  edgeCountry: string | null | undefined,
+  hasOrder = false,
+): string | undefined {
+  if (hasOrder) return "id";
+  const candidate = String(supplied ?? edgeCountry ?? "").trim().toLowerCase();
+  if (!ISO_ALPHA2.test(candidate) || NOT_A_COUNTRY.has(candidate)) return undefined;
+  return candidate;
+}

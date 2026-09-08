@@ -6,6 +6,40 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-08 — `country` never reached the Conversions API leg
+
+- `country` was validated by `meta-event-contract.ts`, hashed by `meta-capi.ts`,
+  sent by the `/thanks` browser leg and forwarded by the headless tracking
+  route — and dropped by `/api/meta-event`, which built `userData` without it.
+  That route carries every first-party PageView, ViewContent and `/thanks`
+  Purchase, so the Pixel leg of an order described the buyer with `country` and
+  the Conversions API leg of the same order did not. Meta scores match quality
+  on the keys it is handed, so it scored the shorter set.
+
+- Found by cross-checking a defect first proven on the `zvarashop` install,
+  where the same shape existed. The reason it survived so long in both is that
+  the test asserted the *tracker posts* the key, never that the *route forwards*
+  it — a comment in `MetaThanksTracker.astro` even claims the CAPI leg "has
+  always sent ct/st/zp/country". It had not.
+
+- `resolveMetaCountry` supplies it: `id` for a resolved order, which is truthful
+  because every order carries an Indonesian province, is quoted in IDR and ships
+  domestically; the caller's validated claim otherwise; and Cloudflare's
+  `cf-ipcountry` for the buyer's own request as the last source. `XX` and `T1`
+  are Cloudflare's own not-a-country values and yield no key at all, because a
+  hash of a non-country matches nobody — worse than an absent key. The headless
+  route passes no edge country: its caller is another server whose location is
+  not the buyer's.
+
+- The new test asserts the stored route source, not the tracker, since asserting
+  the sender is exactly what let this through.
+
+- Gates: 658 tests passing, 0 type errors, `astro check` clean, build passed,
+  route map regenerated (the drift check caught the new lib dependency, as
+  designed).
+
+---
+
 ## Provenance — read before citing any entry
 
 This log has two distinct halves, and only the second one describes this repository.

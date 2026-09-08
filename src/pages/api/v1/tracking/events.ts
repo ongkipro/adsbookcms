@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { resolveMetaCountry } from '../../../../lib/meta-identity';
 import { parseMetaOrderContext } from '../../../../lib/meta-order-context';
 import { parseClickIds } from '../../../../lib/click-ids';
 import { handleOptions, headlessError, headlessOk, validateHeadlessRequest } from '../../../../lib/headless-api';
@@ -107,7 +108,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
         city: purchaseOrder?.city || payload.city,
         province: purchaseOrder?.province || payload.province,
         postalCode: purchaseOrder?.postal_code || payload.postalCode,
-        country: payload.country,
+        // No edge fallback here: the caller is another server, so its
+        // `cf-ipcountry` is that server's location and never the buyer's.
+        country: resolveMetaCountry(payload.country, null, Boolean(purchaseOrder)),
         externalId:
           payload.externalId ||
           storedContext.externalId ||

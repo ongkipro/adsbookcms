@@ -6,6 +6,43 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-09 — AutoLaris: two words that could have marked an order paid
+
+Checked against the provider's own documentation repository
+(`ongkipro/autolaris`), which is the canonical contract this integration has
+been missing.
+
+- **`SUCCESS` and `BERHASIL` were in the paid allowlist.** The guide names both
+  explicitly: *"`SUCCESS`/`BERHASIL` terlalu generik dan `DELIVERED` adalah
+  status pengiriman; ketiganya tidak boleh ditafsirkan sebagai lunas"*, and adds
+  that only an explicit settlement status confirmed by the provider may mark a
+  transaction and its order paid.
+
+- **§7 of the same guide settles why that matters.** `rc: "00"` means the **API
+  call** succeeded, not the payment. A `00` answered with a generic success word
+  is therefore ambiguous between "advice request succeeded" and "payment
+  settled" — and resolving that ambiguity toward paid marks an order paid that
+  may not be. That is the one direction this path must never fail in, and it was
+  the direction it was pointed.
+
+- Both words are removed. `PAID`, `SETTLED` and `LUNAS` remain: unambiguous
+  settlement vocabulary, nothing generic, nothing from the shipping lifecycle.
+  The provider still publishes no complete mapping, so these three are a
+  conservative reading rather than a confirmed contract — which is why every
+  `rc: "00"` that does not match is now captured as evidence rather than
+  discarded, and why manual reconciliation remains the documented fallback.
+
+- The guide also confirms `courir_id: 1` as the account's agreed non-physical
+  classification, and is explicit that it is **not** a global Postman contract —
+  another account's integrator must confirm it. This install stays on
+  `create_payment` rather than the `/submit` payment-only profile the guide
+  describes for a sibling install; rewiring a live money path on the strength of
+  a document describing someone else's choice would be the wrong reading of it.
+
+- Gates: 684 tests passing, `astro check` clean, build passed.
+
+---
+
 ## 2026-09-09 — AutoLaris: the evidence SCR1 waits for was being discarded
 
 Audited on request. The money path itself is sound and deliberately conservative

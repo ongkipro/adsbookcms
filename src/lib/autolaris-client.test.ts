@@ -200,11 +200,31 @@ test("Advice accepts only rc 00 with an explicit settled status as paid", async 
     globalThis.fetch = originalFetch;
   });
   globalThis.fetch = async () =>
-    Response.json({ rc: "00", ket: "SUCCESS", data: { awb: "" } });
+    Response.json({ rc: "00", ket: "PAID", data: { awb: "" } });
 
   const inquiry = await new AutoLarisClient("qa-key").inquirePayment("956123");
 
   assert.equal(inquiry.settlement, "paid");
+
+  // The provider's own guide names these as unsafe: `SUCCESS` and `BERHASIL`
+  // are too generic, and `rc: "00"` means the API call succeeded rather than
+  // the payment. Reading either as settled marks an order paid that may not be.
+  for (const generic of ["SUCCESS", "BERHASIL"]) {
+    globalThis.fetch = async () =>
+      Response.json({ rc: "00", ket: generic, data: { awb: "" } });
+    const ambiguous = await new AutoLarisClient("qa-key").inquirePayment("956125");
+    assert.equal(
+      ambiguous.settlement,
+      "unproven",
+      `${generic} is too generic to settle a payment`,
+    );
+  }
+
+  // `DELIVERED` is shipping vocabulary and never settlement.
+  globalThis.fetch = async () =>
+    Response.json({ rc: "00", ket: "DELIVERED", data: { awb: "" } });
+  const shipping = await new AutoLarisClient("qa-key").inquirePayment("956126");
+  assert.equal(shipping.settlement, "unproven");
 
   globalThis.fetch = async () =>
     Response.json({ rc: "00", ket: "UNKNOWN", data: { awb: "" } });

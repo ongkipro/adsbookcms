@@ -130,11 +130,33 @@ export type AutoLarisPaymentInquiry = {
 
 export const AUTOLARIS_PENDING_CODE = "02";
 export const AUTOLARIS_PAID_CODE = "00";
+/**
+ * Words that may settle a payment, and the two that were removed.
+ *
+ * The provider's own documentation (`ongkipro/autolaris`,
+ * `docs/guides/payment-gateway.md` §6) is explicit: *"`SUCCESS`/`BERHASIL`
+ * terlalu generik dan `DELIVERED` adalah status pengiriman; ketiganya tidak
+ * boleh ditafsirkan sebagai lunas"* — and only an explicit settlement status
+ * confirmed by the provider may mark a transaction and its order paid.
+ *
+ * `SUCCESS` and `BERHASIL` were in this set. They are now gone, because §7 of
+ * the same guide settles what `rc: "00"` actually means: the **API call**
+ * succeeded, not the payment. A `00` answered with a generic success word is
+ * therefore ambiguous between "advice request succeeded" and "payment
+ * settled" — and resolving that ambiguity in favour of paid marks an order paid
+ * that may not be, which is the one direction this path must never fail in.
+ *
+ * What remains is unambiguous settlement vocabulary: nothing generic, nothing
+ * from the shipping lifecycle. The provider has still published no complete
+ * settlement mapping, so these three are a conservative reading rather than a
+ * confirmed contract — which is exactly why every `rc: "00"` that does not
+ * match is captured as evidence rather than discarded
+ * (`reconcileAutoLarisPaymentStatuses`), and why manual reconciliation remains
+ * the documented fallback.
+ */
 const AUTOLARIS_PAID_STATUSES = new Set([
-  "SUCCESS",
   "PAID",
   "SETTLED",
-  "BERHASIL",
   "LUNAS",
 ]);
 

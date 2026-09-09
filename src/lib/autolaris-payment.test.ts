@@ -636,7 +636,7 @@ test("scheduled Advice reconciliation moves a paid order exactly once", async (c
   globalThis.fetch = async (_input, init) => {
     providerCalls += 1;
     requestedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
-    return Response.json({ rc: "00", ket: "SUCCESS", data: { awb: "" } });
+    return Response.json({ rc: "00", ket: "PAID", data: { awb: "" } });
   };
 
   const first = await reconcileAutoLarisPaymentStatuses(
@@ -687,7 +687,7 @@ test("scheduled Advice reconciliation leaves pending money untouched", async (co
 });
 
 // No settled Advice response has ever been observed against a real payment, so
-// the paid allowlist — SUCCESS, PAID, SETTLED, BERHASIL, LUNAS — is a guess. If
+// the paid allowlist — PAID, SETTLED, LUNAS — is a conservative reading. If
 // the provider answers with its success code and a word outside that guess, the
 // order must not settle (a guess may not move money) but the observation must
 // not be discarded either: it is exactly the capture that closes SCR1, and it

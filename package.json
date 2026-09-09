@@ -1,7 +1,7 @@
 {
   "name": "adsbookcms",
   "version": "1.4.0",
-  "description": "AdsBookCMS — single-install direct-response commerce CMS for Cloudflare Workers",
+  "description": "AdsBookCMS \u2014 single-install direct-response commerce CMS for Cloudflare Workers",
   "engines": {
     "node": ">=22",
     "npm": ">=10"
@@ -13,6 +13,7 @@
     "build": "astro build",
     "check": "astro check && tsc --noEmit",
     "test": "node --experimental-strip-types --test src/lib/*.test.ts",
+    "docs:check": "node --experimental-strip-types scripts/check-docs.ts",
     "preview": "astro preview",
     "cf:dev": "wrangler dev --local",
     "preflight:deploy": "node --experimental-strip-types scripts/preflight-deploy.ts",

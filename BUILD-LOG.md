@@ -6,6 +6,38 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-09 — Worktrees consolidated into one local checkout
+
+- Three worktrees hung off this repository — `adsbookcms-dev`, `adsbookcms-lp`
+  and `adsbookcms-meta-hardening`, plus one prunable entry under `/tmp`. All
+  three branches were already merged into `main`, so removing the worktrees lost
+  no committed work.
+
+- **`adsbookcms-meta-hardening` held 50 uncommitted files** from 2026-09-02: 44
+  modified, 6 untracked, 1076 insertions. That was not discarded. It is
+  committed unchanged on `fix/meta-signal-parity` as `625ce46`, merged nowhere,
+  recoverable in full.
+
+- Most of it was superseded rather than lost. `meta-order-context.ts` and
+  `0053_checkout_order_deduplication.sql` already exist on `main`;
+  `0054_meta_order_context.sql` is the content `main` carries at `0052`;
+  `0052_product_description.sql` is superseded by `0051_product_catalog_fields.sql`,
+  which already adds `products.description`. Several tracked files were *behind*
+  `main` rather than ahead of it — `thanks.astro` was missing 46 lines this
+  week's work added.
+
+- **One thing in it was genuinely unique and worth keeping:**
+  `scripts/check-docs.ts`. This repository had no `docs:check`, while its
+  siblings do, and a week of heavy document editing had no link checking behind
+  it at all. Ported and wired as `npm run docs:check`; it passes across 29
+  Markdown files, so none of that editing broke a local link.
+
+- Checking before deleting is the whole point of this entry: three of the four
+  candidates were superseded, one was not, and the difference was only visible
+  by reading them.
+
+---
+
 ## 2026-09-09 — Studying the provider's documentation end to end
 
 Read `ongkipro/autolaris` in full — README, getting-started, both guides, the

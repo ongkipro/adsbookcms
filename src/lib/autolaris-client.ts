@@ -184,7 +184,25 @@ type AutoLarisResponse = {
   };
 };
 
-/** Provider timestamps are documented as Jakarta local time without an offset. */
+/**
+ * `payment_info.expired` arrives without an offset, and is read as Jakarta time.
+ *
+ * That is an **assumption, not a documented fact**. The provider's own
+ * reference lists the timezone of `expired` under "Batas kontrak" — the things
+ * the published collection does not state (`ongkipro/autolaris`,
+ * `docs/reference/h2h-api.md`). This comment previously claimed the opposite,
+ * that Jakarta time was documented, which is the kind of guess-dressed-as-fact
+ * that survives precisely because it reads as settled.
+ *
+ * `+07:00` is the reasonable reading for an Indonesian provider quoting local
+ * time, and it is what ships. The consequence if it is wrong is worth naming:
+ * were the provider to send UTC, every instruction would be treated as expiring
+ * seven hours later than it does, and `/payment` would keep presenting a dead
+ * virtual account as live. An unparseable value returns `undefined` and the
+ * instruction simply carries no expiry, which fails in the safe direction.
+ *
+ * Confirm with AutoLaris before go-live, as the reference itself instructs.
+ */
 export function parseAutoLarisExpiry(value: unknown): string | undefined {
   const match = String(value || "")
     .trim()

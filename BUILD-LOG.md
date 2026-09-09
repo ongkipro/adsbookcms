@@ -6,6 +6,43 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-09 — Studying the provider's documentation end to end
+
+Read `ongkipro/autolaris` in full — README, getting-started, both guides, the
+H2H reference and the OpenAPI snapshot — and checked the implementation against
+it rather than against memory.
+
+**Conformant, and verified rather than assumed:**
+
+- Base URL, `Authorization: Bearer`, and the `{ rc, ket, data }` envelope match.
+- The reference insists on checking HTTP status **and** `rc`. `request()` checks
+  only `response.ok`, but every caller guards `rc` itself —
+  `parseAutoLarisPaymentResponse`, `verifyCredentials` and `inquirePayment` all
+  refuse a non-`00` before touching `data`, which is what §7 requires. The check
+  is per-caller rather than central; that is a shape, not a defect.
+- `transaction_id || trx_id` matches the reference's instruction to prefer
+  `data.transaction_id` for `/submit` and to store whatever identifier the flow
+  issues.
+- `buildAutoLarisCreateOrderPayload` matches `CreateOrderRequest` field for
+  field, all 24 keys, `longitude`/`latitude`/`remark` included and documented.
+- `list_payment` is a GET without a body, as specified.
+
+**One claim was wrong, and it is the kind that survives by sounding settled.**
+`parseAutoLarisExpiry` carried the comment *"Provider timestamps are documented
+as Jakarta local time without an offset."* The provider's reference lists the
+timezone of `expired` under **"Batas kontrak"** — the things the published
+collection does **not** state. `+07:00` remains the reasonable reading and still
+ships; what changed is that it is now named as an assumption, with the
+consequence spelled out: were the provider to send UTC, every instruction would
+be treated as expiring seven hours late and `/payment` would present a dead
+virtual account as live. An unparseable value yields no expiry, which fails in
+the safe direction.
+
+Recorded as a contract limit in `UNIMPLEMENTED_SPECS.md` so it is confirmed
+before go-live rather than discovered after.
+
+---
+
 ## 2026-09-09 — The ledger said Create Order was not wired. It is.
 
 - `UNIMPLEMENTED_SPECS.md` carried "It is therefore **not wired**" against

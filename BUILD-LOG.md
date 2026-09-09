@@ -6,6 +6,39 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-09 — The ledger said Create Order was not wired. It is.
+
+- `UNIMPLEMENTED_SPECS.md` carried "It is therefore **not wired**" against
+  AutoLaris Create Order. That is false and has been for a while:
+  `createAutoLarisPayment` calls `POST /api/h2h/submit` as **the** checkout money
+  path — `courir_id: 1`, `origin`/`destination` from the environment, weight
+  summed from `order_items` × quantity, shipper resolved from the warehouse, and
+  the full `order_details` array.
+
+- `create_payment` is called **nowhere** in the tree. The provider guide's
+  double-billing warning — never call Create Payment for a `reff_id` already
+  processed by Create Order — is therefore satisfied by construction rather than
+  by discipline, which is the stronger of the two.
+
+- `buildAutoLarisCreateOrderPayload` was checked field-for-field against the
+  provider's canonical OpenAPI (`ongkipro/autolaris`,
+  `openapi/autolaris-h2h.openapi.json`). All 24 keys match `CreateOrderRequest`,
+  including `longitude`, `latitude` and `remark` — documented in
+  `ShipmentFields` rather than invented, which is what a hand-built payload
+  usually gets wrong.
+
+- **This mattered beyond tidiness.** The stale row was read as current and
+  produced two wrong answers about this integration before the code was opened.
+  A ledger that lies is worse than no ledger, because it is trusted. ADR-010
+  already says disk wins; this is that rule being applied rather than cited.
+
+- What remains genuinely unobserved is a **settled** `/submit` transaction —
+  the same blocker as SCR1, needing a real payment — and confirmation that
+  `courir_id: 1` holds beyond this account, which the provider's guide is
+  explicit is an account convention and not a global contract.
+
+---
+
 ## 2026-09-09 — AutoLaris: two words that could have marked an order paid
 
 Checked against the provider's own documentation repository

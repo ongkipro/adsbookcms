@@ -1,4 +1,5 @@
 import {
+  AUTOLARIS_PAID_CODE,
   AutoLarisClient,
   type AutoLarisCheckoutChannel,
   type AutoLarisPayment,
@@ -335,6 +336,15 @@ export type AutoLarisScheduledReconciliation = {
   unproven: number;
   failed: number;
   paidOrderIds: number[];
+  /**
+   * Reads that carried the provider's success code but a settlement word the
+   * allowlist does not recognise. This is not a failure — it is the evidence
+   * `UNIMPLEMENTED_SPECS.md` has been waiting for, and it used to be counted as
+   * `unproven` beside genuine failures and discarded. Each entry carries the
+   * exact word so the allowlist can be revised from observation instead of
+   * from a guess.
+   */
+  unrecognisedPaidStatuses: string[];
 };
 
 /**
@@ -354,6 +364,7 @@ export async function reconcileAutoLarisPaymentStatuses(
     unproven: 0,
     failed: 0,
     paidOrderIds: [],
+    unrecognisedPaidStatuses: [],
   };
   const config = (await getProviderConfig(database, locals)).autolaris;
   if (!config.apiKey) return result;
@@ -389,6 +400,21 @@ export async function reconcileAutoLarisPaymentStatuses(
       }
       if (inquiry.settlement !== "paid") {
         result.unproven += 1;
+        // The provider's success code with a word the allowlist does not know.
+        // Never settle on it — a guess must not move money — but never discard
+        // it either: no settled response has ever been observed, so this read is
+        // exactly the capture that closes SCR1, and it was being thrown away.
+        if (inquiry.code === AUTOLARIS_PAID_CODE) {
+          const observed = inquiry.status || "(kosong)";
+          if (!result.unrecognisedPaidStatuses.includes(observed)) {
+            result.unrecognisedPaidStatuses.push(observed);
+          }
+          console.warn("autolaris-paid-code-unknown-status", {
+            orderNumber: row.order_number,
+            code: inquiry.code,
+            status: observed,
+          });
+        }
         continue;
       }
 

@@ -6,6 +6,39 @@ Author & Curator: **[ongki.pro](https://ongki.pro)**
 
 ---
 
+## 2026-09-09 — AutoLaris: the evidence SCR1 waits for was being discarded
+
+Audited on request. The money path itself is sound and deliberately conservative
+— but it had a blind spot at exactly the point the ledger cares about.
+
+- **`inquirePayment` settles only on `rc: "00"` **and** a word from an
+  allowlist** — `SUCCESS`, `PAID`, `SETTLED`, `BERHASIL`, `LUNAS`. That
+  double condition is right: a stray success code must not settle a payment,
+  and the D1 transition behind it is a guarded batch that stays idempotent
+  across concurrent cron runs.
+
+- **But no settled response has ever been observed, so that allowlist is a
+  guess.** If the provider answers `rc: "00"` with anything outside it —
+  `TERBAYAR`, `SUKSES`, `COMPLETED`, an empty string — reconciliation counted
+  the read as `unproven`, identically to a genuine failure, and discarded it.
+  The single observation SCR1 has been waiting for would have arrived and
+  vanished, and the order would silently stay unpaid after a buyer had paid.
+
+- The fix does **not** relax the money path. The paid transition still requires
+  both the code and an allowlisted word. What changed is that a success code
+  with an unknown word is now carried out as `unrecognisedPaidStatuses`, logged
+  as `autolaris-paid-code-unknown-status` with the exact word and the order
+  number, and surfaced in the scheduled health log. A guess still may not move
+  money — but it no longer hides the evidence that would replace it.
+
+- The existing exact-shape assertion caught the contract change, which is what
+  it is for.
+
+- Gates: 684 tests passing, `astro check` clean, build passed, route map
+  regenerated.
+
+---
+
 ## 2026-09-09 — AD3 and COD1 closed; one engineering gap left
 
 - **The Google feed no longer claims an MPN it does not have.**

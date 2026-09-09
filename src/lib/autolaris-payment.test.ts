@@ -651,6 +651,9 @@ test("scheduled Advice reconciliation moves a paid order exactly once", async (c
     unproven: 0,
     failed: 0,
     paidOrderIds: [41],
+    // Empty on a recognised settlement: the capture exists for the words the
+    // allowlist does not know yet.
+    unrecognisedPaidStatuses: [],
   });
   assert.equal(state.transactionStatus, "paid");
   assert.equal(state.orderPaymentStatus, "paid");
@@ -681,4 +684,78 @@ test("scheduled Advice reconciliation leaves pending money untouched", async (co
   assert.equal(state.transactionStatus, "pending");
   assert.equal(state.orderPaymentStatus, "pending");
   assert.equal(state.notifications, 0);
+});
+
+// No settled Advice response has ever been observed against a real payment, so
+// the paid allowlist — SUCCESS, PAID, SETTLED, BERHASIL, LUNAS — is a guess. If
+// the provider answers with its success code and a word outside that guess, the
+// order must not settle (a guess may not move money) but the observation must
+// not be discarded either: it is exactly the capture that closes SCR1, and it
+// used to be counted as `unproven` beside genuine failures and thrown away.
+
+test("the provider's success code with an unknown word is captured, not settled", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const { database, state } = createAdviceReconciliationDatabase();
+  globalThis.fetch = async () =>
+    Response.json({ rc: "00", ket: "TERBAYAR", data: { awb: "" } });
+
+  const result = await reconcileAutoLarisPaymentStatuses(
+    database,
+    QA_LOCALS,
+    new Date("2026-09-09T17:00:00.000Z"),
+  );
+
+  // Nothing moved: an unrecognised word cannot settle a payment.
+  assert.equal(state.transactionStatus, "pending");
+  assert.equal(state.orderPaymentStatus, "pending");
+  assert.equal(result.unproven, 1);
+  assert.deepEqual(result.paidOrderIds, []);
+  // But the exact word is carried out, so the allowlist can be revised from
+  // observation rather than from another guess.
+  assert.deepEqual(result.unrecognisedPaidStatuses, ["TERBAYAR"]);
+});
+
+test("a genuine failure is not mistaken for settlement evidence", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const { database } = createAdviceReconciliationDatabase();
+  globalThis.fetch = async () =>
+    Response.json({ rc: "99", ket: "FAILED", data: { awb: "" } });
+
+  const result = await reconcileAutoLarisPaymentStatuses(
+    database,
+    QA_LOCALS,
+    new Date("2026-09-09T17:00:00.000Z"),
+  );
+  assert.equal(result.unproven, 1);
+  assert.deepEqual(
+    result.unrecognisedPaidStatuses,
+    [],
+    "only the success code makes a word worth capturing",
+  );
+});
+
+test("a pending read stays a silent no-op", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const { database, state } = createAdviceReconciliationDatabase();
+  globalThis.fetch = async () =>
+    Response.json({ rc: "02", ket: "PENDING", data: { awb: "" } });
+
+  const result = await reconcileAutoLarisPaymentStatuses(
+    database,
+    QA_LOCALS,
+    new Date("2026-09-09T17:00:00.000Z"),
+  );
+  assert.equal(result.pending, 1);
+  assert.equal(result.unproven, 0);
+  assert.deepEqual(result.unrecognisedPaidStatuses, []);
+  assert.equal(state.orderPaymentStatus, "pending");
 });

@@ -82,6 +82,7 @@ async function runScheduledMaintenance(
     unproven: 0,
     failed: 0,
     paidOrderIds: [] as number[],
+    unrecognisedPaidStatuses: [] as string[],
   };
   try {
     autoLarisReconciliation = await reconcileAutoLarisPaymentStatuses(
@@ -151,6 +152,9 @@ async function runScheduledMaintenance(
       pending: autoLarisReconciliation.pending,
       unproven: autoLarisReconciliation.unproven,
       failed: autoLarisReconciliation.failed,
+      // The provider's success code with a settlement word the allowlist does
+      // not know. Non-empty here is the observation SCR1 needs, not an error.
+      unrecognisedPaidStatuses: autoLarisReconciliation.unrecognisedPaidStatuses,
     },
     drainedCapiEvents,
     queuedGoogleAdsConversions,

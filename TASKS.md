@@ -2471,4 +2471,40 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   --noUnusedParameters` reports nothing. The ~200 exports used only inside
   their own file were left as they are. `dev:seed --images=<dir>` adds real
   photos from a folder outside the repository, plus six more products.
+- [x] **A-302** — Every admin dropdown is shadcn. The three hand-built
+  kecamatan lists (rate checker, warehouse origin, abandoned-lead recovery)
+  became one `DistrictCombobox` on the shadcn Combobox; the caller supplies
+  the search, since the screens resolve different area identities. The
+  warehouse page stays static Astro with one island that hands its pick back
+  as a `warehouse-origin` event. Inside a modal dialog the popup is portaled
+  into the dialog: portaled to `<body>` it inherited the dialog's
+  `pointer-events: none` and ignored every tap (keyboard still worked).
+  `/install` keeps its own `<select>`: it loads no admin CSS.
+- [x] **A-303** — `/admin/check` rebuilt as the `RateCheckTools` island
+  (Card, Input, Button, Select, Table, Badge, sonner). Removed: a permanent
+  "Mengantar API Connected" badge that checked nothing, a "Reguler" filter
+  that matched service text the provider never sends (it showed an empty
+  table), a hard-coded "Gudang Utama AdsBookCMS" note (now the store's own
+  warehouse name), emoji icons and the tab switcher. ETAs read "1–3 hari"
+  whatever unit the provider sends (it rendered "1 - 3 days hari"). Filter,
+  sort and WhatsApp text are `src/lib/rate-check.ts`, tested; the island is
+  in the SSR render test. The receiver-history stand-in now answers per
+  phone in every risk band, so the check works under `dev:local`.
+- [x] **A-304** — UI clean-up across admin: navigation, page titles and tab
+  labels in Indonesian (they mixed "Commerce", "Growth", "Order Management",
+  "Tutorial Step-by-Step"); page-header eyebrows removed (English jargon
+  such as "Google Ads Signal OS" on every page); emoji removed from the ads
+  pages and the access page; `alert()` on the Meta test event replaced by an
+  inline status; a static green "CMS Core" dot that measured nothing
+  replaced by the version alone. InputGroup controls no longer get the admin
+  input frame, height and focus outline a second time (the combobox drew two
+  borders on a phone); the group carries the focus ring instead. In the
+  abandoned-lead dialog the variant select showed an id ("13"), couriers
+  read "JNE · JNE", and ETAs had no unit. `components.json` pointed at a
+  `global.css` that no longer exists; it now names `admin.css`, where the
+  tokens are. Measured at 390 px: every input on 30 pages and their popups
+  is 16 px, so iOS does not zoom; no change was needed there.
+- [ ] **A-305** — Four destructive actions still ask through
+  `window.confirm` (order delete, bulk delete, revoke access, revoke API
+  key). They work; a shadcn confirmation dialog would match the rest.
 

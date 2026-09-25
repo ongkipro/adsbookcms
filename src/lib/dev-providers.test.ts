@@ -63,3 +63,19 @@ test("the dev providers satisfy the real Mengantar and AutoLaris clients", async
   await fetch(`${base}/__dev/autolaris/pay?transaction_id=${payment.transactionId}`, { method: "POST" });
   assert.equal((await autolaris.inquirePayment(payment.transactionId)).settlement, "paid");
 });
+
+test("the receiver-history stand-in parses into every risk band the checker shows", async () => {
+  const { parseReceiverPerformance } = await import("./receiver-performance.ts");
+  const server = await startDevProviders(0);
+  try {
+    const { port } = server.address() as AddressInfo;
+    const client = new MengantarClient("dev", `http://127.0.0.1:${port}`);
+    const levels = new Set<string>();
+    for (const phone of ["6281200000001", "6281200000005", "6281200000009", "6281200000000"]) {
+      levels.add(parseReceiverPerformance(await client.getReceiverPerformance(phone), phone).riskLevel);
+    }
+    assert.deepEqual([...levels].sort(), ["HIGH", "LOW", "MEDIUM", "UNKNOWN"]);
+  } finally {
+    server.close();
+  }
+});

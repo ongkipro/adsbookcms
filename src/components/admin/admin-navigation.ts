@@ -41,7 +41,7 @@ export type AdminNavGroup = {
 
 export const adminNavGroups: AdminNavGroup[] = [
   {
-    label: "Commerce",
+    label: "Penjualan",
     items: [
       {
         id: "dashboard",
@@ -54,7 +54,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       {
         id: "orders",
         href: "/admin/orders",
-        label: "Order Management",
+        label: "Pesanan",
         shortLabel: "Order",
         description: "Validasi dan proses pesanan",
         icon: ShoppingBag,
@@ -79,13 +79,13 @@ export const adminNavGroups: AdminNavGroup[] = [
         icon: Package,
         keywords: "products produk katalog varian stock landing pages",
         children: [
-          { href: "/admin/landing-pages", label: "Landing Pages", icon: FilePenLine },
+          { href: "/admin/landing-pages", label: "Landing page", icon: FilePenLine },
         ],
       },
     ],
   },
   {
-    label: "Operations",
+    label: "Operasional",
     items: [
       {
         id: "expeditions",
@@ -106,12 +106,12 @@ export const adminNavGroups: AdminNavGroup[] = [
     ],
   },
   {
-    label: "Growth",
+    label: "Pemasaran",
     items: [
       {
         id: "ads",
         href: "/admin/ads",
-        label: "Ads & Tracking",
+        label: "Iklan & tracking",
         description: "Signal dan attribution",
         icon: Megaphone,
         keywords: "ads pixel capi google tracking conversion",
@@ -123,12 +123,12 @@ export const adminNavGroups: AdminNavGroup[] = [
     ],
   },
   {
-    label: "Finance & System",
+    label: "Keuangan & sistem",
     items: [
       {
         id: "payments",
         href: "/admin/payments",
-        label: "Payment AutoLaris",
+        label: "Pembayaran",
         shortLabel: "Payment",
         description: "Channel dan rekonsiliasi",
         icon: CreditCard,
@@ -145,10 +145,10 @@ export const adminNavGroups: AdminNavGroup[] = [
         icon: Settings,
         keywords: "settings system store warehouse crm access headless developer api",
         children: [
-          { href: "/admin/settings/store", label: "Store & CS", icon: ShoppingBag },
+          { href: "/admin/settings/store", label: "Toko & CS", icon: ShoppingBag },
           { href: "/admin/settings/developer", label: "Headless API", icon: CodeXml },
           { href: "/admin/settings/warehouse", label: "Gudang", icon: Warehouse },
-          { href: "/admin/settings/crm", label: "CRM Templates", icon: FilePenLine },
+          { href: "/admin/settings/crm", label: "Template CRM", icon: FilePenLine },
           { href: "/admin/settings/access", label: "Akses Pengguna", icon: CircleUserRound },
         ],
       },
@@ -219,6 +219,6 @@ export function getSearchableNavItems(role: AdminRole) {
         })),
       ]),
     ),
-    { ...profileNavItem, group: "Account" },
+    { ...profileNavItem, group: "Akun" },
   ];
 }

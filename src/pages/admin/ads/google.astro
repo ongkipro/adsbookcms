@@ -15,7 +15,6 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
   <div class="space-y-6">
     <!-- Header Page -->
     <AdminPageHeader
-      eyebrow="Google Ads Signal OS"
       title="Google Ads & Merchant Center Engine"
       description="Kelola GTM Container, Google Ads Purchase Conversion, Enhanced Conversions, Consent Mode v2, dan Catalog XML Feed dari satu tempat."
       backHref="/admin/ads"
@@ -86,7 +85,7 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
         class="tab-btn border-b-2 border-blue-600 px-4 py-2.5 text-blue-600 focus:outline-none"
         data-target="tabConfig"
       >
-        ⚙️ Konfigurasi ID
+        Konfigurasi
       </button>
       <button
         id="tabBtnTutorial"
@@ -94,7 +93,7 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
         class="tab-btn border-b-2 border-transparent px-4 py-2.5 text-slate-500 hover:text-slate-900 focus:outline-none"
         data-target="tabTutorial"
       >
-        📘 Tutorial Step-by-Step
+        Panduan setup
       </button>
       <button
         id="tabBtnFeed"
@@ -102,7 +101,7 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
         class="tab-btn border-b-2 border-transparent px-4 py-2.5 text-slate-500 hover:text-slate-900 focus:outline-none"
         data-target="tabFeed"
       >
-        🛒 Catalog XML Feed
+        Feed katalog
       </button>
       <button
         id="tabBtnSpecs"
@@ -110,7 +109,7 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
         class="tab-btn border-b-2 border-transparent px-4 py-2.5 text-slate-500 hover:text-slate-900 focus:outline-none"
         data-target="tabSpecs"
       >
-        🔬 Sinyal & Payload Inspector
+        Inspeksi sinyal
       </button>
     </div>
 
@@ -182,7 +181,6 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
 
         <div class="mx-5 mb-5 rounded-xl border border-blue-200 bg-blue-50/70 p-4 text-xs leading-5 text-blue-900 md:mx-6">
           <div class="flex items-start gap-2.5">
-            <span class="text-base">💡</span>
             <div>
               <strong>Ketentuan Pengisian:</strong>
               <ul class="mt-1 list-disc space-y-0.5 pl-4 text-[11px]">
@@ -318,7 +316,7 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
                     type="button"
                     class="btn-secondary min-h-8 shrink-0 px-3 text-[11px]"
                   >
-                    📋 Salin URL Feed
+                    Salin URL Feed
                   </button>
                 </div>
 
@@ -338,7 +336,7 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
               <p class="mt-1 text-xs text-emerald-800">Gunakan extension browser <strong class="text-emerald-950">Google Tag Assistant Companion</strong> untuk menguji event konversi saat checkout.</p>
               
               <div class="mt-2 text-xs text-emerald-900">
-                <p>💡 <strong>Checklist Uji Coba:</strong></p>
+                <p><strong>Checklist Uji Coba:</strong></p>
                 <ul class="mt-1 list-disc space-y-0.5 pl-4 text-[11px]">
                   <li>Event <code class="font-mono font-bold">conversion</code> terdeteksi dengan <code class="font-mono">send_to</code> sesuai ID & Label.</li>
                   <li>Parameter <code class="font-mono">value</code> bernilai IDR angka bersih (misal <code class="font-mono">249000</code>).</li>
@@ -641,7 +639,7 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
         const url = document.getElementById('feedUrlText')?.textContent?.trim() || '';
         await navigator.clipboard.writeText(url).catch(() => {});
         const oldText = btn.textContent;
-        btn.textContent = '✅ Disalin!';
+        btn.textContent = 'Disalin!';
         setTimeout(() => {
           btn.textContent = oldText;
         }, 2000);

@@ -194,12 +194,7 @@ export function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
         <div className="mt-2 flex items-center justify-between rounded-lg border border-slate-200/80 bg-slate-50/80 px-2.5 py-1.5 text-[11px] font-medium text-slate-500 group-data-[collapsible=icon]:hidden">
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex size-2">
-              <span className="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
-            </span>
-            <span className="font-medium text-slate-700">CMS Core</span>
-          </div>
+          <span className="font-medium text-slate-700">AdsBookCMS</span>
           <span className="rounded bg-slate-200/70 px-1.5 py-0.5 font-mono text-[10px] font-medium text-slate-600">
             v{CMS_VERSION.version}
           </span>

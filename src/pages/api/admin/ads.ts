@@ -84,7 +84,7 @@ export const GET: APIRoute = async ({ locals }) => {
     });
   } catch (error) {
     console.error('ads-config-get', error);
-    return json({ success: false, error: 'Gagal mengambil konfigurasi Ads & Tracking.' }, 500);
+    return json({ success: false, error: 'Gagal mengambil konfigurasi iklan & tracking.' }, 500);
   }
 };
 
@@ -227,6 +227,6 @@ export const PUT: APIRoute = async ({ request, locals }) => {
     });
   } catch (error) {
     console.error('ads-config-put', error);
-    return json({ success: false, error: 'Gagal memperbarui konfigurasi Ads & Tracking.' }, 500);
+    return json({ success: false, error: 'Gagal memperbarui konfigurasi iklan & tracking.' }, 500);
   }
 };

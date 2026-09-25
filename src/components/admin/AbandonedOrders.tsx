@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import { buildWaUrl } from "@/lib/crm-template";
 import { formatIdr } from "@/lib/format-idr";
+import { etaLabel } from "@/lib/rate-check";
 import { groupLocationResults } from "@/lib/location-search";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +51,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { DistrictCombobox, type DistrictOption } from "@/components/admin/DistrictCombobox";
 
 type FollowUpStatus = "new" | "contacted" | "qualified" | "not_interested";
 
@@ -260,9 +263,16 @@ function ConversionDialog({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [fieldError, setFieldError] = useState<{ id: string; message: string } | null>(null);
-  const [locationQuery, setLocationQuery] = useState("");
-  const [locations, setLocations] = useState<LocationOption[]>([]);
-  const [locationLoading, setLocationLoading] = useState(false);
+  // The combobox shows labels; the order needs the full row behind one.
+  const locationRows = useRef(new Map<string, LocationOption>());
+  const searchLocations = useCallback(async (query: string, signal: AbortSignal): Promise<DistrictOption[]> => {
+    const payload = await readJson(
+      await fetch(`/api/locations?search=${encodeURIComponent(query)}`, { headers: { Accept: "application/json" }, signal }),
+    );
+    const rows = groupLocationResults((payload.items || payload.locations || []) as LocationOption[]).map((group) => group.items[0]);
+    for (const row of rows) locationRows.current.set(String(row.id), row);
+    return rows.map((row) => ({ id: String(row.id), label: row.label }));
+  }, []);
   const [rates, setRates] = useState<ShippingRate[]>([]);
   const [ratesLoading, setRatesLoading] = useState(false);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -284,8 +294,6 @@ function ConversionDialog({
     if (!lead) return;
     setError("");
     setFieldError(null);
-    setLocationQuery("");
-    setLocations([]);
     setRates([]);
     setForm({
       customerName: lead.customerName,
@@ -301,37 +309,6 @@ function ConversionDialog({
       courierServiceId: "",
     });
   }, [lead]);
-
-  useEffect(() => {
-    if (!lead || locationQuery.trim().length < 2) {
-      setLocations([]);
-      return;
-    }
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setLocationLoading(true);
-      try {
-        const payload = await readJson(
-          await fetch(`/api/locations?search=${encodeURIComponent(locationQuery.trim())}`, {
-            headers: { Accept: "application/json" },
-            signal: controller.signal,
-          }),
-        );
-        const rows = (payload.items || payload.locations || []) as LocationOption[];
-        setLocations(groupLocationResults(rows).map((group) => group.items[0]));
-      } catch (reason) {
-        if (!(reason instanceof Error && reason.name === "AbortError")) {
-          setError(reason instanceof Error ? reason.message : "Lokasi gagal dicari.");
-        }
-      } finally {
-        if (!controller.signal.aborted) setLocationLoading(false);
-      }
-    }, 300);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [lead, locationQuery]);
 
   useEffect(() => {
     if (!lead || !form.destinationAreaId || !form.variantId) {
@@ -472,7 +449,11 @@ function ConversionDialog({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_7rem]">
               <div className="space-y-1.5">
                 <label htmlFor="lead-variant" className="text-sm font-medium">Produk & varian</label>
-                <Select value={form.variantId} onValueChange={(value) => setForm({ ...form, variantId: value ?? "", courierServiceId: "" })}>
+                <Select
+                  items={Object.fromEntries(products.filter((product) => product.is_active).flatMap((product) => product.variants.map((variant) => [String(variant.id), `${product.title} · ${variant.title} (${formatIdr(variant.price)})`])))}
+                  value={form.variantId}
+                  onValueChange={(value) => setForm({ ...form, variantId: value ?? "", courierServiceId: "" })}
+                >
                   <SelectTrigger id="lead-variant" aria-invalid={fieldError?.id === "lead-variant"} aria-describedby={fieldError?.id === "lead-variant" ? "lead-variant-error" : undefined}><SelectValue placeholder="Pilih produk" /></SelectTrigger>
                   <SelectContent>
                     {products.filter((product) => product.is_active).flatMap((product) => product.variants.map((variant) => (
@@ -504,27 +485,31 @@ function ConversionDialog({
             </label>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="lead-location">Kecamatan tujuan</label>
-              <div className="relative">
-                <Input id="lead-location" value={locationQuery} onChange={(event) => setLocationQuery(event.target.value)} placeholder="Ketik minimal 2 huruf" aria-invalid={fieldError?.id === "lead-location"} aria-describedby={fieldError?.id === "lead-location" ? "lead-location-error" : "lead-location-help"} />
-                {locationLoading && <Loader2 className="absolute right-3 top-2.5 size-4 animate-spin text-muted-foreground" aria-hidden="true" />}
-              </div>
+              <DistrictCombobox
+                id="lead-location"
+                minChars={2}
+                placeholder="Ketik minimal 2 huruf"
+                value={form.destinationAreaId ? { id: form.destinationAreaId, label: [form.district, form.city].filter(Boolean).join(", ") } : null}
+                onChange={(option) => {
+                  const row = option ? locationRows.current.get(option.id) : undefined;
+                  setForm({
+                    ...form,
+                    district: row?.district ?? "",
+                    city: row?.city ?? "",
+                    province: row?.province ?? "",
+                    postalCode: row?.postal_code || "",
+                    destinationAreaId: row ? String(row.id) : "",
+                    courierServiceId: "",
+                  });
+                }}
+                search={searchLocations}
+                invalid={fieldError?.id === "lead-location"}
+                describedBy={fieldError?.id === "lead-location" ? "lead-location-error" : "lead-location-help"}
+              />
               <p id="lead-location-help" className="text-xs text-muted-foreground">
                 {form.destinationAreaId ? `${form.district}, ${form.city}, ${form.province}` : "Pilih hasil pencarian agar ongkir dapat dihitung."}
               </p>
               {fieldError?.id === "lead-location" && <p id="lead-location-error" className="text-xs text-destructive">{fieldError.message}</p>}
-              {locations.length > 0 && (
-                <div className="max-h-40 overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground" role="listbox" aria-label="Hasil pencarian kecamatan">
-                  {locations.map((location) => (
-                    <Button key={location.id} type="button" variant="ghost" role="option" aria-selected={form.destinationAreaId === location.id} className="h-auto min-h-11 w-full justify-start whitespace-normal px-3 py-2 text-left" onClick={() => {
-                      setForm({ ...form, district: location.district, city: location.city, province: location.province, postalCode: location.postal_code || "", destinationAreaId: String(location.id), courierServiceId: "" });
-                      setLocationQuery(location.label);
-                      setLocations([]);
-                    }}>
-                      {location.label}
-                    </Button>
-                  ))}
-                </div>
-              )}
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium">Kurir & ongkir</p>
@@ -534,8 +519,8 @@ function ConversionDialog({
                     const selected = form.courierServiceId === String(rate.courier_service_id);
                     return <Button key={rate.courier_service_id} type="button" variant={selected ? "secondary" : "outline"} role="radio" aria-checked={selected} className="h-auto min-h-14 items-start justify-start whitespace-normal p-3 text-left" onClick={() => setForm({ ...form, courierServiceId: String(rate.courier_service_id) })}>
                       <span>
-                        <span className="block font-semibold">{rate.courier_code} · {rate.courier_service}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">{formatIdr(rate.shipping_cost)}{rate.estimated_days ? ` · ${rate.estimated_days}` : ""}</span>
+                        <span className="block font-semibold">{rate.courier_service && rate.courier_service !== rate.courier_code ? `${rate.courier_code} · ${rate.courier_service}` : rate.courier_code}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">{formatIdr(rate.shipping_cost)}{etaLabel(rate.estimated_days ?? "") ? ` · ${etaLabel(rate.estimated_days ?? "")}` : ""}</span>
                       </span>
                     </Button>;
                   })}

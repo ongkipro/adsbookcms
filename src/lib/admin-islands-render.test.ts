@@ -134,3 +134,17 @@ test("LandingPageEditor renders in create mode without throwing", async () => {
   const html = await renderIsland("LandingPageEditor.tsx", "default", {});
   assert.ok(html.length > 0);
 });
+
+test("RateCheckTools renders with the warehouse as the default origin", async () => {
+  const html = await renderIsland("RateCheckTools.tsx", "default", {
+    defaultOrigin: { id: "area-1", label: "Menteng, Jakarta Pusat" },
+    warehouseName: "Gudang Uji",
+  });
+  assert.match(html, /value="Menteng, Jakarta Pusat"/);
+  assert.match(html, /Default: Gudang Uji/);
+});
+
+test("RateCheckTools renders without a warehouse", async () => {
+  const html = await renderIsland("RateCheckTools.tsx", "default", { defaultOrigin: null, warehouseName: "" });
+  assert.match(html, /Cek tarif kurir/);
+});

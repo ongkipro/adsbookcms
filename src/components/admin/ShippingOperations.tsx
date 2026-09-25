@@ -884,7 +884,7 @@ export function ShippingOperations() {
               </>
             ) : (
               <p className="mt-1 text-sm text-slate-500">
-                Order yang dikonfirmasi dari Order Management akan masuk ke antrean ini.
+                Order yang dikonfirmasi dari menu Pesanan akan masuk ke antrean ini.
               </p>
             )}
           </div>

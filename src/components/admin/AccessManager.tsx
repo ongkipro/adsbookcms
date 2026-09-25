@@ -70,7 +70,7 @@ const ROLE_DESCRIPTIONS: Record<AssignableRole, string> = {
   advertiser:
     "Akses khusus pemasaran: Dashboard analytics, Katalog Produk, Form Storefront, dan Signals OS (Meta/Google Ads).",
   customer_service:
-    "Akses khusus pelayanan: Dashboard sales, Order Management, Pengiriman kurir, Cek Risiko No. WA & Cek Ongkir.",
+    "Akses khusus pelayanan: Dashboard penjualan, Pesanan, Pengiriman kurir, Cek Risiko No. WA & Cek Ongkir.",
 };
 
 const ROLE_BADGE_STYLES: Record<
@@ -875,7 +875,7 @@ export function AccessManager() {
               </div>
 
               <div className="rounded-xl bg-amber-50 p-3 text-[11px] text-amber-900 border border-amber-200/80">
-                ⚠️ Berikan password di atas kepada pengguna. Pengguna wajib mengganti password ini pada login berikutnya.
+                Berikan password di atas kepada pengguna. Pengguna wajib mengganti password ini pada login berikutnya.
               </div>
 
               <div className="mt-6 flex justify-end gap-2">

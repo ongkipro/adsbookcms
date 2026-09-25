@@ -5894,3 +5894,27 @@ the manual reconciliation queue. The suite loses that module's one test (757);
 nothing else changed behaviour. Verified: 757 tests, `astro check` 0/0/0,
 build, docs check, and `tsc --noUnusedLocals --noUnusedParameters` clean.
 
+## 2026-09-25 — Every admin dropdown on shadcn, rate checker rebuilt, UI clean-up
+
+Asked to put every dropdown on shadcn and to tidy the UI. A scan found the
+action menus, filters and selects already on shadcn; three kecamatan searches
+were hand-built lists. They now share one `DistrictCombobox`. Driving it in a
+browser found the one real defect of the change: inside the abandoned-lead
+dialog a mouse or tap on an option did nothing, because the popup was portaled
+to `<body>` under the dialog's `pointer-events: none`. It now portals into the
+dialog. Recovering a lead end to end produced INV-10022 and INV-10023.
+
+`/admin/check` became the `RateCheckTools` island, and three pieces of the old
+page were not doing what they said: a "connected" badge that was always on, a
+"Reguler" filter that could never match, and a fixed "AdsBookCMS" warehouse
+note. The tests written for the extracted logic caught "1 - 3 days hari".
+Across admin, navigation and titles moved to Indonesian, eyebrows, emoji and a
+decorative status dot went, and InputGroup controls stopped being framed twice
+by the admin input rules. Mobile zoom was measured, not assumed: every input
+and popup at 390 px is already 16 px.
+
+Verified: 764 tests, `astro check` 0/0/0, build, docs check; in headless
+Chrome at 390 and 1280 px no horizontal overflow on the changed pages, the
+rate checker, warehouse picker and lead recovery driven by mouse, and a
+visible focus ring on the combobox. Not verified on a real iPhone.
+

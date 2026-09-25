@@ -111,15 +111,15 @@ A React island is only partly covered. A component that throws during SSR
 answers `200` with an **empty body** — a blank white page that every static
 check calls healthy; 1.3.4 shipped a one-line island change to every install and
 left the admin order list blank for a day. `src/lib/admin-islands-render.test.ts`
-now bundles and server-renders the five admin islands that carry data
+now bundles and server-renders the six admin islands that carry data
 (`OrdersTable`, `OrderDetail`, `PaymentReconciliationQueue`, `ProductForm`,
-`LandingPageEditor`); any other island, and every client-side script, is still
+`LandingPageEditor`, `RateCheckTools`); any other island, and every client-side script, is still
 proven only by opening the page. Put branch logic in `src/lib/` where the runner
 can reach it.
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **757 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
+Current verified working-tree baseline: **764 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 

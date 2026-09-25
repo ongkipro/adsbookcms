@@ -14,7 +14,6 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
 <AdminLayout title="Meta Pixel & CAPI" activeMenu="ads">
   <div class="space-y-6">
     <AdminPageHeader
-      eyebrow="Meta signals"
       title="Pixel & Conversions API (CAPI)"
       description="Kelola browser pixel, server-side events, deduplikasi event_id, dan ikuti tutorial konfigurasi lengkap."
       backHref="/admin/ads"
@@ -82,7 +81,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
         class="tab-btn border-b-2 border-sky-600 px-4 py-2.5 text-sky-600 focus:outline-none"
         data-target="tabConfig"
       >
-        ⚙️ Konfigurasi ID
+        Konfigurasi
       </button>
       <button
         id="tabBtnTutorial"
@@ -90,7 +89,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
         class="tab-btn border-b-2 border-transparent px-4 py-2.5 text-slate-500 hover:text-slate-900 focus:outline-none"
         data-target="tabTutorial"
       >
-        📘 Tutorial Step-by-Step
+        Panduan setup
       </button>
       <button
         id="tabBtnFeed"
@@ -98,7 +97,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
         class="tab-btn border-b-2 border-transparent px-4 py-2.5 text-slate-500 hover:text-slate-900 focus:outline-none"
         data-target="tabFeed"
       >
-        🛒 Catalog XML Feed
+        Feed katalog
       </button>
       <button
         id="tabBtnSpecs"
@@ -106,7 +105,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
         class="tab-btn border-b-2 border-transparent px-4 py-2.5 text-slate-500 hover:text-slate-900 focus:outline-none"
         data-target="tabSpecs"
       >
-        ⚡ Signal & Payload Inspector
+        Inspeksi sinyal
       </button>
     </div>
 
@@ -178,6 +177,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
             <span class="mt-1.5 block text-[11px] leading-5 text-slate-500">Ambil dari Events Manager → Test Events. Memastikan test event terverifikasi real-time tanpa mengganggu data produksi.</span>
           </label>
           <button id="testMeta" type="button" class="btn-secondary min-h-11 w-full px-5 text-xs sm:w-auto">Kirim test event</button>
+          <p id="testMetaStatus" class="min-h-5 text-xs font-semibold text-slate-500" role="status" aria-live="polite"></p>
         </div>
 
         <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -190,7 +190,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
     <!-- TAB 2: TUTORIAL STEP-BY-STEP -->
     <div id="tabTutorial" class="tab-content hidden space-y-6">
       <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 class="text-base font-extrabold text-slate-900">📘 Panduan Setup Meta Pixel & Conversions API (CAPI)</h3>
+        <h3 class="text-base font-extrabold text-slate-900">Panduan Setup Meta Pixel & Conversions API (CAPI)</h3>
         <p class="mt-1 text-xs text-slate-500">Ikuti 5 langkah mudah di bawah ini untuk menghubungkan Meta Pixel browser & server-side Conversions API ke {storeName}.</p>
 
         <div class="mt-6 space-y-6">
@@ -343,6 +343,12 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
     const toggleToken = document.getElementById('toggleToken');
     const tokenHint = document.getElementById('tokenHint');
     const testButton = document.getElementById('testMeta');
+    const testStatus = document.getElementById('testMetaStatus');
+    const setTestStatus = (message: string, error: boolean) => {
+      if (!testStatus) return;
+      testStatus.textContent = message;
+      testStatus.className = `min-h-5 text-xs font-semibold ${error ? 'text-rose-700' : 'text-emerald-700'}`;
+    };
 
     const kpiPixelStatus = document.getElementById('kpiPixelStatus');
     const kpiPixelVal = document.getElementById('kpiPixelVal');
@@ -419,7 +425,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
     testButton?.addEventListener('click', async () => {
       const code = testCodeInput.value.trim();
       if (!code) {
-        alert('Masukkan Meta Test Event Code terlebih dahulu (contoh: TEST12345).');
+        setTestStatus('Isi Meta Test Event Code dulu (contoh: TEST12345).', true);
         return;
       }
 
@@ -440,9 +446,9 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
         const payload = await res.json().catch(() => ({}));
         if (!res.ok || !payload.success) throw new Error(payload.error || 'Test event ditolak oleh Meta API.');
 
-        alert('✅ Test Event berhasil dikirim ke Meta! Cek tab Test Events di Meta Events Manager.');
+        setTestStatus('Test event terkirim. Cek tab Test Events di Meta Events Manager.', false);
       } catch (err) {
-        alert('❌ Gagal mengirim test event: ' + (err instanceof Error ? err.message : 'Unknown error'));
+        setTestStatus(`Test event gagal: ${err instanceof Error ? err.message : 'kesalahan tidak dikenal'}`, true);
       } finally {
         testButton.removeAttribute('disabled');
         testButton.textContent = 'Kirim test event';

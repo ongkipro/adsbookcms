@@ -11,7 +11,6 @@ if (!/^\d+$/.test(productId)) return Astro.redirect('/admin/products', 302);
 <AdminLayout title="Edit Produk" activeMenu="products">
   <div class="mx-auto max-w-7xl space-y-5">
     <AdminPageHeader
-      eyebrow="Catalog"
       title="Edit produk"
       description="Perbarui identitas produk dan varian. Product ID tersedia di ringkasan; varian yang sudah dipakai order tidak dapat dihapus."
     />

@@ -95,14 +95,19 @@ function ComboboxContent({
   align = "start",
   alignOffset = 0,
   anchor,
+  container,
   ...props
 }: ComboboxPrimitive.Popup.Props &
   Pick<
     ComboboxPrimitive.Positioner.Props,
     "side" | "align" | "sideOffset" | "alignOffset" | "anchor"
-  >) {
+  > & {
+    /** Portal target. Inside a modal dialog pass the dialog, or the popup
+     *  lands under the dialog's `pointer-events: none` and ignores taps. */
+    container?: ComboboxPrimitive.Portal.Props["container"]
+  }) {
   return (
-    <ComboboxPrimitive.Portal>
+    <ComboboxPrimitive.Portal container={container}>
       <ComboboxPrimitive.Positioner
         side={side}
         sideOffset={sideOffset}

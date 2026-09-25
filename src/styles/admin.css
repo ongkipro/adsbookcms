@@ -222,7 +222,8 @@
   outline: 2px solid color-mix(in srgb, var(--admin-accent) 64%, white);
   outline-offset: 2px;
 }
-.admin-shell [data-slot="command-input"]:focus-visible { outline: none; }
+/* Both draw their focus on the surrounding frame (InputGroup ring, command box). */
+.admin-shell :where([data-slot="command-input"], [data-slot="input-group-control"]):focus-visible { outline: none; }
 .admin-shell [data-slot="sidebar-container"] { border-color: rgba(226, 232, 240, 0.82); box-shadow: 1px 0 0 rgba(15, 23, 42, 0.015); }
 .admin-shell [data-slot="sidebar-menu-button"] { letter-spacing: -0.01em; }
 
@@ -242,12 +243,15 @@
 .admin-shell [data-slot="card-header"] { border-color: rgba(226, 232, 240, 0.82); }
 .admin-shell section.relative > [aria-hidden="true"].absolute { display: none; }
 .admin-shell .admin-main :where(h2, h3) { letter-spacing: -0.025em; }
-.admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+/* An InputGroup (combobox, search with addon) draws its own frame; the input
+   inside it is borderless on purpose and must not get a second frame here. */
+.admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([data-slot="input-group-control"]), select, textarea, [data-slot="input-group"]) {
   border-color: #dbe1e8;
   background-color: #fff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
 }
-.admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+.admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([data-slot="input-group-control"]), select, textarea):focus,
+.admin-shell .admin-main [data-slot="input-group"]:focus-within {
   border-color: color-mix(in srgb, var(--admin-accent) 48%, #cbd5e1);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--admin-accent) 10%, transparent);
 }
@@ -274,7 +278,8 @@
   .admin-shell .admin-main [data-slot="card-content"].p-5,
   .admin-shell .admin-main [data-slot="card-header"].p-5 { padding: 1rem; }
   .admin-shell [data-slot="card"], .admin-shell section.bg-white, .admin-shell article.bg-white { border-radius: 1rem; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035); }
-  .admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { min-height: 3rem; }
+  .admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([data-slot="input-group-control"]), select, textarea, [data-slot="input-group"]) { min-height: 3rem; }
+  .admin-shell .admin-main [data-slot="input-group-control"] { align-self: stretch; }
   /* A Base UI select trigger is a <button>, so it took the 2.75rem button floor
      while the input beside it took 3rem - every admin filter row had two
      controls 4px apart on a phone. A trigger is a form control that reads as an
@@ -284,8 +289,8 @@
   .admin-shell .admin-main a[data-slot="pagination-link"] { min-height: 2.75rem; }
   .admin-shell .admin-main a[data-slot="pagination-link"] { min-width: 2.75rem; }
   .admin-shell .admin-main :where(section, article) { scroll-margin-top: calc(4.5rem + env(safe-area-inset-top)); }
-  .admin-shell [data-slot="dialog-content"] :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea),
-  .admin-shell [data-slot="sheet-content"] :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { min-height: 2.75rem; font-size: 1rem; }
+  .admin-shell [data-slot="dialog-content"] :where(input:not([type="checkbox"]):not([type="radio"]):not([data-slot="input-group-control"]), select, textarea, [data-slot="input-group"]),
+  .admin-shell [data-slot="sheet-content"] :where(input:not([type="checkbox"]):not([type="radio"]):not([data-slot="input-group-control"]), select, textarea, [data-slot="input-group"]) { min-height: 2.75rem; font-size: 1rem; }
   .admin-shell [data-slot="dialog-content"] :where(button:not([data-slot="checkbox"]):not([data-slot="radio-group-item"]):not([data-slot="switch"])),
   .admin-shell [data-slot="sheet-content"] :where(a, button:not([data-slot="checkbox"]):not([data-slot="radio-group-item"]):not([data-slot="switch"])),
   .admin-shell [data-slot="dialog-content"] [data-slot="dialog-close"] { min-height: 2.75rem; }

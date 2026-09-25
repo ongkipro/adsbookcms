@@ -132,7 +132,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | `/admin/ads/google` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads/google.astro` | — | — | — |
 | `/admin/ads/meta` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads/meta.astro` | `meta-capi` | — | `meta-capi.test.ts` |
 | `/admin/balance` | GET | admin session | owner, admin | `src/pages/admin/balance.astro` | — | — | — |
-| `/admin/check` | GET | admin session | owner, admin, customer_service | `src/pages/admin/check.astro` | `env` `format-idr` `html-escape` | `warehouses` | `env.test.ts` `format-idr.test.ts` `html-escape.test.ts` |
+| `/admin/check` | GET | admin session | owner, admin, customer_service | `src/pages/admin/check.astro` | `env` | `warehouses` | `env.test.ts` |
 | `/admin/content` | GET | admin session | owner, admin, advertiser | `src/pages/admin/content.astro` | — | — | — |
 | `/admin/couriers` | GET | admin session | owner, admin | `src/pages/admin/couriers.astro` | — | — | — |
 | `/admin/dashboard` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/admin/dashboard.astro` | `auth` `env` `setup-checklist` | `products` `seller_bank_accounts` `warehouses` | `auth.test.ts` `env.test.ts` `setup-checklist.test.ts` |
@@ -153,7 +153,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | `/admin/settings/crm` | GET | admin session | owner, admin | `src/pages/admin/settings/crm.astro` | — | — | — |
 | `/admin/settings/developer` | GET | admin session | owner, admin | `src/pages/admin/settings/developer.astro` | — | — | — |
 | `/admin/settings/store` | GET | admin session | owner, admin | `src/pages/admin/settings/store.astro` | — | — | — |
-| `/admin/settings/warehouse` | GET | admin session | owner, admin | `src/pages/admin/settings/warehouse.astro` | `location-search` | — | `location-search.test.ts` |
+| `/admin/settings/warehouse` | GET | admin session | owner, admin | `src/pages/admin/settings/warehouse.astro` | `validation` | — | `validation.test.ts` |
 | `/admin/shipping` | GET | admin session | owner, admin, customer_service | `src/pages/admin/shipping.astro` | — | — | — |
 
 ## Admin API (26)
@@ -189,7 +189,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 ## Modules
 
-100 modules under `src/lib`; 5 without a sibling test.
+101 modules under `src/lib`; 5 without a sibling test.
 `used by` lists routes importing the module directly — a module used by nothing
 is either transitive (imported by another lib) or dead, and only reading tells which.
 
@@ -228,7 +228,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `excluded-area` | 1 | — | ✓ | `/api/submit-middle-order` |
 | `form-config` | 6 | — | ✓ | `/embed/form` `/full-form` `/hybrid-form` `/middle-form` `/api/form-config` |
 | `form-mode` | 8 | `stores` | ✓ | `/produk/[slug]` `/geoipform` `/hybrid-form` `/api/form-config` `/api/geo-province` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/storefront` `/api/admin/abandoned-orders` |
-| `format-idr` | 1 | — | ✓ | `/payment` `/produk` `/admin/check` |
+| `format-idr` | 1 | — | ✓ | `/payment` `/produk` |
 | `geo` | 2 | — | ✓ | `/api/submit-middle-order` |
 | `google-ads-offline` | 15 | `google_ads_conversion_outbox` `order_items` `orders` | ✓ | — |
 | `gtm` | 3 | — | ✓ | — |
@@ -236,14 +236,14 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `headless-checkout` | 4 | — | ✓ | `/api/v1/checkout` |
 | `headless-client` | 14 | — | ✓ | — |
 | `headless-openapi` | 1 | — | ✓ | `/api/v1/openapi.json` |
-| `html-escape` | 1 | — | ✓ | `/admin/check` |
+| `html-escape` | 1 | — | ✓ | — |
 | `image-derivative` | 1 | — | ✓ | `/404` `/produk/[slug]` `/[slug]` |
 | `install` | 6 | `admin_credentials` `courier_rules` `stores` | ✓ | `/api/install` |
 | `json-ld` | 14 | — | ✓ | — |
 | `json-script` | 1 | — | ✓ | — |
 | `landing-pages` | 31 | `landing_pages` `landing_sections` `products` | ✓ | `/produk/[slug]` `/sitemap` `/[slug]` `/contoh-landing` `/landing-page` `/sitemap.xml` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` |
 | `location-cache` | 5 | — | ✓ | `/api/locations` |
-| `location-search` | 14 | — | ✓ | `/api/locations` `/api/v1/geo/districts` `/admin/settings/warehouse` |
+| `location-search` | 14 | — | ✓ | `/api/locations` `/api/v1/geo/districts` |
 | `manual-payment-reconciliation` | 6 | `admin_credentials` `orders` `payment_reconciliation_audits` `payment_transactions` `stores` | ✓ | `/api/admin/payment-reconciliation` |
 | `mengantar-client` | 18 | — | ✓ | `/api/locations` `/api/submit-order` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` |
 | `mengantar-dispatch` | 2 | `courier_rules` `order_items` `orders` `product_variants` `products` `provider_dispatch_locks` `warehouses` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` |
@@ -271,6 +271,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `provider-config` | 5 | `stores` | ✓ | `/api/locations` `/api/payment-methods` `/api/submit-order` `/api/v1/checkout` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` |
 | `province` | 12 | — | ✓ | `/api/submit-middle-order` `/api/v1/checkout` `/api/admin/expeditions` |
 | `public-store` | 1 | `stores` | ✓ | `/thanks` `/kontak` `/[slug]` |
+| `rate-check` | 10 | — | ✓ | — |
 | `rate-limit` | 12 | `rate_limits` | ✓ | `/hello` `/api/install` `/api/locations` `/api/meta-event` `/api/order-status` `/api/record-abandoned-order` `/api/shipping-rates` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` `/api/webhooks/autolaris` `/api/admin/upload-r2` |
 | `receiver-performance` | 5 | — | ✓ | `/api/admin/orders/[id]` |
 | `route-map` | 23 | — | ✓ | — |
@@ -293,5 +294,5 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `traffic-source` | 3 | — | ✓ | — |
 | `ui-variants` | 5 | — | ✓ | `/thanks` |
 | `utils` | 0 | — | **none** | — |
-| `validation` | 7 | — | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/api/admin/orders/[id]` |
+| `validation` | 7 | — | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/admin/settings/warehouse` `/api/admin/orders/[id]` |
 | `version` | 2 | — | **none** | — |

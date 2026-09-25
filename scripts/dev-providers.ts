@@ -55,6 +55,25 @@ export function searchDevAreas(keyword: string, limit = 20) {
   return rows;
 }
 
+/**
+ * Per-courier delivery history for a phone, derived from its digits so one
+ * number always answers the same and different numbers land in different risk
+ * bands: the last digit picks the delivered share (0 → no history at all).
+ */
+export function devReceiverScore(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  const last = Number(digits.at(-1) ?? 0);
+  if (!digits || last === 0) return { JNE: { total: 0, delivered: 0, rts: 0, undelivered: 0, inProgress: 0, value: 0 } };
+  const share = [0, 0.95, 0.9, 0.8, 0.72, 0.6, 0.5, 0.42, 0.3, 0.15][last];
+  return Object.fromEntries(
+    ["JNE", "SiCepat", "J&T"].map((courier, index) => {
+      const total = 4 + ((last + index * 3) % 7);
+      const delivered = Math.round(total * share);
+      return [courier, { total, delivered, rts: total - delivered, undelivered: 0, inProgress: index === 0 ? 1 : 0, value: total * 100_000 }];
+    }),
+  );
+}
+
 function areaNumber(id: string) {
   return Number(/(\d+)$/.exec(id)?.[1] ?? 0);
 }
@@ -231,7 +250,7 @@ export function createDevProviderServer(): Server {
         });
       }
       if (path === "/getReceiverScoreByNumberUser") {
-        return send(response, 200, { success: true, data: {} });
+        return send(response, 200, { success: true, data: devReceiverScore(url.searchParams.get("search") || "") });
       }
       return send(response, 404, { success: false, message: `dev-providers: ${method} ${path} is not simulated` });
     }

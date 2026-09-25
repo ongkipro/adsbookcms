@@ -315,6 +315,56 @@ export function extractMengantarPickupAddressId(value: unknown) {
 }
 
 
+const POS_COD_BLOCK_REASONS = {
+  new_seller: "akun belum punya riwayat pengiriman",
+  insufficient: "data pengiriman akun belum cukup untuk dinilai",
+  blocked: "tiga periode evaluasi terakhir di bawah ambang",
+} as const;
+
+/**
+ * Mengantar refuses a COD `pos` order with 403 when the account's delivered
+ * rate is under its threshold (82%, rolling 21-60 days, all couriers). The
+ * three blocked statuses share one message; `status` tells them apart. The
+ * quote does not reveal this, so the refusal only surfaces at create-order.
+ */
+export class MengantarPosCodIneligibleError extends Error {
+  readonly status: keyof typeof POS_COD_BLOCK_REASONS;
+  readonly deliveredRate: number | null;
+  readonly minimumDeliveredRate: number | null;
+
+  constructor(
+    status: keyof typeof POS_COD_BLOCK_REASONS,
+    deliveredRate: number | null,
+    minimumDeliveredRate: number | null,
+  ) {
+    const rate =
+      deliveredRate === null
+        ? ""
+        : `, delivered rate ${deliveredRate}%${minimumDeliveredRate === null ? "" : ` < ${minimumDeliveredRate}%`}`;
+    super(
+      `COD Pos Indonesia diblokir Mengantar untuk akun ini (${POS_COD_BLOCK_REASONS[status]}${rate}). ` +
+        "COD Pos dimatikan di pengaturan ekspedisi; ganti kurir atau jadikan non-COD, lalu dispatch ulang.",
+    );
+    this.name = "MengantarPosCodIneligibleError";
+    this.status = status;
+    this.deliveredRate = deliveredRate;
+    this.minimumDeliveredRate = minimumDeliveredRate;
+  }
+}
+
+function posCodIneligibility(httpStatus: number, payload: Record<string, unknown>) {
+  const status = payload.status;
+  if (httpStatus !== 403 || typeof status !== "string" || !Object.hasOwn(POS_COD_BLOCK_REASONS, status)) {
+    return null;
+  }
+  const rate = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : null);
+  return new MengantarPosCodIneligibleError(
+    status as keyof typeof POS_COD_BLOCK_REASONS,
+    rate(payload.deliveredRate),
+    rate(payload.minimumDeliveredRate),
+  );
+}
+
 export class MengantarClient {
   private baseUrl: string;
   private apiKey: string;
@@ -358,6 +408,8 @@ export class MengantarClient {
 
       const message = typeof payload.message === 'string' && payload.message.trim() ? payload.message.trim() : '';
       if (!res.ok) {
+        const posCod = posCodIneligibility(res.status, payload as Record<string, unknown>);
+        if (posCod) throw posCod;
         throw new Error(message || `Mengantar API gagal (${res.status}).`);
       }
       if (payload.success === false) {
@@ -366,6 +418,8 @@ export class MengantarClient {
 
       return payload;
     } catch (error) {
+      // Built only from provider fields we allowlist, never from the URL.
+      if (error instanceof MengantarPosCodIneligibleError) throw error;
       if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('Mengantar API timeout.');
       }

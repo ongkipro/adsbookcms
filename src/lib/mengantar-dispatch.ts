@@ -1,5 +1,8 @@
 import { getRuntimeEnv } from "./env.ts";
-import { MengantarClient } from "./mengantar-client.ts";
+import {
+  MengantarClient,
+  MengantarPosCodIneligibleError,
+} from "./mengantar-client.ts";
 import {
   buildMengantarOrderPayload,
   parseMengantarDispatchResponse,
@@ -119,6 +122,22 @@ async function recordDispatchError(
     )
     .bind(error.slice(0, 500), orderId)
     .run();
+}
+
+// Mengantar will refuse every COD `pos` order until the account's delivered
+// rate recovers, so stop offering it at checkout instead of taking orders that
+// cannot ship. The operator re-enables it from the expedition settings.
+async function disablePosCod(database: D1Database) {
+  try {
+    await database
+      .prepare(
+        `UPDATE courier_rules SET is_cod_enabled = 0
+        WHERE lower(courier_code) = 'pos' AND is_cod_enabled = 1`,
+      )
+      .run();
+  } catch (error) {
+    console.error("mengantar-dispatch-disable-pos-cod", error);
+  }
 }
 
 export async function dispatchOrderToMengantar(
@@ -390,6 +409,9 @@ export async function dispatchOrderToMengantar(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (error instanceof MengantarPosCodIneligibleError) {
+      await disablePosCod(database);
+    }
     await recordDispatchError(database, order.id, message);
     return { status: "failed", error: message };
   } finally {

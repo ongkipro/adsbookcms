@@ -2426,4 +2426,10 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   `Invalid courier` for every SPX spelling tried, so a create-order with `spx`
   is confirmed by Mengantar, not yet observed here — watch the first SPX
   dispatch.
+- [x] **A-297** — Pos Indonesia COD refusal (403 `new_seller`/`insufficient`/
+  `blocked`, delivered rate < 82%, documented by Mengantar) is recognised at
+  dispatch: the order keeps a reason with the delivered rate, and the Pos COD
+  rule is switched off so checkout stops offering it. Tests cover the refusal
+  and an unrelated 403; mutation-checked. Not observed against a real blocked
+  account.
 

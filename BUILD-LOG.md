@@ -5837,3 +5837,18 @@ because no store had an SPX row. SPX joins `DEFAULT_COURIER_RULES`, migration
 client plus rule filter against the live estimate offering `spx=13700` for
 COD. Not verified: an SPX `POST /order` (no live order was created) and the
 admin expedition page in a browser.
+
+## 2026-09-25 — Pos Indonesia COD refusal at dispatch
+
+Mengantar's documentation gates COD on `pos` per account: under an 82%
+delivered rate (rolling 21–60 days, all couriers) `POST /order` answers 403
+with `status` `new_seller`, `insufficient` or `blocked` and one shared message.
+The quote does not show it, and dispatch surfaced only the generic message.
+`MengantarClient` now raises `MengantarPosCodIneligibleError` for those three
+statuses (a bare 403 stays a plain error), and dispatch writes the reason with
+the delivered rate to the order and switches off COD on the Pos rule so the
+storefront stops taking COD Pos orders that cannot ship (A-297). Verified: two
+dispatch tests (the refusal, and an unrelated 403 leaving the policy alone),
+the first failing when the rule update is removed; full suite, check and
+build below. Not verified: a live refusal from a genuinely blocked account.
+

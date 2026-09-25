@@ -100,6 +100,14 @@ class DispatchDatabase {
         quantity INTEGER NOT NULL,
         unit_price INTEGER NOT NULL
       );
+      CREATE TABLE courier_rules (
+        id INTEGER PRIMARY KEY,
+        courier_code TEXT NOT NULL,
+        is_enabled INTEGER NOT NULL,
+        is_cod_enabled INTEGER NOT NULL
+      );
+      INSERT INTO courier_rules (courier_code, is_enabled, is_cod_enabled)
+      VALUES ('JNE', 1, 1), ('Pos', 1, 1);
       CREATE TABLE provider_dispatch_locks (
         provider TEXT PRIMARY KEY,
         lease_token TEXT,
@@ -234,4 +242,75 @@ test("provider acceptance cannot overwrite buyer data changed during dispatch", 
   assert.equal(stored.provider_order_id, "provider-order-1");
   assert.match(String(stored.provider_dispatch_error), /order berubah/i);
   assert.equal(stored.provider_dispatch_claimed_at, null);
+});
+
+test("a Pos COD refusal records why and stops offering Pos COD", async (context) => {
+  const database = new DispatchDatabase();
+  database.sqlite.exec("UPDATE orders SET courier_code = 'pos' WHERE id = 1");
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        success: false,
+        message: "Pos Indonesia COD is not available for this account",
+        status: "blocked",
+        deliveredRate: 70,
+        minimumDeliveredRate: 82,
+      }),
+      { status: 403, headers: { "Content-Type": "application/json" } },
+    );
+
+  const outcome = await dispatchOrderToMengantar(asD1(database), locals, 1);
+  const stored = database.sqlite
+    .prepare(
+      `SELECT shipping_status, provider_order_id, provider_dispatch_error,
+        provider_dispatch_claimed_at
+      FROM orders WHERE id = 1`,
+    )
+    .get() as Record<string, unknown>;
+  const rules = database.sqlite
+    .prepare("SELECT courier_code, is_enabled, is_cod_enabled FROM courier_rules ORDER BY id")
+    .all()
+    .map((row) => ({ ...row }));
+
+  assert.equal(outcome.status, "failed");
+  assert.match(outcome.error ?? "", /COD Pos Indonesia diblokir/);
+  assert.match(outcome.error ?? "", /delivered rate 70% < 82%/);
+  assert.equal(stored.shipping_status, "pending");
+  assert.equal(stored.provider_order_id, null);
+  assert.equal(stored.provider_dispatch_error, outcome.error);
+  assert.equal(stored.provider_dispatch_claimed_at, null);
+  // Pos stays enabled for prepaid; only its COD is withdrawn. Other couriers
+  // are untouched.
+  assert.deepEqual(rules, [
+    { courier_code: "JNE", is_enabled: 1, is_cod_enabled: 1 },
+    { courier_code: "Pos", is_enabled: 1, is_cod_enabled: 0 },
+  ]);
+});
+
+test("any other provider refusal leaves the courier policy alone", async (context) => {
+  const database = new DispatchDatabase();
+  database.sqlite.exec("UPDATE orders SET courier_code = 'pos' WHERE id = 1");
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  // A 403 without one of the three documented statuses is not a Pos COD block.
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ success: false, message: "Forbidden" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  const outcome = await dispatchOrderToMengantar(asD1(database), locals, 1);
+  const posCod = database.sqlite
+    .prepare("SELECT is_cod_enabled FROM courier_rules WHERE courier_code = 'Pos'")
+    .get() as { is_cod_enabled: number };
+
+  assert.equal(outcome.status, "failed");
+  assert.equal(outcome.error, "Forbidden");
+  assert.equal(posCod.is_cod_enabled, 1);
 });

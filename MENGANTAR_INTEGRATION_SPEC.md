@@ -74,6 +74,16 @@ other courier; Mengantar confirmed `spx` there, but the single-courier estimate
 rejects it (`Invalid courier`), so the first live SPX dispatch is the evidence
 still owed.
 
+**Pos Indonesia COD eligibility.** Mengantar refuses a COD `pos` order with
+`403` and `status` `new_seller`, `insufficient` or `blocked` when the account's
+delivered rate is under 82% (rolling 21–60 days, all couriers); the quote does
+not reveal it. `MengantarClient` raises `MengantarPosCodIneligibleError` for
+exactly those three statuses, dispatch records the reason and delivered rate on
+the order, and sets `is_cod_enabled = 0` on the Pos rule so checkout stops
+offering a COD Pos that cannot ship. Pos stays available for prepaid. The
+operator re-enables it once the rate recovers; nothing re-enables it
+automatically.
+
 **City-average fallback (`ICO`).** When no real rate is eligible for a COD
 order, one city-average placeholder is offered and the operator assigns a real
 courier before dispatch. It is never offered to a prepaid order: the admin

@@ -12,6 +12,7 @@
     "start": "astro dev",
     "dev:local": "node --experimental-strip-types scripts/dev-local.ts",
     "dev:providers": "node --experimental-strip-types scripts/dev-providers.ts",
+    "dev:seed": "node --experimental-strip-types scripts/dev-seed.ts",
     "build": "astro build",
     "check": "astro check && tsc --noEmit",
     "test": "node --experimental-strip-types --test src/lib/*.test.ts",

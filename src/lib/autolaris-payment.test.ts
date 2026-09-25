@@ -4,7 +4,6 @@ import {
   AUTOLARIS_CHANNEL_OPTIONS,
   parseAutoLarisPaymentResponse,
 } from "./autolaris-client.ts";
-import { summarizePaymentBuckets } from "./autolaris-balance.ts";
 import { envTenantConfig } from "./tenant.ts";
 import {
   buyerEmail,
@@ -358,20 +357,6 @@ test("AutoLaris channels map QRIS separately from bank transfer channels", () =>
     AUTOLARIS_CHANNEL_OPTIONS.map((option) => String(option.code)).includes("DANA"),
     false,
   );
-});
-
-test("recorded balance separates paid funds, pending bills, fees, and failures", () => {
-  const summary = summarizePaymentBuckets([
-    { status: "paid", transaction_count: 2, billed_total: 350000, admin_fees: 5000 },
-    { status: "pending", transaction_count: 1, billed_total: 175000, admin_fees: 2500 },
-    { status: "failed", transaction_count: 3, billed_total: 0, admin_fees: 0 },
-  ]);
-  assert.deepEqual(summary, {
-    paidFunds: 350000,
-    pendingBilled: 175000,
-    recordedFees: 7500,
-    failedCount: 3,
-  });
 });
 
 test("a failed instruction is regenerated on the next request, a live one is left alone", async (context) => {

@@ -1,5 +1,3 @@
-export const footerProducts = [];
-
 export const footerNavigation = [
   { label: 'Semua Produk', href: '/#produk' },
   { label: 'Kontak CS', href: '/kontak' },

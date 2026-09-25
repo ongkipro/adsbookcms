@@ -100,7 +100,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | `/api/record-abandoned-order` | POST | public | — | `src/pages/api/record-abandoned-order.ts` | `api` `env` `order-persistence` `rate-limit` `validation` | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `seller_bank_accounts` `stores` | `api.test.ts` `env.test.ts` `order-persistence.test.ts` `rate-limit.test.ts` `validation.test.ts` |
 | `/api/shipping-options` | GET | public | — | `src/pages/api/shipping-options.ts` | — | — | — |
 | `/api/shipping-rates` | GET | public | — | `src/pages/api/shipping-rates.ts` | `env` `rate-limit` `shipping-quote` | `courier_rules` `product_variants` `products` `rate_limits` `warehouses` | `env.test.ts` `rate-limit.test.ts` `shipping-quote.test.ts` |
-| `/api/submit-middle-order` | POST | public | — | `src/pages/api/submit-middle-order.ts` | `click-ids` `env` `excluded-area` `form-mode` `geo` `meta-order-context` `order-persistence` `order-schema` `province` `rate-limit` `rts-scoring` | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `seller_bank_accounts` `stores` | `click-ids.test.ts` `env.test.ts` `excluded-area.test.ts` `form-mode.test.ts` `geo.test.ts` `meta-order-context.test.ts` `order-persistence.test.ts` `order-schema.test.ts` `province.test.ts` `rate-limit.test.ts` `rts-scoring.test.ts` |
+| `/api/submit-middle-order` | POST | public | — | `src/pages/api/submit-middle-order.ts` | `click-ids` `env` `excluded-area` `form-mode` `geo` `meta-order-context` `order-persistence` `order-schema` `province` `rate-limit` `rts-scoring` `validation` | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `seller_bank_accounts` `stores` | `click-ids.test.ts` `env.test.ts` `excluded-area.test.ts` `form-mode.test.ts` `geo.test.ts` `meta-order-context.test.ts` `order-persistence.test.ts` `order-schema.test.ts` `province.test.ts` `rate-limit.test.ts` `rts-scoring.test.ts` `validation.test.ts` |
 | `/api/submit-order` | POST | public | — | `src/pages/api/submit-order.ts` | `autolaris-payment` `click-ids` `courier-rules` `env` `form-mode` `mengantar-client` `meta-order-context` `order-persistence` `order-schema` `provider-config` `rate-limit` `rts-scoring` `shipping-quote` `validation` | `autolaris_callbacks` `courier_rules` `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `seller_bank_accounts` `stores` `warehouses` | `autolaris-payment.test.ts` `click-ids.test.ts` `courier-rules.test.ts` `env.test.ts` `form-mode.test.ts` `mengantar-client.test.ts` `meta-order-context.test.ts` `order-persistence.test.ts` `order-schema.test.ts` `provider-config.test.ts` `rate-limit.test.ts` `rts-scoring.test.ts` `shipping-quote.test.ts` `validation.test.ts` |
 
 ## Headless API (9)
@@ -189,7 +189,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 ## Modules
 
-101 modules under `src/lib`; 6 without a sibling test.
+100 modules under `src/lib`; 5 without a sibling test.
 `used by` lists routes importing the module directly — a module used by nothing
 is either transitive (imported by another lib) or dead, and only reading tells which.
 
@@ -205,7 +205,6 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `api` | 3 | — | ✓ | `/api/form-config` `/api/record-abandoned-order` `/api/webhooks/autolaris` `/api/admin/abandoned-orders` `/api/admin/access` `/api/admin/analytics` `/api/admin/check` `/api/admin/expeditions` `/api/admin/health` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` `/api/admin/media` `/api/admin/notifications` `/api/admin/ongkir` `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/orders/retention` `/api/admin/payment-reconciliation` `/api/admin/products` `/api/admin/profile` `/api/admin/rules` `/api/admin/seller-bank-accounts` `/api/admin/settings` `/api/admin/settings/developer` `/api/admin/shipping` `/api/admin/upload-r2` |
 | `auth-secret` | 1 | `install_secrets` | ✓ | `/[slug]` `/hello` `/api/install` `/api/admin/logout` |
 | `auth` | 13 | — | ✓ | `/hello` `/api/install` `/admin/dashboard` `/api/admin/access` `/api/admin/logout` `/api/admin/profile` |
-| `autolaris-balance` | 5 | `orders` `payment_transactions` | **none** | — |
 | `autolaris-client` | 20 | — | ✓ | `/api/order-status` `/api/payment-methods` `/admin/payments` `/api/admin/settings` |
 | `autolaris-payment` | 15 | `autolaris_callbacks` `order_items` `orders` `payment_transactions` `product_variants` `products` `stores` `warehouses` | ✓ | `/api/meta-event` `/api/order-status` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` `/api/admin/orders/[id]` |
 | `bundled-migrations` | 1 | — | **none** | — |
@@ -292,7 +291,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `tenant-contract` | 3 | — | ✓ | — |
 | `tenant` | 10 | `stores` | ✓ | `/install` `/api/install` `/api/admin/settings` |
 | `traffic-source` | 3 | — | ✓ | — |
-| `ui-variants` | 8 | — | ✓ | `/thanks` |
+| `ui-variants` | 5 | — | ✓ | `/thanks` |
 | `utils` | 0 | — | **none** | — |
-| `validation` | 8 | — | ✓ | `/api/record-abandoned-order` `/api/submit-order` `/api/admin/orders/[id]` |
+| `validation` | 7 | — | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/api/admin/orders/[id]` |
 | `version` | 2 | — | **none** | — |

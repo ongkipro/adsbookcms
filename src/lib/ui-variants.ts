@@ -57,20 +57,6 @@ export const listItemVariants = cva('border-b border-slate-100 first:pt-0 last:b
   },
 });
 
-export const metaTextVariants = cva('flex flex-wrap items-center gap-2 text-slate-500', {
-  variants: {
-    size: {
-      xs: 'text-[11px]',
-      sm: 'text-xs',
-    },
-  },
-  defaultVariants: {
-    size: 'xs',
-  },
-});
-
-export const dotSeparatorClass = 'size-1 rounded-full bg-slate-300';
-
 export const textVariants = cva('', {
   variants: {
     tone: {
@@ -88,4 +74,3 @@ export const textVariants = cva('', {
 });
 
 export const introSectionClass = 'border-b border-slate-100 bg-white px-5 py-7';
-export const breadcrumbSectionClass = 'border-b border-slate-100 bg-white px-5 py-2.5';

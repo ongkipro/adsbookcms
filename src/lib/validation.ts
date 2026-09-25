@@ -1,20 +1,3 @@
-export function sanitize(value: unknown) {
-  return String(value || '').trim();
-}
-
-export function toPositiveInt(value: unknown, fallback = 0) {
-  const n = Number(value || 0);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
-}
-
-export function inEnum<T extends string>(value: string, allowed: T[], fallback: T): T {
-  return (allowed.includes(value as T) ? value : fallback) as T;
-}
-
-export function requireNonEmptyString(value: string, min = 1, max = 255) {
-  return value.trim().length >= min && value.trim().length <= max;
-}
-
 export const INDONESIAN_MOBILE_PREFIXES = [
   '11',
   '12',
@@ -78,6 +61,25 @@ export const INDONESIAN_WA_REGEX = new RegExp(`^628(${INDONESIAN_MOBILE_PREFIX_P
 
 export function isValidWa62(value: string) {
   return INDONESIAN_WA_REGEX.test(value);
+}
+
+/**
+ * Which contact field a checkout form still lacks, judged by the same limits
+ * the order endpoints enforce (`order-schema.ts`, `submit-middle-order.ts`).
+ * The submit button reads this, so it never invites a buyer to submit a form
+ * the server is certain to refuse.
+ */
+export const CHECKOUT_NAME_MIN = 2;
+export const CHECKOUT_ADDRESS_MIN = 10;
+export function missingCheckoutContact(input: {
+  name: string;
+  phone: string;
+  address: string;
+}): "name" | "phone" | "address" | null {
+  if (input.name.trim().length < CHECKOUT_NAME_MIN) return "name";
+  if (!isValidWa62(normalizePhone(input.phone))) return "phone";
+  if (input.address.trim().length < CHECKOUT_ADDRESS_MIN) return "address";
+  return null;
 }
 
 /**

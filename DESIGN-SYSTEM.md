@@ -58,8 +58,8 @@ Named in `src/lib/ui-variants.ts`:
 
 - `buttonVariants` primary — `bg-[#111111] text-white hover:bg-[#333333]`
 - `badgeVariants` green — `bg-[#F5F5F5] text-[#111111] ring-1 ring-[#E5E5E5]`
-- `secondary`, `dark`, `ghost` and the `listItemVariants` /
-  `metaTextVariants` values are Tailwind **slate**, not the storefront
+- `secondary`, `dark`, `ghost` and the `listItemVariants` values are
+  Tailwind **slate**, not the storefront
   neutrals. See §8.
 
 `#8A704F`, listed here as the muted-gold eyebrow colour, has **zero**
@@ -488,8 +488,7 @@ Current observations, not a second backlog. Any item selected for implementation
 
 **8.2 Two parallel colour systems remain, not three.** The storefront neutrals
 (§1.1) and Tailwind **slate**, the latter in `src/lib/ui-variants.ts` —
-`secondary`, `dark`, `ghost` and the `listItemVariants` / `metaTextVariants`
-values — and in `src/pages/thanks.astro` and `src/pages/payment.astro`. Those
+`secondary`, `dark`, `ghost` and the `listItemVariants` values — and in `src/pages/thanks.astro` and `src/pages/payment.astro`. Those
 two are customer-facing pages that adopted the square shape rule but never the
 storefront palette.
 

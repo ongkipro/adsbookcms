@@ -340,7 +340,7 @@ export function ExpeditionSettings() {
             </div>
             <div className="relative max-w-xs w-full">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-              <Input type="text" placeholder="Cari ekspedisi..." value={courierSearch} onChange={(e) => setCourierSearch(e.target.value)} className="pl-9" />
+              <Input type="text" aria-label="Cari ekspedisi" placeholder="Cari ekspedisi..." value={courierSearch} onChange={(e) => setCourierSearch(e.target.value)} className="pl-9" />
             </div>
           </div>
         </div>
@@ -421,7 +421,7 @@ function ProvincePicker({
             {(codes: string[]) => (
               <>
                 {codes.map((code) => (
-                  <ComboboxChip key={code} aria-label={provinceLabel(code)}>
+                  <ComboboxChip key={code} aria-label={provinceLabel(code)} removeLabel={`Hapus ${provinceLabel(code)}`}>
                     {provinceLabel(code)}
                   </ComboboxChip>
                 ))}

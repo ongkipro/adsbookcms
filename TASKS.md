@@ -2432,4 +2432,43 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   rule is switched off so checkout stops offering it. Tests cover the refusal
   and an unrelated 403; mutation-checked. Not observed against a real blocked
   account.
+- [x] **A-298** — `npm run dev:seed`: dummy products and orders for a running
+  `dev:local`, placed only through the store's own HTTP surface (install,
+  `/hello`, admin APIs, public checkout), so a run is also a smoke test.
+  Refuses a non-local host; nothing in `src/` imports it and no migration
+  seeds data. The AutoLaris stand-in lists its transactions
+  (`GET /__dev/autolaris/payments`) and quotes `lion`, `pos` and `spx` with
+  their live keys.
+- [x] **A-299** — Form audit on the seeded store (headless Chrome, 390 and
+  1280 px, 57 pages, then each checkout and admin form driven by hand).
+  Fixed: the checkout button unlocked at 8 typed characters of phone, 3 of
+  address and 3 of name while the endpoints demand a valid mobile number,
+  10 and 2 — buyers were invited to submit and then refused; one
+  `missingCheckoutContact` in `validation.ts` now drives both forms, and the
+  middle-form endpoint uses the canonical `isValidWa62` instead of its own
+  regex (it refused valid 9–10-digit numbers). `/payment` claimed the admin
+  checks AutoLaris and the CMS updates every minute (the page polls every
+  minute; the status arrives by webhook or the hourly job); the checkout
+  claimed stock is re-validated (ADR-023). Accessible names added to the
+  COD-province chip remove buttons, the access-page password toggle, the
+  landing publish switch, four search boxes and unlinked labels in the access
+  and landing forms. Verified working as designed: honeypot off-screen and
+  aria-hidden, checkout dedupe window, 10/min checkout limit, wrong-password
+  401, product validation shown to the operator, temporary-password change
+  ending the session, customer-service role limits (pages redirect, APIs 403).
+- [ ] **A-300** — Decide on `SocialProofToast`: it shows invented buyer names
+  as "Baru saja memesan …" with a verified badge on product and landing
+  pages. The component documents this as deliberate; a fabricated purchase
+  notice may be misleading advertising for Indonesian consumer law and ad
+  platform policy. The component's own note names the honest alternative (an
+  aggregate from real orders).
+- [x] **A-301** — Dead code removed: `autolaris-balance.ts` (its loader lost
+  its last caller when the manual reconciliation queue replaced it; its one
+  test covered only that summary), four unused helpers in `validation.ts`,
+  three unused UI variants, and the empty `testimonialEntries` /
+  `footerProducts` with their type. Found by a repository-wide scan for
+  exports nothing imports, then confirmed by grep; `tsc --noUnusedLocals
+  --noUnusedParameters` reports nothing. The ~200 exports used only inside
+  their own file were left as they are. `dev:seed --images=<dir>` adds real
+  photos from a folder outside the repository, plus six more products.
 

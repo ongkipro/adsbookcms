@@ -632,7 +632,7 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
       instructionsList.innerHTML = guideSteps.map(step => `<li>${step}</li>`).join('');
       paymentMonitorCopy.textContent = manualTransfer
         ? 'Pembayaran transfer bank dikonfirmasi oleh admin setelah dana diterima.'
-        : 'Admin memeriksa pembayaran melalui dashboard AutoLaris. Status CMS diperbarui setiap menit dan, setelah dikonfirmasi lunas, halaman ini otomatis dialihkan ke halaman terima kasih.';
+        : 'Pembayaran dikonfirmasi otomatis oleh penyedia pembayaran, dan konfirmasinya bisa memerlukan beberapa saat. Halaman ini memeriksa status setiap menit dan otomatis beralih ke halaman terima kasih setelah pembayaran lunas.';
       paymentMonitorTitle.textContent = manualTransfer
         ? 'Konfirmasi Pembayaran'
         : 'Menunggu Verifikasi Pembayaran';

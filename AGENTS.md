@@ -141,7 +141,7 @@ A permitted command is not an approved one. The tooling here runs with broad per
 
 ## 6. Code discipline
 
-Smallest change that is correct. Reuse what exists before adding; the codebase already has 99 non-test lib modules and duplicating one is the most common failure mode.
+Smallest change that is correct. Reuse what exists before adding; the codebase already has 100 non-test lib modules and duplicating one is the most common failure mode.
 
 Before adding a dependency, check whether the platform already provides it. Two headless UI libraries already ship side by side (`radix-ui` and `@base-ui/react`) — do not add a third.
 

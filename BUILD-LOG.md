@@ -5852,3 +5852,45 @@ dispatch tests (the refusal, and an unrelated 403 leaving the policy alone),
 the first failing when the rule update is removed; full suite, check and
 build below. Not verified: a live refusal from a genuinely blocked account.
 
+## 2026-09-25 — Dummy data for dev:local, and a form audit on it
+
+`npm run dev:seed` fills a running `dev:local` store through its own HTTP
+surface — install, the `/hello` form, the admin APIs, the public checkout —
+so the seed doubles as a smoke test (A-298). Writing it surfaced two things
+that are correct, not bugs: checkout folds an identical buyer, variant and
+total into the earlier order (the seed now varies phone numbers per run), and
+checkout allows 10 submissions per IP per minute (the seed waits the window
+out). A 302 from `/api/install` on a claimed store briefly read as a second
+install; a probe confirmed the store refuses it and a second admin cannot log
+in.
+
+The audit then swept 57 pages at 390 and 1280 px and drove the checkout and
+admin forms by hand (A-299). The real defect: the checkout button's own
+readiness rules (8 characters of phone, 3 of address, 3 of name) disagreed
+with the endpoints (a valid mobile number, 10, 2), and the middle-form endpoint
+kept a regex of its own that refused valid 9–10-digit numbers. One
+`missingCheckoutContact` now drives both forms and both endpoints share
+`isValidWa62`. Two copy claims were false (`/payment` said the admin checks
+AutoLaris and the CMS updates every minute; checkout said stock is
+re-validated), and eleven controls lacked an accessible name. The invented
+buyer names in `SocialProofToast` are recorded as A-300 for a decision, not
+changed. Verified: 758 tests, `astro check` 0/0/0, build, and each fix re-run
+in the browser against a rebuilt store.
+
+Not verified: the Chrome DevTools MCP browser could not be used (its profile
+was held by another process); a `pkill` meant for this audit's own headless
+Chrome also ended that process.
+
+## 2026-09-25 — More dummy products, and dead code removed
+
+`dev:seed` gained six products and `--images=<dir>`, which uploads
+`<dir>/<slug>.webp|jpg|png` in place of the flat colour. The folder is read at
+run time and never committed: photos borrowed from another install stay on the
+developer's machine, as AGENTS.md §3 requires.
+
+A scan for exports nothing imports found ten; each was confirmed by grep and
+removed, including all of `autolaris-balance.ts`, which had been orphaned by
+the manual reconciliation queue. The suite loses that module's one test (757);
+nothing else changed behaviour. Verified: 757 tests, `astro check` 0/0/0,
+build, docs check, and `tsc --noUnusedLocals --noUnusedParameters` clean.
+

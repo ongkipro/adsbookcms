@@ -3,7 +3,7 @@ import { META_EXTERNAL_ID_COOKIE } from "../lib/click-ids.ts";
 import { normalizePhone } from "../lib/validation";
 import { formatIdr } from "../lib/format-idr";
 import { pushGtmEcomEvent } from "../lib/gtm";
-import { isValidWa62 } from "../lib/validation";
+import { isValidWa62, missingCheckoutContact } from "../lib/validation";
 import { navigateAfterCheckout } from "../lib/checkout-navigation";
 import {
   AbandonedLeadCaptureGate,
@@ -474,17 +474,17 @@ function initMiddleOrderFormInstance(
         disabled: true,
         label: submitButton.dataset.loadingLabel || "Memproses Pesanan...",
       };
-    const hasName = Boolean(nameInput && nameInput.value.trim().length >= 3);
-    const hasPhone = Boolean(phoneInput && phoneInput.value.trim().length >= 8);
-    const hasAddress = Boolean(
-      addressInput && addressInput.value.trim().length >= 3,
-    );
+    const missing = missingCheckoutContact({
+      name: nameInput?.value || "",
+      phone: phoneInput?.value || "",
+      address: addressInput?.value || "",
+    });
 
-    if (!hasName)
+    if (missing === "name")
       return { disabled: true, label: "Lengkapi Nama Terlebih Dahulu" };
-    if (!hasPhone)
+    if (missing === "phone")
       return { disabled: true, label: "Lengkapi No. WA Terlebih Dahulu" };
-    if (!hasAddress)
+    if (missing === "address")
       return { disabled: true, label: "Lengkapi Alamat Terlebih Dahulu" };
 
     return { disabled: false, label: "Buat Order Sekarang" };

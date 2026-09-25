@@ -292,6 +292,7 @@ export default function LandingPageCatalog() {
             <Input
               type="search"
               placeholder="Cari judul, slug, atau produk..."
+              aria-label="Cari landing page"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-xs text-slate-900 placeholder:text-slate-400 shadow-xs focus-visible:border-slate-300 focus-visible:ring-1 focus-visible:ring-slate-300"

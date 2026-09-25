@@ -7,7 +7,7 @@ import { paymentBrandAsset } from "../lib/payment-brand";
 
 import { formatDeliveryLocation, groupLocationResults } from "../lib/location-search";
 import { pushGtmEcomEvent } from "../lib/gtm";
-import { isValidWa62 } from "../lib/validation";
+import { isValidWa62, missingCheckoutContact } from "../lib/validation";
 import { normalizeProvinceCode } from "../lib/province";
 import { navigateAfterCheckout } from "../lib/checkout-navigation";
 import {
@@ -687,24 +687,22 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
     const hasPaymentChoices =
       Array.isArray(state.visiblePaymentOptions) &&
       state.visiblePaymentOptions.length > 0;
-    const hasName = Boolean(
-      customerNameInput && customerNameInput.value.trim().length >= 3,
-    );
-    const hasPhone = Boolean(phoneInput && phoneInput.value.trim().length >= 8);
-    const hasAddress = Boolean(
-      addressInput && addressInput.value.trim().length >= 3,
-    );
+    const missing = missingCheckoutContact({
+      name: customerNameInput?.value || "",
+      phone: phoneInput?.value || "",
+      address: addressInput?.value || "",
+    });
 
     if (state.submitting)
       return {
         disabled: true,
         label: submitButton.dataset.loadingLabel || "Memproses Pesanan...",
       };
-    if (!hasName)
+    if (missing === "name")
       return { disabled: true, label: "Lengkapi Nama Terlebih Dahulu" };
-    if (!hasPhone)
+    if (missing === "phone")
       return { disabled: true, label: "Lengkapi No. WA Terlebih Dahulu" };
-    if (!hasAddress)
+    if (missing === "address")
       return { disabled: true, label: "Lengkapi Alamat Terlebih Dahulu" };
     if (!state.locationId)
       return { disabled: true, label: "Lengkapi kecamatan dulu" };

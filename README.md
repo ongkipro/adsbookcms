@@ -1,6 +1,6 @@
 # AdsBookCMS
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-25 @ `95fa341` + working tree (dev:seed)
 
 A self-contained direct-response commerce CMS that installs onto Cloudflare Workers. One install runs one store: storefront, landing-page builder, checkout with COD and online payment, order management, courier dispatch, ad-signal tracking, and an admin dashboard — in a single Worker with its own database.
 
@@ -63,11 +63,12 @@ payment → dispatch.
 | Need | Command |
 | --- | --- |
 | Start over with an empty store | `npm run dev:local -- --reset` |
+| Fill a running store with dummy data | `npm run dev:seed` — installs if needed, logs in as `admin` / `dev-local-password-123`, adds a warehouse, four products plus one draft, and a dozen orders placed through the real checkout (COD, QRIS, VA), then settles one payment, dispatches two and cancels one. Run it again for another batch. `--images=<dir>` uses `<dir>/<slug>.webp` as a product's photo — keep that folder outside the repository |
 | Skip the build when only data changed | `npm run dev:local -- --no-build` |
 | Open it from another device on your Tailscale network | `npm run dev:local -- --ip=$(tailscale ip -4)` (listens on that address only) |
 | Pick up a code change | stop it and run `npm run dev:local` again — a `npm run build` underneath a running server swaps `dist/` out from under it and static files answer 404 until restart |
 | Run the hourly job now (payment reconciliation, outbox drains, alerts) | `curl 'http://localhost:8787/cdn-cgi/handler/scheduled?cron=7+*+*+*+*'` |
-| Mark a QRIS/VA payment paid, then run the hourly job | `curl -X POST 'http://127.0.0.1:8788/__dev/autolaris/pay?transaction_id=<id>'` |
+| Mark a QRIS/VA payment paid, then run the hourly job | find the id with `curl http://127.0.0.1:8788/__dev/autolaris/payments`, then `curl -X POST 'http://127.0.0.1:8788/__dev/autolaris/pay?transaction_id=<id>'` |
 | Read the local database | `npx wrangler d1 execute OMS_DB --local --persist-to .wrangler/dev-local-state --command "SELECT …"` |
 
 The one thing that is not local: the `AI` binding (Workers AI) always calls

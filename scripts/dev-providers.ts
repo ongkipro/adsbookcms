@@ -24,6 +24,10 @@ const COURIERS: readonly { code: string; base: number; perKg: number; cod: boole
   { code: "Anteraja", base: 9000, perKg: 3400, cod: true },
   { code: "IDexpress", base: 8500, perKg: 3300, cod: true },
   { code: "Paxel", base: 14000, perKg: 5000, cod: false },
+  // Keyed as the live /order/estimate returns them (observed 2026-09-25).
+  { code: "lion", base: 12000, perKg: 4200, cod: true },
+  { code: "pos", base: 10000, perKg: 3900, cod: true },
+  { code: "spx", base: 9800, perKg: 3500, cod: true },
 ];
 
 const normalize = (value: string) =>
@@ -103,7 +107,7 @@ function send(response: ServerResponse, status: number, body: Json) {
 export function createDevProviderServer(): Server {
   const pickupAddresses: Record<string, string>[] = [];
   const shipments = new Map<string, Record<string, unknown>>();
-  const payments = new Map<string, { paid: boolean; total: number }>();
+  const payments = new Map<string, { paid: boolean; total: number; receiver?: string; channel?: string }>();
   let sequence = 0;
   const nextId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(sequence += 1)}`;
 
@@ -124,7 +128,7 @@ export function createDevProviderServer(): Server {
       const amount = Number(body.grand_total) || 0;
       const admin = String(body.channel_code) === "QRIS" ? Math.round(amount * 0.007) : 4000;
       const transactionId = String(Date.now()) + String((sequence += 1));
-      payments.set(transactionId, { paid: false, total: amount + admin });
+      payments.set(transactionId, { paid: false, total: amount + admin, receiver: String(body.receiver_name || ""), channel: String(body.channel_code || "") });
       const qris = String(body.channel_code) === "QRIS";
       return send(response, 200, {
         rc: "00",
@@ -152,6 +156,11 @@ export function createDevProviderServer(): Server {
     }
     // Local-only lever: settle a transaction so the hourly reconciliation
     // (or `curl` against /cdn-cgi/handler/scheduled) has something to find.
+    // Local-only: list what the stand-in holds, so a script can find the
+    // transaction to settle (the store never returns a transaction id).
+    if (url.pathname === "/__dev/autolaris/payments" && method === "GET") {
+      return send(response, 200, [...payments].map(([transaction_id, payment]) => ({ transaction_id, ...payment })));
+    }
     if (url.pathname === "/__dev/autolaris/pay" && method === "POST") {
       const payment = payments.get(url.searchParams.get("transaction_id") || "");
       if (!payment) return send(response, 404, { ok: false });

@@ -614,6 +614,7 @@ export function ProductCatalog({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Cari nama produk, ID, slug, atau kategori..."
+              aria-label="Cari produk"
               className="h-11 pl-10 pr-4 bg-slate-50/50 shadow-none border-slate-200 focus:bg-white"
             />
           </div>

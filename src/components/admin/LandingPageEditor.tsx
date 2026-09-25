@@ -505,10 +505,11 @@ export default function LandingPageEditor({ landingPageId }: Props) {
             <CardContent className="space-y-4 pt-4">
               {/* Judul Halaman */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">
+                <label htmlFor="landing-title" className="text-xs font-semibold text-slate-700">
                   Judul Landing Page <span className="text-red-500">*</span>
                 </label>
                 <Input
+                  id="landing-title"
                   placeholder="Contoh: Promo Spesial Asahan Portable"
                   value={title}
                   onChange={(e) => handleTitleChange(e.target.value)}
@@ -518,7 +519,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
 
               {/* URL Slug */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">
+                <label htmlFor="landing-slug" className="text-xs font-semibold text-slate-700">
                   URL Slug <span className="text-red-500">*</span>
                 </label>
                 <div className="flex rounded-md shadow-xs">
@@ -526,6 +527,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                     /
                   </span>
                   <Input
+                    id="landing-slug"
                     className="rounded-l-none font-mono text-xs h-9 bg-white"
                     placeholder="promo-asahan-portable"
                     value={slug}
@@ -636,10 +638,15 @@ export default function LandingPageEditor({ landingPageId }: Props) {
               {/* Status Switch */}
               <div className="pt-2 border-t flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-semibold text-slate-700 block">Status Terbit</span>
-                  <span className="text-[11px] text-slate-500">Aktifkan untuk akses publik</span>
+                  <span id="landing-publish-label" className="text-xs font-semibold text-slate-700 block">Status Terbit</span>
+                  <span id="landing-publish-hint" className="text-[11px] text-slate-500">Aktifkan untuk akses publik</span>
                 </div>
-                <Switch checked={isActive} onCheckedChange={setIsActive} />
+                <Switch
+                  checked={isActive}
+                  onCheckedChange={setIsActive}
+                  aria-labelledby="landing-publish-label"
+                  aria-describedby="landing-publish-hint"
+                />
               </div>
             </CardContent>
           </Card>
@@ -653,8 +660,9 @@ export default function LandingPageEditor({ landingPageId }: Props) {
             </CardHeader>
             <CardContent className="space-y-3 pt-3">
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-slate-600">Meta Title</label>
+                <label htmlFor="landing-meta-title" className="text-[11px] font-medium text-slate-600">Meta Title</label>
                 <Input
+                  id="landing-meta-title"
                   placeholder="Judul SEO Google..."
                   value={metaTitle}
                   onChange={(e) => setMetaTitle(e.target.value)}
@@ -662,8 +670,9 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-slate-600">Meta Description</label>
+                <label htmlFor="landing-meta-description" className="text-[11px] font-medium text-slate-600">Meta Description</label>
                 <Textarea
+                  id="landing-meta-description"
                   placeholder="Deskripsi singkat untuk pencarian Google & WhatsApp preview..."
                   value={metaDescription}
                   onChange={(e) => setMetaDescription(e.target.value)}

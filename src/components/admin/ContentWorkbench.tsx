@@ -262,6 +262,7 @@ export function ContentWorkbench() {
               <input
                 name="file"
                 type="file"
+                aria-label="Pilih gambar untuk diunggah"
                 accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
                 required
                 className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-bold"
@@ -304,6 +305,7 @@ export function ContentWorkbench() {
                 maxLength={8000}
                 rows={8}
                 placeholder="Tambahkan tone, istilah, dan batas klaim khusus tenant..."
+                aria-label="Instruksi konten tambahan"
                 className="admin-input-flat resize-y bg-white text-sm"
               />
               <Button

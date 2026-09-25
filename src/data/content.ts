@@ -9,15 +9,4 @@ export type SolutionEntry = {
   statusLabel?: string;
 };
 
-export type TestimonialEntry = {
-  name: string;
-  location: string;
-  story: string;
-  image: string;
-  crop: string;
-};
-
 export const solutionEntries: SolutionEntry[] = [];
-
-export const testimonialEntries: TestimonialEntry[] = [];
-

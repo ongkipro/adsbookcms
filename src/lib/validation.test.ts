@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { orderSubmitSchema } from "./order-schema.ts";
-import { isValidWa62, normalizePhone } from "./validation.ts";
+import {
+  CHECKOUT_ADDRESS_MIN,
+  CHECKOUT_NAME_MIN,
+  isValidWa62,
+  missingCheckoutContact,
+  normalizePhone,
+} from "./validation.ts";
 import { toE164Digits } from "./meta-identity.ts";
 
 const ORDER = {
@@ -98,4 +104,27 @@ test("checkout, lead capture, and admin edit share one rule", () => {
     orderSubmitSchema.safeParse({ ...ORDER, customer_phone: raw }).success,
     true,
   );
+});
+
+test("the checkout button waits for exactly what the order endpoint will accept", () => {
+  const ready = { name: "Siti", phone: "081234567890", address: "Jl. Dago No. 12, Coblong" };
+  assert.equal(missingCheckoutContact(ready), null);
+  // A half-typed number used to unlock the button at 8 characters; the
+  // endpoint then refused it. The button now asks for the number instead.
+  assert.equal(missingCheckoutContact({ ...ready, phone: "0812345" }), "phone");
+  assert.equal(missingCheckoutContact({ ...ready, phone: "0812-3456-7890" }), null);
+  assert.equal(missingCheckoutContact({ ...ready, phone: "0212345678" }), "phone"); // landline
+  assert.equal(missingCheckoutContact({ ...ready, name: "A" }), "name");
+  assert.equal(missingCheckoutContact({ ...ready, name: "Al" }), null);
+  assert.equal(missingCheckoutContact({ ...ready, address: "Jl. Dago" }), "address");
+
+  // The limits are the schema's, not a second copy of them.
+  const order = {
+    customer_phone: ready.phone, district: "Coblong", province: "Jawa Barat", variant_id: "1", submit_token: "t".repeat(16),
+  };
+  const shortName = "x".repeat(CHECKOUT_NAME_MIN - 1);
+  const shortAddress = "x".repeat(CHECKOUT_ADDRESS_MIN - 1);
+  assert.equal(orderSubmitSchema.safeParse({ ...order, customer_name: shortName, address: ready.address }).success, false);
+  assert.equal(orderSubmitSchema.safeParse({ ...order, customer_name: "Al", address: shortAddress }).success, false);
+  assert.equal(orderSubmitSchema.safeParse({ ...order, customer_name: "Al", address: `${shortAddress}x` }).success, true);
 });

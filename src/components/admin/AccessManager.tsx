@@ -468,6 +468,7 @@ export function AccessManager() {
                 <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
                 <Input
                   placeholder="Cari username, nama, atau email…"
+                  aria-label="Cari akun"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="h-9 rounded-xl border-slate-200 bg-slate-50/50 pl-9 text-xs"
@@ -627,10 +628,11 @@ export function AccessManager() {
           <CardContent className="p-4">
             <form onSubmit={create} className="space-y-4">
               <div>
-                <label className="text-xs font-extrabold text-slate-900">
+                <label htmlFor="access-display-name" className="text-xs font-extrabold text-slate-900">
                   Nama Lengkap <span className="text-rose-500">*</span>
                 </label>
                 <Input
+                  id="access-display-name"
                   required
                   minLength={2}
                   maxLength={120}
@@ -667,10 +669,11 @@ export function AccessManager() {
               </div>
 
               <div>
-                <label className="text-xs font-extrabold text-slate-900">
+                <label htmlFor="access-username" className="text-xs font-extrabold text-slate-900">
                   Username Login <span className="text-rose-500">*</span>
                 </label>
                 <Input
+                  id="access-username"
                   required
                   minLength={3}
                   maxLength={64}
@@ -688,8 +691,9 @@ export function AccessManager() {
               </div>
 
               <div>
-                <label className="text-xs font-extrabold text-slate-900">Email Opsional</label>
+                <label htmlFor="access-email" className="text-xs font-extrabold text-slate-900">Email Opsional</label>
                 <Input
+                  id="access-email"
                   type="email"
                   maxLength={160}
                   placeholder="ahmad@perusahaan.com"
@@ -701,7 +705,7 @@ export function AccessManager() {
 
               <div>
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-extrabold text-slate-900">
+                  <label htmlFor="access-password" className="text-xs font-extrabold text-slate-900">
                     Password Sementara <span className="text-rose-500">*</span>
                   </label>
                   <button
@@ -716,6 +720,7 @@ export function AccessManager() {
                 </div>
                 <div className="relative mt-1">
                   <Input
+                    id="access-password"
                     required
                     type={showPassword ? "text" : "password"}
                     minLength={8}
@@ -729,6 +734,8 @@ export function AccessManager() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                    aria-pressed={showPassword}
                     className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
                   >
                     {showPassword ? (

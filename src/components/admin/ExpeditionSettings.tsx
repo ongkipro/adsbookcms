@@ -1,5 +1,20 @@
 import { SearchIcon, MapPinIcon, PackageIcon } from 'lucide-react';
 import { Button } from '../ui/button';
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+  ComboboxValue,
+  useComboboxAnchor,
+} from '../ui/combobox';
 import { Input } from '../ui/input';
 
 import { AlertTriangleIcon, LoaderCircleIcon, RefreshCwIcon, SaveIcon, ShieldCheckIcon, TruckIcon } from 'lucide-react';
@@ -7,6 +22,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Switch } from '../ui/switch';
 import { toast } from 'sonner';
 import { INDONESIAN_PROVINCES } from '../../lib/province';
+
+const PROVINCE_NAMES = new Map(INDONESIAN_PROVINCES.map((province) => [province.code, province.name]));
+const provinceLabel = (code: string) => PROVINCE_NAMES.get(code) ?? code;
 
 const PROVINCE_REGIONS = [
   {
@@ -101,7 +119,6 @@ export function ExpeditionSettings() {
   // Filter & Search states
   const [courierSearch, setCourierSearch] = useState('');
   const [courierFilter, setCourierFilter] = useState<'all' | 'active' | 'non_cod'>('all');
-  const [provinceSearch, setProvinceSearch] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -147,12 +164,6 @@ export function ExpeditionSettings() {
       return matchesSearch && matchesFilter;
     });
   }, [couriers, courierSearch, courierFilter]);
-
-  const filteredProvinces = useMemo(() => {
-    return INDONESIAN_PROVINCES.filter((p) =>
-      p.name.toLowerCase().includes(provinceSearch.toLowerCase()) || p.code.toLowerCase().includes(provinceSearch.toLowerCase())
-    );
-  }, [provinceSearch]);
 
   const handleCheckRegion = (regionCodes: string[]) => {
     setPolicyCodes((prev) => Array.from(new Set([...prev, ...regionCodes])));
@@ -203,14 +214,6 @@ export function ExpeditionSettings() {
   const policyChanged =
     [...policyCodes].sort().join(',') !==
     [...savedPolicyCodes].sort().join(',');
-
-  const togglePolicyProvince = (code: string) => {
-    setPolicyCodes((current) =>
-      current.includes(code)
-        ? current.filter((item) => item !== code)
-        : [...current, code],
-    );
-  };
 
   const savePolicy = async () => {
     setPolicyPending(true);
@@ -301,51 +304,20 @@ export function ExpeditionSettings() {
         </div>
         
         <div className="mt-5 space-y-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => handleCheckRegion(PROVINCE_REGIONS.find((r) => r.name === 'Jawa')?.codes || [])}>Pilih Semua Jawa</Button>
-              <Button type="button" variant="outline" size="sm" onClick={handleCheckAllOutsideJava}>Pilih Semua Luar Jawa</Button>
-              <Button type="button" variant="outline" size="sm" onClick={handleResetProvinces}>Reset Pilihan</Button>
-            </div>
-            <div className="relative max-w-xs w-full">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-              <Input type="text" placeholder="Cari provinsi..." value={provinceSearch} onChange={(e) => setProvinceSearch(e.target.value)} className="pl-9" />
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => handleCheckRegion(PROVINCE_REGIONS.find((r) => r.name === 'Jawa')?.codes || [])} disabled={policyPending}>Pilih Semua Jawa</Button>
+            <Button type="button" variant="outline" size="sm" onClick={handleCheckAllOutsideJava} disabled={policyPending}>Pilih Semua Luar Jawa</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={handleResetProvinces} disabled={policyPending || policyCodes.length === 0}>Reset Pilihan</Button>
+            <span className="ml-auto text-xs font-medium text-slate-500" aria-live="polite">
+              {policyCodes.length === 0 ? 'COD aktif di semua provinsi' : `${policyCodes.length} provinsi tanpa COD`}
+            </span>
           </div>
-          
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {PROVINCE_REGIONS.map((region) => {
-              const visibleCodes = region.codes.filter(c => filteredProvinces.some(p => p.code === c));
-              if (visibleCodes.length === 0) return null;
-              return (
-                <div key={region.name} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-slate-900">{region.name}</h3>
-                  </div>
-                  <div className="space-y-2">
-                    {visibleCodes.map((code) => {
-                      const province = INDONESIAN_PROVINCES.find(p => p.code === code);
-                      if (!province) return null;
-                      const isExcluded = policyCodes.includes(code);
-                      return (
-                        <label key={code} className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors ${isExcluded ? 'border-rose-200 bg-rose-50/50 text-rose-900' : 'border-slate-200 hover:bg-slate-50 text-slate-700'}`}>
-                          <input
-                            type="checkbox"
-                            checked={isExcluded}
-                            onChange={() => togglePolicyProvince(code)}
-                            disabled={policyPending}
-                            className="size-4 rounded border-slate-300 text-rose-600 focus:ring-rose-600"
-                          />
-                          <span className="min-w-0 flex-1 font-semibold">{province.name}</span>
-                          <span className="font-mono text-[10px] font-bold opacity-50">{province.code}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+
+          <ProvincePicker
+            value={policyCodes}
+            onChange={setPolicyCodes}
+            disabled={policyPending}
+          />
         </div>
       </section>
 
@@ -411,3 +383,77 @@ export function ExpeditionSettings() {
     </div>
   );
 }
+
+/**
+ * The store's non-COD provinces as one searchable multi-select, grouped by
+ * island. It replaces 38 always-visible checkbox tiles; the chips are the
+ * current policy at a glance, and typing searches by name or code.
+ */
+function ProvincePicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string[];
+  onChange: (codes: string[]) => void;
+  disabled?: boolean;
+}) {
+  const anchor = useComboboxAnchor();
+  const groups = PROVINCE_REGIONS.map((region) => ({ value: region.name, items: region.codes }));
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor="cod-province-picker" className="text-xs font-semibold text-slate-700">
+        Provinsi tanpa COD
+      </label>
+      <Combobox
+        multiple
+        autoHighlight
+        items={groups}
+        value={value}
+        onValueChange={(next) => onChange(next as string[])}
+        itemToStringLabel={(code: string) => `${provinceLabel(code)} ${code}`}
+        disabled={disabled}
+      >
+        <ComboboxChips ref={anchor} className="min-h-11 bg-white">
+          <ComboboxValue>
+            {(codes: string[]) => (
+              <>
+                {codes.map((code) => (
+                  <ComboboxChip key={code} aria-label={provinceLabel(code)}>
+                    {provinceLabel(code)}
+                  </ComboboxChip>
+                ))}
+                <ComboboxChipsInput
+                  id="cod-province-picker"
+                  placeholder={codes.length ? 'Tambah provinsi…' : 'Cari provinsi, misalnya Papua atau PA'}
+                />
+              </>
+            )}
+          </ComboboxValue>
+        </ComboboxChips>
+        <ComboboxContent anchor={anchor}>
+          <ComboboxEmpty>Provinsi tidak ditemukan.</ComboboxEmpty>
+          <ComboboxList>
+            {(group: { value: string; items: string[] }) => (
+              <ComboboxGroup key={group.value} items={group.items}>
+                <ComboboxLabel>{group.value}</ComboboxLabel>
+                <ComboboxCollection>
+                  {(code: string) => (
+                    <ComboboxItem key={code} value={code}>
+                      <span className="flex-1">{provinceLabel(code)}</span>
+                      <span className="font-mono text-[10px] text-muted-foreground">{code}</span>
+                    </ComboboxItem>
+                  )}
+                </ComboboxCollection>
+              </ComboboxGroup>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      <p className="text-xs text-slate-500">
+        Pembeli dengan alamat di provinsi ini hanya bisa membayar online. Kebijakan ini terpisah dari batasan provinsi tiap ekspedisi di bawah.
+      </p>
+    </div>
+  );
+}
+

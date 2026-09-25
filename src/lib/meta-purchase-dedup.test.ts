@@ -121,7 +121,6 @@ async function runTracker(
 
   const tracker = new Function(
     "tenantName",
-    "tenantSlug",
     "metaExternalIdCookie",
     "window",
     "document",
@@ -134,7 +133,6 @@ async function runTracker(
 
   tracker(
     "Permatamall",
-    "permatamall",
     META_EXTERNAL_ID_COOKIE,
     windowStub,
     { cookie: documentCookie },

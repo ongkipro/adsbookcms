@@ -182,6 +182,37 @@ export async function checkAdminLoginRateLimit(
   );
 }
 
+/**
+ * The concurrency brake the failure buckets cannot be.
+ *
+ * `checkAdminLoginRateLimit` peeks and only a *failure* spends, so the correct
+ * password never costs the operator an attempt — but every request in a
+ * parallel wave peeks before any of them has failed, and 300 simultaneous
+ * guesses were all evaluated against a pair limit of 5. These buckets are
+ * spent atomically up front by every attempt, right or wrong, with ceilings
+ * loose enough that an operator never meets them and a correct password
+ * clears them. A wave now gets at most `limit` guesses through per window.
+ */
+export function adminLoginAttemptBuckets(username: string, ip: string) {
+  return [
+    { key: `admin-login:attempt-pair:${username}|${ip}`, limit: 10 },
+    { key: `admin-login:attempt-ip:${ip}`, limit: 40 },
+  ];
+}
+
+export async function spendAdminLoginAttempt(
+  database: D1Database | undefined,
+  username: string,
+  ip: string,
+): Promise<RateLimitResult> {
+  const results = await Promise.all(
+    adminLoginAttemptBuckets(username, ip).map((bucket) =>
+      checkRateLimit(database, bucket.key, bucket.limit, ADMIN_LOGIN_WINDOW_MS, true),
+    ),
+  );
+  return results.find((result) => !result.allowed) ?? results[0];
+}
+
 /** Counts one failed attempt in every bucket. A bucket already at its limit stays there. */
 export async function recordAdminLoginFailure(
   database: D1Database | undefined,
@@ -203,12 +234,13 @@ export async function clearAdminLoginFailures(
 ) {
   if (!database) return;
   const windowStart = Math.floor(Date.now() / ADMIN_LOGIN_WINDOW_MS) * ADMIN_LOGIN_WINDOW_MS;
-  const keys = adminLoginRateLimitBuckets(username, ip).map(
-    (bucket) => `${bucket.key}:${windowStart}`,
-  );
+  const keys = [
+    ...adminLoginRateLimitBuckets(username, ip),
+    ...adminLoginAttemptBuckets(username, ip),
+  ].map((bucket) => `${bucket.key}:${windowStart}`);
   try {
     await database
-      .prepare('DELETE FROM rate_limits WHERE key IN (?, ?, ?)')
+      .prepare(`DELETE FROM rate_limits WHERE key IN (${keys.map(() => '?').join(', ')})`)
       .bind(...keys)
       .run();
   } catch (error) {

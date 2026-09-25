@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-08-29 @ `9766ad6`
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 ## A21 — A landing page may become the product page
 
@@ -43,17 +43,17 @@
 
 ## A18 — Deterministic storefront home and structured content editor
 
-- [ ] **A-130** — Establish the canonical compact homepage composition and remove alternate-template selection from the public home path.
+- [x] **A-130** — Establish the canonical compact homepage composition and remove alternate-template selection from the public home path. **Confirmed done 2026-09-25:** `src/pages/index.astro` renders only `CompactMarketHome`; `validateStorefrontTemplateDefinition` refuses a wide layout (`storefront-template.test.ts`) and `0044` removed `wide-catalog`.
       -> REQ: REQ-140 · deps: [] · Done when: a local route test proves every stored template choice renders the compact homepage without changing product or landing URLs.
 - [ ] **A-131** — Render active product cards as a two-column homepage catalog with ten initial cards and accessible Load more behavior.
       -> REQ: REQ-141 · deps: [A-130] · Done when: browser evidence at 390px and 1280px proves ten initial cards, two-column layout, no horizontal overflow, and correct remaining-card reveal.
-- [ ] **A-132** — Add the unified CMS/native landing-page homepage index and sitemap feed.
+- [x] **A-132** — Add the unified CMS/native landing-page homepage index and sitemap feed. **Confirmed done 2026-09-25:** `listPublicLandingPages` feeds home, `/landing-page`, `/sitemap` and `sitemap.xml`, once per page, by the URL it answers on, and only when its product is active (`landing-pages.test.ts`).
       -> REQ: REQ-142 · deps: [A-130] · Done when: focused tests prove only active CMS pages and typed native entries are listed once with canonical URLs.
 - [x] **A-133** — Add a typed native Astro landing-page registry with build-time slug and metadata validation. **Done 2026-08-22** — `src/data/native-landing-pages.ts` is the manifest; `validateNativeLandingPages` refuses a duplicate slug, a slug that cannot match a filename, or a missing title/product/description. The register is reconciled into `landing_pages` as `source='native'` rows on every list load, so the CMS lists and links a deployed page with no sync step, and a removed entry takes its row and any claim with it. Editing and deleting are refused with `409`. Verified live: a registered page appeared in the admin list with its product resolved from `productSlug`, took over `/produk/<slug>` with the product canonical, redirected its own slug once, and vanished from the list and both sitemaps when the entry was withdrawn.
       -> REQ: REQ-143 · deps: [] · Done when: duplicate or incomplete registry entries fail the focused test while a registered route appears in the homepage index.
 - [ ] **A-134** — Replace the operator JSON content workbench with bounded homepage banner, slider, and supporting-copy fields.
       -> REQ: REQ-144 · deps: [A-130] · Done when: `/admin/content` contains no raw JSON/AI control, saves validated named fields, and preserves existing content safely.
-- [ ] **A-135** — Add the fallback automatic homepage state for missing or invalid structured content.
+- [x] **A-135** — Add the fallback automatic homepage state for missing or invalid structured content. **Superseded 2026-08-21 by `7d2462d`, recorded as ADR-025:** an unpublished store composes its home from its own identity, catalogue and landing pages.
       -> REQ: REQ-145 · deps: [A-131, A-132, A-134] · Done when: a local route/browser test proves the homepage stays useful and truthful with unavailable optional content.
 
 > Last executed baseline: 2026-08-17 @ `5cb1d32` + A13.
@@ -585,7 +585,7 @@ Implementation, contract tests, static checks, build, and focused authenticated 
 
 ## Phase 54: Portable New-Account Installation Proof — Planned
 
-- [ ] **T171** — Prove the Portable Local Installer Boundary.
+- [x] **T171** — Prove the Portable Local Installer Boundary. **Obsolete 2026-09-25:** `scripts/install.sh` no longer exists; installation is the `/install` wizard (`INSTALLATION.md`).
       -> REQ: REQ-85 · deps: [] · Done when: a clean supported workstation runs `./scripts/install.sh` with the default and one explicit registered profile, records the expected lockfile/registry/type/static-check results, and records that no Cloudflare authentication, resource creation, remote migration, deployment, DNS/secret change, or data import occurred.
 - [ ] **T172** — Prove Immutable-Sample Provisioning in a New Account.
       -> REQ: REQ-87, REQ-98 · deps: [T171] · Done when: an explicitly approved test tenant plan reports unique D1/KV/R2/AI resources, `runtime-managed`, the canonical immutable sample, and `importsExistingTenantData: false`; approved provisioning creates schema, one store row, one forced-rotation owner, product `10001`, and variants `20001`/`20002`; repository queries prove no sibling merchant products, content, media, customers, orders, payments, provider config, tracking credentials, sessions, or secrets were copied.
@@ -594,9 +594,9 @@ Implementation, contract tests, static checks, build, and focused authenticated 
 
 ## Phase 55: Headless Public Data, Locked Forms, and Tracking Adapters — Planned
 
-- [ ] **T174** — Implement the Public Non-Secret Storefront Bootstrap.
+- [x] **T174** — Implement the Public Non-Secret Storefront Bootstrap. **Confirmed done 2026-09-25:** `/api/v1/storefront` (`headless-api.test.ts`).
       -> REQ: REQ-92 · deps: [T173] · Done when: a documented public read endpoint returns only reviewed tenant identity and browser tracking fields, rejects cross-tenant resolution, never serializes CAPI/provider/session/customer/payment secrets, and contract tests cover configured, unconfigured, and malformed requests.
-- [ ] **T175** — Implement the Canonical Public Catalog Contract.
+- [x] **T175** — Implement the Canonical Public Catalog Contract. **Confirmed done 2026-09-25:** `/api/v1/products` and `/api/v1/products/[slug]` (`headless-api.test.ts`, `headless-client.test.ts`).
       -> REQ: REQ-93 · deps: [T174] · Done when: public product/list reads expose only active canonical products and variants with D1 identity, presentation, price, availability, weight, and media; inactive/unknown/cross-tenant inputs fail closed; a headless storefront renders from the contract without maintaining a second product identity.
 - [ ] **T176** — Prove Canonical Form Delegation in a Selected Headless Gateway.
       -> REQ: REQ-94, REQ-96 · deps: [T174, T175] · Done when: the selected headless gateway delegates `/hybrid-form`, `/middle-form`, and `/full-form` through its private CMSAds binding, rejects legacy `/form-*` aliases, routing tests prove public storefront paths remain local, and mobile/desktop flows preserve product, variant, campaign, click, event, source, and error/focus context without duplicating form markup.
@@ -1243,20 +1243,18 @@ A-50 install topology (blocked until A-10 removes the build-time constraint)
 - [x] **A-43** — Reconcile the version registries. **Done 2026-08-16.**
  -> REQ: REQ-83 · `package.json` is now `adsbookcms@1.2.0`, matching `src/lib/version.ts`.
 
-## A6 — Install topology *(opened 2026-08-16, pending decision)*
+## A6 — Install topology *(closed 2026-09-25 by ADR-020)*
 
-- [ ] **A-50** — Decide how a second install is created and kept current.
- -> REQ: REQ-1, REQ-6 · deps: [A-10] · Done when: one mechanism is chosen, recorded as an ADR, and documented in `INSTALLATION.md` §10. The three real options, with the trade already understood:
- · **repo per install** (today, ADR-012) — maximum isolation, maximum drift; every install upgraded by hand.
- · **one config file per install inside the product repo** (`wrangler deploy --config installs/<slug>.jsonc`) — least drift, but store configuration re-enters the product repository, which is precisely how another merchant's content once reached a live storefront.
- · **`env.<slug>` blocks in one config** — what the upstream engine did. Same drift profile as the previous option, with a smaller surface.
- · **A-10 has landed**, so the blocking condition is gone: identity is no longer in the bundle, one build can serve every install, and the shared-repo option can now be compared on its merits rather than against a handicap. This is the next decision in Phase A.
-
-- [~] **A-51** — Define how an install receives product updates. **Procedure written 2026-08-16; automation still open.**
- -> deps: [A-50] · `RELEASE.md` §7 now documents the merge-then-deploy procedure, its ordering constraints, and the `merge=keepours` driver that protects an install's `wrangler.jsonc` and deploy workflow from being overwritten by the product's placeholders. Still open: nothing verifies an install actually ran it, and nothing reports which product version an install is on. Done when an install's version is discoverable and drift is detectable without opening its repository.
-
-- [ ] **A-52** — Decide whether the product ships as a package.
- -> deps: [A-50] · Done when: either the product is published as an installable artifact so installs depend on a version rather than copying a tree, or the idea is recorded as rejected with its reason. This is what would make "one product, many installs" true rather than aspirational.
+- [x] **A-50** — Decide how a second install is created and kept current.
+  **Closed by ADR-020:** one repository per store, updated by merge or manual
+  copy (`RELEASE.md` §7). The shared-repository options (`--config` per store,
+  `env.<slug>` blocks) were the upstream multi-store shape and are removed from
+  `INSTALLATION.md` §10 rather than kept as live alternatives.
+- [~] **A-51** — Define how an install receives product updates. Procedure in
+  `RELEASE.md` §7. Still open: nothing reports which product version an install
+  is on without opening its repository (`CMS_VERSION` is visible in `/admin`).
+- [x] **A-52** — Decide whether the product ships as a package. **Rejected by
+  ADR-020** (a package registry is a non-goal until manual copy stops scaling).
 
 ---
 
@@ -1531,7 +1529,7 @@ YAGNI. Only A-151 (done), A-153-as-manifest, and A-159 (optional) remain.
       `public/images/` brand assets), including the `wrangler.jsonc`
       structural-fields-to-hand-merge case. Per-store values are confirmed when
       a second real install exists; the path classification is complete.
-- [ ] **A-159** *(optional hygiene)* — Reconcile local product worktrees
+- [x] **A-159** *(optional hygiene)* — Reconcile local product worktrees **Confirmed done 2026-09-25:** `git worktree list` shows only `main`.
   (`adsbookcms-dev` detached, `adsbookcms-lp`) into one canonical `main` without
   losing pre-existing work; removal or branch attachment only after explicit
   operator approval.
@@ -1602,7 +1600,19 @@ genuinely unmanageable.
 
 - [x] **A-171** — `/admin/orders` returned an empty 200 on every install. **Done 2026-08-27 (1.3.5).**
   -> Cause: `InstructionHint` (entry 86) read a field the server-rendered producer never supplied. Done when: the predicate lives in `src/lib/` with a test for the missing-field case, `OrderItem` marks it optional, the page query supplies it, and every admin route was opened against a seeded store and returned a non-empty body. Evidence: BUILD-LOG entry 87.
-- [ ] **A-172** — Give the React islands a rendering check the runner can see.
+- [x] **A-172** — Give the React islands a rendering check the runner can see.
+  **Done 2026-09-16** — `src/lib/admin-islands-render.test.ts` bundles each of
+  `OrdersTable`, `OrderDetail`, `PaymentReconciliationQueue`, `ProductForm`,
+  and `LandingPageEditor` with esbuild (JSX transform, `@/*` alias resolved,
+  `react`/`react-dom` externalized, CJS output so Node's own `require`
+  resolves them — an ESM bundle left a bare `require("react")` inside a
+  transitive dependency that threw at import time) and renders each with
+  `react-dom/server`'s `renderToString`, asserting non-empty, structurally
+  meaningful output. `node --experimental-strip-types` strips TS syntax but
+  cannot parse JSX, which is why the bundle step exists rather than importing
+  the `.tsx` files directly. 6 tests (`OrdersTable` covered both empty and a
+  populated `initialOrders` row, in the camelCase `OrderItem` shape `mapOrder`
+  actually produces). 731 tests passing, `astro check`/`tsc` clean.
   -> `npm test` globs `src/lib/*.test.ts`, so no island is ever executed; a component that throws during SSR returns a blank 200 that `check`, `test` and `build` all call healthy. Done when either the admin islands are smoke-rendered in CI (react-dom/server over a compiled entry) or a route-level check asserts a non-empty body for every admin page against a seeded database.
 
 ## A26 — Stock stops gating a sale
@@ -2031,7 +2041,24 @@ Cloudflare build, and CI running all three on every push.
       runner belongs in CI at all, given CI has no browser today and adding one
       changes what a green build means.
 
-- [ ] **A-211** — Cover the twelve modules no test imports.
+- [x] **A-211** — Cover the twelve modules no test imports. **Done
+      2026-09-16** — ten of the twelve got a real importing test:
+      `catalog-core.test.ts` (including the A-208 short-numeric-id-sorts-first
+      regression shape), `geo.test.ts` (the full `cf.regionCode` →
+      `cf-region-code` header → `x-user-province` header precedence chain),
+      `public-store.test.ts`, `tenant-content.test.ts`,
+      `tenant-contract.test.ts`, `gtm.test.ts` (the exact push path the
+      thanks-page Purchase event goes through), `api.test.ts`,
+      `order-status-core.test.ts`, `cn.test.ts`, `ui-variants.test.ts`. Two
+      are recorded here as deliberately untestable: `utils.ts` is a pure
+      re-export of `cn.ts` (`export { cn } from './cn.ts'`) — `cn.test.ts`
+      already covers the real logic, a duplicate test would assert nothing
+      new; `bundled-migrations.ts` uses `import.meta.glob`, a Vite build-time
+      API with no meaning under this repo's plain Node test runner
+      (`node --experimental-strip-types --test`) — its own top-of-file
+      comment already documents this, and the Node tests that exercise
+      migrations use their own focused chains instead. 731 tests passing,
+      `astro check`/`tsc` clean.
       -> Primary requirement: REQ-179 · Dependencies: None · Done when:
       `catalog.ts`, `geo.ts`, `public-store.ts`, `tenant-content.ts`,
       `tenant-contract.ts`, `gtm.ts`, `api.ts`, `order-status.ts`,
@@ -2049,7 +2076,7 @@ Cloudflare build, and CI running all three on every push.
       completes a COD order — all in one recorded run. Migrations are asserted
       to apply from zero; nothing asserts the store is *usable* afterwards.
 
-- [ ] **A-213** — Decide what the admin's React islands are allowed to break.
+- [x] **A-213** — Decide what the admin's React islands are allowed to break. **Done 2026-09-16 with A-172:** `admin-islands-render.test.ts` server-renders all five named islands; `esbuild` is now a declared devDependency rather than a transitive one.
       -> Supersedes the framing of A-172 · Dependencies: A-210 · Done when: the
       islands that carry money or state — `OrdersTable`, `OrderDetail`,
       `PaymentReconciliationQueue`, `ProductForm`, `LandingPageEditor` — each
@@ -2072,16 +2099,28 @@ Cloudflare build, and CI running all three on every push.
       nonce-vs-hash choice and what `connect-src` admits — Meta, Google, and
       the store's own origin at minimum.
 
-- [ ] **A-215** — Put a ceiling on the CAPI outbox.
+- [x] **A-215** — Put a ceiling on the CAPI outbox. **Already done** (`6eb9842`,
+      confirmed 2026-09-16) — `purgeExpiredCapiOutboxEvents` deletes
+      `sent`/`failed` rows older than `OUTBOX_RETENTION_DAYS` (30), wired
+      hourly in `worker.ts`'s `runScheduledMaintenance`, and covered by
+      `capi-outbox.test.ts`. The stale "the outbox is never pruned" comment
+      in `readCapiDeliveryWindow` (which predates the fix) has been
+      corrected; the `(status, updated_at)` index upgrade path still stands
+      as a follow-up, not a blocker.
       -> Primary requirement: REQ-58 · Dependencies: None · Done when:
       delivered rows are pruned on a retention window the way
       `autolaris_callbacks` already is, and the table cannot grow without
-      bound. `capi-outbox.ts` says plainly that "the outbox is never pruned",
-      and `readCapiDeliveryWindow` carries a `lazy:` note whose upgrade path
-      is a `(status, updated_at)` index. A-203's rate limit caps the inflow;
-      nothing caps the total.
+      bound.
 
-- [ ] **A-216** — Give the install token a brute-force ceiling.
+- [x] **A-216** — Give the install token a brute-force ceiling. **Done
+      2026-09-16** — `/api/install` now keys a `checkRateLimit` bucket on
+      client IP (`install-token:<ip>`, 10 attempts / 15 min, same window as
+      admin login). **Revised 2026-09-25 (A-271):** this first version peeked
+      and spent only on a wrong token, which a parallel burst walked straight
+      past; every attempt now spends up front. 684 tests
+      passing, `astro check`/`tsc` clean, `docs/ROUTE-MAP.md` regenerated to
+      show the new `rate-limit` dependency and `rate_limits` table on this
+      route.
       -> Primary requirement: REQ-179 · Dependencies: None · Done when:
       `/api/install` counts failed token attempts per IP the way every other
       public POST does. The token must be at least 16 characters, which makes
@@ -2175,18 +2214,23 @@ Cloudflare build, and CI running all three on every push.
 
 ## Google Ads — the leg with the least instrumentation
 
-- [ ] **A-227** — Give the Google Ads offline outbox a health signal and an
-  alert.
+- [x] **A-227** — Give the Google Ads offline outbox a health signal and an
+  alert. **Alert half completed 2026-09-25:** `google-ads-outbox` is now an
+  `OperationalAlertId` fed by `alertsFromOperationalHealth`
+  (`operational-alerts.test.ts`); until then only the health half existed.
+  **Health half done 2026-09-09** (`807a104`) — `readGoogleAdsOutboxDepth` and
+  `classifyGoogleAdsOutbox` mirror the Meta pair, including the
+  stalled-with-terminal-failures reason; an unreadable table reports
+  `unknown`, never a depth of zero. 674 tests passing.
       -> Primary requirement: REQ-58 · Constraints: OBSERVABILITY.md ·
       Dependencies: None · Done when `google_ads_conversion_outbox` reports
       depth, overdue rows and last delivery the way `capi_event_outbox` does,
-      and a stalled queue fires. **This is the highest-value item in this
-      backlog.** `HealthSignalId` is `capi-outbox | meta-capi | mengantar |
-      autolaris` and `OperationalAlertId` is `schema | capi-outbox` — Google has
-      neither. That is exactly why A-182's head-of-line block was invisible:
-      the cron logged `queuedGoogleAdsConversions: 0`, which is also what a
-      quiet week looks like. The Meta side has a depth signal *and* an alert;
-      the Google side has been running blind.
+      and a stalled queue fires. `HealthSignalId` is `capi-outbox | meta-capi |
+      mengantar | autolaris` and `OperationalAlertId` is `schema | capi-outbox`
+      — Google previously had neither, which is exactly why A-182's
+      head-of-line block was invisible: the cron logged
+      `queuedGoogleAdsConversions: 0`, which is also what a quiet week looks
+      like.
 
 - [ ] **A-228** — Prove one offline conversion lands in Google Ads.
       -> Primary requirement: REQ-58 · Dependencies: A-227 · Done when a real
@@ -2219,3 +2263,160 @@ Cloudflare build, and CI running all three on every push.
       taxonomy engine picks `google_product_category` from the product's own
       text and omits it when unsure; whether Google accepts those choices has
       never been observed.
+
+---
+
+## Audit — 2026-09-25 (full-system read)
+
+Evidence for every done item: `BUILD-LOG.md` entry of the same date; gates 741
+tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
+
+### Done
+
+- [x] **A-270** — HTML landing sections are owner/admin only (stored XSS →
+  owner takeover by `advertiser`). `changesHtmlSections`, both landing-page
+  routes; `landing-pages.test.ts`.
+- [x] **A-271** — Login and install-token limits spend atomically up front
+  (`spendAdminLoginAttempt`; `/api/install` consumes before comparing).
+  `rate-limit.test.ts` wave test.
+- [x] **A-272** — Home-content links refuse script schemes
+  (`storefront-content.ts`). Provider strings escaped in `/admin/check`.
+- [x] **A-273** — CAPI outbox keyed on `(event_name, event_id)` (`0057`);
+  immediate delivery claims the row; `event_time` stamped at enqueue and kept
+  on retry. `capi-outbox.test.ts`, `paid-order-purchase.test.ts`.
+- [x] **A-274** — An embed's `_fbp`/`_fbc` no longer erases a stored `gclid`
+  (`mergeClickIds`). `click-ids.test.ts`.
+- [x] **A-275** — Google outbox alert (A-227), 401/403 stops the batch with rows
+  pending, every cron step isolated, pending alert state not re-written to KV,
+  webhook bounded to 5 s. `operational-alerts.test.ts`,
+  `google-ads-offline.test.ts`.
+- [x] **A-276** — A void COD order is never dispatched (policy + both dispatch
+  SQL guards); manual transfer can be marked paid; paid or dispatched orders
+  cannot be deleted; `results[1]` batch index. `payment-dispatch-policy`,
+  `order-lifecycle`, `mengantar-dispatch` tests.
+- [x] **A-277** — Provider COD fee no longer added to shipping in headless
+  checkout, CS conversion, admin courier edit, or `/api/v1/geo/shipping-rates`
+  `total_shipping`. `headless-checkout.test.ts`.
+- [x] **A-278** — Headless QRIS/VA creates the AutoLaris payment and returns
+  it; manual transfer no longer requires an AutoLaris key on either checkout.
+  Route-level only: **no test**, `tsc` clean.
+- [x] **A-279** — CS conversion obeys COD-province policy; admin shipping-status
+  write is bound to the validated status (409 on a race); `ICO` fallback is COD
+  only. Route/branch changes: **no dedicated test**.
+- [x] **A-280** — Storefront: public listings read-only and product-active
+  filtered, claimed pages linked by product URL, reserved landing slugs,
+  product change releases a claim, noindex pages out of `sitemap.xml`, one
+  Product JSON-LD, every middle form on a page wired, storage-throwing
+  browsers keep their forms and Purchase, non-WebP canvas output refused, no
+  inherited `Zanoby`/`asahan-portable`/real-looking phone copy, no blanket
+  "COD Available" claim.
+- [x] **A-281** — Multi-tenant remnants removed: `X-Tenant-Slug`,
+  `PUBLIC_TENANT_SLUG`, `tenantSlug`; A6 closed on ADR-020.
+
+### Open — found by the audit, not fixed here
+
+- [ ] **A-282** — Browser ViewContent may be dropped on product and landing
+  pages: `MetaPixelBase` creates the `fbq` stub only after an awaited SHA-256,
+  while `MetaLandingTracker` calls `window.fbq` synchronously. Moving the stub
+  earlier would queue `track` before `init`. Done when a browser trace shows
+  the pixel request for ViewContent and the single-init invariant still holds
+  (TRACKING_SPECS §4a).
+- [x] **A-283** — **Done 2026-09-25:** only failures inside a 24 h window (`recentFailed`) degrade either queue; older ones read `earlier-failures`, visible but not alerting. `operational-health.test.ts`. The outbox alerts stay `terminal-failures` for the whole
+  30-day retention after one failed row, so a later outage with the same reason
+  is deduplicated and never notified. Done when the degraded reason is based on
+  failures inside a recent window and a test shows a second outage notifies.
+- [x] **A-284** — **Done 2026-09-25:** `partialFailureError` is read by its `ConversionUploadError` code (checked against the v25 proto): already-recorded is `sent`, `TOO_RECENT_*` retries in 6 h, anything else is terminal; settled/failed rows now purge after 30 days. Requeue path for Google is still not built. `google-ads-offline.test.ts`. Google `partialFailureError` (HTTP 200) is retried as
+  transient; a duplicate-order error after a lost response ends `failed` though
+  Google accepted it. Done when partial-failure codes are classified (duplicate
+  = sent, others terminal) with a test. Also: Google has no requeue path and no
+  retention purge for `failed` rows.
+- [ ] **A-285** — AutoLaris money edges (need provider evidence): the
+  fee-bearer amount is stored but `grand_total` is always the order total; a
+  payment retry clears the old `provider_transaction_id` so a late payment to
+  the old VA is never matched, and two concurrent retries both create provider
+  orders; a Mengantar `createShipment` timeout after acceptance clears the claim
+  and a second push can duplicate the shipment.
+- [~] **A-286** — Smaller UI gaps. **Partly done 2026-09-25:** catalogue and
+  landing picker load the newest 200 (API ceiling) with a notice at the
+  ceiling (`lazy:` in `ProductCatalog.tsx`); checkout label ids are unique per
+  form. Still open: the requeue probe's real `PageView`, and
+  `shippingQuote` answering GET while declared POST. Original list: admin product list and landing-page product
+  picker cap at 50 with no paging; two middle forms on one page share element
+  ids (labels bind to the first); `/api/admin/ads` requeue probe sends a real
+  `PageView` with no test event code; `HEADLESS_OPERATIONS.shippingQuote`
+  declares POST while the route also serves GET.
+- [ ] **A-287** — Documents the audit read but did not re-verify:
+  `DESIGN-SYSTEM.md` §1.1 hex usage counts and §5 (describes two templates,
+  `contentWidth`, a template-aware `Breadcrumb`; the tree has one template and a
+  fixed 480 px column); `docs/UPDATE-PATH-OWNERSHIP.md` omits `scripts/**`,
+  `.gitattributes` and seven product docs; `RELEASE.md` §7 (merge) and
+  `PLAN.md` §4 (copy) describe the two install shapes without cross-reference;
+  `scripts/check-docs.ts` checks neither `#anchors` nor paths written as inline
+  code. Done when each is re-extracted from the tree and re-stamped.
+
+## One-click install — 2026-09-25 (ADR-026)
+
+- [x] **A-288** — Deploy to Cloudflare button in README and INSTALLATION §0;
+  `wrangler.jsonc` deployable as a template (real default names, zero ids, no
+  `routes`, `workers_dev: true`); `package.json` binding descriptions;
+  `.dev.vars.example` with an empty `INSTALL_TOKEN`. Verified: build and
+  `wrangler deploy --dry-run` resolve every binding.
+- [x] **A-289** — `INSTALL_TOKEN` the only required secret; `AUTH_SECRET`
+  generated into `install_secrets` (`0058`) when unset. `auth-secret.test.ts`
+  (env wins, one key under concurrency, fail closed); a fresh local D1 with
+  only `INSTALL_TOKEN` went `/` → `/install` → login → dashboard.
+- [x] **A-290** — Deploy preflight refuses zero or missing D1/KV ids instead of
+  names, and stands its git checks down under Workers Builds.
+  `deploy-preflight.test.ts`.
+- [x] **A-291** — Dashboard **Siapkan toko** checklist, derived from D1
+  (`setup-checklist.test.ts`); installer prefills the site address from the
+  URL it is opened on; `*.workers.dev` answers `X-Robots-Tag: noindex`.
+  Rendered at 390 px, no overflow, no console error.
+- [ ] **A-292** — Press the button once against a real Cloudflare account and
+  record it. Done when a store deployed by the button reaches `/install`, and
+  the two unobserved behaviours in ADR-026 are recorded: that the provisioned
+  ids land in the copy before the deploy command runs, and which of
+  `.dev.vars.example` / the tracked `.env.example` the setup page reads (if the
+  latter, it will ask for every key listed there — trim or rename that file).
+  **Needs the owner:** a real account and a production deploy.
+
+## Local development — 2026-09-25
+
+- [x] **A-293** — `npm run dev:local`: build, local stand-ins for Mengantar and
+  AutoLaris (`scripts/dev-providers.ts`, contract-tested against the real
+  clients in `dev-providers.test.ts`), `wrangler dev --local` with its own
+  state, a fixed install token and the scheduled handler exposed. Refuses to
+  start on busy ports. Verified in headless Chrome: install → login →
+  warehouse → R2 upload → product → middle and full checkout (COD) → QRIS →
+  settle → hourly job → paid → dispatch (two accepted with waybills, an unpaid
+  one refused, a courier-less one failed with a reason).
+- [x] **A-294** — Bugs the local run surfaced: warehouse origin search without
+  a Mengantar key pinned an empty Area ID (now explains); the setup checklist
+  asked for the warehouse before Mengantar (reordered); a minted buyer email on
+  a dotless host was refused by AutoLaris (`.invalid` domain, still recognised
+  as synthetic); `/payment` showed a live countdown, copyable total and "Nomor
+  Virtual Account" wording beside a failed QRIS instruction, and printed the
+  error twice; a store address could not be `http://localhost` (loopback only).
+
+## Admin dropdowns — 2026-09-25
+
+- [x] **A-295** — Every admin dropdown is a shadcn component. The COD
+  province policy became one searchable, island-grouped multi-select with chips
+  (`Combobox`, ported from the base-nova registry with `input-group` and
+  `popover`) instead of 38 always-visible checkbox tiles. The seven remaining
+  native `<select>`s in React islands (`AccessManager`, `ProductCatalog`,
+  `ContentWorkbench`) became `Select` with `items` so the trigger shows labels.
+  Static Astro pages use `NativeSelect.astro`, shadcn's native-select pattern,
+  rather than hydrating a page for a dropdown; `/install` keeps its own styled
+  select. The template-definition form stopped offering "Wide", a layout the
+  server schema refuses. Verified in headless Chrome at 1280 and 390 px: no
+  native select left on six admin pages, no console error, no horizontal
+  overflow; typing "papua" filters to its group and toggles a chip.
+  **Note:** `shadcn add` tries to `npm install cn` (a registry alias, not a
+  real package) and would overwrite the customised `button`/`input`/`textarea`;
+  components are ported by hand from `shadcn view` until that is fixed.
+- [ ] **A-296** — SPX (Shopee Express) as a courier. **Not buildable through
+  Mengantar:** its public API does not support SPX (local
+  `mengantar-documentation`, audited 2026-09-25, `docs/02-couriers-and-rules.md`).
+  Revisit only if Mengantar adds it or a second shipping provider is chosen.
+

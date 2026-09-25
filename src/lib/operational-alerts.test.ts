@@ -172,6 +172,14 @@ test("health and schema failures map only to bounded redacted alert state", () =
         ageMinutes: 120,
         metrics: { pending: 4, failed: 0, overdue: 4 },
       },
+      {
+        id: "google-ads-outbox",
+        state: "degraded",
+        reason: "terminal-failures",
+        lastAt: "2026-08-17T10:00:00.000Z",
+        ageMinutes: 120,
+        metrics: { pending: 0, failed: 2, overdue: 0 },
+      },
     ],
     build: {
       version: "test",
@@ -185,6 +193,8 @@ test("health and schema failures map only to bounded redacted alert state", () =
   assert.deepEqual(alertsFromOperationalHealth(health), [
     { id: "schema", state: "firing", reason: "schema-database-behind" },
     { id: "capi-outbox", state: "firing", reason: "stalled" },
+    // A-227: a stuck Google queue pages the operator, not only the panel.
+    { id: "google-ads-outbox", state: "firing", reason: "terminal-failures" },
   ]);
   assert.deepEqual(
     schemaAlertFromError(

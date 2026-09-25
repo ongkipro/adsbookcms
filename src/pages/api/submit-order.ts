@@ -140,7 +140,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       422,
     );
   }
-  if (data.payment_method !== "cod") {
+  // Manual transfer goes to the seller's own account and needs no provider.
+  if (data.payment_method !== "cod" && data.payment_method !== "manual_transfer") {
     try {
       const provider = (await getProviderConfig(database, locals)).autolaris;
       if (!provider.apiKey) {

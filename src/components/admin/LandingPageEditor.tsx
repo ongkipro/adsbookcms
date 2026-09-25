@@ -237,7 +237,8 @@ export default function LandingPageEditor({ landingPageId }: Props) {
 
   async function fetchProducts() {
     try {
-      const res = await fetch("/api/admin/products");
+      // Same ceiling as the catalogue (see ProductCatalog): the newest 200.
+      const res = await fetch("/api/admin/products?limit=200");
       if (!res.ok) throw new Error("Failed to fetch products");
       const { data } = await res.json();
       setProducts(data || []);

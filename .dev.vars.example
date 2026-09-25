@@ -1,0 +1,6 @@
+# The one secret AdsBookCMS needs to deploy. The /install wizard asks for it
+# before anyone can claim the store, so type a long random value (16+
+# characters) of your own and keep it until installation is finished.
+# Deliberately left empty: a value published here would be a key to every
+# store that kept it.
+INSTALL_TOKEN=

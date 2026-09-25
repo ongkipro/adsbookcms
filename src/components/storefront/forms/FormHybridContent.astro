@@ -18,7 +18,7 @@ interface Props {
 }
 
 const {
-  productSlug = 'asahan-portable',
+  productSlug = '',
   embedded = false,
   selectedVariantId,
   bannerImage,
@@ -38,6 +38,9 @@ const codDisabledProvinceCodes =
 const RootTag = embedded ? 'section' : 'main';
 const instanceId = `hybrid-${product.slug}-${embedded ? 'embedded' : 'standalone'}`;
 const formId = embedded ? `${instanceId}-form` : 'checkout-form';
+// Unique per render: two forms on one landing page used to share these ids, so
+// a label in the second form focused the first form's field.
+const fieldUid = crypto.randomUUID().slice(0, 8);
 ---
 
 <RootTag class="bg-white" data-hybrid-form-root data-instance-id={instanceId}>
@@ -104,18 +107,18 @@ const formId = embedded ? `${instanceId}-form` : 'checkout-form';
           <div class="field-grid address-field-grid">
             <div class="form-field form-field-full">
               <input
-                id="customer-name"
+                id={`customer-name-${fieldUid}`} data-field="customer-name"
                 name="customer_name"
                 required
                 inputmode="text"
                 autocomplete="name"
                 placeholder=" "
               />
-              <label for="customer-name">Nama lengkap</label>
+              <label for={`customer-name-${fieldUid}`}>Nama lengkap</label>
             </div>
             <div class="form-field form-field-full">
               <input
-                id="hybrid-phone"
+                id={`hybrid-phone-${fieldUid}`} data-field="hybrid-phone"
                 name="customer_phone"
                 required
                 type="tel"
@@ -123,22 +126,22 @@ const formId = embedded ? `${instanceId}-form` : 'checkout-form';
                 autocomplete="tel"
                 placeholder=" "
               />
-              <label for="hybrid-phone">Nomor WhatsApp</label>
+              <label for={`hybrid-phone-${fieldUid}`}>Nomor WhatsApp</label>
             </div>
             <div class="form-field form-field-full">
-              <textarea id="hybrid-address" name="address" rows="2" required placeholder=" "></textarea>
-              <label for="hybrid-address">Alamat lengkap &amp; patokan</label>
+              <textarea id={`hybrid-address-${fieldUid}`} data-field="hybrid-address" name="address" rows="2" required placeholder=" "></textarea>
+              <label for={`hybrid-address-${fieldUid}`}>Alamat lengkap &amp; patokan</label>
             </div>
             <div class="form-field form-field-full">
               <div id="district-search-container" class="form-field">
                 <input
-                  id="district-search"
+                  id={`district-search-${fieldUid}`} data-field="district-search"
                   name="district"
                   required
                   placeholder="Ketik kecamatan atau kota"
                   autocomplete="off"
                 />
-                <label for="district-search">Kecamatan</label>
+                <label for={`district-search-${fieldUid}`}>Kecamatan</label>
               </div>
               <div id="district-list" class="district-list" hidden></div>
               <div id="district-picked" class="shipping-address-summary" aria-live="polite" hidden>

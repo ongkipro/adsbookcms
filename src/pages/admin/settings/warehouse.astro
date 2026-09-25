@@ -38,7 +38,7 @@ export const prerender = false;
           <label class="md:col-span-2">
             <span class="mb-1.5 block text-xs font-black text-slate-700">Nomor HP PIC <span class="text-rose-500">*</span></span>
             <input id="contactPhone" required type="tel" inputmode="numeric" maxlength="16" autocomplete="tel" placeholder="08xxxxxxxxxx" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
-            <small id="contactPhoneHint" class="mt-1 block text-xs text-slate-400">Format otomatis ke 62. Contoh: 085854117766 → 6285854117766</small>
+            <small id="contactPhoneHint" class="mt-1 block text-xs text-slate-400">Format otomatis ke 62. Contoh: 081200000000 → 6281200000000</small>
           </label>
         </div>
       </div>
@@ -206,7 +206,7 @@ export const prerender = false;
           phoneHint.textContent = 'Nomor belum lengkap. Min 10 digit dimulai 62.';
           phoneHint.className = 'mt-1 block text-xs text-amber-600';
         } else {
-          phoneHint.textContent = 'Format otomatis ke 62. Contoh: 085854117766 → 6285854117766';
+          phoneHint.textContent = 'Format otomatis ke 62. Contoh: 081200000000 → 6281200000000';
           phoneHint.className = 'mt-1 block text-xs text-slate-400';
         }
       }
@@ -244,6 +244,18 @@ export const prerender = false;
         }));
         if (!items.length) {
           if (originSearchHint) originSearchHint.textContent = 'Tidak ditemukan. Coba kata kunci lain (contoh: "krembangan selatan").';
+          originSearch?.setAttribute('aria-expanded', 'false');
+          return;
+        }
+        // Without a Mengantar key the search answers from the local district
+        // list, which carries no Mengantar area id. Picking one used to pin an
+        // empty "Area ID" and then refuse the save with "Pilih kecamatan
+        // origin dulu" — an instruction the operator had just followed.
+        if (items.every((item) => !item.id)) {
+          if (originSearchHint) {
+            originSearchHint.textContent = 'Kecamatan ditemukan, tetapi ID area Mengantar belum bisa diambil. Simpan API key Mengantar di menu Profil dulu, lalu cari lagi.';
+            originSearchHint.className = 'mt-1.5 min-h-5 text-xs font-medium text-amber-700';
+          }
           originSearch?.setAttribute('aria-expanded', 'false');
           return;
         }

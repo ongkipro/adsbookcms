@@ -9,6 +9,7 @@ import {
   getClientIp,
   purgeExpiredRateLimits,
   recordAdminLoginFailure,
+  spendAdminLoginAttempt,
 } from './rate-limit.ts';
 
 /**
@@ -289,4 +290,16 @@ test('expired windows are purged and live ones are kept', async () => {
 
   assert.equal(await purgeExpiredRateLimits(kv), 1);
   assert.deepEqual(Array.from(store.keys()), [liveKey]);
+});
+
+test('a parallel wave of login guesses is capped, not all evaluated against a stale peek', async () => {
+  const { database } = createRateLimitDatabase();
+  const wave = await Promise.all(
+    Array.from({ length: 30 }, () => spendAdminLoginAttempt(database, 'admin', '203.0.113.9')),
+  );
+  assert.equal(wave.filter((result) => result.allowed).length, 10);
+
+  // The operator's correct password clears it, like every other login bucket.
+  await clearAdminLoginFailures(database, 'admin', '203.0.113.9');
+  assert.equal((await spendAdminLoginAttempt(database, 'admin', '203.0.113.9')).allowed, true);
 });

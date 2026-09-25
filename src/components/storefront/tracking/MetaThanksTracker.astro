@@ -2,17 +2,15 @@
 import { META_EXTERNAL_ID_COOKIE } from '../../../lib/click-ids';
 interface Props {
   tenantName: string;
-  tenantSlug: string;
 }
 
-const { tenantName, tenantSlug } = Astro.props;
+const { tenantName } = Astro.props;
 ---
 
 <script
   is:inline
   define:vars={{
     tenantName,
-    tenantSlug,
     metaExternalIdCookie: META_EXTERNAL_ID_COOKIE,
   }}
 >
@@ -65,12 +63,16 @@ const { tenantName, tenantSlug } = Astro.props;
 
     const pick = (key, fallback = '') => String(state?.[key] ?? fallback);
     const pickNum = (key, fallback = 0) => Number(state?.[key] ?? fallback);
+    // Storage that throws (blocked site data, quota) must not cost the
+    // Purchase: for COD the server leg below is the only one. Meta still
+    // deduplicates a repeat on event_id.
     const once = (key) => {
       const fullKey = `meta_once_${key}`;
-      const prev = localStorage.getItem(fullKey);
-      if (prev === '1') return false;
-      localStorage.setItem(fullKey, '1');
-      sessionStorage.setItem(fullKey, '1');
+      try {
+        if (localStorage.getItem(fullKey) === '1') return false;
+        localStorage.setItem(fullKey, '1');
+        sessionStorage.setItem(fullKey, '1');
+      } catch {}
       return true;
     };
     const getCookieValue = (name) =>

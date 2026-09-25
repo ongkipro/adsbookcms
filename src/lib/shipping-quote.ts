@@ -182,7 +182,12 @@ export async function resolveEligibleShippingRates(
       )
       .filter((rate) => !isCod || !rate.unsupported_cod);
   const eligibleRates = eligible(rates);
-  if (eligibleRates.length > 0 || !input.destinationCity?.trim()) {
+  // The city-average `ICO` rate is a placeholder the operator replaces with a
+  // real courier before dispatch — which the admin allows only for COD. A
+  // prepaid buyer who checked out on it paid for an order that could neither
+  // be dispatched ("ICO" is no Mengantar courier) nor rerouted, so prepaid
+  // gets real rates or none.
+  if (eligibleRates.length > 0 || !input.destinationCity?.trim() || !isCod) {
     return {
       originId,
       rates: eligibleRates,

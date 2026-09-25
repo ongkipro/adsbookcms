@@ -41,7 +41,7 @@ function createDatabase(options: {
               product_value: 150_000,
             };
           }
-          if (sql.includes("FROM capi_event_outbox")) return null;
+          if (sql.includes("capi_event_outbox")) return null;
           throw new Error(`unexpected first(): ${sql}`);
         },
         async all() {

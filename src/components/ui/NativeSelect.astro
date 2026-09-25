@@ -1,0 +1,43 @@
+---
+/**
+ * shadcn `native-select` for static Astro markup: a real <select> — native
+ * keyboard, mobile picker and form submission — styled like the React
+ * Select, without hydrating a page just to match it. Same classes as the
+ * registry's base-nova `native-select.tsx`, with the lucide chevron inlined.
+ */
+import type { HTMLAttributes } from 'astro/types';
+
+type Props = HTMLAttributes<'select'> & { size?: 'sm' | 'default'; wrapperClass?: string };
+
+const { size = 'default', wrapperClass = '', class: className = '', ...rest } = Astro.props;
+---
+
+<div
+  class:list={['group/native-select relative has-[select:disabled]:opacity-50', wrapperClass]}
+  data-slot="native-select-wrapper"
+  data-size={size}
+>
+  <select
+    data-slot="native-select"
+    data-size={size}
+    class:list={[
+      'h-9 w-full min-w-0 appearance-none rounded-lg border border-input bg-white py-1 pr-8 pl-2.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-[size=sm]:h-7 data-[size=sm]:rounded-[min(var(--radius-md),10px)] data-[size=sm]:py-0.5 data-[size=sm]:text-xs',
+      className,
+    ]}
+    {...rest}
+  >
+    <slot />
+  </select>
+  <svg
+    class="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-muted-foreground select-none"
+    aria-hidden="true"
+    data-slot="native-select-icon"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  ><path d="m6 9 6 6 6-6"></path></svg>
+</div>

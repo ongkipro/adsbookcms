@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-09-07 @ `93ccb52`
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -43,6 +43,10 @@ Exactly one document owns each subject. Do not restate another document's truth;
 | `docs/GOOGLE_ADS_SETUP.md` | Google Ads / Merchant Center setup |
 | `docs/LANDING-PAGES.md` | Building a landing page, CMS or native Astro |
 | `docs/ROUTE-MAP.md` / `docs/route-map.xml` | **Generated, never edited.** The route and module dictionary: URL → file → verbs → auth → roles → libs → tables → tests, and each `src/lib` module's exports, tables, test and callers. `npm run route-map` writes it; `src/lib/route-map.test.ts` fails when it and the filesystem disagree. The first thing to open for an audit, and the thing ARCHITECTURE.md §3 defers to for counts |
+| `docs/UPDATE-PATH-OWNERSHIP.md` | Which paths an install update copies and which it never touches (ADR-020). `RELEASE.md` §7 owns the procedure that uses it |
+| `PLAN.md` | The ADR-020 install-update plan. Historical; `RELEASE.md` §7 owns the live procedure |
+| `design-tokens.md` | Neutral colour/type/spacing values. Subordinate to `DESIGN-SYSTEM.md`, which wins on conflict |
+| `docs/NATIVE_LANDING_PAGE_SPEC.md` | Implementation standard for a native Astro landing page. Subordinate to `docs/LANDING-PAGES.md` |
 | `docs/AUDIT-<date>.md` | Point-in-time audit report. Findings only; every fix is owned by the document or issue it names. Never a source of truth, never maintained after its date |
 
 Every document carries a `> Verified against disk: <date> @ <sha>` line, this one
@@ -70,6 +74,8 @@ failure mode this section exists to prevent.
 **Config**
 - Binding names are fixed: `OMS_DB`, `SESSION`, `ASSET_BUCKET`, `AI`, `ASSETS`.
 - Provider credentials are D1-first, env-fallback. Never echo a stored credential back through a browser API.
+- The admin session key is read only through `resolveAuthSecret` (`src/lib/auth-secret.ts`): an `AUTH_SECRET` env secret of 32+ characters wins, otherwise the Worker's own key from `install_secrets` (ADR-026). Never read `install_secrets` anywhere else, and never return it.
+- `wrangler.jsonc` here is a deployable template for the Deploy to Cloudflare button: all-zero ids, no `routes`, `INSTALL_TOKEN` the only required secret. Do not add a real id, a domain, or a second required secret — each one breaks the one-click install.
 - Meta CAPI tokens are server-only. Browser and server Purchase share one per-order `event_id`.
 - **One `fbq('init')` per pixel id, and `MetaPixelBase` owns it.** fbevents honours advanced matching exactly once per pixel id and discards every later call in silence — not an error, not a warning. Three files once init'd behind the pixel's bootstrap, so the browser Purchase reached Meta matched on one key while the server leg matched on eight. A page with better matching supplies it through `window.__PS_META_INIT__` and declares `__PS_META_AWAIT_MATCHING__` ahead of the pixel; nothing else calls `fbq('init')`. Tests assert this at both source and runtime (TRACKING_SPECS §4a).
 - **The catalogue identity fails closed for an ads payload and degrades everywhere else.** `catalogProductId` throws on a row that predates the five-digit scheme, which is right for one payload and wrong wherever the throw outlives the row — a feed, a list, a `.find` predicate, a React render. Those read `catalogProductIdOrNull`. An allowlist test in `catalog-identity.test.ts` refuses a new strict call site.
@@ -101,16 +107,19 @@ or a module under `src/lib/` without regenerating and the suite fails naming
 what changed. That is deliberate — a map you must remember to update is a map
 that lies, and the previous prose map in ARCHITECTURE.md §3 did.
 
-A React island is **not** covered by any of these three. `npm test` globs
-`src/lib/*.test.ts` only, and a component that throws during SSR answers `200`
-with an **empty body** — a blank white page that every static check calls
-healthy. Put the branch in `src/lib/` where the runner can reach it, and open
-the page. 1.3.4 shipped a one-line island change to every install and left the
-admin order list blank for a day.
+A React island is only partly covered. A component that throws during SSR
+answers `200` with an **empty body** — a blank white page that every static
+check calls healthy; 1.3.4 shipped a one-line island change to every install and
+left the admin order list blank for a day. `src/lib/admin-islands-render.test.ts`
+now bundles and server-renders the five admin islands that carry data
+(`OrdersTable`, `OrderDetail`, `PaymentReconciliationQueue`, `ProductForm`,
+`LandingPageEditor`); any other island, and every client-side script, is still
+proven only by opening the page. Put branch logic in `src/lib/` where the runner
+can reach it.
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **656 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
+Current verified working-tree baseline: **754 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 
@@ -132,7 +141,7 @@ A permitted command is not an approved one. The tooling here runs with broad per
 
 ## 6. Code discipline
 
-Smallest change that is correct. Reuse what exists before adding; the codebase already has 70 non-test lib modules and duplicating one is the most common failure mode.
+Smallest change that is correct. Reuse what exists before adding; the codebase already has 99 non-test lib modules and duplicating one is the most common failure mode.
 
 Before adding a dependency, check whether the platform already provides it. Two headless UI libraries already ship side by side (`radix-ui` and `@base-ui/react`) — do not add a third.
 
@@ -146,9 +155,8 @@ Deliberate corner-cuts get a `// lazy:` comment naming the ceiling and the upgra
 
 Do not "fix" these silently or treat them as bugs to be surprised by — they are known, tracked, and have decisions attached:
 
-- Missing published home content renders the explicit setup state. Do not restore generated or compiled merchant-facing fallback copy.
-- `theme_color`, `locale` and `admin_name` are stored per install but have no admin editor yet.
-- Storefront template definitions live in `storefront_templates`. Built-in `compact-market` and `wide-catalog` are seeded only as editable D1 definitions; adding a definition must not require a rebuild.
+- Missing published home content is composed from the store's **own** name, catalogue and public landing pages (ADR-025 amending ADR-007). Never restore compiled copy or anything written for another merchant.
+- Storefront template definitions live in `storefront_templates`. Built-in `compact-market` is seeded only as an editable D1 definition (`wide-catalog` was removed by `0044`); adding a definition must not require a rebuild.
 - The admin session cookie is `adsbook_session`, declared once as `SESSION_COOKIE_NAME` in `src/lib/auth.ts`. Never write the literal string; a writer and reader that disagree is a silent lockout.
 - The `SESSION` KV binding holds **caches only** (ADR-021). Admin sessions live in `admin_sessions` and rate-limit windows in `rate_limits`, both D1. A KV write on any request path must be wrapped so that its failure is logged and nothing else — the account-wide Free-plan write allowance ran out once and took every install's login and checkout search down with it.
 - The click cookie is `adsbook_click_ids`. The former `zanoby_click_ids` is still **read** as a fallback so an upgrading install does not lose 90 days of in-flight attribution. Never write the legacy name; it ages out on its own.

@@ -135,23 +135,6 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
   canonical={canonical}
   hideHeader={false}
   hideFooter={false}
-  product={{
-    name: product.productName,
-    description: product.description,
-    image: product.heroImage,
-    url: canonical,
-    category: product.category,
-    ratingValue: ratingValue,
-    reviewCount: reviewCount,
-    offers: product.variants.map((v) => ({
-      price: v.price,
-      priceCurrency: 'IDR',
-      availability: 'InStock',
-      url: canonical,
-      name: v.label,
-      ...(v.sku ? { sku: v.sku } : {}),
-    })),
-  }}
   breadcrumbs={[
     { name: 'Beranda', url: '/' },
     { name: 'Produk', url: '/produk' },
@@ -164,6 +147,8 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     contentName={product.productName}
     price={displayPrice}
   />
+  {/* The page's only Product JSON-LD: BaseLayout is deliberately given no
+      `product`, which would emit a second, conflicting Product block. */}
   <script is:inline type="application/ld+json" set:html={productSchemaJson} />
 
   <main class="mx-auto max-w-[480px] bg-white pb-20">
@@ -245,7 +230,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
                   <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#111111]" aria-hidden="true" />
                   <div class="min-w-0">
                     <p class="text-[14px] font-semibold text-[#111111]">{v.label}</p>
-                    <p class="mt-0.5 text-[11px] text-[#555555]">Stok Siap Kirim • COD Available</p>
+                    <p class="mt-0.5 text-[11px] text-[#555555]">Siap Kirim</p>
                   </div>
                 </div>
               </div>

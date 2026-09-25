@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-08-28 @ `f18ca76` + landing-builder working tree
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -26,11 +26,15 @@ Astro resolves a static route before a dynamic one, so a native page at
 single-segment path: it resolves a CMS landing page, then a product redirect,
 then falls through to 404.
 
-**The collision this creates is real and silent.** If a native route and a CMS
-landing page claim the same slug, the native file wins and the operator's page
-becomes unreachable with no warning anywhere. Before adding a native route,
-check `/admin/landing-pages` for that slug. This is the price of dropping the
-prefix, and it is worth stating rather than discovering.
+**The collision this creates is real, and now refused rather than silent.**
+If a static route and a CMS landing page claim the same slug, the static file
+wins and the CMS page becomes unreachable. So the CMS refuses every slug in
+`RESERVED_LANDING_SLUGS` (`src/lib/landing-pages.ts`) — every top-level route
+under `src/pages/`, native landing pages included — and
+`landing-pages.test.ts` fails when a new top-level page is added without
+reserving its slug. Adding a native route therefore means adding its slug to
+that list too; before doing so, check `/admin/landing-pages` for an existing
+CMS page with that slug, which the new file would shadow.
 
 ### The one exception: a landing page that *is* the product page
 
@@ -188,7 +192,15 @@ canvas; its numbered section navigator focuses a selected card in long pages,
 while up/down buttons retain keyboard and touch-safe ordering. The header's
 **Live Preview** opens the authenticated draft preview after a page has a slug.
 Images are browser-converted to WebP before the existing authenticated R2 upload
-path. Source images and encoded WebP files are each limited to 2 MiB.
+path. Source images and encoded WebP files are each limited to 2 MiB. A browser
+that cannot encode WebP from a canvas gets a clear error instead of a 415.
+
+Legacy `html` sections render unescaped on the store's origin, which is also the
+admin's. Only `owner` and `admin` may add or change one (`403` otherwise); an
+`advertiser` can still edit the typed sections of a page that carries HTML an
+owner already wrote (`changesHtmlSections`). Moving a page that has taken over
+its product's page to a different product releases the takeover instead of
+carrying it to the new product.
 
 `?preview=1` renders an inactive page for an authenticated admin and sends
 `Cache-Control: no-store`.

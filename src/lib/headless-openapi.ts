@@ -534,6 +534,26 @@ export const headlessOpenApiDocument = {
           success: { const: true },
           timestamp: { type: "string", format: "date-time" },
           order: { $ref: "#/components/schemas/CheckoutOrder" },
+          payment: {
+            description: "AutoLaris instruction for qris/bank_transfer; null for cod/manual_transfer or when the provider call failed.",
+            oneOf: [
+              { type: "null" },
+              {
+                type: "object",
+                properties: {
+                  channel_code: { type: "string" },
+                  status: { type: "string" },
+                  total_amount: { type: "number" },
+                  virtual_account: { type: ["string", "null"] },
+                  qr_payload: { type: ["string", "null"] },
+                  payment_code: { type: ["string", "null"] },
+                  payment_url: { type: "string" },
+                  expires_at: { type: ["string", "null"] },
+                  error: { type: ["string", "null"] },
+                },
+              },
+            ],
+          },
         },
       },
       OrderStatusRequest: {

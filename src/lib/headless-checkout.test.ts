@@ -71,7 +71,9 @@ test('resolveTrustedHeadlessShipping trusts provider quote instead of client shi
 
   assert.deepEqual(shipping, {
     destinationId: 'dst-1',
-    shippingCost: 20500,
+    // The provider's cod_fee is not shipping: persistOrder adds the store's own
+    // COD service fee once, the same as storefront checkout (shipping-quote.ts).
+    shippingCost: 18000,
     courierCode: 'jne',
     courierService: 'REG',
     warehouseId: 9,

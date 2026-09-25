@@ -20,6 +20,7 @@ if (database) {
     // Fallback ignore
   }
 }
+import NativeSelect from '../../components/ui/NativeSelect.astro';
 ---
 <AdminLayout title="Cek WA & Ongkir" activeMenu="scoring">
   <div class="mx-auto max-w-6xl space-y-6">
@@ -349,11 +350,11 @@ if (database) {
           <div class="flex items-center gap-3">
             <div class="flex items-center gap-1.5 text-xs text-slate-600">
               <span>Urutan:</span>
-              <select id="sortOngkirSelect" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-800">
+              <NativeSelect id="sortOngkirSelect" size="sm" aria-label="Urutkan ongkir">
                 <option value="price-asc">Harga Termurah</option>
                 <option value="price-desc">Harga Tertinggi</option>
                 <option value="eta-asc">Estimasi Tercepat</option>
-              </select>
+              </NativeSelect>
             </div>
             <button
               type="button"
@@ -391,6 +392,11 @@ if (database) {
 
   <script>
     import { formatIdr } from '../../lib/format-idr';
+    import { escapeHtmlText } from '../../lib/html-escape';
+
+    // Provider strings reach innerHTML below; Mengantar controls them, and this
+    // page runs inside an admin session. Quotes too, for the data-id attribute.
+    const esc = (value: unknown) => escapeHtmlText(String(value ?? '')).replace(/"/g, '&quot;');
 
     type CourierPerformance = {
       courier: string;
@@ -670,8 +676,8 @@ if (database) {
             const { data } = await res.json();
             if (data && data.length > 0 && resultsEl) {
               resultsEl.innerHTML = data.map((item: any) => 
-                `<li class="flex min-h-11 cursor-pointer items-center px-4 py-2.5 hover:bg-blue-50/70 text-xs border-b border-slate-100 last:border-0 transition-colors" data-id="${item._id}">
-                  <span class="font-bold text-slate-900">${item.SUBDISTRICT_NAME}</span>, <span class="text-slate-600">${item.CITY_NAME}</span>, <span class="text-slate-400">${item.PROVINCE_NAME}</span>
+                `<li class="flex min-h-11 cursor-pointer items-center px-4 py-2.5 hover:bg-blue-50/70 text-xs border-b border-slate-100 last:border-0 transition-colors" data-id="${esc(item._id)}">
+                  <span class="font-bold text-slate-900">${esc(item.SUBDISTRICT_NAME)}</span>, <span class="text-slate-600">${esc(item.CITY_NAME)}</span>, <span class="text-slate-400">${esc(item.PROVINCE_NAME)}</span>
                 </li>`
               ).join('');
               resultsEl.classList.remove('hidden');
@@ -736,14 +742,14 @@ if (database) {
           <tr class="hover:bg-blue-50/30 transition-colors">
             <td class="whitespace-nowrap px-4 py-3.5 font-bold text-slate-900">
               <span class="flex items-center gap-2">
-                <span>${rate.courier_code.toUpperCase()}</span>
+                <span>${esc(String(rate.courier_code).toUpperCase())}</span>
                 ${isCheapest ? '<span class="inline-flex rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black text-emerald-800">Termurah</span>' : ''}
               </span>
             </td>
-            <td class="whitespace-nowrap px-4 py-3.5 text-xs text-slate-700">${rate.courier_service}</td>
+            <td class="whitespace-nowrap px-4 py-3.5 text-xs text-slate-700">${esc(rate.courier_service)}</td>
             <td class="whitespace-nowrap px-4 py-3.5 text-right font-mono font-bold text-slate-900">${formatIdr(rate.price)}</td>
             <td class="whitespace-nowrap px-4 py-3.5 text-right font-mono text-xs text-slate-700">${rate.cod_fee > 0 ? formatIdr(rate.cod_fee) : '-'}</td>
-            <td class="whitespace-nowrap px-4 py-3.5 text-center text-xs text-slate-600">${rate.estimated_days ? `${rate.estimated_days} Hari` : '-'}</td>
+            <td class="whitespace-nowrap px-4 py-3.5 text-center text-xs text-slate-600">${rate.estimated_days ? `${esc(rate.estimated_days)} Hari` : '-'}</td>
             <td class="whitespace-nowrap px-4 py-3.5 text-center">
               ${rate.unsupported_cod 
                 ? '<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-500">Non-COD</span>' 

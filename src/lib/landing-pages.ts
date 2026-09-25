@@ -623,7 +623,8 @@ export async function updateLandingPage(
       .prepare(
         `UPDATE landing_pages
          SET slug = ?, title = ?, product_id = ?, is_active = ?,
-             meta_title = ?, meta_description = ?, updated_at = ?
+             meta_title = ?, meta_description = ?, updated_at = ?,
+             is_product_page = CASE WHEN ? THEN 0 ELSE is_product_page END
          WHERE id = ?`,
       )
       .bind(
@@ -634,6 +635,10 @@ export async function updateLandingPage(
         metaTitle,
         metaDescription,
         now,
+        // A claim is a decision about one product's page. Moving the page to
+        // another product must not carry it along: that silently took over the
+        // new product's URL, or hit the one-claim-per-product index as a 500.
+        String(productId) !== String(existing.product_id) ? 1 : 0,
         id,
       ),
   ];
@@ -756,6 +761,22 @@ export function parseShortcodes(
   );
 }
 
+/**
+ * First path segments a static route already answers. Astro serves a static
+ * route before `[slug]`, so a landing page saved under one of these was listed,
+ * advertised in the sitemap and linked from home while its URL served
+ * something else. `landing-pages.test.ts` fails when `src/pages/` gains a
+ * top-level route this list does not name.
+ */
+export const RESERVED_LANDING_SLUGS: ReadonlySet<string> = new Set([
+  "404", "admin", "api", "assets", "contoh-landing", "disclaimer", "embed",
+  "feed", "form-full", "form-hybrid", "form-middle", "full-form", "geoipform",
+  "hello", "hybrid-form", "install", "kebijakan-cookie", "kebijakan-privasi",
+  "kontak", "landing", "landing-page", "media", "middle-form", "payment",
+  "pengiriman", "produk", "robots", "sitemap", "solusi-terbaru",
+  "syarat-ketentuan", "tentang", "testimoni", "thanks",
+]);
+
 export function validateLandingPageSlug(
   slug: string,
 ): { valid: boolean; error?: string } {
@@ -767,7 +788,30 @@ export function validateLandingPageSlug(
         "Slug must contain only lowercase letters, numbers, and single hyphens",
     };
   }
+  if (RESERVED_LANDING_SLUGS.has(slug)) {
+    return { valid: false, error: `Slug /${slug} sudah dipakai halaman bawaan toko.` };
+  }
   return { valid: true };
+}
+
+/**
+ * Raw HTML sections render unescaped on the store's own origin, which is also
+ * the admin's origin — a `<script>` there runs with the session of whoever
+ * opens the page. So only owner/admin may introduce or change one; an
+ * advertiser may still edit the typed sections around HTML someone trusted
+ * already wrote. Compared by content, not position, so reordering is free.
+ */
+export function changesHtmlSections(
+  next: readonly LandingSectionInput[] | undefined,
+  existing: readonly { type: string; content_html?: string | null }[] = [],
+): boolean {
+  if (next === undefined) return false;
+  const trusted = new Set(
+    existing.filter((section) => section.type === "html").map((section) => section.content_html ?? ""),
+  );
+  return next.some(
+    (section) => section.type === "html" && !trusted.has(section.content_html ?? ""),
+  );
 }
 
 /**
@@ -1002,6 +1046,8 @@ export type PublicLandingPage = {
   excerpt: string;
   /** Where the page actually answers, honouring a product-page takeover. */
   href: string;
+  /** True when `href` is the product URL, not the page's own slug. */
+  isProductPage: boolean;
 };
 
 /**
@@ -1023,8 +1069,9 @@ export async function listPublicLandingPages(
       `SELECT lp.slug, lp.title, lp.meta_description, lp.is_product_page,
               p.slug AS product_slug
          FROM landing_pages lp
-         LEFT JOIN products p ON CAST(p.id AS TEXT) = lp.product_id
-        WHERE lp.is_active = 1
+         JOIN products p ON CAST(p.id AS TEXT) = lp.product_id
+        -- A page whose product is off answers 404, so it is not advertised.
+        WHERE lp.is_active = 1 AND p.is_active = 1
         ORDER BY lp.updated_at DESC, lp.created_at DESC`,
     )
     .all<{
@@ -1043,5 +1090,6 @@ export async function listPublicLandingPages(
       row.is_product_page && row.product_slug
         ? `/produk/${row.product_slug}`
         : `/${row.slug}`,
+    isProductPage: Boolean(row.is_product_page && row.product_slug),
   }));
 }

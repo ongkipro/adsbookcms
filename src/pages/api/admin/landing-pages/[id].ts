@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { jsonError, jsonOk } from "../../../../lib/api";
 import {
+  changesHtmlSections,
   deleteLandingPage,
   getLandingPageById,
   LandingPageValidationError,
@@ -9,6 +10,9 @@ import {
 } from "../../../../lib/landing-pages";
 
 export const prerender = false;
+
+const HTML_SECTION_FORBIDDEN =
+  "Hanya owner atau admin yang dapat menambah atau mengubah section HTML.";
 
 export const GET: APIRoute = async ({ params, locals }) => {
   if (!locals.admin) return jsonError("Unauthorized", 401);
@@ -32,6 +36,12 @@ export const PUT: APIRoute = async ({ request, params, locals }) => {
 
   try {
     const body = await request.json();
+    if (locals.admin.role !== "owner" && locals.admin.role !== "admin") {
+      const existing = await getLandingPageById(locals, id);
+      if (existing && changesHtmlSections(body?.sections, existing.sections)) {
+        return jsonError(HTML_SECTION_FORBIDDEN, 403);
+      }
+    }
     const result = await updateLandingPage(locals, id, body);
     return jsonOk({ data: result });
   } catch (error: unknown) {

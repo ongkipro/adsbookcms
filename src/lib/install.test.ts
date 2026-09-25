@@ -169,6 +169,17 @@ test("the install refuses anything it cannot store safely", () => {
   }
 });
 
+test("plain http is accepted for this machine only, never for a real host", () => {
+  for (const siteUrl of ["http://localhost:8787", "http://127.0.0.1:8787"]) {
+    const result = planInstall({ ...valid, siteUrl });
+    assert.equal(result.ok, true, siteUrl);
+    if (result.ok) assert.equal(result.plan.siteUrl, siteUrl);
+  }
+  for (const siteUrl of ["http://tokosaya.com", "http://localhost.evil.test", "http://192.168.1.5"]) {
+    assert.equal(planInstall({ ...valid, siteUrl }).ok, false, siteUrl);
+  }
+});
+
 test("a store name that reduces to nothing still yields a usable slug", () => {
   // The slug is diagnostic only, so an unusable name must not strand the
   // operator on a form they cannot get past.

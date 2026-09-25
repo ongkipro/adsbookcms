@@ -127,6 +127,17 @@ export function autoLarisReferenceId(orderNumber: string) {
  * so an order converted to an online payment later still needs a deliverable-
  * looking address that belongs to this store rather than to a stranger.
  */
+/**
+ * The domain a minted buyer email uses. A dotless host — `localhost` in
+ * `npm run dev:local` — is not an email domain AutoLaris accepts, so it gets
+ * the reserved `.invalid` suffix (RFC 2606): still recognisably this store's,
+ * still never deliverable.
+ */
+function mintedEmailDomain(siteUrl: string) {
+  const host = new URL(siteUrl).hostname.toLowerCase();
+  return host.includes(".") ? host : `${host}.invalid`;
+}
+
 export function buyerEmail(
   storedEmail: string | null,
   customerPhone: string,
@@ -134,7 +145,7 @@ export function buyerEmail(
 ) {
   const stored = storedEmail?.trim();
   if (stored) return stored;
-  return `${customerPhone.replace(/\D/g, "")}@${new URL(siteUrl).hostname}`;
+  return `${customerPhone.replace(/\D/g, "")}@${mintedEmailDomain(siteUrl)}`;
 }
 
 /**
@@ -176,6 +187,7 @@ export function isSyntheticBuyerEmail(
     if (!siteUrl) continue;
     try {
       if (domain === new URL(siteUrl).hostname.toLowerCase()) return true;
+      if (domain === mintedEmailDomain(siteUrl)) return true;
     } catch {
       // An unparseable configured URL simply matches nothing.
     }

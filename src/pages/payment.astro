@@ -118,7 +118,7 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
 
         <!-- Virtual Account Empty Fallback Alert -->
         <div id="va-missing-notice" class="mt-4 rounded-none border border-[#f2c4c4] bg-[#fdf1f1] p-4 text-xs leading-6 text-[#a12626]" hidden>
-          <strong class="block font-semibold">Nomor Virtual Account Belum Siap</strong>
+          <strong id="va-missing-title" class="block font-semibold">Instruksi Pembayaran Belum Siap</strong>
           <span id="va-missing-text">Nomor Virtual Account belum dapat ditampilkan secara otomatis. Pastikan API key AutoLaris aktif atau hubungi Admin Toko untuk konfirmasi pembayaran.</span>
           <button id="retry-payment-btn" type="button" class="mt-3 block w-full rounded-none border border-[#a12626] bg-white px-3 py-2 text-xs font-semibold text-[#a12626]" hidden>
             Buat Ulang Instruksi Pembayaran
@@ -586,6 +586,16 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         const showMissingVa = isVaChannel && !manualTransfer && !paid && (failed || (!account && !qrPayload));
         vaNoticeEl.hidden = !showMissingVa;
         if (showMissingVa) {
+          // Named for what failed: a QRIS buyer was told their "Virtual
+          // Account" was not ready.
+          const vaTitle = document.getElementById('va-missing-title');
+          if (vaTitle) {
+            vaTitle.textContent = currentStatus === 'expired'
+              ? 'Instruksi Pembayaran Kedaluwarsa'
+              : channelCode === 'QRIS'
+                ? 'Kode QRIS Belum Siap'
+                : 'Nomor Virtual Account Belum Siap';
+          }
           const vaText = document.getElementById('va-missing-text');
           if (vaText) {
             vaText.textContent = currentStatus === 'expired'
@@ -634,7 +644,18 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         providerLink.classList.add('flex');
       }
 
-      const expiresAt = text(payment.expires_at);
+      // A failed or expired instruction is not payable: no countdown to a
+      // deadline, no amount to copy — only the retry inside the notice. Showing
+      // a live-looking timer beside "Gagal" invited a buyer to pay a dead code.
+      const live = !failed || paid;
+      copyTotalBtn.hidden = !live;
+      const expiresAt = live ? text(payment.expires_at) : '';
+      if (!live) {
+        expiryEl.hidden = true;
+        if (countdownInterval) window.clearInterval(countdownInterval);
+        countdownBox.classList.add('hidden');
+        countdownBox.classList.remove('flex');
+      }
       if (expiresAt) {
         const expiry = new Date(expiresAt);
         expiryEl.hidden = false;
@@ -642,7 +663,9 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         startCountdown(expiresAt);
       }
 
-      if (payment.error) {
+      // The notice above already carries the provider's reason; repeating it
+      // in a second red box read as two separate failures.
+      if (payment.error && vaNoticeEl?.hidden !== false) {
         errorEl.hidden = false;
         errorEl.textContent = text(payment.error);
       }

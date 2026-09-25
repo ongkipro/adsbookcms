@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-08-29 @ `9766ad6`
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -221,7 +221,7 @@ Until 2026-08-16 the browser minted `purchase_<productSlug>_<random>` instead, w
 
 The server gate is unchanged: `/api/meta-event` requires `order_number` plus a valid `status_token` before it will emit any Purchase, and returns `404` for an unknown or mismatched token.
 
-Server-side, `capi_event_outbox.event_id` carries a `UNIQUE` constraint and `enqueueCapiEvent()` uses `INSERT OR IGNORE`, so a replayed request returns `{ deduplicated: true }` instead of producing a second outbound conversion. Combined with the order-number key, that means one CAPI Purchase per order for all time — a durable dedupe layer above Meta's own `event_id` handling.
+Server-side, `capi_event_outbox` is unique on `(event_name, event_id)` (migration `0057`; it was `event_id` alone before) and `enqueueCapiEvent()` uses `INSERT OR IGNORE`, so a replayed request returns `{ deduplicated: true }` instead of producing a second outbound conversion. Combined with the order-number key, that means one CAPI Purchase per order for all time — a durable dedupe layer above Meta's own `event_id` handling. The pair matters: keyed on `event_id` alone, a `PageView` posted to `/api/meta-event` with `event_id: "INV-<next>"` occupied the key first and the real Purchase was then "deduplicated" and never sent.
 
 A local duplicate guard proves only the browser and database paths. CAPI acceptance and Meta deduplication require a separately observed provider response.
 
@@ -482,7 +482,7 @@ Consequences to keep in mind:
 ### Transaction ID deduplication
 
 1. Every conversion payload includes `transaction_id` set to the persisted **order number**, not a numeric row ID.
-2. Order numbers come from `src/lib/order-persistence.ts` and use `` `INV-${10000 + id}` `` for completed orders — e.g. order row `1` is `INV-10001`. Abandoned/partial leads use `` `ABN-${10000 + id}` `` and are converted to the `INV-` form when the order completes. No order number is ever minted with an `ORD-` prefix. The string appears three times as operator-facing example copy in `src/pages/admin/ads/meta.astro` and `google.astro`; it is not produced by `order-persistence.ts`.
+2. Order numbers come from `src/lib/order-persistence.ts`, drawn from the `order_number_counters` sequence (migration `0037`) as `INV-<n>`; they are sequential and therefore guessable, which is why the outbox key includes the event name. Abandoned/partial leads carry an `ABN-` number and are converted to the `INV-` form when the order completes. No order number is ever minted with an `ORD-` prefix. The string appears three times as operator-facing example copy in `src/pages/admin/ads/meta.astro` and `google.astro`; it is not produced by `order-persistence.ts`.
 3. Browser/direct-tag and Google Ads API conversions may share the same `INV-` order identity, but they must target separately owned conversion actions. Account configuration decides which action is Primary; `transaction_id` does not make dual Primary actions safe.
 4. Refreshing `/thanks` or revisiting the confirmation URL does not re-trigger the conversion, thanks to the `once('Purchase_order_' + orderId)` local guard.
 
@@ -531,15 +531,15 @@ persisted consent plus the account's enhanced-conversions-for-leads prerequisite
 
 ### Storage
 
-Table `capi_event_outbox` (see `src/db/migrations/`): `id`, `event_id` (UNIQUE), `event_name`, `payload` (JSON), `status` (default `pending`), `attempts` (default 0), `max_attempts` (default 5), `last_error`, `next_retry_at`, `created_at`, `updated_at`, with index `capi_event_outbox_due_idx` on `(status, next_retry_at)`.
+Table `capi_event_outbox` (see `src/db/migrations/`): `id`, `event_id`, `event_name` (unique together, `0057`), `payload` (JSON), `status` (default `pending`), `attempts` (default 0), `max_attempts` (default 5), `last_error`, `next_retry_at`, `created_at`, `updated_at`, with index `capi_event_outbox_due_idx` on `(status, next_retry_at)`.
 
 ### Public functions
 
 | Function | Behavior |
 | --- | --- |
 | `enqueueCapiEvent(db, event)` | `INSERT OR IGNORE` as `pending`. Returns `false` when `event_id` is already known, making a replayed browser request a no-op instead of a duplicate conversion. |
-| `deliverCapiEvent(db, eventId, pixelId, token)` | Sends one already-enqueued `pending` event immediately. Returns `false` if no matching pending row exists. |
-| `drainCapiOutbox(db, pixelId, token)` | Retries events whose `next_retry_at` has elapsed and whose `attempts < max_attempts`, oldest first, **bounded to 10 rows per call**, so a burst of failures cannot turn one storefront request into a long-running drain. Returns the number sent. |
+| `deliverCapiEvent(db, eventName, eventId, pixelId, token)` | Claims the just-enqueued row with the drain's lease and sends it immediately, so a concurrent drain cannot transmit it a second time. Returns `false` if no due pending row exists. Every send, first or retry, carries the `event_time` stamped at enqueue — a retry never reports the retry time. |
+| `drainCapiOutbox(db, pixelId, token)` | Claims (5-minute lease, one `UPDATE … RETURNING`) and retries events whose `next_retry_at` has elapsed and whose `attempts < max_attempts`, Purchases first then oldest, **bounded to 10 rows per call**, so a burst of failures cannot turn one storefront request into a long-running drain. Returns the number sent. |
 | `decideRetry(outcome, attempts, maxAttempts)` | Pure function holding the backoff ladder, testable without a database or a live Meta. |
 
 ### Retry decision rules
@@ -572,7 +572,7 @@ Rate limited at **60 requests per minute per IP** (`public-meta-event:<ip>`),
 the same ceiling `/api/shipping-rates` uses, and failing open when the counter
 cannot be read. Until 2026-08-28 this was the only public POST in the repository
 with no limit, and the one with the most to spend: each accepted event inserts a
-row into an outbox nothing prunes and then calls graph.facebook.com, with the
+row into the outbox (pruned only after 30 days, hourly) and then calls graph.facebook.com, with the
 opportunistic drain free to make ten more. `event_id` deduplication stops a
 replay, never a flood — fresh ids are never deduplicated. Purchase was already
 safe behind its order and status token; `PageView` and `ViewContent` were not,

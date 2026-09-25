@@ -759,3 +759,12 @@ test("a pending read stays a silent no-op", async (context) => {
   assert.deepEqual(result.unrecognisedPaidStatuses, []);
   assert.equal(state.orderPaymentStatus, "pending");
 });
+
+test("a local store on a dotless host still mints an address the provider accepts, and still recognises it", () => {
+  const local = "http://localhost:8787";
+  const minted = buyerEmail(null, "0812-3456-7890", local);
+  assert.equal(minted, "081234567890@localhost.invalid");
+  assert.match(minted, /^[^\s@]+@[^\s@]+\.[^\s@]+$/, "AutoLaris' own email rule");
+  assert.equal(isSyntheticBuyerEmail(minted, local), true, "never handed to Meta as a match key");
+  assert.equal(buyerEmail(null, "081234567890", "https://toko.example"), "081234567890@toko.example");
+});

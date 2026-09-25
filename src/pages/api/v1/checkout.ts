@@ -10,6 +10,8 @@ import { persistOrder, DuplicateSubmissionError, OrderInputError } from '../../.
 import { resolveEligibleShippingRates } from '../../../lib/shipping-quote';
 import { readClickIdCookie, hasClickId, serializeClickIds } from '../../../lib/click-ids';
 import { isShippingQuoteFailure, resolveTrustedHeadlessShipping } from '../../../lib/headless-checkout';
+import { createAutoLarisPaymentForOrder, recordFailedPaymentAttempt, type AutoLarisPaymentRecord } from '../../../lib/autolaris-payment';
+import { getProviderConfig } from '../../../lib/provider-config';
 
 export const prerender = false;
 
@@ -67,6 +69,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
       }, validation.corsHeaders));
     }
 
+    // QRIS/VA need a provider to issue the instruction. Without this an API
+    // order was stored with no payment row and no way for the buyer to pay.
+    const providerPayment = data.payment_method === 'qris' || data.payment_method === 'bank_transfer';
+    if (providerPayment && !(await getProviderConfig(database, locals)).autolaris.apiKey) {
+      return validation.finalize(headlessError('Pembayaran online belum tersedia. Silakan pilih COD.', 503, {
+        code: 'PAYMENT_METHOD_UNAVAILABLE',
+      }, validation.corsHeaders));
+    }
+
     const shipping = await resolveTrustedHeadlessShipping(body, data, (input) =>
       resolveEligibleShippingRates(database, locals, input),
     );
@@ -102,6 +113,26 @@ export const POST: APIRoute = async ({ request, locals }) => {
       metaRequestContext,
     });
 
+    // Same contract as storefront checkout: a provider failure leaves the
+    // order pending with a failed transaction row the buyer can retry from.
+    let payment: AutoLarisPaymentRecord | undefined;
+    if (providerPayment) {
+      try {
+        payment = await createAutoLarisPaymentForOrder(database, locals, {
+          orderId: order.id,
+          channelCode: data.payment_channel!,
+        });
+      } catch (error) {
+        console.error('headless-checkout-autolaris-error', error);
+        await recordFailedPaymentAttempt(
+          database,
+          order,
+          data.payment_channel!,
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+
     return validation.finalize(headlessOk(
       {
         order: {
@@ -117,6 +148,19 @@ export const POST: APIRoute = async ({ request, locals }) => {
           seller_account_holder: order.sellerAccountHolder,
           seller_account_number: order.sellerAccountNumber,
         },
+        payment: payment
+          ? {
+              channel_code: payment.channelCode,
+              status: payment.status,
+              total_amount: payment.totalAmount,
+              virtual_account: payment.virtualAccount || null,
+              qr_payload: payment.qrPayload || null,
+              payment_code: payment.paymentCode || null,
+              payment_url: payment.providerPaymentUrl || '',
+              expires_at: payment.expiresAt || null,
+              error: payment.failedReason || null,
+            }
+          : null,
       },
       201,
       validation.corsHeaders

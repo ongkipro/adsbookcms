@@ -57,22 +57,40 @@ const findMiddleConfigEl = (formRoot: HTMLElement | null) => {
 
 export function initPromoSessionStock(root?: Document | HTMLElement) {
   const scope = root || document;
-  const formRoot = scope.querySelector<HTMLElement>("[data-middle-form-root]");
-  const configEl = findMiddleConfigEl(formRoot);
-  const parsedConfig = configEl?.textContent
-    ? (JSON.parse(configEl.textContent) as MiddleFormConfig)
-    : null;
-  if (!formRoot || !parsedConfig) return;
-  applyPromoStock(formRoot, parsedConfig.productSlug);
+  scope.querySelectorAll<HTMLElement>("[data-middle-form-root]").forEach((formRoot) => {
+    const configEl = findMiddleConfigEl(formRoot);
+    const parsedConfig = configEl?.textContent
+      ? (JSON.parse(configEl.textContent) as MiddleFormConfig)
+      : null;
+    if (parsedConfig) applyPromoStock(formRoot, parsedConfig.productSlug);
+  });
 }
 
+const initializedMiddleRoots = new WeakSet<HTMLElement>();
+
+/**
+ * Every middle form on the page, not only the first. Astro emits this module
+ * once however many form sections a landing page carries, so wiring only
+ * `querySelector`'s match left a second form to submit natively — a GET that
+ * put the buyer's name, phone and address in the URL and created no order.
+ */
 export function initMiddleOrderForm(
   config?: MiddleFormConfig,
   root?: Document | HTMLElement,
 ) {
   const scope = root || document;
-  const formRoot = scope.querySelector<HTMLElement>("[data-middle-form-root]");
-  const configEl = findMiddleConfigEl(formRoot || null);
+  scope.querySelectorAll<HTMLElement>("[data-middle-form-root]").forEach((formRoot) => {
+    if (initializedMiddleRoots.has(formRoot)) return;
+    initializedMiddleRoots.add(formRoot);
+    initMiddleOrderFormInstance(formRoot, config);
+  });
+}
+
+function initMiddleOrderFormInstance(
+  formRoot: HTMLElement,
+  config?: MiddleFormConfig,
+) {
+  const configEl = findMiddleConfigEl(formRoot);
   const parsedConfig =
     config ||
     (configEl?.textContent
@@ -282,16 +300,23 @@ export function initMiddleOrderForm(
 
   const timerKey = `promo_end_${productSlug}_middle`;
   const now = Date.now();
-  const stored = Number(localStorage.getItem(timerKey) || 0);
+  // A storage that throws (blocked site data) must not take the order form
+  // down with a promo countdown; it just restarts per visit.
+  let stored = 0;
+  try {
+    stored = Number(localStorage.getItem(timerKey) || 0);
+  } catch {}
   const end = stored > now ? stored : now + 30 * 60 * 1000;
-  localStorage.setItem(timerKey, String(end));
+  try {
+    localStorage.setItem(timerKey, String(end));
+  } catch {}
 
   const form = formRoot?.querySelector("form") as HTMLFormElement | null;
   const nameInput = formRoot?.querySelector(
-    "#customer-name",
+    '[data-field="customer-name"]',
   ) as HTMLInputElement | null;
   const phoneInput = formRoot?.querySelector(
-    "#middle-phone",
+    '[data-field="middle-phone"]',
   ) as HTMLInputElement | null;
   const errorEl = formRoot?.querySelector(
     "#middle-error",

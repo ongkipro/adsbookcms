@@ -1,6 +1,6 @@
 # Google Ads Conversion Signal & Merchant Center Setup Guide
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 > **Product:** AdsBookCMS (single) — one installer, one Worker, one store.
 > **Repository role:** product. Examples below name `permatamall.shop`, the first install, which lives in its own repository (`ongkipro/permatamall`); substitute your own install's domain.
@@ -21,7 +21,7 @@ $$\text{Ad click (gclid, gbraid, wbraid)} \longrightarrow \text{Consent Mode v2 
 ```text
 ┌──────────────────────┐    ┌──────────────────────┐    ┌────────────────────────────┐
 │  Landing Page Click  │───>│  Click-ID Storage    │───>│  Consent Mode v2 Matrix    │
-│ (gclid/gbraid/wbraid)│    │ (zanoby_click_ids)   │    │ (32 EEA/UK/CH: denied      │
+│ (gclid/gbraid/wbraid)│    │ (adsbook_click_ids)  │    │ (32 EEA/UK/CH: denied      │
 │                      │    │  90-day cookie       │    │  everywhere else: granted) │
 └──────────────────────┘    └──────────────────────┘    └────────────────────────────┘
                                                                        │
@@ -189,13 +189,13 @@ Treat this as a known gap, not as a finished taxonomy engine:
 | --- | --- |
 | **Consent default — 32 listed regions** | `ad_storage: denied`, `ad_user_data: denied`, `ad_personalization: denied`, `analytics_storage: denied`, with `wait_for_update: 500` |
 | **Consent default — everywhere else** | `ad_storage: granted`, `ad_user_data: granted`, `ad_personalization: granted`, `analytics_storage: granted` |
-| **Deduplication key** | `transaction_id`, set to the backend order number (`INV-<10000 + id>`). Prevents count spikes from a reloaded thank-you page. Omitted entirely when no order number exists, because an empty string would make every order collide instead of dedupe. |
-| **Click-ID storage** | `gclid`, `gbraid`, `wbraid` captured in middleware from the landing URL into the `zanoby_click_ids` first-party cookie, `Max-Age` 90 days, `SameSite=None; Secure` on HTTPS. Persisted to `orders.ad_click_ids` at checkout. |
+| **Deduplication key** | `transaction_id`, set to the backend order number (`INV-<n>` from `order_number_counters`). Prevents count spikes from a reloaded thank-you page. Omitted entirely when no order number exists, because an empty string would make every order collide instead of dedupe. |
+| **Click-ID storage** | `gclid`, `gbraid`, `wbraid` captured in middleware from the landing URL into the `adsbook_click_ids` first-party cookie (legacy `zanoby_click_ids` is read only), `Max-Age` 90 days, `SameSite=None; Secure` on HTTPS. Persisted to `orders.ad_click_ids` at checkout. |
 | **Conversion value** | Item price × quantity, in IDR. COD qualifies on persisted order success; prepaid qualifies only after authenticated `is_paid: true` reconciliation. |
 
 ### The Consent Mode region list
 
-`src/components/tracking/GoogleAdsBase.astro` issues the region-scoped `denied` default **first**, then the unscoped `granted` default. Google applies the most specific matching rule, so visitors in the listed regions are denied and everyone else is granted.
+`src/components/storefront/tracking/GoogleAdsBase.astro` issues the region-scoped `denied` default **first**, then the unscoped `granted` default. Google applies the most specific matching rule, so visitors in the listed regions are denied and everyone else is granted.
 
 The list holds **32** ISO codes — the 27 EU member states plus Iceland, Liechtenstein, and Norway (completing the EEA), plus the United Kingdom and Switzerland:
 

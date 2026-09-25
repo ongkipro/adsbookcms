@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-08-29 @ `9766ad6`
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -22,6 +22,8 @@ An AdsBookCMS install is one Cloudflare Worker with its own private resources:
 | R2 bucket | `ASSET_BUCKET` | product uploads + CMS media |
 | Workers AI | `AI` | optional platform binding; not used by the public content workflow |
 | Static assets | `ASSETS` | `dist/client`, served by the Cloudflare adapter |
+
+A new install is normally created by the **Deploy to Cloudflare** button, which copies this repository into the operator's GitHub account and provisions these resources there (ADR-026); the terminal path in `INSTALLATION.md` creates the same set by hand.
 
 There is **no `env.<tenant>` block** in `wrangler.jsonc` and `definedEnvironments` in the built config is empty. One repository checkout deploys exactly one store. A second store means a second install: separate Worker, separate D1, separate bucket, separate domain.
 
@@ -71,7 +73,7 @@ Runs on every request, in order: canonical host redirect (`www` → apex), ad cl
 | Content pages | `/tentang`, `/kontak`, `/testimoni`, `/sitemap`, `/disclaimer`, `/kebijakan-privasi`, `/kebijakan-cookie`, `/syarat-ketentuan`, `/pengiriman` |
 | Landing pages | `/[slug]` — catch-all resolved from D1 `landing_pages`; falls back to a 308 to `/produk/<slug>` when the slug is a product, else 404. Supports `?preview=1` behind an admin session |
 | Checkout forms | `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`. `/form-hybrid`, `/form-middle`, `/form-full` are query-preserving 308 redirects that **do** exist |
-| Feeds | `/sitemap.xml`, `/feed/google-catalog.xml`, `/feed/meta-catalog.xml`, static `/robots.txt` |
+| Feeds | `/sitemap.xml`, `/feed/google-catalog.xml`, `/feed/meta-catalog.xml`, `/robots.txt` (dynamic, `src/pages/robots.txt.ts`) |
 | Media | `/assets/[...key]` (R2 `uploads/` prefix), `/media/[...key]` (R2 `content/` prefix) |
 | Admin | `/hello` (login), `/admin/*` — 28 pages |
 | Public API | `/api/*` — checkout, locations, shipping rates, payment methods, order status, Meta events |
@@ -84,19 +86,19 @@ The headless `/api/v1/*` family is **implemented and shipping**, authenticated b
 
 ## 4. Data Layer
 
-D1 is the only persistent store for operational state. **All runtime data access is raw `D1Database.prepare()` / `.batch()`** across 45 modules. There is no ORM and no schema-generation step: Drizzle was removed on 2026-08-16 (ADR-005), so `src/db/migrations/*.sql` is the only description of the schema in the tree.
+D1 is the only persistent store for operational state. **All runtime data access is raw `D1Database.prepare()` / `.batch()`**. There is no ORM and no schema-generation step: Drizzle was removed on 2026-08-16 (ADR-005), so `src/db/migrations/*.sql` is the only description of the schema in the tree.
 
-### Tables (21)
+### Tables (29)
 
-`stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `order_number_counters` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `payment_transactions` · `storefront_content` · `storefront_templates` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `developer_api_keys` · `developer_api_key_usage` · `headless_api_audit_events` · `landing_pages` · `landing_sections`
+`stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `order_number_counters` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `admin_sessions` · `rate_limits` · `payment_transactions` · `payment_reconciliation_audits` · `autolaris_callbacks` · `storefront_content` · `storefront_templates` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `google_ads_conversion_outbox` · `developer_api_keys` · `developer_api_key_usage` · `headless_api_audit_events` · `landing_pages` · `landing_sections` · `notifications` · `notification_reads` · `install_secrets`
 
 `stores` is a single-row table that carries the runtime-editable half of the configuration: provider keys and base URLs, tracking IDs, fee-bearer policy, payment toggles, CRM templates, embed origins, AI content instructions, and COD province exclusions.
 
-Stock integrity is enforced by the database, not the application: trigger `product_variants_stock_nonnegative` (migration `0003`) raises `INSUFFICIENT_STOCK` on any negative stock write.
+Trigger `product_variants_stock_nonnegative` (migration `0003`) still exists and would raise `INSUFFICIENT_STOCK` on a negative stock write, but it is inert: since ADR-023 nothing reads, reserves, decrements or restores stock, so nothing can trip it.
 
 ### Migration chain
 
-56 files, `0000`–`0055` (ADR-024 gave the product sole ownership of the
+59 files, `0000`–`0058` (ADR-024 gave the product sole ownership of the
 numbering after three different `0051` files appeared across the fleet). The Worker bundle contains the exact checked-in SQL and applies any missing suffix automatically before serving a database-backed request. Each migration's SQL statements and `d1_migrations` claim row execute in one D1 batch; concurrent requests serialize on the claim, re-read history, and continue without double-applying. `wrangler d1 migrations apply OMS_DB` remains an optional operator preflight, not the runtime correctness boundary. Migration `0040` adds provider status text, provider event time, and synchronization time to `orders`.
 
 **Migrations are hand-authored.** There is no generator to keep in sync, which is deliberate: the schema contains data-integrity triggers, ordered indexes, CHECK constraints, and data migrations that a schema generator cannot represent safely.
@@ -134,10 +136,10 @@ Things to understand before touching identity:
 
 - Renaming the store in `/admin` moves every storefront `<title>`, header,
   footer, JSON-LD and OG tag on the next request. No rebuild.
-- `slug` resolves from `stores.slug`, then `PUBLIC_TENANT_SLUG`, then `"adsbook"`.
+- `slug` resolves from `stores.slug`, then `"adsbook"`.
   The install wizard writes it per install. It is diagnostic only.
 - An unknown `PUBLIC_STOREFRONT_TEMPLATE` **no longer throws**. It logs
-  `tenant-unknown-storefront-template` and degrades to `compact-market`;
+  `tenant-malformed-storefront-template` and degrades to `compact-market`;
   `tenant.test.ts` asserts exactly that. It used to throw at module load, which
   in a Worker meant every route returned 500.
 - `theme_color`, `locale` and `admin_name` have no admin editor yet. The store
@@ -175,10 +177,10 @@ including the normalized-path shapes that once walked past it.
 1. **Catalog** — `products` + `product_variants` in D1 carry identity, price, weight, and stock. `src/lib/catalog.ts` merges those operational rows with published presentation JSON from `storefront_content`.
 2. **Form** — `/hybrid-form` resolves COD eligibility from trusted Cloudflare geo; a known eligible province routes to the middle form, a disabled or unknown province routes to the full form (`src/lib/form-mode.ts`).
 3. **Rates** — `/api/shipping-rates` quotes Mengantar for the resolved destination, filtered by `courier_rules` and store-level COD province exclusions.
-4. **Submit** — `/api/submit-order` persists order, items, and stock reservation atomically. It is rate-limited, honeypot-guarded, and idempotent via `submit_token`. **Checkout never dispatches to the courier.**
+4. **Submit** — `/api/submit-order` persists order and items atomically. It is rate-limited, honeypot-guarded, and idempotent via `submit_token`. **Checkout never dispatches to the courier.**
 Stock is not part of this flow: a variant is sellable when it is active and priced, and no step reads, reserves, or returns a counter (ADR-023).
 
-5. **Payment** — online orders create one AutoLaris payment through `POST /api/h2h/create_payment`. AutoLaris is a payment gateway here and nothing else: shipping belongs to Mengantar, so no origin, destination, courier, weight, or parcel detail is sent, and the combined shipping-and-payment path `POST /api/h2h/submit` is deliberately unused. A failed or expired instruction is regenerated on the buyer's request through `POST /api/order-status` (`retry_payment`), reusing the order's single `payment_transactions` row; `expired` is derived from `expires_at` at read time (`effectivePaymentStatus`). Provider callbacks to `/api/webhooks/autolaris` are recorded verbatim in `autolaris_callbacks` and acknowledged — they never move payment state (ADR-022). A manual paid confirmation enqueues the server-side Meta Purchase from the order row (`src/lib/paid-order-purchase.ts`). The adapter sends the buyer's payment identity and the fee-policy amount from D1, and enforces the three provider constraints that return an undifferentiated `Invalid parameter`: a digits-only `reff_id` derived from the order number, a non-empty `customer_id`, and a non-empty `callback_url`. That callback URL is this install's own retired webhook route, which answers `410` — the install registers an address and declines callbacks rather than leaving the field empty. `AutoLarisClient.inquirePayment` reads one transaction through `POST /api/h2h/advice`, but classifies only the observed `rc: "02"` as pending; no settled response has been captured, so only the owner/admin manual-reconciliation boundary may mark AutoLaris paid: exact amount/reference re-entry, explicit acknowledgement, immutable actor/status snapshots, and one atomic idempotent transition. The public payment page reads that D1 state and redirects to `/thanks`; neither confirmation nor its one-minute queue refresh dispatches shipment.
+5. **Payment** — online orders create one AutoLaris payment through `POST /api/h2h/create_payment`. AutoLaris is a payment gateway here and nothing else: shipping belongs to Mengantar, so no origin, destination, courier, weight, or parcel detail is sent, and the combined shipping-and-payment path `POST /api/h2h/submit` is deliberately unused. A failed or expired instruction is regenerated on the buyer's request through `POST /api/order-status` (`retry_payment`), reusing the order's single `payment_transactions` row; `expired` is derived from `expires_at` at read time (`effectivePaymentStatus`). Provider callbacks to `/api/webhooks/autolaris` are recorded verbatim in `autolaris_callbacks` and acknowledged — they never move payment state (ADR-022). A manual paid confirmation enqueues the server-side Meta Purchase from the order row (`src/lib/paid-order-purchase.ts`). The adapter sends the buyer's payment identity and the fee-policy amount from D1, and enforces the three provider constraints that return an undifferentiated `Invalid parameter`: a digits-only `reff_id` derived from the order number, a non-empty `customer_id`, and a non-empty `callback_url`. That callback URL is `/api/webhooks/autolaris`, which records the delivery and answers `200` (ADR-022). Payment truth comes from two paths: the hourly job asks the provider's Advice endpoint (`reconcileAutoLarisPaymentStatuses`) and marks paid only on `rc:"00"` with an allowlisted settlement word (ADR-025), and the owner/admin manual-reconciliation boundary — exact amount/reference re-entry, explicit acknowledgement, immutable actor/status snapshots, and one atomic idempotent transition. A manual transfer (seller's own bank account) is marked paid by the operator from the order detail. The public payment page reads that D1 state and redirects to `/thanks`; neither confirmation nor its one-minute queue refresh dispatches shipment.
 6. **Dispatch** — an operator explicitly pushes eligible orders to Mengantar from `/admin/orders`. Requests run sequentially under a `provider_dispatch_locks` lease. Only an accepted provider response moves an order to `processing`.
 7. **Provider status synchronization** — `/admin/shipping` explicitly polls Mengantar `GET /order?tracking_id=<cnote_no>` through the configured server-side client. Eligible rows are processed sequentially; raw provider status evidence is persisted, and only monotonic lifecycle advances pass through the shared atomic order-lifecycle boundary.
 8. **Ad tracking** — browser Pixel plus server-side Meta CAPI through `capi_event_outbox`, a durable transactional outbox with retry and a shared per-order `event_id` for deduplication.
@@ -239,17 +241,14 @@ live in `UNIMPLEMENTED_SPECS.md`.
 | ~~G9~~ | ~~Meta Purchase deduplication is broken~~ | **Closed 2026-08-16.** Both legs now key on the `INV-` order number. Historical data stays inflated — Meta offers no retroactive merge | `src/components/storefront/tracking/MetaThanksTracker.astro` |
 | ~~G10~~ | ~~Embedded checkout fired Purchase before verified confirmation~~ | **Closed 2026-08-16.** Embedded forms now send only a constrained completion-navigation message; the parent navigates to the same verified `/payment` or `/thanks` flow, whose browser and CAPI legs share the order number as `event_id` | `src/lib/embed-markup.ts`, `src/lib/checkout-navigation.ts` |
 
-**One caveat on G7, so the register is not read as more than it says.** Its
-closure covers schema and the **Meta** CAPI outbox. The Google Ads offline
-outbox (`google_ads_conversion_outbox`, migration `0048`) arrived afterwards
-with the same retry discipline and **no health signal and no alert** —
-`HealthSignalId` is `capi-outbox | meta-capi | mengantar | autolaris`,
-`OperationalAlertId` is `schema | capi-outbox`. That blind spot is why a
-head-of-line block stopped Google uploads entirely while the hourly cron logged
-`queuedGoogleAdsConversions: 0`, which is also what a quiet week looks like
-(BUILD-LOG 89). It is recorded in `OBSERVABILITY.md` §3 and queued as **A-227**;
-it is not a reopened architecture gap, but outbox observability is not a solved
-category either.
+**One caveat on G7, now closed.** Its original closure covered schema and the
+**Meta** CAPI outbox only. The Google Ads offline outbox (migration `0048`)
+arrived afterwards with no health signal and no alert, which is why a
+head-of-line block stopped Google uploads while the hourly cron logged
+`queuedGoogleAdsConversions: 0` (BUILD-LOG 89). A-227 added the
+`google-ads-outbox` health signal; the 2026-09-25 audit added the matching
+`OperationalAlertId`, so a stalled or terminally failing Google queue now fires
+the same webhook the Meta queue does.
 
 ---
 

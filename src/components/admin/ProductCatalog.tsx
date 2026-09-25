@@ -50,6 +50,13 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { EMBED_SNIPPET_VERSION, buildEmbedMarkup } from "../../lib/embed-markup";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+
+const EMBED_MODE_LABELS: Record<string, string> = {
+  hybrid: "Hybrid · Otomatis menyesuaikan wilayah",
+  full: "Full · Alamat & ongkir lengkap",
+  middle: "Middle · Form singkat (Nama & HP)",
+};
 
 export type ProductVariant = {
   id: number | string;
@@ -208,7 +215,11 @@ export function ProductCatalog({
 
     const load = async () => {
       try {
-        const response = await fetch("/api/admin/products", {
+        // lazy: the newest 200 (the API's ceiling) with no paging. The old
+        // default of 50 silently hid every older product from the catalogue
+        // and from the landing-page picker. Upgrade path: cursor paging with
+        // server-side search, once a store actually nears 200.
+        const response = await fetch("/api/admin/products?limit=200", {
           headers: { Accept: "application/json" },
           signal: controller.signal,
         });
@@ -660,19 +671,21 @@ export function ProductCatalog({
             {/* Filter Category Select */}
             {categories.length > 0 && (
               <div className="relative">
-                <select
+                <Select
+                  items={{ all: "Semua Kategori", ...Object.fromEntries(categories.map((cat) => [cat, cat])) }}
                   value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  aria-label="Filter kategori produk"
-                  className="h-9 rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-xs font-medium text-slate-700 shadow-xs outline-none hover:bg-slate-50 focus:border-slate-400"
+                  onValueChange={(value) => setCategoryFilter(String(value ?? "all"))}
                 >
-                  <option value="all">Semua Kategori</option>
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger size="sm" aria-label="Filter kategori produk" className="min-w-40 bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua Kategori</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
 
@@ -691,6 +704,7 @@ export function ProductCatalog({
         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-4 py-2.5 text-xs font-medium text-slate-500 lg:px-5">
           <span>
             Menampilkan <strong>{filtered.length}</strong> dari <strong>{products.length}</strong> produk
+            {products.length >= 200 && " (200 terbaru — produk lebih lama tidak tampil di sini)"}
           </span>
           {(query || statusFilter !== "all" || categoryFilter !== "all") && (
             <button
@@ -1080,36 +1094,41 @@ export function ProductCatalog({
                   <span className="mb-1.5 block text-xs font-bold text-slate-700">
                     Mode Form Checkout
                   </span>
-                  <select
+                  <Select
+                    items={EMBED_MODE_LABELS}
                     value={embedMode}
-                    onChange={(event) =>
-                      setEmbedMode(event.target.value as FormMode)
-                    }
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-950 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 font-medium"
+                    onValueChange={(value) => value && setEmbedMode(value as FormMode)}
                   >
-                    <option value="hybrid">Hybrid · Otomatis menyesuaikan wilayah</option>
-                    <option value="full">Full · Alamat & ongkir lengkap</option>
-                    <option value="middle">Middle · Form singkat (Nama & HP)</option>
-                  </select>
+                    <SelectTrigger aria-label="Mode form" className="h-10 w-full bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(EMBED_MODE_LABELS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </label>
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-bold text-slate-700">
                     Varian Awal (Default)
                   </span>
-                  <select
+                  <Select
+                    items={Object.fromEntries(embedConfig.variants.map((variant) => [String(variant.id), variant.label]))}
                     value={embedVariantId}
-                    onChange={(event) => setEmbedVariantId(event.target.value)}
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-950 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 font-medium"
+                    onValueChange={(value) => value && setEmbedVariantId(String(value))}
                   >
-                    {embedConfig.variants.map((variant) => (
-                      <option
-                        key={String(variant.id)}
-                        value={String(variant.id)}
-                      >
-                        {variant.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger aria-label="Varian awal" className="h-10 w-full bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {embedConfig.variants.map((variant) => (
+                        <SelectItem key={String(variant.id)} value={String(variant.id)}>
+                          {variant.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </label>
               </div>
 

@@ -188,3 +188,11 @@ test("a campaign-tagged link never erases the ad click that was paid for", () =>
   // Nothing stored yet is the common first-touch case and must not invent keys.
   assert.deepEqual(mergeClickIds({}, broadcast), broadcast);
 });
+
+test("an embed carrying only the parent page's _fbp keeps the stored gclid", () => {
+  const googleClick = parseClickIdsFromUrl(new URL("https://shop.example/?gclid=Cj0_paid"));
+  const embedReload = parseClickIdsFromUrl(new URL("https://shop.example/embed/form?_fbp=fb.1.1700000000000.123"));
+  const merged = mergeClickIds(googleClick, embedReload);
+  assert.equal(merged.gclid, "Cj0_paid");
+  assert.equal(merged._fbp, "fb.1.1700000000000.123", "the fresher browser id still lands");
+});

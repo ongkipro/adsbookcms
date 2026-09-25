@@ -2,19 +2,20 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  PRODUCT_PLACEHOLDER_PREFIX,
   checkDeployTarget,
   evaluateDeployPreflight,
   parseWranglerConfig,
-  PLACEHOLDER_WORKER_NAME,
   type DeployPreflightState,
 } from "./deploy-preflight.ts";
 
 const installTarget = {
   name: "toko-permata",
   d1Databases: [{ binding: "OMS_DB", database_name: "toko-permata-d1", database_id: "8f2c1a90-4d3b-4e1f-9a77-2b6c5d0e1f34" }],
+  kvNamespaces: [{ binding: "SESSION", id: "4f1c2b7e9a0d4c3b8e6f1a2b3c4d5e6f" }],
   r2Buckets: [{ binding: "ASSET_BUCKET", bucket_name: "toko-permata-assets" }],
 };
+
+const ZERO_D1 = "00000000-0000-0000-0000-000000000000";
 
 test("a real install passes, and the product's own config never does", () => {
   assert.deepEqual(checkDeployTarget(installTarget), { ok: true });
@@ -30,9 +31,9 @@ test("a real install passes, and the product's own config never does", () => {
     readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8"),
   );
   const result = checkDeployTarget(onDisk);
-  if (String(onDisk.name).startsWith(PRODUCT_PLACEHOLDER_PREFIX)) {
+  if (onDisk.d1Databases?.some((database) => database.database_id === ZERO_D1)) {
     assert.equal(result.ok, false);
-    assert.ok(result.ok === false && result.reasons.length >= 3, "name, D1 and R2 each report");
+    assert.ok(result.ok === false && result.reasons.length >= 2, "D1 and KV each report");
   } else {
     // An install must pass its own preflight. This is the stronger half: a
     // merge that drags the product's placeholders back into a live store's
@@ -42,32 +43,27 @@ test("a real install passes, and the product's own config never does", () => {
 });
 
 /**
- * The failure this exists for: a merge from the product brings its placeholders
- * back into an install's wrangler.jsonc, and `wrangler deploy` then replaces a
- * live store's Worker with one pointing at nothing. Each placeholder is caught
- * on its own, because a partial overwrite is the likely shape.
+ * The failure this exists for: a merge from the product brings its template
+ * back into an install's wrangler.jsonc, and `wrangler deploy` then points a
+ * live store at nothing — or, with an id missing, at a freshly provisioned
+ * empty database. Each id is caught on its own, because a partial overwrite is
+ * the likely shape. Names are not a signal since ADR-026: the template's are
+ * real defaults a one-click install may keep.
  */
-test("each placeholder a merge can restore is refused on its own", () => {
+test("each template id a merge can restore is refused on its own", () => {
   const cases: [string, Record<string, unknown>][] = [
-    ["placeholder worker name", { ...installTarget, name: PRODUCT_PLACEHOLDER_PREFIX }],
-    ["placeholder name with a suffix", { ...installTarget, name: `${PRODUCT_PLACEHOLDER_PREFIX}-staging` }],
     ["missing worker name", { ...installTarget, name: "" }],
+    ["no D1 declared", { ...installTarget, d1Databases: [] }],
     ["all-zero database id", {
       ...installTarget,
-      d1Databases: [{ binding: "OMS_DB", database_name: "toko-permata-d1", database_id: "00000000-0000-0000-0000-000000000000" }],
+      d1Databases: [{ binding: "OMS_DB", database_name: "toko-permata-d1", database_id: ZERO_D1 }],
     }],
     ["missing database id", {
       ...installTarget,
       d1Databases: [{ binding: "OMS_DB", database_name: "toko-permata-d1" }],
     }],
-    ["placeholder database name", {
-      ...installTarget,
-      d1Databases: [{ binding: "OMS_DB", database_name: `${PRODUCT_PLACEHOLDER_PREFIX}-d1`, database_id: "8f2c1a90-4d3b-4e1f-9a77-2b6c5d0e1f34" }],
-    }],
-    ["placeholder bucket name", {
-      ...installTarget,
-      r2Buckets: [{ binding: "ASSET_BUCKET", bucket_name: `${PRODUCT_PLACEHOLDER_PREFIX}-assets` }],
-    }],
+    ["all-zero KV id", { ...installTarget, kvNamespaces: [{ binding: "SESSION", id: "0".repeat(32) }] }],
+    ["missing KV id", { ...installTarget, kvNamespaces: [{ binding: "SESSION" }] }],
   ];
   for (const [label, target] of cases) {
     const result = checkDeployTarget(target);
@@ -75,9 +71,13 @@ test("each placeholder a merge can restore is refused on its own", () => {
     assert.ok(result.ok === false && result.reasons[0], `${label} must say why`);
   }
 
-  // A store whose own name merely contains the product's is not a placeholder.
+  // The template's own names with real ids are a real install (Deploy button).
   assert.deepEqual(
-    checkDeployTarget({ ...installTarget, name: "not-adsbookcms-your-store-really" }),
+    checkDeployTarget({
+      ...installTarget,
+      name: "adsbookcms",
+      d1Databases: [{ binding: "OMS_DB", database_name: "adsbookcms-d1", database_id: "8f2c1a90-4d3b-4e1f-9a77-2b6c5d0e1f34" }],
+    }),
     { ok: true },
   );
   // Nothing configured is not a pass by omission.
@@ -173,19 +173,16 @@ test("a long dirty list is summarised rather than dumped", () => {
   assert.match(result.failures[0], /\+2 more/);
 });
 
-test("the product placeholder is refused and cannot be overridden", () => {
-  // RELEASE.md §7: if a sync overwrites the install's wrangler.jsonc, deploying
-  // creates a stray Worker instead of updating the store. There is no reading
-  // of "I meant that", so the override does not apply.
-  for (const overridden of [false, true]) {
-    const result = evaluateDeployPreflight({
-      ...healthy,
-      workerName: PLACEHOLDER_WORKER_NAME,
-      overridden,
-    });
-    assert.equal(result.ok, false, `placeholder must be refused (overridden=${overridden})`);
-    assert.match(result.failures[0], /product placeholder/);
-  }
+test("a Workers Builds deploy is the pushed commit, so the stale-clone checks stand down", () => {
+  const result = evaluateDeployPreflight({
+    ...healthy,
+    branch: "",
+    upstream: "",
+    dirtyPaths: ["wrangler.jsonc"],
+    ci: { branch: "main", commit: "abc1234" },
+  });
+  assert.equal(result.ok, true);
+  assert.ok(result.notes.some((note) => /Workers Builds: commit abc1234 on main/.test(note)));
 });
 
 test("detached HEAD and an untracked branch are both refused", () => {

@@ -2,6 +2,7 @@ import type { APIRoute } from "astro";
 import { jsonError, jsonOk } from "../../../../lib/api";
 import {
   buildLandingPageDuplicateInput,
+  changesHtmlSections,
   createLandingPage,
   getLandingPageById,
   LandingPageValidationError,
@@ -104,6 +105,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
         error instanceof Error ? error.message : "Unknown error";
       return jsonError("Failed to duplicate landing page: " + message, 500);
     }
+  }
+
+  if (
+    locals.admin.role !== "owner" &&
+    locals.admin.role !== "admin" &&
+    changesHtmlSections((body as CreateLandingPageInput | null)?.sections)
+  ) {
+    // Raw HTML runs on the admin's own origin; see `changesHtmlSections`.
+    return jsonError(
+      "Hanya owner atau admin yang dapat menambah atau mengubah section HTML.",
+      403,
+    );
   }
 
   try {

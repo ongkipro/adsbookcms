@@ -1,12 +1,33 @@
 # AdsBookCMS
 
-> Verified against disk: 2026-08-28 @ `f18ca76` + landing-builder planning working tree
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 A self-contained direct-response commerce CMS that installs onto Cloudflare Workers. One install runs one store: storefront, landing-page builder, checkout with COD and online payment, order management, courier dispatch, ad-signal tracking, and an admin dashboard — in a single Worker with its own database.
 
 **Install model: 1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from tenant routing inside the application (`DECISIONS.md` ADR-001).
 
-**This repository is the product. It deploys nothing.** An install lives in its own repository, with its own Worker, D1, KV, R2 and domain, and deploys from there. `wrangler.jsonc` here is a template of placeholders, and there are no Cloudflare credentials in this repository by design (ADR-012).
+**This repository is the product. It deploys nothing itself.** An install lives in its own repository, with its own Worker, D1, KV, R2 and domain, and deploys from there. `wrangler.jsonc` here is a deployable template with all-zero resource ids, and there are no Cloudflare credentials in this repository by design (ADR-012, ADR-026).
+
+## Install in one click
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ongkipro/adsbookcms)
+
+Like a WordPress installer, with Cloudflare doing the hosting part:
+
+1. **Deploy.** The button copies this repository into your own GitHub account,
+   creates the store's D1 database, KV namespace and R2 bucket in your own
+   Cloudflare account, builds, and deploys. It asks for exactly one value,
+   `INSTALL_TOKEN` — type a long random string of your own (16+ characters).
+2. **Install.** Open the Worker's `*.workers.dev` address. Every page redirects
+   to `/install`; enter the token, store name and your admin password. The
+   database schema applies itself on that first request, and the session
+   signing key is generated for you.
+3. **Set up.** The admin dashboard lists what is left — first product,
+   warehouse address, Mengantar key — and ticks each step off as you do it.
+   Add your own domain in Cloudflare (Workers → Settings → Domains & Routes)
+   whenever you are ready; the `workers.dev` copy is `noindex`.
+
+The terminal path, and what each step does underneath: `INSTALLATION.md`.
 
 The first install built on this code is `permatamall.shop`, in the separate `ongkipro/permatamall` repository. Its Cloudflare resources still carry `cmsads-*` names inherited from the upstream engine; those are legacy and deliberately not renamed, because renaming a Worker creates a new one and drops its custom domain, and D1 and R2 names cannot be changed in place.
 
@@ -16,10 +37,7 @@ The first install built on this code is `permatamall.shop`, in the separate `ong
 
 Point a Worker with an empty, migrated D1 at a domain and open it. Every route redirects to `/install`, which asks once for the store name, address, optional tagline and support number, the admin username and password **you choose**, and a storefront template. Submitting writes the store row and your credential in a single transaction, then the wizard refuses to run again.
 
-Two things that will otherwise cost an afternoon:
-
-- **Set `AUTH_SECRET` (32+ characters) before installing.** The installer checks it and refuses before writing anything, because the login route needs it to sign a session — without it the install completes and then locks you out.
-- **Apply the migrations first.** An unmigrated database also routes to `/install`, and the installer will tell you so rather than half-writing a store.
+`INSTALL_TOKEN` is the only secret a store must have. `AUTH_SECRET` is optional: without it the Worker generates its own session key into D1 on first use (ADR-026); set one (32+ characters) only if you want to manage the key yourself. Migrations need no terminal step either — the Worker applies the bundled chain before the first database-backed request.
 
 `admin` / `admin` remains a fallback only for an install whose credential was never claimed by a wizard, and a session on it can reach nothing but its own password change (`PRD-ADMIN-LOGIN.md`).
 
@@ -31,11 +49,33 @@ Full procedure, including creating the Cloudflare resources: `INSTALLATION.md`.
 
 ```bash
 npm ci
-npm run db:migrate:local      # 56 migrations, applied to a local D1
-npm run cf:dev                # wrangler dev --local, closest to production
+npm run dev:local             # build + provider stand-ins + wrangler dev --local
 ```
 
-`npm run dev` is faster for pure UI work but runs without the Worker bindings, so anything touching D1, KV or R2 needs `cf:dev`.
+Open <http://localhost:8787>: it redirects to `/install`; the token is
+`dev-local-install-token`. Everything a live store does works here with no
+account anywhere — D1, KV and R2 are local (`.wrangler/dev-local-state`), and
+Mengantar and AutoLaris are answered by `scripts/dev-providers.ts` on port
+8788 with deterministic fake rates, waybills and QRIS/VA instructions. So the
+whole path runs: install → product → warehouse → checkout (COD, QRIS, VA) →
+payment → dispatch.
+
+| Need | Command |
+| --- | --- |
+| Start over with an empty store | `npm run dev:local -- --reset` |
+| Skip the build when only data changed | `npm run dev:local -- --no-build` |
+| Open it from another device on your Tailscale network | `npm run dev:local -- --ip=$(tailscale ip -4)` (listens on that address only) |
+| Pick up a code change | stop it and run `npm run dev:local` again — a `npm run build` underneath a running server swaps `dist/` out from under it and static files answer 404 until restart |
+| Run the hourly job now (payment reconciliation, outbox drains, alerts) | `curl 'http://localhost:8787/cdn-cgi/handler/scheduled?cron=7+*+*+*+*'` |
+| Mark a QRIS/VA payment paid, then run the hourly job | `curl -X POST 'http://127.0.0.1:8788/__dev/autolaris/pay?transaction_id=<id>'` |
+| Read the local database | `npx wrangler d1 execute OMS_DB --local --persist-to .wrangler/dev-local-state --command "SELECT …"` |
+
+The one thing that is not local: the `AI` binding (Workers AI) always calls
+Cloudflare, so the content workbench's AI draft needs `wrangler login` and may
+be billed. Nothing else in the store uses it.
+
+`npm run dev` (Astro dev server) is faster for pure UI work and also runs with
+local bindings, but without the provider stand-ins and the scheduled handler.
 
 **No dataset ships.** An install starts genuinely empty and says so: the storefront renders "Katalog sedang disiapkan", `/kontak` reports that no support number is configured, and the catalog feeds emit valid empty XML. Add products from `/admin` and they appear. Whether to offer optional sample data later is deferred (ADR-016).
 
@@ -67,7 +107,7 @@ Every command below exists in `package.json`.
 npm run dev            # astro dev on :4321 — no Worker bindings
 npm run cf:dev         # wrangler dev --local
 
-npm test               # node --test over src/lib/*.test.ts  (656 tests)
+npm test               # node --test over src/lib/*.test.ts  (754 tests)
 npm run route-map      # regenerate docs/ROUTE-MAP.md + route-map.xml from src/pages
 npm run check          # astro check && tsc --noEmit
 npm run build          # astro build
@@ -99,9 +139,9 @@ Deploying is an install's job. On its first database-backed request, the new Wor
 ```
 src/
   pages/           storefront, admin, /api/*, /api/v1/*, feeds, media
-  components/      admin/ forms/ home/ seo/ shared/ storefront/ tracking/ ui/
+  components/      admin/  storefront/ (forms, home, seo, shared, tracking, templates)  ui/
   lib/             business logic and colocated tests
-  db/              56 hand-authored migrations — the only schema description
+  db/              59 hand-authored migrations — the only schema description
   layouts/         BaseLayout, AdminLayout, EmbedLayout
   styles/           foundation.css (shared) + one entry per surface:
                     admin.css, storefront.css, form-hybrid.css (checkout)

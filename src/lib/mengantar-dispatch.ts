@@ -222,6 +222,8 @@ export async function dispatchOrderToMengantar(
       SET provider_dispatch_error = 'DISPATCHING', provider_dispatch_claimed_at = ?
       WHERE id = ? AND provider_order_id IS NULL
         AND (payment_method = 'cod' OR payment_status IN ('paid', 'settled', 'success'))
+        AND stock_restored_at IS NULL
+        AND payment_status NOT IN ('cancelled', 'refunded', 'failed')
         AND shipping_status = 'pending'
         AND (
           COALESCE(provider_dispatch_error, '') <> 'DISPATCHING'
@@ -298,6 +300,8 @@ export async function dispatchOrderToMengantar(
           AND provider_dispatch_claimed_at = ?
           AND shipping_status = 'pending'
           AND (payment_method = 'cod' OR payment_status IN ('paid', 'settled', 'success'))
+        AND stock_restored_at IS NULL
+        AND payment_status NOT IN ('cancelled', 'refunded', 'failed')
           AND payment_method = ? AND payment_status = ?
           AND customer_name = ? AND customer_phone = ? AND address = ?
           AND destination_area_id = ? AND courier_code = ?

@@ -1,6 +1,6 @@
 # Mengantar Integration — Technical Contract and Gap Register
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 This document is the technical source of truth for AdsBookCMS behavior at the Mengantar boundary. It separates repository-observed transport code, locally verified application behavior, operator-gated live mutations, and provider contracts that remain unknown.
 
@@ -59,6 +59,17 @@ Status distinguishes three separate things: whether the **transport method** exi
 
 The local district index improves public search relevance; it is not a replacement for the provider identity required by rates and dispatch.
 
+**Courier catalogue.** Mengantar removed Ninja from its public API on
+2026-09-01; it is no longer in `DEFAULT_COURIER_RULES` and migration `0056`
+disables an existing Ninja rule rather than deleting it. Orders created with
+Ninja before the cutoff stay queryable. Quotes list only what the provider
+returns, so no other code path offers it.
+
+**City-average fallback (`ICO`).** When no real rate is eligible for a COD
+order, one city-average placeholder is offered and the operator assigns a real
+courier before dispatch. It is never offered to a prepaid order: the admin
+cannot reroute a paid online order, so it could never have shipped.
+
 ### `/api/locations` parameters
 
 `src/pages/api/locations.ts` reads `search`, `level`, `province`, and `city`.
@@ -99,7 +110,7 @@ Behavior:
 
 ### A. Intake
 
-- Every checkout endpoint persists the order, items, and stock transition atomically in D1.
+- Every checkout endpoint persists the order and its items atomically in D1. Stock is not read or written (ADR-023).
 - New orders use `shipping_status = pending` and remain in Order Management.
 - COD, an eligible quote, and an authenticated AutoLaris paid transition do not call Mengantar automatically.
 
@@ -111,7 +122,7 @@ Before confirmation, the operator verifies:
 - resolved destination area identity and label;
 - active warehouse and pickup data;
 - selected supported courier/service and current public price;
-- payment readiness: COD is not payment-gated, while online methods require reconciled paid state.
+- payment readiness: COD is not payment-gated unless its payment is void (`cancelled`/`refunded`/`failed` — never dispatchable), online methods require reconciled paid state, and a manual transfer requires the operator to mark it paid.
 
 An explicit Push action in Order Management is the provider boundary. Selection alone is inert. Single and bulk actions call the Order Management API; Shipping does not create provider orders.
 
@@ -205,7 +216,7 @@ not assume that Mengantar sends callbacks.
 5. `selectProviderShippingAdvance()` rejects regressions, same-rank changes, and
    any change from terminal `delivered`, `returned`, or `cancelled` state.
    Accepted advances run through `applyOrderLifecycleMutation()`, preserving the
-   shared atomic stock-restoration invariant.
+   shared exactly-once release (void) marker.
 6. One missing waybill, missing provider row, transport error, or failed
    persistence produces an independent result; it does not fabricate evidence
    or prevent sibling rows from completing.
@@ -254,7 +265,7 @@ Relevant implementation owners:
 - `src/pages/api/admin/orders/[id].ts`;
 - `src/pages/api/admin/shipping.ts` — pickup scheduling and the 90-minute rule;
 - `src/db/migrations/0040_provider_shipping_status.sql` — persisted provider observation fields;
-- `src/lib/order-lifecycle.ts` — atomic monotonic lifecycle and stock boundary;
+- `src/lib/order-lifecycle.ts` — atomic monotonic lifecycle and void/release boundary;
 - `src/components/admin/ShippingOperations.tsx` — operator polling, evidence, filters, pickup, and responsive states;
 - `src/pages/api/locations.ts`;
 - `src/pages/api/shipping-options.ts`.

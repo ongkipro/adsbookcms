@@ -81,6 +81,16 @@ export function convertImageToWebP(
       canvas.toBlob(
         (blob) => {
           if (!blob) return reject(new Error("Gagal konversi gambar ke WebP."));
+          // A browser that cannot encode WebP from a canvas hands back PNG
+          // instead of failing; labelling that `image/webp` only earned a 415
+          // from the server's signature check with no hint why.
+          if (blob.type !== "image/webp") {
+            return reject(
+              new Error(
+                "Browser ini tidak bisa mengonversi gambar ke WebP. Unggah file .webp, atau gunakan Chrome/Firefox.",
+              ),
+            );
+          }
           if (blob.size > MAX_ENCODED_BYTES) {
             return reject(new Error("Ukuran file terkompresi masih melebihi 2 MB."));
           }

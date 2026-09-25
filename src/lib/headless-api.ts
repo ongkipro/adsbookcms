@@ -28,7 +28,7 @@ export type HeadlessOperation = keyof typeof HEADLESS_OPERATIONS;
 
 export const DEFAULT_CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, X-Tenant-Slug, X-App-Key',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, X-App-Key',
   'Access-Control-Expose-Headers': 'X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-DailyQuota-Limit, X-DailyQuota-Remaining',
   'Access-Control-Max-Age': '86400',
 };

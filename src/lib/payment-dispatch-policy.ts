@@ -4,6 +4,12 @@ const PAID_STATUSES: Record<string, true> = {
   success: true,
 };
 
+const VOID_PAYMENT_STATUSES: Record<string, true> = {
+  cancelled: true,
+  refunded: true,
+  failed: true,
+};
+
 const DISPATCHABLE_SHIPPING_STATUSES: Record<string, true> = {
   pending: true,
 };
@@ -32,9 +38,12 @@ export function canDispatchOrderToMengantar(
   paymentStatus: string,
   shippingStatus: string,
 ) {
+  const status = paymentStatus.toLowerCase();
+  // A COD order is dispatchable unpaid, but not once its payment is void: a
+  // cancelled/refunded/failed payment is what the lifecycle calls released.
   const paymentEligible =
-    paymentMethod.toLowerCase() === "cod" ||
-    Boolean(PAID_STATUSES[paymentStatus.toLowerCase()]);
+    (paymentMethod.toLowerCase() === "cod" && !VOID_PAYMENT_STATUSES[status]) ||
+    Boolean(PAID_STATUSES[status]);
   return (
     paymentEligible &&
     Boolean(DISPATCHABLE_SHIPPING_STATUSES[shippingStatus.toLowerCase()])

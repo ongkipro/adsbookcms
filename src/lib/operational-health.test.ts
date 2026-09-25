@@ -327,3 +327,28 @@ test("the panel names the Google outbox and reads its counters", () => {
   // Both queues share one vocabulary rather than the second needing its own.
   assert.match(source, /signal\.id === "capi-outbox" \|\| signal\.id === "google-ads-outbox"/);
 });
+
+test("a failure older than the alert window no longer holds the alert open (A-283)", () => {
+  // Failed rows are kept 30 days. Counting every one kept the queue degraded
+  // for a month, so the next outage carried the same reason and was
+  // deduplicated into silence.
+  const old = classifyCapiOutbox(
+    { pending: 0, failed: 3, recentFailed: 0, overdue: 0, oldestCreatedAt: minutesAgo(60 * 48) },
+    NOW,
+  );
+  assert.equal(old.state, "healthy");
+  assert.equal(old.reason, "earlier-failures");
+  assert.equal(old.metrics.failed, 3, "still visible on the panel");
+
+  const fresh = classifyCapiOutbox(
+    { pending: 0, failed: 4, recentFailed: 1, overdue: 0, oldestCreatedAt: minutesAgo(60 * 48) },
+    NOW,
+  );
+  assert.equal(fresh.state, "degraded");
+  assert.equal(fresh.reason, "terminal-failures");
+
+  assert.equal(
+    classifyGoogleAdsOutbox({ pending: 0, failed: 2, recentFailed: 0, overdue: 0, oldestCreatedAt: minutesAgo(60 * 30) }, NOW).state,
+    "healthy",
+  );
+});

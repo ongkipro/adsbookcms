@@ -83,7 +83,7 @@ const productCatalog = products.map((item) => ({
     window.__PS_META_AWAIT_MATCHING__ = true;
   </script>
   <main id="thanks-shell" hidden class="min-h-screen bg-white py-4 font-sans text-[14px] text-[#111111] antialiased sm:py-8">
-    <MetaThanksTracker tenantName={Astro.locals.tenant.name} tenantSlug={Astro.locals.tenant.slug} />
+    <MetaThanksTracker tenantName={Astro.locals.tenant.name} />
     <div class="mx-auto w-full max-w-[480px] overflow-hidden rounded-none border border-[#E5E5E5] bg-white">
       <header
         class="relative z-30 flex items-center justify-center border-b border-[#E5E5E5] bg-white px-5 py-4"

@@ -14,10 +14,13 @@ import {
   parseShortcodes,
   NativeLandingReadOnlyError,
   reconcileNativeLandingPages,
+  changesHtmlSections,
+  RESERVED_LANDING_SLUGS,
   setLandingPageAsProductPage,
   updateLandingPage,
   validateLandingPageSlug,
 } from "./landing-pages.ts";
+import { readdirSync } from "node:fs";
 
 type QueryValue = null | number | string | Uint8Array;
 
@@ -89,10 +92,12 @@ class SqliteD1Database {
       CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY,
         slug TEXT NOT NULL,
-        title TEXT NOT NULL
+        title TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1
       );
       INSERT INTO products (id, slug, title) VALUES (20001, 'pupuk-organik', 'Pupuk Organik');
       INSERT INTO products (id, slug, title) VALUES (20002, 'benih-jagung', 'Benih Jagung');
+      INSERT INTO products (id, slug, title, is_active) VALUES (20003, 'produk-mati', 'Produk Mati', 0);
     `);
     for (const file of [
       "0027_landing_page_builder.sql",
@@ -469,7 +474,16 @@ test("the public listing links a claimed page to the product URL it answers on",
   // A claimed page's own slug only redirects; the public list must send the
   // visitor where the page actually answers.
   assert.equal(bySlug.get(claimed.slug)?.href, "/produk/benih-jagung");
+  assert.equal(bySlug.get(claimed.slug)?.isProductPage, true);
   assert.equal(bySlug.has(draft.slug), false);
+
+  // A page whose product is off answers 404; home and sitemap must not link it.
+  const orphan = await createLandingPage(locals, {
+    slug: "promo-produk-mati",
+    title: "Promo Mati",
+    product_id: "20003",
+  });
+  assert.equal((await listPublicLandingPages(locals)).some((page) => page.slug === orphan.slug), false);
 });
 
 /**
@@ -590,4 +604,36 @@ test("a landing page cannot point at a product this store does not carry", async
     /Produk yang dipilih tidak ditemukan/,
   );
   assert.equal((await getLandingPageById(locals, page.id))?.product_id, "20001");
+});
+
+test("a landing slug cannot shadow a route the store already serves", () => {
+  // Every top-level static route in src/pages/, so a new page cannot be added
+  // without reserving its slug: Astro would serve the static page instead.
+  const pages = new URL("../pages/", import.meta.url);
+  const segments = readdirSync(pages, { withFileTypes: true })
+    .map((entry) => entry.name.replace(/\.(astro|ts)$/, "").replace(/\.(txt|xml)$/, ""))
+    .filter((name) => !name.startsWith("[") && name !== "index");
+  for (const segment of segments) {
+    assert.ok(RESERVED_LANDING_SLUGS.has(segment), `src/pages/${segment} is not reserved`);
+    assert.equal(validateLandingPageSlug(segment).valid, false, segment);
+  }
+});
+
+test("only a change to raw HTML needs an owner, not a page that merely carries it", () => {
+  const trusted = [{ type: "html", content_html: "<p>ok</p>" }];
+  assert.equal(changesHtmlSections(undefined, trusted), false);
+  assert.equal(changesHtmlSections([{ type: "headline", content_config: null }], trusted), false);
+  assert.equal(changesHtmlSections([{ type: "html", content_html: "<p>ok</p>" }], trusted), false);
+  assert.equal(changesHtmlSections([{ type: "html", content_html: "<script>x</script>" }], trusted), true);
+  assert.equal(changesHtmlSections([{ type: "html", content_html: "<p>ok</p>" }]), true, "new page");
+});
+
+test("moving a claimed page to another product releases the claim instead of stealing a URL", async () => {
+  const { locals } = createLocals();
+  const page = await createLandingPage(locals, { slug: "promo-pindah", title: "Promo", product_id: "20001" });
+  await setLandingPageAsProductPage(locals, page.id, true);
+  const moved = await updateLandingPage(locals, page.id, { product_id: "20002" });
+  assert.equal(moved?.is_product_page, 0);
+  assert.equal(await getProductPageLanding(locals, "20001"), null);
+  assert.equal(await getProductPageLanding(locals, "20002"), null);
 });

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { canConvertToWebP, convertImageToWebP } from "../../lib/client-image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 const pretty = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
 
@@ -192,18 +193,23 @@ export function ContentWorkbench() {
         <CardContent className="space-y-4 p-5">
           <label className="grid-cols-1 grid gap-2 text-xs font-bold text-slate-700">
             Target konten
-            <select
+            <Select
+              items={Object.fromEntries((index?.targets || []).map((target) => [target.key, target.label]))}
               value={selectedKey}
-              onChange={(event) => void selectTarget(event.target.value)}
+              onValueChange={(value) => value && void selectTarget(String(value))}
               disabled={loading || saving}
-              className="admin-input-flat h-11 bg-white text-sm"
             >
-              {(index?.targets || []).map((target) => (
-                <option key={target.key} value={target.key}>
-                  {target.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger aria-label="Target konten" className="h-11 w-full bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(index?.targets || []).map((target) => (
+                  <SelectItem key={target.key} value={target.key}>
+                    {target.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <div className="flex flex-wrap gap-2 text-[11px] font-bold text-slate-500">
             <span>Versi {record?.version || 0}</span>

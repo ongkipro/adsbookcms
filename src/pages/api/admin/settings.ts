@@ -9,7 +9,7 @@ import {
   resolveEmbedAllowedOrigins,
 } from "../../../lib/embed-security.ts";
 import { parseHeadlessAllowedOrigins } from "../../../lib/headless-api.ts";
-import { LOCALE_PATTERN, THEME_COLOR_PATTERN } from "../../../lib/tenant.ts";
+import { isAcceptedSiteProtocol, LOCALE_PATTERN, THEME_COLOR_PATTERN } from "../../../lib/tenant.ts";
 import { getEnvValue, getRuntimeEnv, maskSecretValue } from "../../../lib/env.ts";
 import {
   addStorefrontTemplate,
@@ -707,7 +707,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       if (siteUrlRaw) {
         try {
           const parsed = new URL(siteUrlRaw);
-          if (parsed.protocol !== "https:") {
+          if (!isAcceptedSiteProtocol(parsed)) {
             return jsonError("Alamat toko harus memakai https.", 400);
           }
           siteUrl = parsed.origin;

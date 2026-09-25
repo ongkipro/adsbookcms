@@ -23,6 +23,26 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { AdminRole } from "../../lib/auth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+
+const ROLE_FILTER_LABELS: Record<string, string> = {
+  all: "Semua Role",
+  owner: "Owner",
+  admin: "Admin Ops",
+  advertiser: "Operator Ads",
+  customer_service: "Operator CS",
+};
+const ASSIGNABLE_ROLE_OPTIONS: Record<string, string> = {
+  admin: "Admin Ops (Akses Seluruh Operasional)",
+  advertiser: "Operator Ads (Produk, Content & Ads Signal)",
+  customer_service: "Operator CS (Order, Pengiriman & WA)",
+};
+const ASSIGNABLE_ROLE_SHORT_LABELS: Record<string, string> = {
+  admin: "Admin Ops",
+  advertiser: "Operator Ads",
+  customer_service: "Operator CS",
+};
+
 
 type AssignableRole = Exclude<AdminRole, "owner">;
 
@@ -453,17 +473,20 @@ export function AccessManager() {
                   className="h-9 rounded-xl border-slate-200 bg-slate-50/50 pl-9 text-xs"
                 />
               </div>
-              <select
+              <Select
+                items={ROLE_FILTER_LABELS}
                 value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                onValueChange={(value) => setRoleFilter(String(value ?? "all"))}
               >
-                <option value="all">Semua Role</option>
-                <option value="owner">Owner</option>
-                <option value="admin">Admin Ops</option>
-                <option value="advertiser">Operator Ads</option>
-                <option value="customer_service">Operator CS</option>
-              </select>
+                <SelectTrigger size="sm" aria-label="Filter role" className="min-w-40 bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(ROLE_FILTER_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
 
@@ -622,17 +645,22 @@ export function AccessManager() {
                 <label className="text-xs font-extrabold text-slate-900">
                   Role & Peran Akses <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <Select
+                  items={ASSIGNABLE_ROLE_OPTIONS}
                   value={form.role}
-                  onChange={(e) =>
-                    setForm({ ...form, role: e.target.value as AssignableRole })
+                  onValueChange={(value) =>
+                    value && setForm({ ...form, role: value as AssignableRole })
                   }
-                  className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-extrabold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 >
-                  <option value="admin">Admin Ops (Akses Seluruh Operasional)</option>
-                  <option value="advertiser">Operator Ads (Produk, Content & Ads Signal)</option>
-                  <option value="customer_service">Operator CS (Order, Pengiriman & WA)</option>
-                </select>
+                  <SelectTrigger aria-label="Role" className="mt-1 h-10 w-full bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ASSIGNABLE_ROLE_OPTIONS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="mt-1.5 rounded-lg bg-slate-50 p-2 text-[11px] leading-4 text-slate-600 border border-slate-100">
                   {ROLE_DESCRIPTIONS[form.role]}
                 </p>
@@ -760,20 +788,22 @@ export function AccessManager() {
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-700">Role</label>
-                <select
+                <Select
+                  items={ASSIGNABLE_ROLE_SHORT_LABELS}
                   value={editForm.role}
-                  onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      role: e.target.value as AssignableRole,
-                    })
+                  onValueChange={(value) =>
+                    value && setEditForm({ ...editForm, role: value as AssignableRole })
                   }
-                  className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-900"
                 >
-                  <option value="admin">Admin Ops</option>
-                  <option value="advertiser">Operator Ads</option>
-                  <option value="customer_service">Operator CS</option>
-                </select>
+                  <SelectTrigger aria-label="Role" className="mt-1 h-10 w-full bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ASSIGNABLE_ROLE_SHORT_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="mt-6 flex justify-end gap-2">

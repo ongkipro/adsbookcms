@@ -38,10 +38,18 @@ function databaseBeforeCourierBootstrap() {
   return database;
 }
 
-const migration = readFileSync(
+const bootstrapMigration = readFileSync(
   new URL("../db/migrations/0042_default_courier_rules.sql", import.meta.url),
   "utf8",
 );
+// 0042's own SQL still seeds Ninja — a fixed historical record of what that
+// migration actually ran — so a store's *current* policy is only complete
+// once 0056 has retired it too. Real installs apply both in sequence.
+const retireNinjaMigration = readFileSync(
+  new URL("../db/migrations/0056_retire_ninja_courier.sql", import.meta.url),
+  "utf8",
+);
+const migration = bootstrapMigration + "\n" + retireNinjaMigration;
 
 test("courier bootstrap repairs an installed store only when its policy is empty", () => {
   const database = databaseBeforeCourierBootstrap();
@@ -67,13 +75,21 @@ test("courier bootstrap repairs an installed store only when its policy is empty
       enabled: number;
       cod: number;
     }>;
+  // 0042 still seeds Ninja (its own fixed historical SQL); 0056 disables that
+  // row rather than deleting it, so an operator can see it retired instead of
+  // it silently vanishing. It is therefore present, but not in
+  // DEFAULT_COURIER_RULES, which only lists what's currently active.
   assert.deepEqual(
-    repaired,
+    repaired.filter((rule) => rule.code !== "Ninja"),
     DEFAULT_COURIER_RULES.map((rule) => ({
       code: rule.code,
       enabled: 1,
       cod: rule.cod,
     })),
+  );
+  assert.deepEqual(
+    repaired.find((rule) => rule.code === "Ninja"),
+    { code: "Ninja", enabled: 0, cod: 1 },
   );
 
   const configured = database
@@ -94,7 +110,7 @@ test("courier bootstrap repairs an installed store only when its policy is empty
     .all()
     .map((row) => ({ ...row }));
   assert.deepEqual(counts, [
-    { store_id: 1, total: DEFAULT_COURIER_RULES.length },
+    { store_id: 1, total: DEFAULT_COURIER_RULES.length + 1 },
     { store_id: 2, total: 1 },
   ]);
 });
@@ -130,14 +146,22 @@ test("the Expeditions API exposes the repaired catalogue after upgrade", async (
 
   assert.equal(response.status, 200);
   assert.equal(payload.success, true);
+  // The admin settings page lists a retired courier disabled rather than
+  // hiding it, so the operator can see Ninja is off, not just missing.
+  const expectedCouriers = [
+    ...DEFAULT_COURIER_RULES.map((rule) => ({
+      code: rule.code,
+      enabled: 1,
+      cod: rule.cod,
+    })),
+    { code: "Ninja", enabled: 0, cod: 1 },
+  ].sort((left, right) => left.code.localeCompare(right.code));
   assert.deepEqual(
     payload.data.couriers.map((courier) => ({
       code: courier.courierCode,
       enabled: courier.isEnabled,
       cod: courier.isCodEnabled,
     })),
-    [...DEFAULT_COURIER_RULES]
-      .sort((left, right) => left.code.localeCompare(right.code))
-      .map((rule) => ({ code: rule.code, enabled: 1, cod: rule.cod })),
+    expectedCouriers,
   );
 });

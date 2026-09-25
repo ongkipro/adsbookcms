@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
+import { readFileSync } from "node:fs";
+import { splitMigrationStatements } from "./schema-version.ts";
 import {
   CAPI_DRAIN_LEASE_MS,
   countRecoverableEvents,
   decideRetry,
+  deliverCapiEvent,
   drainCapiOutbox,
+  enqueueCapiEvent,
   purgeExpiredCapiOutboxEvents,
   requeueRecoverableEvents,
 } from "./capi-outbox.ts";
@@ -198,4 +202,74 @@ test("requeue recovers a destination outage, not just a dead token", async () =>
   );
   assert.equal(rows[0].last_error, null);
   assert.equal(await countRecoverableEvents(database, now), 0, "requeue does not loop");
+});
+
+/** The outbox exactly as the checked-in chain builds it: 0026, then 0057. */
+function migratedOutbox() {
+  const sqlite = new DatabaseSync(":memory:");
+  for (const name of ["0026_classy_dark_phoenix.sql", "0057_capi_outbox_event_name_key.sql"]) {
+    const sql = readFileSync(new URL(`../db/migrations/${name}`, import.meta.url), "utf8");
+    for (const statement of splitMigrationStatements(sql)) sqlite.exec(statement);
+  }
+  const database = {
+    prepare: (sql: string) => {
+      const bound: unknown[] = [];
+      const statement = {
+        bind: (...values: unknown[]) => { bound.push(...values); return statement; },
+        run: async () => ({ meta: { changes: Number(sqlite.prepare(sql).run(...bound as never[]).changes) } }),
+        first: async () => sqlite.prepare(sql).get(...bound as never[]) ?? null,
+        all: async () => ({ results: sqlite.prepare(sql).all(...bound as never[]) }),
+      };
+      return statement;
+    },
+  } as unknown as D1Database;
+  return { sqlite, database };
+}
+
+const outboxEvent = (eventName: string, eventId: string, eventTime?: number) => ({
+  eventName,
+  eventId,
+  eventSourceUrl: "https://toko.test/",
+  userData: {},
+  customData: { orderNumber: eventId },
+  eventTime,
+});
+
+test("a funnel event posted with an order number cannot swallow that order's Purchase", async () => {
+  const { database } = migratedOutbox();
+  assert.equal(await enqueueCapiEvent(database, outboxEvent("PageView", "INV-10500")), true);
+  assert.equal(
+    await enqueueCapiEvent(database, outboxEvent("Purchase", "INV-10500")),
+    true,
+    "the Purchase must still be recorded",
+  );
+  assert.equal(
+    await enqueueCapiEvent(database, outboxEvent("Purchase", "INV-10500")),
+    false,
+    "a replayed Purchase is still deduplicated",
+  );
+});
+
+test("immediate delivery and a concurrent drain transmit an event once, with its original time", async () => {
+  const { sqlite, database } = migratedOutbox();
+  await enqueueCapiEvent(database, outboxEvent("Purchase", "INV-7", 1_780_000_000));
+  const bodies: { data: { event_time: number }[] }[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    bodies.push(JSON.parse(String(init?.body)));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    return new Response(JSON.stringify({ events_received: 1 }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    await Promise.all([
+      deliverCapiEvent(database, "Purchase", "INV-7", "1234567890", "token"),
+      drainCapiOutbox(database, "1234567890", "token"),
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(bodies.length, 1, "exactly one transmission");
+  assert.equal(bodies[0].data[0].event_time, 1_780_000_000, "a retry never restamps the event as now");
+  const row = sqlite.prepare("SELECT status, attempts FROM capi_event_outbox").get() as { status: string; attempts: number };
+  assert.deepEqual({ ...row }, { status: "sent", attempts: 0 });
 });

@@ -18,6 +18,10 @@ const completeOrder = {
 
 test("only pending orders can be explicitly dispatched", () => {
   assert.equal(canDispatchOrderToMengantar("cod", "unpaid", "pending"), true);
+  // A voided COD order is released, never dispatchable again.
+  for (const voided of ["cancelled", "refunded", "failed"]) {
+    assert.equal(canDispatchOrderToMengantar("cod", voided, "pending"), false, voided);
+  }
   assert.equal(
     canDispatchOrderToMengantar("bank_transfer", "paid", "pending"),
     true,

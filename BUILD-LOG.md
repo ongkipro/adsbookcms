@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-08-29 @ `9766ad6`
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -5633,3 +5633,188 @@ their `aria-label` sweep (browser-visible, routes to the designer lane), and
 their landing pages (ADR-016). `zvarashop` and `zanobyshop` remain forks; with
 their proven behaviour upstream, bringing them forward is a merge of pages and
 config and needs its own release session.
+
+### Entry 176: A full-system audit, and what it found in the paths already called done
+
+2026-09-25, uncommitted working tree on `6e30950` (which already carried the
+2026-09-16/17 Ninja retirement, install-token limit and ten new test files).
+Five read-only lanes covered the whole tree — money path, security boundary,
+ad signal and cron, storefront and admin UI, documents against disk — and
+every finding was re-read against the code before anything changed.
+`npm test` 731 → 741, `astro check` 0/0/0, build complete, route map
+regenerated. Tasks A-270 … A-281 done, A-282 … A-286 open.
+
+**The worst finding was a role boundary, not a bug in a feature.** Legacy
+`html` landing sections render with `set:html` on the store's origin, which is
+the admin's origin, and `advertiser` could write them. A `<script>` there runs
+in the owner's session when they preview the page, and a same-origin request
+passes the CSRF check. `docs/AUDIT-2026-08-23.md` §6.4 had dismissed it because
+the *editor preview* sanitises — the public render never did. Now only owner
+and admin may introduce or change HTML; an advertiser can still edit the typed
+sections around HTML an owner wrote.
+
+**Rate limits that peek cannot brake a burst.** Login and the install token
+both peeked, then spent only on failure, so a parallel wave read one stale
+count: simulated, 500 wrong tokens against a limit of 10 were all evaluated.
+The install token now spends first; login gained two wave buckets spent up
+front and cleared by a correct password.
+
+**Money.** A COD order whose payment was cancelled could still be pushed to
+Mengantar — the dispatch predicate only asked "is it COD". Manual-transfer
+orders could never be marked paid, so they could never ship. Headless
+QRIS/VA stored an order with no payment instruction. Three routes added the
+provider's COD fee to shipping on top of the store's own COD fee — the double
+charge storefront checkout had already removed. Orders paid by the hourly
+Advice check, or already with the courier, could be hard-deleted, because only
+a *manual* reconciliation left the audit row the guard looked for. CS
+conversion skipped the COD-province policy. A prepaid buyer could check out on
+the city-average placeholder courier, which the admin cannot reroute on a paid
+order — a sale that could never ship.
+
+**Signal.** The CAPI outbox deduplicated on `event_id` alone while a
+Purchase's `event_id` is its sequential order number and `/api/meta-event`
+accepts any well-formed id for a funnel event: one PageView posted as
+`INV-<next>` silently cancelled that order's server Purchase. `0057` keys on
+`(event_name, event_id)`, as Meta does. The embed widget copies the parent's
+`_fbp` onto every iframe URL, and `_fbp` counted as a fresh click, so an embed
+reload erased a stored `gclid`. Retries restamped `event_time` as the retry
+time; immediate delivery read a row the drain could claim at the same moment.
+The Google outbox had a health signal (A-227) but no alert, and one
+account-level 403 terminated ten conversions an hour. One throwing step in the
+hourly job skipped every step after it, including payment reconciliation.
+
+**Storefront.** Home and both sitemaps called the admin listing, which runs the
+native-page reconcile — a D1 write on every crawler hit — and linked pages
+whose product was off (404). A CMS slug could shadow nothing and be shadowed by
+a static route (`/kontak`), listed everywhere and never served; the reserved
+list is now tested against `src/pages/`. The product page emitted two Product
+JSON-LD blocks. Only the first middle form on a page was wired; a second one
+submitted natively as a GET carrying the buyer's name, phone and address in
+the URL.
+
+**Multi-tenant remnants removed** at the owner's request: `X-Tenant-Slug`,
+the `PUBLIC_TENANT_SLUG` fallback ADR-002 had already ordered removed, the
+unused `tenantSlug` prop, `INSTALLATION.md` §10's one-repo-many-Workers table,
+the withdrawn fleet-updater requirements in `PRD.md` A22, and TASKS A6 (closed
+on ADR-020). `store_id` columns stay: removing them needs table rebuilds for
+no behavioural gain.
+
+**Documents.** ARCHITECTURE listed 21 tables (28) and an active stock trigger
+(inert since ADR-023); OBSERVABILITY said the cron ran every five minutes
+(hourly) and named two log labels that do not exist; RELEASE said schema 51
+(58); STOREFRONT_INTEGRATION said the default daily quota was 100,000
+(10,000) and that the checkout limiter was KV (D1). ADR-025 records two
+decisions the code already carried: the composed default home (amending
+ADR-007) and hourly Advice paid-marking (amending ADR-022).
+
+**Proven in a browser, and not.** Local dev server with headless Chrome:
+`/`, a product page, `/middle-form`, `/hybrid-form` and `/thanks` run with no
+console error, and a middle-form submit is intercepted. Not exercised: a page
+carrying two middle forms, any admin page (no local operator credential was
+used), and anything touching a live provider or a deploy.
+
+### Entry 177: An install with no terminal in it
+
+2026-09-25, same working tree. The owner asked for an install that stands on
+its own like WordPress's. Most of it already did — runtime migrations, the
+`/install` wizard, identity and provider keys in D1. What was left was the
+part before the Worker existed, and three things that forced a terminal even
+after it: six required secrets, a placeholder domain in `routes` that failed
+the first deploy, and `workers_dev: false`, which left a new Worker with no
+address to open `/install` at.
+
+Cloudflare's Deploy to Cloudflare button covers the first part — copy the
+public repository into the operator's GitHub, provision the declared bindings,
+build and deploy with Workers Builds — and the product only had to become a
+template that survives it (ADR-026). `wrangler.jsonc` got real default names,
+kept its all-zero ids for the button to replace, dropped `routes`, and turned
+`workers_dev` on (that address answers `noindex`). `secrets.required` is now
+just `INSTALL_TOKEN`; `AUTH_SECRET` is generated once into `install_secrets`
+when unset, the way WordPress writes its own salts, with the env secret still
+winning for every install that has one.
+
+The deploy preflight had to change shape rather than be bypassed. It refused
+the template's *names*, which a one-click operator may now legitimately keep;
+the real signal of a merge that overwrote an install's config was always the
+all-zero *ids*, and a missing id is worse still — Wrangler would provision a
+fresh, empty database for a live store. Under Workers Builds the stale-clone
+git checks stand down: the build is the pushed commit.
+
+After install the dashboard lists what a store still needs before it can take
+an order — product, warehouse, Mengantar key — plus two optional steps, each
+computed from D1 on render.
+
+Verified locally: build, `wrangler deploy --dry-run`, and a fresh local D1
+started with only `INSTALL_TOKEN` walked `/` → `/install` → `/hello` →
+dashboard, with a 64-character key generated into `install_secrets` and the
+checklist reporting three required steps (headless Chrome, 390 px, no overflow,
+no console error). Not verified: the button itself against a real account —
+A-292, which needs the owner.
+
+### Entry 178: A store that runs whole on one machine, and what running it found
+
+2026-09-25, same working tree. The owner asked to perfect local development
+before anything touches Cloudflare. The gap was concrete: a local Worker could
+render pages, but checkout needs a Mengantar quote, online payment needs
+AutoLaris, and dispatch needs both — so the paths that matter most could only
+be exercised against real providers.
+
+`scripts/dev-providers.ts` answers both APIs on 127.0.0.1 in their own wire
+shapes: area search over the bundled 7,285-district index, deterministic rates
+per courier, pickup addresses, shipments with waybills, `/api/h2h/submit`,
+`/advice` and a local lever to settle a transaction. `dev-providers.test.ts`
+drives the product's real `MengantarClient` and `AutoLarisClient` against it,
+so the stand-in cannot drift from the parsers. `npm run dev:local` builds,
+starts it, and runs `wrangler dev --local` with its own state, a fixed install
+token and the scheduled handler exposed. One trap on the way: with
+`secrets.required` in `wrangler.jsonc`, Wrangler loads only the declared names
+from an env file, so the provider settings go in as `--var`.
+
+The first full run in headless Chrome found six defects, none visible to the
+unit suite. The warehouse page, without a Mengantar key, pinned an origin with
+an empty Area ID and then refused to save with "choose an origin first" — and
+the new setup checklist asked for the warehouse *before* Mengantar. A buyer
+email minted on a dotless host (`localhost`) failed AutoLaris' own email rule.
+`/payment` for a failed QRIS instruction still ran a 24-hour countdown, offered
+the total to copy, called it a "Virtual Account", and printed the provider's
+reason twice. And a store address could not be `http://localhost`, so every
+absolute link in a local store pointed at a host that does not exist; plain
+http is now accepted for loopback hosts only.
+
+Also closed: outbox alerts hold only for failures in the last 24 hours (A-283);
+Google partial failures are classified by their `ConversionUploadError` code,
+checked against the v25 proto (A-284), and the Google queue finally has a
+30-day retention purge; the admin catalogue and landing-page picker load the
+newest 200 products instead of silently stopping at 50; checkout label ids are
+unique per form.
+
+Verified: 754 tests, `astro check` 0/0/0, build, and the browser run —
+install, login, warehouse, R2 upload, product, middle and full checkout (COD),
+QRIS → settle → hourly job → `paid`, dispatch of four orders (two accepted with
+waybills, one refused as unpaid, one failed for a missing courier), and a
+landing page carrying two middle forms: six distinct label ids, and the second
+form submitted through the script to `/thanks` rather than as a native GET.
+
+### Entry 179: One dropdown language in the admin, and a courier that is not there
+
+2026-09-25. The owner asked for the COD province list and every other admin
+dropdown to be tidied with shadcn/ui, date pickers excepted.
+
+The province policy was 38 checkbox tiles in six island columns, always
+visible. It is now one multi-select: chips show the current policy, typing
+filters by name or code, the list is grouped by island, and the quick actions
+(all of Java, everything outside Java, reset) stay. The Combobox, InputGroup
+and Popover sources came from the base-nova registry by hand — `shadcn add`
+tried to `npm install cn`, a registry alias rather than a package, and would
+have overwritten three customised primitives.
+
+Seven native `<select>`s in React islands became `Select`; static Astro pages
+use a `NativeSelect.astro` built on shadcn's native-select pattern, so no page
+is hydrated for a dropdown. Scanning them found one defect: the template form
+offered a "Wide" layout the server schema refuses outright.
+
+Asked to add SPX through Mengantar: Mengantar's public API does not carry SPX
+(local `mengantar-documentation`, 2026-09-25), so it is recorded as A-296 and
+not built. Verified: 754 tests, `astro check` 0/0/0, build, and headless
+Chrome on six admin pages at 1280 and 390 px.
+

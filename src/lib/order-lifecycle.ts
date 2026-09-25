@@ -107,10 +107,15 @@ export function resolveAdminOrderTransition(
     };
   }
 
+  // Only a provider-backed payment (QRIS/VA) must wait for AutoLaris. COD is
+  // collected by the courier, and a manual transfer lands in the seller's own
+  // account where the operator is the only one who can see it — refusing
+  // `paid` there left those orders cancellable and nothing else, never shipped.
   if (
     paymentChanged &&
     PAID_PAYMENT_STATUSES.has(paymentStatus) &&
-    current.payment_method !== "cod"
+    current.payment_method !== "cod" &&
+    current.payment_method !== "manual_transfer"
   ) {
     throw new OrderLifecycleError(
       "Pembayaran online hanya boleh ditandai paid oleh rekonsiliasi AutoLaris.",
@@ -238,7 +243,7 @@ export async function applyOrderLifecycleMutation(
   return {
     updated: Boolean(results[0]?.meta?.changes),
     stockRestored:
-      transition.releasesStock && Boolean(results[2]?.meta?.changes),
+      transition.releasesStock && Boolean(results[1]?.meta?.changes),
   };
 }
 
@@ -332,6 +337,25 @@ export async function deleteOrdersReleasingReservations(
   if (auditedPayment) {
     throw new OrderLifecycleError(
       "Order dengan pembayaran terverifikasi tidak dapat dihapus. Gunakan alur refund dan pertahankan catatan order.",
+    );
+  }
+  // The audit row only exists for a *manual* reconciliation. An order the
+  // hourly AutoLaris check marked paid, or one already handed to Mengantar,
+  // carries money or a live shipment just the same and was deletable.
+  const committed = await database
+    .prepare(
+      `${cte}
+      SELECT o.order_number
+      FROM orders o
+      WHERE o.id IN (SELECT order_id FROM selected)
+        AND (o.payment_status IN ('paid', 'settled', 'success') OR o.provider_order_id IS NOT NULL)
+      LIMIT 1`,
+    )
+    .bind(...orderIds)
+    .first<{ order_number: string }>();
+  if (committed) {
+    throw new OrderLifecycleError(
+      `Order ${committed.order_number} sudah dibayar atau sudah dikirim ke kurir, sehingga tidak dapat dihapus. Batalkan atau refund dan pertahankan catatannya.`,
     );
   }
   const statements = [

@@ -2,13 +2,26 @@ import type { APIRoute } from "astro";
 
 import { getEnvValue, getRuntimeEnv } from "../../lib/env.ts";
 import { secureEqual } from "../../lib/auth.ts";
+import { resolveAuthSecret } from "../../lib/auth-secret.ts";
 import { planInstall, runInstall } from "../../lib/install.ts";
 import { readStoreIdentity } from "../../lib/tenant.ts";
+import {
+  checkRateLimit,
+  getClientIp,
+  rateLimitHeaders,
+} from "../../lib/rate-limit.ts";
+
+/** A-216: 16+ char tokens make guessing impractical, not impossible. */
+const INSTALL_TOKEN_WINDOW_MS = 15 * 60 * 1000;
+const INSTALL_TOKEN_LIMIT = 10;
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
+function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...JSON_HEADERS, ...extraHeaders },
+  });
 }
 
 /**
@@ -33,18 +46,17 @@ export const POST: APIRoute = async ({ request, locals }) => {
   }
 
   // Checked before anything is written, because the alternative is an operator
-  // who completes the wizard and is then locked out of their own store: the
-  // login route needs AUTH_SECRET at 32 characters or more to sign a session,
-  // and returns 503 without it. Refusing here costs a retry; refusing after the
-  // write costs an install nobody can enter.
-  const authSecret = getEnvValue("AUTH_SECRET", getRuntimeEnv(locals));
+  // who completes the wizard and is then locked out of their own store. With
+  // no AUTH_SECRET secret the Worker generates its own signing key in D1
+  // (ADR-026); this only fails when that table cannot be written either.
+  const authSecret = await resolveAuthSecret(getRuntimeEnv(locals), database);
   if (authSecret.length < 32) {
     console.error("install-missing-auth-secret");
     return json(
       {
         success: false,
         error:
-          "AUTH_SECRET belum diatur di Worker ini (minimal 32 karakter). Jalankan `npx wrangler secret put AUTH_SECRET`, lalu muat ulang halaman ini. Tanpa itu, instalasi berhasil tetapi Anda tidak akan bisa login.",
+          "Kunci sesi admin tidak dapat dibuat. Periksa bahwa migrasi database sudah berjalan, lalu muat ulang halaman ini.",
       },
       503,
     );
@@ -84,6 +96,26 @@ export const POST: APIRoute = async ({ request, locals }) => {
       503,
     );
   }
+
+  const clientIp = getClientIp(request.headers);
+  // Spent up front by every attempt, not only a wrong one: a peek-then-spend
+  // let a parallel wave of guesses all read the same count and pass. A correct
+  // token closes the installer for good, so it has no attempts left to protect.
+  const tokenRateLimit = await checkRateLimit(
+    database,
+    `install-token:${clientIp}`,
+    INSTALL_TOKEN_LIMIT,
+    INSTALL_TOKEN_WINDOW_MS,
+    true,
+  );
+  if (!tokenRateLimit.allowed) {
+    return json(
+      { success: false, error: "Terlalu banyak percobaan token. Coba lagi nanti." },
+      429,
+      rateLimitHeaders(tokenRateLimit.remaining, tokenRateLimit.resetAt),
+    );
+  }
+
   const providedInstallToken =
     typeof body.install_token === "string" ? body.install_token : "";
   if (!(await secureEqual(providedInstallToken, installToken))) {

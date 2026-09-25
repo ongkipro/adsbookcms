@@ -4,7 +4,11 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
   buildGoogleClickConversion,
+  classifyGooglePartialFailure,
   decideGoogleRetry,
+  drainGoogleAdsConversionOutbox,
+  purgeExpiredGoogleAdsConversions,
+  readConversionUploadErrorCodes,
   readGoogleAdsOfflineConfig,
   reconcileGoogleAdsConversions,
   uploadGoogleClickConversion,
@@ -219,4 +223,132 @@ test("reconciliation advances past orders that carry no Google click", async () 
     await reconcileGoogleAdsConversions(database, CONFIG, new Date("2026-08-27T01:00:00.000Z")),
     0,
   );
+});
+
+test("an account-level 401/403 leaves the whole batch pending instead of terminating it", async (context) => {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec("CREATE TABLE orders (id INTEGER PRIMARY KEY);");
+  sqlite.exec(
+    readFileSync(
+      new URL("../db/migrations/0048_google_ads_conversion_outbox.sql", import.meta.url),
+      "utf8",
+    ).replaceAll("--> statement-breakpoint", ""),
+  );
+  for (const id of [1, 2, 3]) {
+    sqlite.exec(`INSERT INTO orders VALUES (${id})`);
+    sqlite
+      .prepare(
+        `INSERT INTO google_ads_conversion_outbox
+           (order_id, order_number, qualification, payload, next_retry_at, created_at, updated_at)
+         VALUES (?, ?, 'cod_delivered', '{}', '2026-01-01T00:00:00.000Z', 't', 't')`,
+      )
+      .run(id, `INV-${id}`);
+  }
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let uploads = 0;
+  globalThis.fetch = (async (url: unknown) => {
+    if (String(url).includes("oauth2")) return Response.json({ access_token: "token" });
+    uploads += 1;
+    return Response.json({ error: { message: "DEVELOPER_TOKEN_NOT_APPROVED" } }, { status: 403 });
+  }) as typeof fetch;
+
+  const database = { prepare: (sql: string) => new ReconcileStatement(sqlite, sql) } as unknown as D1Database;
+  assert.equal(await drainGoogleAdsConversionOutbox(database, CONFIG), 0);
+  assert.equal(uploads, 1, "the batch stops at the first account-level refusal");
+  const rows = sqlite.prepare("SELECT status, attempts FROM google_ads_conversion_outbox").all() as {
+    status: string;
+    attempts: number;
+  }[];
+  assert.deepEqual(rows.map((row) => `${row.status}:${row.attempts}`), ["pending:0", "pending:0", "pending:0"]);
+});
+
+test("a partial failure is read by its ConversionUploadError code, not retried blindly (A-284)", () => {
+  // REST shape of a partialFailureError for one conversion.
+  const partialFailure = {
+    code: 3,
+    message: "The click conversion already exists.",
+    details: [{
+      "@type": "type.googleapis.com/google.ads.googleads.v25.errors.GoogleAdsFailure",
+      errors: [{ errorCode: { conversionUploadError: "CLICK_CONVERSION_ALREADY_EXISTS" }, message: "…" }],
+    }],
+  };
+  assert.deepEqual(readConversionUploadErrorCodes(partialFailure), ["CLICK_CONVERSION_ALREADY_EXISTS"]);
+  assert.equal(classifyGooglePartialFailure(["CLICK_CONVERSION_ALREADY_EXISTS"]), "sent");
+  assert.equal(classifyGooglePartialFailure(["ORDER_ID_ALREADY_IN_USE"]), "sent");
+  assert.equal(classifyGooglePartialFailure(["TOO_RECENT_EVENT"]), "retry-later");
+  assert.equal(classifyGooglePartialFailure(["EXPIRED_EVENT"]), "terminal");
+  assert.equal(classifyGooglePartialFailure([]), "terminal", "an unreadable partial failure is not a success");
+});
+
+test("the drain settles an already-recorded conversion and terminates a permanent refusal", async (context) => {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec("CREATE TABLE orders (id INTEGER PRIMARY KEY);");
+  sqlite.exec(
+    readFileSync(
+      new URL("../db/migrations/0048_google_ads_conversion_outbox.sql", import.meta.url),
+      "utf8",
+    ).replaceAll("--> statement-breakpoint", ""),
+  );
+  for (const id of [1, 2, 3]) {
+    sqlite.exec(`INSERT INTO orders VALUES (${id})`);
+    sqlite
+      .prepare(
+        `INSERT INTO google_ads_conversion_outbox
+           (order_id, order_number, qualification, payload, next_retry_at, created_at, updated_at)
+         VALUES (?, ?, 'cod_delivered', '{}', '2026-01-01T00:00:00.000Z', 't', 't')`,
+      )
+      .run(id, `INV-${id}`);
+  }
+  const codes = ["CLICK_CONVERSION_ALREADY_EXISTS", "EXPIRED_EVENT", "TOO_RECENT_EVENT"];
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = (async (url: unknown) => {
+    if (String(url).includes("oauth2")) return Response.json({ access_token: "token" });
+    const code = codes.shift();
+    return Response.json({
+      partialFailureError: { message: code, details: [{ errors: [{ errorCode: { conversionUploadError: code } }] }] },
+    });
+  }) as typeof fetch;
+
+  const database = { prepare: (sql: string) => new ReconcileStatement(sqlite, sql) } as unknown as D1Database;
+  assert.equal(await drainGoogleAdsConversionOutbox(database, CONFIG), 1);
+  const rows = sqlite.prepare("SELECT order_number, status, attempts FROM google_ads_conversion_outbox ORDER BY id").all() as {
+    order_number: string; status: string; attempts: number;
+  }[];
+  assert.deepEqual(rows.map((row) => `${row.order_number}:${row.status}`), ["INV-1:sent", "INV-2:failed", "INV-3:pending"]);
+});
+
+test("settled Google rows are purged after 30 days; pending ones never are", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec("CREATE TABLE orders (id INTEGER PRIMARY KEY);");
+  sqlite.exec(
+    readFileSync(new URL("../db/migrations/0048_google_ads_conversion_outbox.sql", import.meta.url), "utf8")
+      .replaceAll("--> statement-breakpoint", ""),
+  );
+  const rows: [number, string, string][] = [
+    [1, "sent", "2026-07-01T00:00:00.000Z"],
+    [2, "failed", "2026-07-01T00:00:00.000Z"],
+    [3, "pending", "2026-07-01T00:00:00.000Z"],
+    [4, "sent", "2026-09-20T00:00:00.000Z"],
+  ];
+  for (const [id, status, updated] of rows) {
+    sqlite.exec(`INSERT INTO orders VALUES (${id})`);
+    sqlite
+      .prepare(
+        `INSERT INTO google_ads_conversion_outbox
+           (order_id, order_number, qualification, payload, status, next_retry_at, created_at, updated_at)
+         VALUES (?, ?, 'cod_delivered', '{}', ?, 't', 't', ?)`,
+      )
+      .run(id, `INV-${id}`, status, updated);
+  }
+  const database = { prepare: (sql: string) => new ReconcileStatement(sqlite, sql) } as unknown as D1Database;
+  assert.equal(await purgeExpiredGoogleAdsConversions(database, new Date("2026-09-25T00:00:00.000Z")), 2);
+  const left = (sqlite.prepare("SELECT order_number FROM google_ads_conversion_outbox ORDER BY id").all() as { order_number: string }[])
+    .map((row) => row.order_number);
+  assert.deepEqual(left, ["INV-3", "INV-4"]);
 });

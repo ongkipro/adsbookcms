@@ -2,6 +2,7 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
 export const prerender = false;
+import NativeSelect from '../../../components/ui/NativeSelect.astro';
 ---
 
 <AdminLayout title="Store & Customer Service" activeMenu="settings">
@@ -48,9 +49,9 @@ export const prerender = false;
         </label>
         <label class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Tampilan storefront</span>
-          <select id="storeTemplate" class="admin-input-flat h-11 text-base md:text-sm">
+          <NativeSelect id="storeTemplate" class="h-11 text-base md:text-sm">
             <option value="compact-market">Compact Market</option>
-          </select>
+          </NativeSelect>
           <span class="mt-1.5 block text-[11px] text-slate-500">Berlaku langsung tanpa build ulang.</span>
         </label>
         <label class="block">
@@ -104,10 +105,9 @@ export const prerender = false;
           </label>
           <label class="block">
             <span class="mb-1.5 block text-xs font-black text-slate-700">Layout</span>
-            <select id="templateDefinitionLayout" class="admin-input-flat h-11 text-base md:text-sm">
+            <NativeSelect id="templateDefinitionLayout" class="h-11 text-base md:text-sm">
               <option value="compact">Compact</option>
-              <option value="wide">Wide</option>
-            </select>
+            </NativeSelect>
           </label>
           <fieldset class="block">
             <legend class="mb-1.5 text-xs font-black text-slate-700">Bagian halaman</legend>
@@ -307,13 +307,6 @@ export const prerender = false;
         show(error instanceof Error ? error.message : 'Gagal menyimpan profil store.', 'error');
       } finally {
         setPending(false);
-      }
-    });
-    templateDefinitionLayout?.addEventListener('change', () => {
-      const wide = templateDefinitionLayout.value === 'wide';
-      if (templateSectionProofs) {
-        templateSectionProofs.disabled = wide;
-        if (wide) templateSectionProofs.checked = false;
       }
     });
 

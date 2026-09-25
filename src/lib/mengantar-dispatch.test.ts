@@ -90,7 +90,8 @@ class DispatchDatabase {
         provider_dispatch_error TEXT,
         provider_dispatch_claimed_at TEXT,
         provider_dispatched_at TEXT,
-        confirmed_at TEXT
+        confirmed_at TEXT,
+        stock_restored_at TEXT
       );
       CREATE TABLE order_items (
         id INTEGER PRIMARY KEY,
@@ -116,7 +117,7 @@ class DispatchDatabase {
         1, 'INV-TEST-1', 1, 'Siti Rahayu', '6281234567890',
         'Jl. Melati 10, Surabaya', 'destination-1', 'JNE',
         'cod', 'unpaid', 'pending', 168000,
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
       );
       INSERT INTO order_items VALUES (1, 1, 1, 1, 150000);
     `);

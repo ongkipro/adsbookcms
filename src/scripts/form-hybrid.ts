@@ -271,10 +271,10 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
   >();
 
   const phoneInput = formRoot.querySelector(
-    "#hybrid-phone",
+    '[data-field="hybrid-phone"]',
   ) as HTMLInputElement | null;
   const districtInput = formRoot.querySelector(
-    "#district-search",
+    '[data-field="district-search"]',
   ) as HTMLInputElement | null;
   const districtList = formRoot.querySelector(
     "#district-list",
@@ -325,7 +325,7 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
   ) as HTMLButtonElement | null;
   const submitButtonLabel = submitButton?.querySelector(".submit-main-label");
   const customerNameInput = formRoot.querySelector(
-    "#customer-name",
+    '[data-field="customer-name"]',
   ) as HTMLInputElement | null;
   const addressInput = formRoot.querySelector<HTMLTextAreaElement>(
     'textarea[name="address"]',
@@ -636,9 +636,16 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
 
   const timerKey = `promo_end_${config.productSlug}_hybrid`;
   const now = Date.now();
-  const stored = Number(localStorage.getItem(timerKey) || 0);
+  // A storage that throws (blocked site data) must not take the order form
+  // down with a promo countdown; it just restarts per visit.
+  let stored = 0;
+  try {
+    stored = Number(localStorage.getItem(timerKey) || 0);
+  } catch {}
   const end = stored > now ? stored : now + 30 * 60 * 1000;
-  localStorage.setItem(timerKey, String(end));
+  try {
+    localStorage.setItem(timerKey, String(end));
+  } catch {}
 
   const getSelectedVariant = () =>
     form.querySelector<HTMLInputElement>('input[name="variant"]:checked');

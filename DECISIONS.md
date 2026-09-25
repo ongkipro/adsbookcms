@@ -1,6 +1,6 @@
 # Architecture Decision Record — AdsBookCMS
 
-> Verified against disk: 2026-08-27 @ `679f577` + stock-unlimited working tree
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 Append-only. One decision per entry. A decision is recorded here only when it constrains future work; implementation detail belongs in `ARCHITECTURE.md`, remaining work in `UNIMPLEMENTED_SPECS.md`.
 
@@ -802,3 +802,84 @@ numbering* — the collision is then permanent, and every future merge is a
 manual reconciliation. *Squashing the install migrations into one* — the four
 land in different releases and one of them (`notification_floor`) exists in
 only one store.
+
+## ADR-025 — Two amendments recorded after the 2026-09-25 audit
+
+**Date:** 2026-09-25 · **Status:** Accepted. Records decisions the code already
+carries; nothing here changes behaviour.
+
+**ADR-007, amended by `7d2462d` (2026-08-21).** A fresh install no longer shows
+a setup card. `getTenantHomeContent` composes a default home from the store's
+**own** identity, catalogue and public landing pages when nothing is published.
+What ADR-007 protects still holds: no *compiled* or *other-merchant* copy ever
+renders. The default copy names only this store and makes no product-specific
+claim; it is composed at request time from `stores` and the catalogue.
+
+**ADR-022, amended by `c7faf38`.** Callbacks remain evidence only. But manual
+reconciliation is no longer the *only* path to `paid`: the hourly job asks
+AutoLaris' Advice endpoint (`reconcileAutoLarisPaymentStatuses`) and marks a
+transaction paid only when the response carries `rc:"00"` **and** a settlement
+word on the allowlist in `autolaris-client.ts`. That is a pull the product
+initiates against the provider's own answer, not a pushed callback, so ADR-022's
+threat model (a forged callback marking an order paid) is unchanged.
+
+## ADR-026 — One-click install: the Deploy button, one required secret, a self-generated session key
+
+**Date:** 2026-09-25 · **Status:** Accepted, not yet observed against a real
+account. Migration `0058`.
+
+**Context.** The owner asked for an install that stands on its own like
+WordPress's: upload, open the address, answer a few questions, done. Everything
+after the Cloudflare resources existed was already there — runtime migrations,
+the `/install` wizard, identity in D1, provider keys from `/admin`
+(INSTALLATION §11). What remained was a terminal: create D1, KV and R2, paste
+their ids, set six required secrets (two of them a random string the operator
+had to invent), attach a domain before the first deploy would succeed.
+
+**Decision.**
+
+1. The README carries a **Deploy to Cloudflare** button. Cloudflare copies the
+   public repository into the operator's own GitHub account, provisions the
+   bindings `wrangler.jsonc` declares, writes their ids into that copy, and
+   builds and deploys it with Workers Builds (Cloudflare's documented flow).
+   The product repository still holds no credentials and runs no deploy: the
+   button deploys the operator's copy into the operator's account (ADR-012
+   stands).
+2. `wrangler.jsonc` becomes a **deployable template**: real default names
+   (`adsbookcms`, `adsbookcms-d1`, `adsbookcms-assets`), all-zero ids for the
+   button to replace, no `routes` (a domain is attached in the dashboard, which
+   Wrangler then leaves alone), and `workers_dev: true` so a new store has an
+   address to open `/install` at. That address answers `X-Robots-Tag: noindex`.
+3. **One required secret, `INSTALL_TOKEN`** — the guard on a public, unclaimed
+   `/install`. It is the only prompt (`.dev.vars.example`, deliberately empty
+   so no published value can become a shared key).
+4. **`AUTH_SECRET` becomes optional.** Without it the Worker generates 256
+   random bits once into `install_secrets` (`resolveAuthSecret`), the way
+   WordPress writes its own salts. An env secret of 32+ characters still wins,
+   so every existing install keeps its sessions.
+5. The deploy preflight refuses **ids**, not names: an all-zero or missing D1/KV
+   id is what a merge from the product looks like inside an install, and a
+   missing id would make Wrangler provision a fresh, empty database. Under
+   Workers Builds (`WORKERS_CI=1`) the stale-clone git checks stand down — the
+   build is the pushed commit by construction.
+6. After `/install`, the dashboard shows **Siapkan toko**: first product,
+   warehouse, Mengantar key (required), non-COD payment and own domain
+   (optional), each derived live from D1.
+
+**Consequences.** A key in D1 is readable by anything that can read D1; so is
+every order and credential it protects, so this widens nothing. Rotating it is
+setting `AUTH_SECRET` (every operator signs in once more). Installs created the
+old way are unaffected: their own `wrangler.jsonc` is theirs
+(`.gitattributes`), and they already set `AUTH_SECRET`.
+
+**Unverified.** Whether the button writes the provisioned ids into the copy
+before running the deploy command, and whether its setup page honours
+`.dev.vars.example` over the tracked `.env.example`, are Cloudflare behaviour
+not yet observed from this repository. Both failure modes are loud (a refused
+or failed first deploy), not silent.
+
+**Rejected.** *Omitting the ids and relying on Wrangler's automatic
+provisioning* — the button documentation asks for default ids, and in an
+install the same omission would silently point a live store at a new empty
+database. *Generating `INSTALL_TOKEN` too* — nothing but the operator can hold
+a secret that exists before the operator does.

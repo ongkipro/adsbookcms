@@ -496,12 +496,19 @@ export const PATCH: APIRoute = async ({ locals, request }) => {
         db,
         current,
         { shippingStatus: nextStatus },
+        // Bound to the status the transition was validated against, so a
+        // provider sync landing in between cannot be silently overwritten.
         db
-          .prepare("UPDATE orders SET shipping_status = ? WHERE id = ?")
-          .bind(nextStatus, orderId),
+          .prepare(
+            "UPDATE orders SET shipping_status = ? WHERE id = ? AND shipping_status = ?",
+          )
+          .bind(nextStatus, orderId, current.shipping_status),
       );
       if (!result.updated) {
-        return jsonError("Order tidak ditemukan.", 404);
+        return jsonError(
+          "Status order berubah saat diproses. Muat ulang lalu coba lagi.",
+          409,
+        );
       }
       return jsonOk({ message: "Status pengiriman diperbarui." });
     }

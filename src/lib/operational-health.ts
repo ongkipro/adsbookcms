@@ -137,7 +137,10 @@ export function classifyCapiOutbox(
   // recoverable and nothing is moving them.
   const oldestAge = oldest ? now - Date.parse(oldest) : 0;
   const stalled = depth.overdue > 0 && oldestAge > CAPI_MAX_BACKOFF_MS;
-  if (depth.failed > 0) {
+  // Only failures inside the alert window degrade the queue (A-283). Older
+  // ones stay visible in the metrics but no longer hold the alert open.
+  const alertingFailures = depth.recentFailed ?? depth.failed;
+  if (alertingFailures > 0) {
     return signal(
       "capi-outbox",
       "degraded",
@@ -149,6 +152,9 @@ export function classifyCapiOutbox(
   }
   if (stalled) {
     return signal("capi-outbox", "degraded", "stalled", oldest, now, metrics);
+  }
+  if (depth.pending === 0) {
+    return signal("capi-outbox", "healthy", "earlier-failures", oldest, now, metrics);
   }
   return signal("capi-outbox", "healthy", "draining", oldest, now, metrics);
 }
@@ -180,7 +186,10 @@ export function classifyGoogleAdsOutbox(
   }
   const oldestAge = oldest ? now - Date.parse(oldest) : 0;
   const stalled = depth.overdue > 0 && oldestAge > GOOGLE_ADS_MAX_BACKOFF_MS;
-  if (depth.failed > 0) {
+  // Only failures inside the alert window degrade the queue (A-283). Older
+  // ones stay visible in the metrics but no longer hold the alert open.
+  const alertingFailures = depth.recentFailed ?? depth.failed;
+  if (alertingFailures > 0) {
     return signal(
       "google-ads-outbox",
       "degraded",
@@ -192,6 +201,9 @@ export function classifyGoogleAdsOutbox(
   }
   if (stalled) {
     return signal("google-ads-outbox", "degraded", "stalled", oldest, now, metrics);
+  }
+  if (depth.pending === 0) {
+    return signal("google-ads-outbox", "healthy", "earlier-failures", oldest, now, metrics);
   }
   return signal("google-ads-outbox", "healthy", "draining", oldest, now, metrics);
 }

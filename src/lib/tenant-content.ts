@@ -3,7 +3,7 @@ import {
   loadPublishedHomeContent,
   type HomeContent,
 } from "./storefront-content.ts";
-import { listLandingPages } from "./landing-pages.ts";
+import { listPublicLandingPages } from "./landing-pages.ts";
 
 export type TenantHomeContent = HomeContent;
 
@@ -77,13 +77,15 @@ export async function getTenantHomeContent(
   }
 
   try {
-    const cmsSolutions = (await listLandingPages(locals))
-      .filter((page) => !page.id.startsWith("static:") && Boolean(page.is_active))
+    // Read-only public listing: the home page must not write to D1, must not
+    // link a page whose product is off, and links a claimed page by the
+    // product URL it answers on rather than a 308.
+    const cmsSolutions = (await listPublicLandingPages(locals))
       .map((page) => ({
         title: page.title,
-        excerpt: page.meta_description || `Informasi ${page.title}`,
+        excerpt: page.excerpt || `Informasi ${page.title}`,
         image: "/images/adsbook-mark.webp",
-        href: `/${page.slug}`,
+        href: page.href,
         crop: "CMS Landing Page",
       }));
 

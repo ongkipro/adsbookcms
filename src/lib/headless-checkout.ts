@@ -87,7 +87,10 @@ export async function resolveTrustedHeadlessShipping(
 
   return {
     destinationId,
-    shippingCost: rate.price + (data.payment_method === 'cod' ? Number(rate.cod_fee || 0) : 0),
+    // Provider `cod_fee` is not added: `persistOrder` adds the store's own COD
+    // service fee (see the COD fee note in `shipping-quote.ts`), exactly as
+    // storefront checkout does, so folding it in here charged it twice.
+    shippingCost: rate.price,
     courierCode: rate.courier_code,
     courierService: rate.courier_service,
     warehouseId: quote.warehouse?.id ? Number(quote.warehouse.id) : undefined,

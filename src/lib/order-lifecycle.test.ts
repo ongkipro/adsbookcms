@@ -104,6 +104,17 @@ class FakeStatement {
 
   async first<T>() {
     if (this.sql.includes("FROM payment_reconciliation_audits")) return null;
+    if (this.sql.includes("o.provider_order_id IS NOT NULL")) {
+      const committed = this.args
+        .map((id) => this.database.state.orders.get(Number(id)))
+        .find(
+          (order) =>
+            order &&
+            (["paid", "settled", "success"].includes(order.payment_status) ||
+              Boolean(order.provider_order_id)),
+        );
+      return (committed ? { order_number: committed.order_number } : null) as T;
+    }
     const numericArgs = this.args
       .map(Number)
       .filter((value) => Number.isInteger(value) && value > 0);
@@ -508,6 +519,14 @@ test("canonical policy preserves dispatch, payment, waybill, and stock guards", 
       /rekonsiliasi AutoLaris/,
     );
   }
+  // A manual transfer lands in the seller's own account; only the operator can
+  // confirm it, so the lifecycle must let them — otherwise it can never ship.
+  assert.equal(
+    resolveAdminOrderTransition(order(5, "pending", { payment_method: "manual_transfer" }), {
+      paymentStatus: "paid",
+    }).paymentStatus,
+    "paid",
+  );
 
   for (const terminalStatus of ["cancelled", "returned"] as const) {
     assert.throws(
@@ -979,4 +998,24 @@ test("lifecycle errors retain route-safe status codes", async () => {
     (error: unknown) =>
       error instanceof OrderLifecycleError && error.status === 400,
   );
+});
+
+test("an order paid by the provider check or already with the courier cannot be deleted", async () => {
+  const database = new SqliteD1Database();
+  database.exec(`
+    INSERT INTO orders (
+      id, order_number, payment_method, payment_status, shipping_status, provider_order_id
+    ) VALUES
+      (91, 'INV-10091', 'qris', 'paid', 'pending', NULL),
+      (92, 'INV-10092', 'cod', 'unpaid', 'processing', 'MGN-92'),
+      (93, 'INV-10093', 'cod', 'unpaid', 'pending', NULL);
+  `);
+  for (const ids of [[91], [92], [93, 92]]) {
+    await assert.rejects(
+      deleteOrdersReleasingReservations(database as unknown as D1Database, ids),
+      (error: unknown) => error instanceof OrderLifecycleError && error.status === 409,
+    );
+  }
+  const deleted = await deleteOrdersReleasingReservations(database as unknown as D1Database, [93]);
+  assert.deepEqual(deleted.map((row) => row.order_number), ["INV-10093"]);
 });

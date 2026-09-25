@@ -5,11 +5,11 @@
 > **The public palette is neutral plus one overridable accent (ADR-019, as
 > amended 2026-08-23).** Colour tokens below that describe the retired gold
 > accent are historical; `design-tokens.md` at the repository root is the
-> current source for the neutrals, and the eight `--sf-*` custom properties in
+> current source for the neutrals, and the nine `--sf-*` custom properties in
 > `src/styles/form-hybrid.css` are the re-brand contract in full — four accent
-> tokens including the focus ring, plus the field, its border, the alternate
-> surface and the separator hairline. An install overrides those five declarations; it does not fork the
-> stylesheet.
+> tokens including the focus ring, plus the field, its border, its empty state,
+> the alternate surface and the separator hairline. An install overrides those
+> declarations; it does not fork the stylesheet.
 
 This document describes the presentation layer **as it ships**, extracted from the code rather than from intent. Concrete values carry a file reference, and a line number where that line number is stable. Section 1.4 dropped its line numbers after they drifted through a refactor and left the document wrong about its own subject. Anything that could not be verified against the tree was left out — see `DECISIONS.md` ADR-010.
 

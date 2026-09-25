@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
 import { getStorefrontProducts } from "../lib/catalog";
-import { listLandingPages } from "../lib/landing-pages";
+import { listPublicLandingPages } from "../lib/landing-pages";
 
 export const prerender = false;
 
@@ -13,15 +13,15 @@ export const prerender = false;
  * deactivated in admin — a build-time file would go stale the same day.
  */
 
+// `/kebijakan-cookie` and `/disclaimer` render `noindex`; submitting them here
+// only earns "Submitted URL marked noindex" in Search Console.
 const STATIC_PATHS = [
   { path: "/", priority: "1.0", changefreq: "daily" },
   { path: "/produk", priority: "0.9", changefreq: "daily" },
   { path: "/kontak", priority: "0.5", changefreq: "monthly" },
   { path: "/pengiriman", priority: "0.4", changefreq: "monthly" },
   { path: "/kebijakan-privasi", priority: "0.3", changefreq: "yearly" },
-  { path: "/kebijakan-cookie", priority: "0.3", changefreq: "yearly" },
   { path: "/syarat-ketentuan", priority: "0.3", changefreq: "yearly" },
-  { path: "/disclaimer", priority: "0.3", changefreq: "yearly" },
 ];
 
 function escapeXml(value: string) {
@@ -55,13 +55,15 @@ export const GET: APIRoute = async ({ locals }) => {
 
   let landingEntries: DynamicEntry[] = [];
   try {
-    const pages = await listLandingPages(locals);
+    // The read-only public listing: a sitemap hit (every crawler, hourly) must
+    // not run the native-page reconcile writes `listLandingPages` performs.
+    const pages = await listPublicLandingPages(locals);
     landingEntries = pages
       // A page that has taken over its product's page answers `308` on its own
       // slug, and the product URL is already listed above. Advertising the
       // redirecting address here would hand Google exactly the duplicate pair
       // the takeover exists to prevent.
-      .filter((p) => p.is_active && !p.is_product_page)
+      .filter((p) => !p.isProductPage)
       .map((p) => ({
         path: `/${p.slug}`,
       }));

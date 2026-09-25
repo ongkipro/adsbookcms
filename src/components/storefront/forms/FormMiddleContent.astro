@@ -18,7 +18,7 @@ interface Props {
 }
 
 const {
-  productSlug = 'asahan-portable',
+  productSlug = '',
   province = '',
   selectedVariantId,
   embedded = false,
@@ -37,6 +37,9 @@ const codDisabledProvinceCodes =
 const instanceId = `middle-${product.slug}-${embedded ? 'embedded' : 'standalone'}`;
 const RootTag = embedded ? 'section' : 'main';
 const formId = embedded ? `${instanceId}-form` : 'middle-form';
+// Unique per render: two forms on one landing page used to share these ids, so
+// a label in the second form focused the first form's field.
+const fieldUid = crypto.randomUUID().slice(0, 8);
 ---
 
 <RootTag class="bg-white" data-middle-form-root data-instance-id={instanceId}>
@@ -103,18 +106,18 @@ const formId = embedded ? `${instanceId}-form` : 'middle-form';
           <div class="field-grid address-field-grid">
             <div class="form-field form-field-full">
               <input
-                id="customer-name"
+                id={`customer-name-${fieldUid}`} data-field="customer-name"
                 name="customer_name"
                 required
                 inputmode="text"
                 autocomplete="name"
                 placeholder=" "
               />
-              <label for="customer-name">Nama lengkap</label>
+              <label for={`customer-name-${fieldUid}`}>Nama lengkap</label>
             </div>
             <div class="form-field form-field-full">
               <input
-                id="middle-phone"
+                id={`middle-phone-${fieldUid}`} data-field="middle-phone"
                 name="customer_phone"
                 required
                 type="tel"
@@ -122,11 +125,11 @@ const formId = embedded ? `${instanceId}-form` : 'middle-form';
                 autocomplete="tel"
                 placeholder=" "
               />
-              <label for="middle-phone">Nomor WhatsApp</label>
+              <label for={`middle-phone-${fieldUid}`}>Nomor WhatsApp</label>
             </div>
             <div class="form-field form-field-full">
-              <textarea id="middle-address" name="address" rows="2" required placeholder=" "></textarea>
-              <label for="middle-address">Alamat lengkap &amp; patokan</label>
+              <textarea id={`middle-address-${fieldUid}`} data-field="middle-address" name="address" rows="2" required placeholder=" "></textarea>
+              <label for={`middle-address-${fieldUid}`}>Alamat lengkap &amp; patokan</label>
             </div>
           </div>
         </section>

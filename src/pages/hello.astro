@@ -17,9 +17,11 @@ import {
   verifyPasswordHash,
 } from '../lib/auth';
 import { storeAdminSession } from '../lib/admin-session';
+import { resolveAuthSecret } from '../lib/auth-secret';
 import { getEnvValue, getRuntimeEnv } from '../lib/env';
 import {
   checkAdminLoginRateLimit,
+  spendAdminLoginAttempt,
   clearAdminLoginFailures,
   getClientIp,
   recordAdminLoginFailure,
@@ -48,7 +50,7 @@ if (Astro.request.method === 'POST' && crossSiteLogin) {
   Astro.response.status = 403;
   errorMessage = 'Permintaan login ditolak karena berasal dari domain lain.';
 } else if (Astro.request.method === 'POST') {
-  const authSecret = getEnvValue('AUTH_SECRET', env);
+  const authSecret = await resolveAuthSecret(env, database);
   const clientIp = getClientIp(Astro.request.headers);
 
   try {
@@ -65,7 +67,12 @@ if (Astro.request.method === 'POST' && crossSiteLogin) {
       // behaves identically for a username that exists and one that does not —
       // otherwise the rate limiter itself answers the question the error message
       // refuses to. Nothing is spent here; only a failure is recorded, below.
-      const attempts = await checkAdminLoginRateLimit(database, username, clientIp);
+      // The wave brake first: spent atomically by every attempt, so parallel
+      // guesses cannot all slip past the peek below (see spendAdminLoginAttempt).
+      const wave = await spendAdminLoginAttempt(database, username, clientIp);
+      const attempts = wave.allowed
+        ? await checkAdminLoginRateLimit(database, username, clientIp)
+        : wave;
       if (!attempts.allowed) {
         Astro.response.status = 429;
         Astro.response.headers.set(

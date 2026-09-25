@@ -64,6 +64,13 @@ export function hasAdClickId(ids: ClickIds): boolean {
 }
 
 /**
+ * Keys only an ad click puts on a URL. `_fbp`/`_fbc` are also ad keys, but they
+ * are browser cookies the embed widget copies onto every iframe URL, so their
+ * mere arrival is not a new click and must not erase a stored `gclid`.
+ */
+const FRESH_CLICK_KEYS = ["gclid", "gbraid", "wbraid", "fbclid"] as const satisfies readonly ClickIdKey[];
+
+/**
  * What the cookie should hold after a landing, given what it already held.
  *
  * The middleware used to write the parsed URL straight over the cookie, and
@@ -80,7 +87,7 @@ export function hasAdClickId(ids: ClickIds): boolean {
  *   current visit, so stale tags from an older click do not linger either.
  */
 export function mergeClickIds(stored: ClickIds, incoming: ClickIds): ClickIds {
-  if (hasAdClickId(incoming)) return incoming;
+  if (FRESH_CLICK_KEYS.some((key) => Boolean(incoming[key]))) return incoming;
   const preserved: ClickIds = {};
   for (const key of AD_CLICK_KEYS) {
     const value = stored[key];

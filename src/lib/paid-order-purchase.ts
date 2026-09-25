@@ -125,6 +125,7 @@ export async function enqueuePurchaseForPaidOrder(
 
   const delivered = await deliverCapiEvent(
     database,
+    "Purchase",
     order.order_number,
     ads.metaPixelId,
     ads.metaCapiToken,

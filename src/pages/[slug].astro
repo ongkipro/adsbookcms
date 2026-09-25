@@ -6,7 +6,8 @@ import { getStorefrontProduct } from '../lib/catalog';
 import { getLandingPageBySlug, parseShortcodes } from '../lib/landing-pages';
 import { getStoreSupportWhatsapp } from '../lib/public-store';
 import { resolveAdminSession } from '../lib/admin-session';
-import { getEnvValue, getRuntimeEnv } from '../lib/env';
+import { resolveAuthSecret } from '../lib/auth-secret';
+import { getRuntimeEnv } from '../lib/env';
 import '../styles/form-hybrid.css';
 import '../styles/landing-pages/landing.css';
 import { defaultCatalogContentId } from '../lib/catalog-feed';
@@ -32,10 +33,11 @@ if (previewRequested) {
     isPreview = true;
   } else {
     const env = getRuntimeEnv(Astro.locals);
+    const database = env?.OMS_DB as D1Database | undefined;
     const session = await resolveAdminSession(
-      env?.OMS_DB as D1Database | undefined,
+      database,
       Astro.request,
-      getEnvValue('AUTH_SECRET', env),
+      await resolveAuthSecret(env, database),
     );
     isPreview = session !== null && !session.mustChangePassword;
   }

@@ -6,6 +6,13 @@ const shortText = z.string().trim().min(1).max(160);
 const bodyText = z.string().trim().min(1).max(1_200);
 const asset = z.string().trim().min(1).max(500);
 const textList = z.array(shortText).min(1).max(12);
+// Rendered as `<a href>` on the storefront, whose origin is also the admin's.
+// Any role that can publish content could otherwise store `javascript:…` and
+// run it in whoever clicks — an owner included. Same-site paths, in-page
+// anchors and web URLs only.
+const link = asset.refine((value) => /^(?:https?:\/\/|\/(?![/\\])|#)/i.test(value), {
+  message: "Link harus berupa path (/...), anchor (#...), atau URL http(s).",
+});
 
 const sectionHeadingSchema = z
   .object({
@@ -55,7 +62,7 @@ export const homeContentSchema = z
             title: shortText,
             excerpt: bodyText,
             image: asset,
-            href: asset.optional(),
+            href: link.optional(),
             crop: shortText.optional(),
           })
           .strict(),

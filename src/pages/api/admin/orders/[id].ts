@@ -562,7 +562,9 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
       resolvedCourierCode = selectedRate.courier_code;
       resolvedCourierService = selectedRate.courier_service;
       resolvedWarehouseId = quote.warehouse?.id || null;
-      resolvedShippingCost = Number(selectedRate.price) + Number(selectedRate.cod_fee || 0);
+      // `calculateCodFeeBreakdown` below is the COD fee; adding the provider's
+      // `cod_fee` to shipping as well charged it twice (see shipping-quote.ts).
+      resolvedShippingCost = Number(selectedRate.price);
       const orderAmount = Math.max(
         0,
         Number(totals?.item_total || 0) -

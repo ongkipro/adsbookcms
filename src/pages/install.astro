@@ -1,8 +1,14 @@
 ---
 export const prerender = false;
+import { isAcceptedSiteProtocol } from '../lib/tenant';
 
 // No layout import on purpose: every layout resolves store identity, and on
 // this page there is no store yet. The installer must stand entirely on its own.
+
+// Like WordPress guessing its own address: a store opened from the Worker's
+// URL (a one-click install lands on *.workers.dev) is prefilled with it. The
+// operator swaps in a custom domain later under /admin → Pengaturan Toko.
+const guessedSiteUrl = isAcceptedSiteProtocol(Astro.url) ? Astro.url.origin : '';
 ---
 
 <!doctype html>
@@ -107,7 +113,7 @@ export const prerender = false;
         <form id="install-form" novalidate>
           <label>
             Token instalasi
-            <span class="hint">Secret satu kali dari konfigurasi Worker. Tidak disimpan di CMS.</span>
+            <span class="hint">Nilai INSTALL_TOKEN yang Anda isi saat deploy. Tidak disimpan di CMS.</span>
             <input name="install_token" type="password" required autocomplete="one-time-code" />
           </label>
 
@@ -118,8 +124,8 @@ export const prerender = false;
 
           <label>
             Alamat toko
-            <span class="hint">Harus https, contoh: https://tokosaya.com</span>
-            <input name="site_url" required inputmode="url" placeholder="https://tokosaya.com" />
+            <span class="hint">Harus https. Terisi dengan alamat yang sedang Anda buka; ganti nanti di Pengaturan Toko setelah domain sendiri terpasang.</span>
+            <input name="site_url" required inputmode="url" placeholder="https://tokosaya.com" value={guessedSiteUrl} />
           </label>
 
           <label>

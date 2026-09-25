@@ -85,7 +85,10 @@ async function calculateRates({ request, url, locals }: Parameters<APIRoute>[0])
           estimated_days: r.estimated_days,
           cod_available: !r.unsupported_cod,
           cod_fee: r.cod_fee || 0,
-          total_shipping: r.price + (paymentMethod === 'cod' ? Number(r.cod_fee || 0) : 0),
+          // What checkout will charge as shipping. The provider's cod_fee is
+          // informational: the store's own COD service fee is added once by
+          // persistOrder and returned by /api/v1/checkout as cod_service_fee.
+          total_shipping: r.price,
         })),
       },
       200,

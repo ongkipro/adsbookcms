@@ -2,8 +2,8 @@
  * Runs before `npm run deploy` / `npm run cf:deploy` (npm `predeploy`).
  *
  * Two refusals, both decided in `src/lib/deploy-preflight.ts` where they are
- * unit-tested: the config must name a real install, not the product's
- * placeholders (RELEASE.md §7); and the tree must be the branch — not behind
+ * unit-tested: the config must carry real resource ids, not the product
+ * template's all-zero ones (RELEASE.md §7); and the tree must be the branch — not behind
  * its upstream, not carrying uncommitted tracked changes — because `wrangler
  * deploy` uploads whatever is on disk and has reverted production twice.
  *
@@ -40,17 +40,22 @@ if (!targetResult.ok) {
   console.error(
     [
       "",
-      "This repository is the AdsBookCMS product and deploys nothing (RELEASE.md §1).",
-      "An install deploys from its own clone, against its own Worker, D1, KV and R2.",
-      "",
-      "If this IS an install: restore its wrangler.jsonc, then re-run.",
+      "This config still carries the product template's ids (or none at all).",
+      "One-click installs get real ids from the Deploy to Cloudflare button; a CLI",
+      "install pastes the ids `wrangler d1 create` / `kv namespace create` print",
+      "(INSTALLATION.md). If this IS an install: restore its wrangler.jsonc, then re-run.",
       "",
     ].join("\n"),
   );
   process.exit(1);
 }
 
-const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]).replace(/^HEAD$/, "");
+// Workers Builds (the Deploy button's pipeline) deploys the pushed commit.
+const ci =
+  process.env.WORKERS_CI === "1"
+    ? { branch: process.env.WORKERS_CI_BRANCH ?? "", commit: process.env.WORKERS_CI_COMMIT_SHA ?? "" }
+    : undefined;
+const branch = ci ? "" : git(["rev-parse", "--abbrev-ref", "HEAD"]).replace(/^HEAD$/, "");
 const upstream = branch ? git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"]) : "";
 
 // Without this the behind-count is whatever the last fetch happened to know —
@@ -67,9 +72,10 @@ const result = evaluateDeployPreflight({
   branch,
   upstream,
   behind: upstream ? Number(git(["rev-list", "--count", `HEAD..${upstream}`]) || "0") : 0,
-  dirtyPaths: git(["diff", "--name-only", "HEAD"]).split("\n").map((l) => l.trim()).filter(Boolean),
+  dirtyPaths: ci ? [] : git(["diff", "--name-only", "HEAD"]).split("\n").map((l) => l.trim()).filter(Boolean),
   workerName: String(target.name ?? "unknown"),
   overridden: process.env.ALLOW_STALE_DEPLOY === "1",
+  ci,
 });
 
 for (const note of result.notes) console.log(`[preflight] ${note}`);

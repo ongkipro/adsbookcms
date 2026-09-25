@@ -11,6 +11,10 @@ import { jsonError, jsonOk } from "../../../lib/api.ts";
 import { selectQuotedRate } from "../../../lib/courier-rules.ts";
 import { getRuntimeEnv } from "../../../lib/env.ts";
 import {
+  isCodBlockedForProvince,
+  loadStoreCodDisabledProvinceCodes,
+} from "../../../lib/form-mode.ts";
+import {
   resolveEligibleShippingRates,
   ShippingQuoteError,
 } from "../../../lib/shipping-quote.ts";
@@ -286,6 +290,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
   try {
     await assertAbandonedLeadExists(database, orderId);
+    // Conversion always creates a COD order, so it answers to the same
+    // province policy checkout does; the CS console is not a way around it.
+    if (
+      isCodBlockedForProvince(
+        "cod",
+        String(body.province || ""),
+        await loadStoreCodDisabledProvinceCodes(database),
+      )
+    ) {
+      return jsonError(
+        "COD tidak tersedia untuk provinsi tujuan ini. Arahkan pembeli ke pembayaran online.",
+        422,
+      );
+    }
     const quote = await resolveEligibleShippingRates(database, locals, {
       destinationId: destinationAreaId,
       destinationCity: city,
@@ -319,7 +337,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
       warehouseId: quote.warehouse.id,
       courierCode: selectedRate.courier_code,
       courierService: selectedRate.courier_service,
-      shippingCost: Number(selectedRate.price) + Number(selectedRate.cod_fee || 0),
+      // Same rule as storefront checkout: the COD service fee is the store's,
+      // added once downstream; the provider's `cod_fee` is not shipping.
+      shippingCost: Number(selectedRate.price),
       followedUpBy: locals.admin?.username || "",
     });
     return jsonOk({

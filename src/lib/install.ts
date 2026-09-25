@@ -5,6 +5,7 @@ import {
   validateNewAdminPassword,
 } from "./admin-credentials.ts";
 import { STOREFRONT_TEMPLATE_IDS } from "./tenant-contract.ts";
+import { isAcceptedSiteProtocol } from "./tenant.ts";
 
 export interface InstallInput {
   storeName: unknown;
@@ -36,13 +37,17 @@ export interface InstallPlan {
  * destination; these rows only let the operator explicitly narrow that result.
  * Paxel COD stays off because that was the existing product policy before the
  * demo seed that carried these rows was removed.
+ *
+ * Ninja is not in this list: Mengantar discontinued it from its public API on
+ * 2026-09-01 ("no longer available on the Mengantar public API"; do not rely
+ * on it). Existing orders created before that cutoff stay queryable, but a
+ * default rule for it would offer a courier every quote will fail on.
  */
 export const DEFAULT_COURIER_RULES = [
   { code: "JNE", cod: 1 },
   { code: "SiCepat", cod: 1 },
   { code: "J&T", cod: 1 },
   { code: "SAP", cod: 1 },
-  { code: "Ninja", cod: 1 },
   { code: "Anteraja", cod: 1 },
   { code: "Lion", cod: 1 },
   { code: "IDexpress", cod: 1 },
@@ -93,7 +98,7 @@ export function planInstall(
   let siteUrl = "";
   try {
     const parsed = new URL(siteUrlRaw);
-    if (parsed.protocol !== "https:") {
+    if (!isAcceptedSiteProtocol(parsed)) {
       return { ok: false, error: "Alamat toko harus memakai https." };
     }
     siteUrl = parsed.origin;

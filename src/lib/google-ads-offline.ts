@@ -10,6 +10,8 @@ export const GOOGLE_ADS_MAX_BACKOFF_MS = 60 * 60_000;
 export type GoogleAdsOutboxDepth = {
   pending: number;
   failed: number;
+  /** Failed inside the alert window; see `CapiOutboxDepth.recentFailed`. */
+  recentFailed?: number;
   overdue: number;
   oldestCreatedAt: string | null;
 };
@@ -171,6 +173,39 @@ export function decideGoogleRetry(
   return { status: "pending", delayMs };
 }
 
+/**
+ * What a `partialFailureError` (HTTP 200) means for the one conversion sent.
+ *
+ * It used to read as transient, so a permanent refusal was retried until the
+ * budget ran out, and a conversion Google already held — the response lost on
+ * the way back, then re-sent — ended `failed` although it counted. Codes are
+ * `ConversionUploadError` values from the Ads API (v25 proto):
+ * already-recorded means sent; the 6-hour "too recent" pair is worth one more
+ * try later; anything else will fail the same way every time.
+ */
+const ALREADY_RECORDED = new Set(["CLICK_CONVERSION_ALREADY_EXISTS", "ORDER_ID_ALREADY_IN_USE"]);
+const RETRY_AFTER_SIX_HOURS = new Set(["TOO_RECENT_EVENT", "TOO_RECENT_CONVERSION_ACTION"]);
+
+export function classifyGooglePartialFailure(codes: readonly string[]): "sent" | "retry-later" | "terminal" {
+  if (codes.length > 0 && codes.every((code) => ALREADY_RECORDED.has(code))) return "sent";
+  if (codes.length > 0 && codes.every((code) => RETRY_AFTER_SIX_HOURS.has(code))) return "retry-later";
+  return "terminal";
+}
+
+/** Every `conversionUploadError` code anywhere in a partial-failure payload. */
+export function readConversionUploadErrorCodes(partialFailure: unknown): string[] {
+  const codes: string[] = [];
+  const visit = (value: unknown) => {
+    if (!value || typeof value !== "object") return;
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (key === "conversionUploadError" && typeof child === "string") codes.push(child);
+      else visit(child);
+    }
+  };
+  visit(partialFailure);
+  return codes;
+}
+
 async function accessToken(config: GoogleAdsOfflineConfig): Promise<string> {
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -193,7 +228,7 @@ export async function uploadGoogleClickConversion(
   conversion: GoogleClickConversion,
   config: GoogleAdsOfflineConfig,
   providedAccessToken?: string,
-): Promise<{ success: boolean; statusCode?: number; reason?: string }> {
+): Promise<{ success: boolean; statusCode?: number; reason?: string; partialFailureCodes?: string[] }> {
   try {
     const token = providedAccessToken || await accessToken(config);
     const headers: Record<string, string> = {
@@ -211,7 +246,7 @@ export async function uploadGoogleClickConversion(
       },
     );
     const body = await response.json().catch(() => null) as {
-      partialFailureError?: { message?: unknown };
+      partialFailureError?: { message?: unknown; details?: unknown };
       error?: { message?: unknown };
     } | null;
     const reason = typeof body?.partialFailureError?.message === "string"
@@ -223,6 +258,9 @@ export async function uploadGoogleClickConversion(
       success: response.ok && !body?.partialFailureError,
       statusCode: response.status,
       reason: response.ok && !body?.partialFailureError ? undefined : reason || `Google Ads HTTP ${response.status}`,
+      ...(body?.partialFailureError
+        ? { partialFailureCodes: readConversionUploadErrorCodes(body.partialFailureError) }
+        : {}),
     };
   } catch (error) {
     return { success: false, reason: error instanceof Error ? error.message : "Google Ads network error" };
@@ -330,7 +368,28 @@ export async function drainGoogleAdsConversionOutbox(
       continue;
     }
     const outcome = await uploadGoogleClickConversion(conversion, config, token);
-    const decision = decideGoogleRetry(outcome.success, outcome.statusCode, row.attempts, row.max_attempts);
+    // 401/403 from the Ads API is the account's answer, not this row's: an
+    // unapproved developer token, a missing login-customer-id, a revoked
+    // permission. Terminating per row spent ten conversions an hour on one
+    // shared fault with no requeue path. Leave them pending — the stalled
+    // queue raises the google-ads-outbox alert — and stop the batch.
+    if (outcome.statusCode === 401 || outcome.statusCode === 403) {
+      console.error("google-ads-offline-access-denied", {
+        status: outcome.statusCode,
+        reason: outcome.reason,
+      });
+      break;
+    }
+    const partial = outcome.partialFailureCodes
+      ? classifyGooglePartialFailure(outcome.partialFailureCodes)
+      : null;
+    const decision = partial === "sent"
+      ? { status: "sent" as const, delayMs: 0 }
+      : partial === "terminal"
+        ? { status: "failed" as const, delayMs: 0 }
+        : partial === "retry-later" && row.attempts + 1 < row.max_attempts
+          ? { status: "pending" as const, delayMs: 6 * 60 * 60_000 }
+          : decideGoogleRetry(outcome.success, outcome.statusCode, row.attempts, row.max_attempts);
     const now = Date.now();
     await database.prepare(
       `UPDATE google_ads_conversion_outbox
@@ -371,20 +430,23 @@ export async function readGoogleAdsOutboxDepth(
         `SELECT
            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed,
+           SUM(CASE WHEN status = 'failed' AND updated_at >= ? THEN 1 ELSE 0 END) AS recent_failed,
            SUM(CASE WHEN status = 'pending' AND next_retry_at <= ? THEN 1 ELSE 0 END) AS overdue,
            MIN(CASE WHEN status IN ('pending', 'failed') THEN created_at END) AS oldest_created_at
          FROM google_ads_conversion_outbox`,
       )
-      .bind(now.toISOString())
+      .bind(new Date(now.getTime() - 24 * 60 * 60_000).toISOString(), now.toISOString())
       .first<{
         pending: number | null;
         failed: number | null;
+        recent_failed: number | null;
         overdue: number | null;
         oldest_created_at: string | null;
       }>();
     return {
       pending: Number(row?.pending ?? 0),
       failed: Number(row?.failed ?? 0),
+      recentFailed: Number(row?.recent_failed ?? 0),
       overdue: Number(row?.overdue ?? 0),
       oldestCreatedAt: row?.oldest_created_at ?? null,
     };
@@ -392,4 +454,21 @@ export async function readGoogleAdsOutboxDepth(
     console.error("google-ads-outbox-health-unreadable", error);
     return null;
   }
+}
+
+/**
+ * Settled and terminal rows older than 30 days, the same retention the Meta
+ * outbox keeps. The Google queue had none, so every delivered conversion stayed
+ * forever and every health read scanned all of them.
+ */
+export async function purgeExpiredGoogleAdsConversions(database: D1Database, now = new Date()) {
+  const result = await database
+    .prepare(
+      `DELETE FROM google_ads_conversion_outbox
+        WHERE status IN ('sent', 'failed')
+          AND unixepoch(updated_at) < unixepoch(?, '-30 days')`,
+    )
+    .bind(now.toISOString())
+    .run();
+  return result.meta.changes;
 }

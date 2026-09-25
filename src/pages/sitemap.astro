@@ -3,23 +3,18 @@ import PageIntro from '../components/storefront/shared/PageIntro.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { footerLegal, footerNavigation } from '../data/site';
 import { getStorefrontProducts } from '../lib/catalog';
-import { listLandingPages } from '../lib/landing-pages';
+import { listPublicLandingPages } from '../lib/landing-pages';
 
 const mainLinks = [{ label: 'Beranda (Halaman Depan)', href: '/' }, ...footerNavigation];
 
 // Read from D1 like /sitemap.xml does. This page used to render from compiled
 // arrays that are now empty, so it listed no products at all.
 const products = await getStorefrontProducts(Astro.locals);
-const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
+const landingPages = (await listPublicLandingPages(Astro.locals).catch(() => []))
   // A claimed page's own slug only redirects to the product URL, which the
   // product list on this page already carries; listing it here would badge a
   // bouncing link as "Live".
-  .filter(
-    (page) =>
-      Boolean(page.is_active) &&
-      !page.is_product_page &&
-      !page.id.startsWith('static:'),
-  );
+  .filter((page) => !page.isProductPage);
 ---
 
 <BaseLayout
@@ -93,7 +88,7 @@ const landingPages = (await listLandingPages(Astro.locals).catch(() => []))
               {
                 landingPages.map((item) => (
                   <a
-                    href={`/${item.slug}`}
+                    href={item.href}
                     class="flex items-center justify-between rounded-lg border border-[#EAEDED]/60 bg-[#FAFAFA] px-4 py-2.5 text-[13px] font-semibold text-[#414B57] hover:border-[#232F3E]/30 hover:bg-[#FFF5E5] hover:text-[#232F3E] transition-all"
                   >
                     <span class="truncate">{item.title}</span>

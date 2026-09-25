@@ -98,6 +98,8 @@ export async function sendMetaCapiEvent(
   pixelId?: string,
   accessToken?: string,
   testEventCode?: string,
+  /** Unix seconds the event happened; a retry must not restamp it as now. */
+  eventTime?: number,
 ): Promise<{
   success: boolean;
   response?: unknown;
@@ -141,7 +143,7 @@ export async function sendMetaCapiEvent(
     data: [
       {
         event_name: eventName,
-        event_time: Math.floor(Date.now() / 1000),
+        event_time: eventTime ?? Math.floor(Date.now() / 1000),
         event_id: resolvedEventId,
         event_source_url: eventSourceUrl,
         action_source: 'website',

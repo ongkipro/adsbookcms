@@ -127,3 +127,14 @@ test("products without published D1 content are not rendered from source fallbac
   );
   assert.deepEqual(products, []);
 });
+
+test("a home content link cannot carry a script scheme", () => {
+  const solution = (href: string) => ({ title: "Promo", excerpt: "Ringkasan", image: "/media/a.webp", href });
+  const solutions = homeContentSchema.shape.solutions;
+  for (const href of ["/promo", "#katalog", "https://wa.me/6281200000000"]) {
+    assert.equal(solutions.safeParse([solution(href)]).success, true, href);
+  }
+  for (const href of ["javascript:alert(1)", " JavaScript:alert(1)", "data:text/html,x", "//evil.example", "/\\evil.example"]) {
+    assert.equal(solutions.safeParse([solution(href)]).success, false, href);
+  }
+});

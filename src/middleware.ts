@@ -9,6 +9,7 @@ import {
 } from './lib/click-ids';
 import { canAccessAdminRoute, getDefaultAdminRoute } from './lib/auth';
 import { resolveAdminSession } from './lib/admin-session';
+import { resolveAuthSecret } from './lib/auth-secret';
 import { getEnvValue, getRuntimeEnv } from './lib/env';
 import { isRegisteredNativeSlug } from './lib/native-landing-pages';
 import { readStoreIdentity, resolveTenantConfig } from './lib/tenant';
@@ -324,7 +325,7 @@ export function createMiddleware(
     const session = await resolveAdminSession(
       identityDb,
       context.request,
-      getEnvValue('AUTH_SECRET', runtime),
+      await resolveAuthSecret(runtime, identityDb),
     );
     if (!session) {
       if (isAdminApi) {
@@ -388,6 +389,13 @@ export function createMiddleware(
     isPrivate || isLoginPage || isEmbedForm,
     embedFrameAncestors,
   );
+
+  // The Worker's own *.workers.dev address stays on so a one-click install has
+  // somewhere to open /install (ADR-026). It must never compete with the
+  // store's domain in search, whatever site_url says.
+  if (url.hostname.endsWith('.workers.dev')) {
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  }
 
   // Persist ad attribution click ids (Google, Meta, UTMs) from landing/embed URL.
   if (!isPrivate) {

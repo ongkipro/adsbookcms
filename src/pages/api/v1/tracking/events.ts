@@ -145,6 +145,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     const delivered = await deliverCapiEvent(
       database,
+      event.eventName,
       eventId,
       adsConfig.metaPixelId,
       adsConfig.metaCapiToken

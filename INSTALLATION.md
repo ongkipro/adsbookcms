@@ -1,10 +1,42 @@
 # Installing AdsBookCMS
 
-> Verified against disk: 2026-08-28 @ `f18ca76` + landing-builder planning working tree
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 This document describes how an install is actually stood up today, and where that process is still rougher than the product intends to be. It contains no commands that do not exist. Where a step is manual because the tooling has not been built yet, it says so and points at the gap.
 
 **An install is one Worker, one store.** Two stores mean running this procedure twice against two separate sets of Cloudflare resources.
+
+---
+
+## 0. One click (recommended)
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ongkipro/adsbookcms)
+
+The Deploy to Cloudflare button does §2–§8 below for you (ADR-026):
+
+| Step | Who does it |
+| --- | --- |
+| Copy the repository into your GitHub account | Cloudflare |
+| Create D1, KV, R2; write their ids into your copy's `wrangler.jsonc` | Cloudflare |
+| Ask for `INSTALL_TOKEN` (the only prompt, from `.dev.vars.example`) | You type a long random value |
+| `npm run build`, then `npm run deploy` (preflight in Workers Builds mode) | Cloudflare Workers Builds |
+| Apply the migration chain, generate the session key | The Worker, on its first request |
+| Store name, admin account | You, in `/install` on the `*.workers.dev` address |
+| Product, warehouse, Mengantar key, optional payments and domain | You, from the dashboard's **Siapkan toko** list |
+
+Afterwards every push to your copy's `main` builds and deploys it, which is
+how you take a product update: bring the product's commits into your copy
+(`RELEASE.md` §7), push, and Workers Builds ships it. Your `wrangler.jsonc` is
+yours; `.gitattributes` keeps a merge from overwriting it.
+
+**Not yet observed end to end.** Everything the button runs was verified
+locally (build, `wrangler deploy --dry-run`, a fresh local D1 through
+`/install`, login and the checklist). The button itself has not been pressed
+against a real account from this repository; the first one to press it should
+record the result in `BUILD-LOG.md`.
+
+The rest of this document is the terminal path — the same install done by
+hand, and what each step is underneath.
 
 ---
 
@@ -17,7 +49,7 @@ This document describes how an install is actually stood up today, and where tha
 | KV namespace | `wrangler kv namespace create` | binding `SESSION` — caches and alert state only. On the Workers Free plan KV allows 1,000 writes/day **per account**, shared by every Worker on it; since 1.3.2 running out degrades caches rather than login or checkout (ADR-021) |
 | R2 bucket | `wrangler r2 bucket create` | binding `ASSET_BUCKET` |
 | Workers AI | binding only | no resource to create |
-| Custom domain | Cloudflare dashboard or `routes` in `wrangler.jsonc` | apex and `www` |
+| Custom domain | Cloudflare dashboard (Workers → Settings → Domains & Routes) | apex and `www`. The template declares no `routes`, so Wrangler leaves dashboard-managed ones alone on every deploy |
 
 Binding **names** are fixed across every install — `OMS_DB`, `SESSION`, `ASSET_BUCKET`, `AI`, `ASSETS`. Only the underlying resource names and ids differ. Do not rename bindings per install; the application resolves them by name.
 
@@ -44,6 +76,10 @@ npm test
 
 If these do not pass on a clean checkout, stop — the problem is the checkout, not the install.
 
+To try the whole store before creating anything on Cloudflare, run
+`npm run dev:local` (README, *Quick start*): the same Worker on this machine,
+with local D1/KV/R2 and stand-ins for Mengantar and AutoLaris.
+
 ---
 
 ## 4. Create Cloudflare resources
@@ -62,15 +98,15 @@ Each command prints an id. Put them into `wrangler.jsonc`, replacing the referen
   "d1_databases":  [{ "binding": "OMS_DB",       "database_name": "<store>-d1", "database_id": "…", "migrations_dir": "src/db/migrations" }],
   "kv_namespaces": [{ "binding": "SESSION",      "id": "…" }],
   "r2_buckets":    [{ "binding": "ASSET_BUCKET", "bucket_name": "<store>-assets" }],
-  "ai":            { "binding": "AI" },
-  "routes": [
-    { "pattern": "<domain>",     "custom_domain": true },
-    { "pattern": "www.<domain>", "custom_domain": true }
-  ]
+  "ai":            { "binding": "AI" }
 }
 ```
 
-Keep `"workers_dev": false` so the install never gets an unreviewed `*.workers.dev` endpoint.
+The template keeps `"workers_dev": true` so a new store has an address to open
+`/install` at; that address answers `X-Robots-Tag: noindex`. Once the store's
+domain is live an install may set it to `false` in its own config. A domain can
+be declared under `routes` instead of in the dashboard, but then every deploy
+replaces whatever the dashboard holds.
 
 ---
 
@@ -102,7 +138,7 @@ rebuild. Keep them accurate, because they are what an uninstalled Worker shows:
 | `PUBLIC_SITE_TAGLINE` | brand line, also used to compose the default title |
 | `PUBLIC_SITE_THEME_COLOR` | must match `#rrggbb` or it falls back |
 | `PUBLIC_SITE_LOCALE` | `id-ID` style; drives `lang` and OG locale |
-| `PUBLIC_STOREFRONT_TEMPLATE` | `compact-market` or `wide-catalog` — an unknown value logs `tenant-unknown-storefront-template` and falls back to `compact-market` |
+| `PUBLIC_STOREFRONT_TEMPLATE` | `compact-market` (the only built-in; `wide-catalog` was removed by `0044`) — a malformed value logs `tenant-malformed-storefront-template` and falls back to `compact-market` |
 | `PUBLIC_ADMIN_NAME` | admin shell display name |
 | `PUBLIC_COD_DISABLED_PROVINCES` | comma-separated province names excluded from COD |
 | `PUBLIC_EMBED_ALLOWED_ORIGINS` | fallback embed allowlist until one is saved in the database |
@@ -111,18 +147,21 @@ rebuild. Keep them accurate, because they are what an uninstalled Worker shows:
 Keep `wrangler.jsonc` `vars` and `.env` in agreement. Both feed the build, precedence between them is undetermined, and a few keys (`PUBLIC_COD_DISABLED_PROVINCES`, `PUBLIC_EMBED_ALLOWED_ORIGINS`, `PUBLIC_HEADLESS_ALLOWED_ORIGINS`) are additionally read at runtime through `getRuntimeEnv()`, where only the Worker's own vars apply.
 
 `slug` is derived from the store name by the installer and stored on the row;
-`PUBLIC_TENANT_SLUG` overrides it and `"adsbook"` is the last resort. It is used
-only for diagnostics.
+`"adsbook"` is the fallback. It is used only for diagnostics. (The former
+`PUBLIC_TENANT_SLUG` override was removed per ADR-002; an install that still
+sets it can drop the var.)
 
 ---
 
 ## 6. Secrets
 
-Set as Worker secrets, never in `wrangler.jsonc`:
+Set as Worker secrets, never in `wrangler.jsonc`. Only `INSTALL_TOKEN` is
+required — `wrangler deploy` refuses a Worker without it (`secrets.required`):
 
 ```bash
-npx wrangler secret put AUTH_SECRET
 npx wrangler secret put INSTALL_TOKEN
+# optional:
+npx wrangler secret put AUTH_SECRET            # 32+ chars; otherwise generated into D1 (ADR-026)
 npx wrangler secret put BOOTSTRAP_ADMIN_PASSWORD
 ```
 
@@ -130,6 +169,9 @@ Provider credentials — `MENGANTAR_API_KEY`, `AUTOLARIS_API_KEY`, `META_CAPI_AC
 
 `INSTALL_TOKEN` is the one-time capability requested by the fresh-install wizard;
 use a unique random value of at least 16 characters. It is never stored in D1.
+`/api/install` allows 10 token attempts per client IP per 15 minutes, spent up
+front by every attempt (so a parallel burst cannot slip past a stale count); a
+correct token closes the installer, so it has nothing left to protect.
 
 For local development the same keys go in `.dev.vars`, which is never committed.
 
@@ -137,7 +179,7 @@ For local development the same keys go in `.dev.vars`, which is never committed.
 
 ## 7. Verify the schema path
 
-The Worker bundles all 52 checked-in migrations (`0000`–`0051`) and applies a valid missing suffix
+The Worker bundles all 59 checked-in migrations (`0000`–`0058`) and applies a valid missing suffix
 automatically before serving a database-backed request. No terminal migration step
 is required for first run. Invalid, unknown, or ahead migration history returns a
 labelled 503 instead of running the application against an indeterminate schema.
@@ -182,9 +224,10 @@ Pushing to `main` in **this** repository deploys nothing — CI runs check, test
    support WhatsApp, the admin username and password **you choose**, and the
    storefront template. Submitting writes the store and your credential in a
    single transaction, and the wizard refuses to run again.
-   - The installer refuses before writing anything if `AUTH_SECRET` is unset or
-     shorter than 32 characters — otherwise the install would complete and then
-     lock you out, because the login route needs it to sign a session.
+   - Without an `AUTH_SECRET` secret the Worker generates a 256-bit session key
+     into `install_secrets` on first use. The installer still refuses before
+     writing anything if no key can be had at all (a database it cannot write),
+     because an install nobody can log into is worse than one not yet made.
 3. You land on `/hello`. Sign in with the credential you just chose; nothing is
    left to rotate.
    - `admin` / `admin` remains the fallback only for an install whose credential
@@ -195,7 +238,7 @@ Pushing to `main` in **this** repository deploys nothing — CI runs check, test
    - `/admin/settings/store` — store name and support WhatsApp (the support number feeds the public `/kontak` page)
    - `/admin/settings/warehouse` — pickup origin and Mengantar origin ids; shipping quotes fail without this
    - `/admin/profile` — provider API keys and base URLs
-   - `/admin/expeditions` — which couriers and which COD services are offered; a fresh install starts with the neutral ten-courier catalogue, and the operator may narrow it here
+   - `/admin/expeditions` — which couriers and which COD services are offered; a fresh install starts with the neutral nine-courier catalogue (Ninja was retired by Mengantar on 2026-09-01; `0056` disables its rule), and the operator may narrow it here
    - `/admin/ads/meta` and `/admin/ads/google` — pixel, CAPI token, GTM, conversion ids
    - `/admin/settings/crm` — WhatsApp follow-up templates
    - `/admin/products` — the real catalog
@@ -209,51 +252,36 @@ replaces it is **A-134** in `TASKS.md`.
 
 ---
 
-## 10. Running more than one install
+## 10. Running more than one store
 
-A Cloudflare Worker has **no relationship to git**. `wrangler deploy` uploads a built bundle from whatever directory you run it in; Cloudflare never sees a repository. A repo buys you history and CI, nothing else. You can deploy an install from a laptop with no remote at all.
+One store is one install: its own repository, Worker, D1, KV, R2, domain and
+credentials (ADR-001, ADR-012). A second store is a second install created the
+same way as the first — never a second `env.<store>` block, a second
+`--config` file in this repository, or a `--name` override against one config.
+Those put another merchant's bindings one flag away from the wrong database,
+which is how another merchant's content once reached a live storefront.
 
-So one repository *can* target many Workers. Verified against the installed wrangler (4.120.0):
-
-| Mechanism | Command | What it changes |
-| --- | --- | --- |
-| Separate config file | `wrangler deploy --config installs/toko-a.jsonc` | everything: name, bindings, routes, vars |
-| Named environment | `wrangler deploy --env toko-a` | the `env.toko-a` block in one config |
-| Name override | `wrangler deploy --name toko-a` | the Worker name only — **not** its bindings, so it would point at another install's database. Never use this alone to separate stores |
-
-The `env.*` mechanism is real (`RawEnvironment` in the wrangler config schema) and is what the upstream engine used.
-
-### The constraint that decides this today
-
-Identity now resolves at runtime from D1 (**A-10**, ADR-003, gap G1 closed), so
-the bundle no longer carries a store's name. The only per-install difference left
-in the repository is bindings and routes — one build can serve every install, and
-a repository holding N small config files is genuinely cheap. This is the
-condition the section below was waiting on; the topology decision itself is still
-open as **A-50**.
-
-### Why installs are separate repositories today
-
-ADR-012 puts each install in its own repository. That is a deliberate trade: maximum isolation between a live store and product development, paid for with drift — every install must be brought forward by hand.
-
-A-10 has landed, so the revisit is now due (**A-50**). Whatever is chosen, mixing store configuration back into the product repository is what produced the state this codebase spent a day repairing: another merchant's content on a live storefront, and a deploy workflow that pointed at somebody else's Worker.
+Bringing an install forward to a new product release is `RELEASE.md` §7 (merge
+when the install shares the product's history, manual copy of product-owned
+paths when it does not — ADR-020 and `docs/UPDATE-PATH-OWNERSHIP.md`).
 
 ---
 
 ## 11. What is still manual
 
-The WordPress-like path now begins after Cloudflare resources exist. Sections 1–6
-still require a terminal and Cloudflare credentials: create the Worker, D1, KV,
-and R2 resources; attach the domain; configure bindings and secrets. The Worker
-then applies its bundled schema automatically, redirects to `/install`, stores
-runtime identity plus the operator credential, renders an explicit content setup
-state, and supports runtime storefront definitions without a rebuild.
+With the button (§0), nothing that needs a terminal. What remains is what no
+installer can do for the operator:
 
-Infrastructure provisioning itself is not automated, and it is the whole of what
-stands between this and a WordPress-style install. The claim gap this section
-used to name — an exposed uninstalled Worker being taken by the first direct
-`/api/install` caller — is closed: `src/pages/api/install.ts` requires the
-`INSTALL_TOKEN` secret, refuses anything shorter than 16 characters, and compares
-it in constant time. The open decisions are **A-50** (how a second install is
-created), **A-51** (how an install learns it is behind) and **A-52** (whether the
-product ships as a versioned artifact) in `TASKS.md`.
+- **A Cloudflare and a GitHub account**, and pressing the button while signed
+  in to both.
+- **Choosing `INSTALL_TOKEN`.** It is the one guard between a freshly deployed
+  Worker on a public `workers.dev` address and the first stranger to reach
+  `/install`; the installer compares it in constant time, refuses anything
+  shorter than 16 characters, and allows 10 attempts per address per 15 minutes.
+- **Provider accounts.** A Mengantar API key and warehouse ids for shipping, and
+  optionally AutoLaris or a bank account for non-COD payment — entered in
+  `/admin`, listed by the dashboard's setup checklist.
+- **A domain**, attached in the Cloudflare dashboard when the store is ready.
+
+How a second store is created and kept current is settled by ADR-020 (§10);
+A-50 and A-52 are closed on it.

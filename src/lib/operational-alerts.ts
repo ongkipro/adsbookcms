@@ -4,7 +4,7 @@ import {
   type SchemaUpgradeError,
 } from "./schema-version.ts";
 
-export type OperationalAlertId = "schema" | "capi-outbox";
+export type OperationalAlertId = "schema" | "capi-outbox" | "google-ads-outbox";
 export type OperationalAlertState = "healthy" | "firing" | "unknown";
 
 export type OperationalAlertSignal = {
@@ -99,10 +99,13 @@ async function postAlertWebhook(
     throw new Error("alert webhook must use https");
   }
 
+  // Bounded: during a schema outage this runs on the request path, and a
+  // hanging webhook must not hang the storefront's 503 with it.
   const response = await fetch(url.toString(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(event),
+    signal: AbortSignal.timeout(5_000),
   });
   if (!response.ok) throw new Error("alert webhook rejected notification");
 }
@@ -120,16 +123,17 @@ export function alertsFromOperationalHealth(
           reason: `schema-${schemaState}`,
         };
 
-  const outbox = health.signals.find((signal) => signal.id === "capi-outbox");
-  const capi: OperationalAlertSignal = !outbox
-    ? { id: "capi-outbox", state: "unknown", reason: "unreadable" }
-    : outbox.state === "degraded"
-      ? { id: "capi-outbox", state: "firing", reason: outbox.reason }
-      : outbox.state === "healthy"
-        ? { id: "capi-outbox", state: "healthy", reason: outbox.reason }
-        : { id: "capi-outbox", state: "unknown", reason: outbox.reason };
+  // Both conversion queues alert the same way. Google's used to reach only the
+  // health panel, which is how A-182's head-of-line block went unnoticed.
+  const queue = (id: "capi-outbox" | "google-ads-outbox"): OperationalAlertSignal => {
+    const signal = health.signals.find((candidate) => candidate.id === id);
+    if (!signal) return { id, state: "unknown", reason: "unreadable" };
+    if (signal.state === "degraded") return { id, state: "firing", reason: signal.reason };
+    if (signal.state === "healthy") return { id, state: "healthy", reason: signal.reason };
+    return { id, state: "unknown", reason: signal.reason };
+  };
 
-  return [schema, capi];
+  return [schema, queue("capi-outbox"), queue("google-ads-outbox")];
 }
 
 export function schemaAlertFromError(
@@ -241,12 +245,12 @@ async function evaluateSignal(
     transitionAt,
     notification: notifier ? "pending" : "disabled",
   };
-  let statePersisted = await writeState(
-    options.store,
-    signal.id,
-    pendingState,
-    logger,
-  );
+  // A repeat that is still pending already holds exactly this state. Writing
+  // it again made every request during a schema outage a KV write — the
+  // account-wide allowance ADR-021 exists to protect.
+  let statePersisted = repeated
+    ? stored.persisted
+    : await writeState(options.store, signal.id, pendingState, logger);
 
   if (!repeated) {
     if (isRecovery) {

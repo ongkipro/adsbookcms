@@ -1,6 +1,6 @@
 # AdsBookCMS — Storefront, Form, and Ads Integration Contract
 
-> Verified against disk: 2026-08-29 @ `9766ad6`
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
 
 This document is the implementation handoff for anyone — human or agent — building a public storefront experience against an **AdsBookCMS** install. Two integration shapes are supported and both are shipping today:
 
@@ -81,7 +81,7 @@ All eight share the same envelope from `src/lib/headless-api.ts`:
 - Success: `{ "success": true, "timestamp": "<ISO>", ...payload }`
 - Failure: `{ "success": false, "timestamp": "<ISO>", "error": { "message": "<Indonesian>", "code": "<CODE>", ... } }`
 - Every route exports `OPTIONS = handleOptions` for CORS preflight (204, or 403 `ORIGIN_FORBIDDEN`).
-- `Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS`; `Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Tenant-Slug, X-App-Key`; `Access-Control-Max-Age: 86400`.
+- `Access-Control-Allow-Methods: GET, POST, OPTIONS`; `Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-App-Key`; `Access-Control-Expose-Headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-DailyQuota-Limit, X-DailyQuota-Remaining`; `Access-Control-Max-Age: 86400`.
 - Error messages are **Indonesian**; treat them as user-facing copy, and branch on `error.code`, never on the message string.
 
 ### 4.1 Access control — the real surface
@@ -91,7 +91,7 @@ Every `/api/v1/*` request passes `validateHeadlessRequest(request, locals, { ope
 1. **Developer API key.** `X-App-Key`, legacy `X-API-Key`, then `Authorization: Bearer`. The SHA-256 hash must match one active D1 key and the secret is re-verified in constant time.
 2. **Origin allowlist.** Browser callers must match the independent Headless origin policy; server-to-server callers without `Origin`/`Referer` still require the API key.
 3. **Minimum scope.** `HEADLESS_OPERATIONS` maps every route operation to exactly one scope: `storefront:read`, `catalog:read`, `shipping:read`, `checkout:write`, `orders:read`, or `tracking:write`. Missing authority returns 403 `API_SCOPE_FORBIDDEN`.
-4. **Per-key quota.** D1 atomically increments minute and daily buckets in `developer_api_key_usage`; exhausted keys return 429 with `Retry-After`. The default is 120 requests/minute and 100,000/day, bounded on key creation.
+4. **Per-key quota.** D1 atomically increments minute and daily buckets in `developer_api_key_usage`; exhausted keys return 429 with `Retry-After`. The default is 120 requests/minute and 10,000/day; creation accepts 1–600/minute and 1–100,000/day.
 
 Headless write handlers record one payload-free `headless_api_audit_events` row
 with key id, operation, status code, and timestamp after the response is known.
@@ -165,7 +165,7 @@ Query: `q` or `search`, `limit` (1–100, default 30). A query shorter than 2 ch
 
 Inputs: `destination_id` or `location_id` (**required**), `payment_method` (default `cod`), `variant_id`, `quantity` (default 1), `weight` (default 1; values above 100 are treated as grams and divided by 1000).
 
-Returns `destination_id`, `payment_method`, `origin_id`, `fallback_used`, and `rates[]` of `{ courier_code, courier_service, price, estimated_days, cod_available, cod_fee, total_shipping }`. `total_shipping` adds the COD fee only when `payment_method === 'cod'`.
+Returns `destination_id`, `payment_method`, `origin_id`, `fallback_used`, and `rates[]` of `{ courier_code, courier_service, price, estimated_days, cod_available, cod_fee, total_shipping }`. `total_shipping` equals `price` — what checkout charges as shipping. `cod_fee` is the provider's figure, informational only: the store's own COD service fee is added once at checkout and returned as `cod_service_fee` (+ `cod_service_fee_vat`). Before 2026-09-25 `total_shipping` and headless checkout both added `cod_fee`, charging COD twice.
 
 Cache: envelope default, `Cache-Control: private, max-age=60`; a quote is not a durable fact, so re-quote before submit. Failures: 400 `DESTINATION_ID_REQUIRED`, 503 `DATABASE_UNAVAILABLE`, or the `ShippingQuoteError` status/code passthrough, else 500 `SHIPPING_RATES_ERROR`.
 
@@ -173,9 +173,9 @@ Cache: envelope default, `Cache-Control: private, max-age=60`; a quote is not a 
 
 `src/pages/api/v1/checkout.ts`. Methods: `POST`, `OPTIONS` only.
 
-The full guard stack, in order: API key + origin, then a KV rate limit of **15 attempts per 60 s per client IP** (429 `RATE_LIMITED`), JSON parse (400 `INVALID_PAYLOAD`), honeypot on `website`/`honeypot` (400 `HONEYPOT_TRIGGERED`), `orderSubmitSchema` validation (422 `VALIDATION_ERROR` with a formatted `errors` tree), D1 availability (503 `DATABASE_UNAVAILABLE`), COD province policy (422 `COD_DISABLED_FOR_REGION`), then a **server-side re-quote** through `resolveTrustedHeadlessShipping` — the browser's shipping cost is never trusted — and finally `persistOrder`.
+The full guard stack, in order: API key + origin, then a D1 rate limit of **15 attempts per 60 s per client IP** (429 `RATE_LIMITED`), JSON parse (400 `INVALID_PAYLOAD`), honeypot on `website`/`honeypot` (400 `HONEYPOT_TRIGGERED`), `orderSubmitSchema` validation (422 `VALIDATION_ERROR` with a formatted `errors` tree), D1 availability (503 `DATABASE_UNAVAILABLE`), COD province policy (422 `COD_DISABLED_FOR_REGION`), for `qris`/`bank_transfer` a configured AutoLaris key (503 `PAYMENT_METHOD_UNAVAILABLE`), then a **server-side re-quote** through `resolveTrustedHeadlessShipping` — the browser's shipping cost is never trusted — and finally `persistOrder`.
 
-On success returns **201** with `order` (`id`, `order_number`, `public_status_token`, `total_amount`, `unit_price`, `cod_service_fee`, `cod_service_fee_vat`, `cod_fee_bearer`, `seller_bank_name`, `seller_account_holder`, `seller_account_number`). Because the status is 201 and not 200, the envelope marks it `Cache-Control: no-store`. The API does not return a hosted confirmation URL: a Headless client owns its confirmation UI and must not navigate to the system's same-origin `/thanks` page.
+On success returns **201** with `order` (`id`, `order_number`, `public_status_token`, `total_amount`, `unit_price`, `cod_service_fee`, `cod_service_fee_vat`, `cod_fee_bearer`, `seller_bank_name`, `seller_account_holder`, `seller_account_number`) and `payment` — for `qris`/`bank_transfer` the AutoLaris instruction (`channel_code`, `status`, `total_amount`, `virtual_account`, `qr_payload`, `payment_code`, `payment_url`, `expires_at`, `error`), otherwise `null`. A provider failure still returns 201 with `payment: null` and a failed transaction row, so the order stays retryable through `/api/order-status`, the same contract as storefront checkout. Because the status is 201 and not 200, the envelope marks it `Cache-Control: no-store`. The API does not return a hosted confirmation URL: a Headless client owns its confirmation UI and must not navigate to the system's same-origin `/thanks` page.
 
 On a hosted storefront, ad click IDs are read server-side from the first-party click-ID cookie and persisted with the order. A generic external headless storefront cannot rely on that cookie: the install did not receive the external landing query, and `/api/v1/checkout` has no trusted click-ID forwarding field. Cross-domain click-ID forwarding remains an explicit adapter/API gap.
 

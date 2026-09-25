@@ -49,7 +49,13 @@ const retireNinjaMigration = readFileSync(
   new URL("../db/migrations/0056_retire_ninja_courier.sql", import.meta.url),
   "utf8",
 );
-const migration = bootstrapMigration + "\n" + retireNinjaMigration;
+// 0059 adds SPX to every store that already has a policy, including one
+// 0042 just repaired.
+const addSpxMigration = readFileSync(
+  new URL("../db/migrations/0059_add_spx_courier.sql", import.meta.url),
+  "utf8",
+);
+const migration = [bootstrapMigration, retireNinjaMigration, addSpxMigration].join("\n");
 
 test("courier bootstrap repairs an installed store only when its policy is empty", () => {
   const database = databaseBeforeCourierBootstrap();
@@ -100,8 +106,11 @@ test("courier bootstrap repairs an installed store only when its policy is empty
     `)
     .all()
     .map((row) => ({ ...row }));
+  // A configured policy is kept as is; SPX, a courier it could never have
+  // configured, is the only addition.
   assert.deepEqual(configured, [
     { code: "JNE", enabled: 0, cod: 0, excluded: "custom-policy" },
+    { code: "SPX", enabled: 1, cod: 1, excluded: null },
   ]);
 
   database.exec(migration);
@@ -111,7 +120,7 @@ test("courier bootstrap repairs an installed store only when its policy is empty
     .map((row) => ({ ...row }));
   assert.deepEqual(counts, [
     { store_id: 1, total: DEFAULT_COURIER_RULES.length + 1 },
-    { store_id: 2, total: 1 },
+    { store_id: 2, total: 2 },
   ]);
 });
 
@@ -155,7 +164,8 @@ test("the Expeditions API exposes the repaired catalogue after upgrade", async (
       cod: rule.cod,
     })),
     { code: "Ninja", enabled: 0, cod: 1 },
-  ].sort((left, right) => left.code.localeCompare(right.code));
+  // SQLite ORDER BY compares bytes, so "SPX" sorts before "SiCepat".
+  ].sort((left, right) => (left.code < right.code ? -1 : left.code > right.code ? 1 : 0));
   assert.deepEqual(
     payload.data.couriers.map((courier) => ({
       code: courier.courierCode,

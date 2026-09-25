@@ -2415,8 +2415,15 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   **Note:** `shadcn add` tries to `npm install cn` (a registry alias, not a
   real package) and would overwrite the customised `button`/`input`/`textarea`;
   components are ported by hand from `shadcn view` until that is fixed.
-- [ ] **A-296** — SPX (Shopee Express) as a courier. **Not buildable through
-  Mengantar:** its public API does not support SPX (local
-  `mengantar-documentation`, audited 2026-09-25, `docs/02-couriers-and-rules.md`).
-  Revisit only if Mengantar adds it or a second shipping provider is chosen.
+- [x] **A-296** — SPX (Shopee Express) as a courier. The earlier "not
+  buildable" verdict came from the local `mengantar-documentation`, which is
+  stale: the live `/order/estimate?courier=all` returns `spx` with price,
+  ETA and COD coverage (probed 2026-09-25), and Mengantar confirmed create-order
+  support directly. SPX joins `DEFAULT_COURIER_RULES`; migration `0059` adds an
+  enabled, COD-on SPX rule to every store that already has a courier policy;
+  `unsupportedOriginSpx` hides the quote like `unsupported`; the admin shows
+  "SPX Express". The single-courier estimate (`courier=<name>`) still answers
+  `Invalid courier` for every SPX spelling tried, so a create-order with `spx`
+  is confirmed by Mengantar, not yet observed here — watch the first SPX
+  dispatch.
 

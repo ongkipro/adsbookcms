@@ -1,6 +1,6 @@
 # Mengantar Integration — Technical Contract and Gap Register
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree (SPX, A-296)
 
 This document is the technical source of truth for AdsBookCMS behavior at the Mengantar boundary. It separates repository-observed transport code, locally verified application behavior, operator-gated live mutations, and provider contracts that remain unknown.
 
@@ -64,6 +64,15 @@ The local district index improves public search relevance; it is not a replaceme
 disables an existing Ninja rule rather than deleting it. Orders created with
 Ninja before the cutoff stay queryable. Quotes list only what the provider
 returns, so no other code path offers it.
+
+SPX (Shopee Express) is quoted as `spx` in `/order/estimate?courier=all`
+(observed 2026-09-25; not yet in Mengantar's documentation) and is in
+`DEFAULT_COURIER_RULES`; migration `0059` adds it to existing stores. Its quote
+carries an extra `unsupportedOriginSpx` flag, treated like `unsupported`. The
+estimate key is sent unchanged as `courier` on `POST /order`, as for every
+other courier; Mengantar confirmed `spx` there, but the single-courier estimate
+rejects it (`Invalid courier`), so the first live SPX dispatch is the evidence
+still owed.
 
 **City-average fallback (`ICO`).** When no real rate is eligible for a COD
 order, one city-average placeholder is offered and the operator assigns a real

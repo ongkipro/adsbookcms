@@ -113,6 +113,53 @@ test("rejects a quote before the provider call when a provider area ID is missin
     /wajib dipilih dari hasil pencarian provider/,
   );
 });
+test("quotes SPX from the all-courier estimate and drops it when its origin is unsupported", async () => {
+  const originalFetch = globalThis.fetch;
+  let spxOrigin = false;
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        success: true,
+        data: {
+          JT: { price: 14000, unsupported: false, unsupported_cod: false },
+          spx: {
+            price: 13700,
+            unsupported: false,
+            unsupported_cod: false,
+            unsupportedOriginSpx: spxOrigin,
+            estimate_delivery: "1 - 3 days",
+            codFee: 3329,
+          },
+        },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )) as typeof fetch;
+
+  try {
+    const client = new MengantarClient("test-key", "https://provider.invalid");
+    const input = { originId: "origin-1", destinationId: "dest-1", weight: 1 };
+    const quoted = await client.estimateRates(input);
+    assert.deepEqual(
+      quoted.find((rate) => rate.courier_code === "spx"),
+      {
+        courier_code: "spx",
+        courier_service: "spx",
+        price: 13700,
+        estimated_days: "1 - 3 days",
+        unsupported: false,
+        unsupported_cod: false,
+        cod_fee: 3329,
+      },
+    );
+
+    spxOrigin = true;
+    const blocked = await client.estimateRates(input);
+    assert.deepEqual(blocked.map((rate) => rate.courier_code), ["JT"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("injects x-client-source header and calls payUnpaidOrder API", async () => {
   const originalFetch = globalThis.fetch;
   let capturedHeader = "";

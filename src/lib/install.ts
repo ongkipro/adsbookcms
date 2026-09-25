@@ -42,6 +42,11 @@ export interface InstallPlan {
  * 2026-09-01 ("no longer available on the Mengantar public API"; do not rely
  * on it). Existing orders created before that cutoff stay queryable, but a
  * default rule for it would offer a courier every quote will fail on.
+ *
+ * SPX (Shopee Express) appeared in the live `/order/estimate?courier=all`
+ * result as `spx` on 2026-09-25, before Mengantar's documentation listed it;
+ * Mengantar confirmed it for create-order. Migration `0059` adds it to
+ * existing stores.
  */
 export const DEFAULT_COURIER_RULES = [
   { code: "JNE", cod: 1 },
@@ -53,6 +58,7 @@ export const DEFAULT_COURIER_RULES = [
   { code: "IDexpress", cod: 1 },
   { code: "Paxel", cod: 0 },
   { code: "Pos", cod: 1 },
+  { code: "SPX", cod: 1 },
 ] as const;
 
 const defaultCourierValues = DEFAULT_COURIER_RULES.map(

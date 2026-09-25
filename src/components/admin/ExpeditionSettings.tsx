@@ -72,6 +72,7 @@ const courierNames: Record<string, string> = {
   IDexpress: 'ID Express',
   Paxel: 'Paxel',
   Pos: 'Pos Indonesia',
+  SPX: 'SPX Express',
 };
 
 const courierLogos: Record<string, string> = {
@@ -85,6 +86,7 @@ const courierLogos: Record<string, string> = {
   IDexpress: 'https://ui-avatars.com/api/?name=ID&background=004f98&color=fff&bold=true',
   Paxel: 'https://ui-avatars.com/api/?name=Paxel&background=42155e&color=fff&bold=true',
   Pos: 'https://ui-avatars.com/api/?name=Pos&background=f07421&color=fff&bold=true',
+  SPX: 'https://ui-avatars.com/api/?name=SPX&background=ee4d2d&color=fff&bold=true',
 };
 
 

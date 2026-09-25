@@ -505,7 +505,9 @@ export class MengantarClient {
         if (/cargo/i.test(courierKey)) continue;
         const item = rateData as Record<string, unknown>;
 
-        const isUnsupported = Boolean(item.unsupported);
+        // SPX reports an origin it cannot pick up from separately from
+        // `unsupported` (observed live 2026-09-25, undocumented).
+        const isUnsupported = Boolean(item.unsupported || item.unsupportedOriginSpx);
         // `price` is the public courier charge. Never bill Mengantar's
         // `estimatedSpecialPrice`, which is the integrator discount.
         const rawPrice = getActualMengantarRatePrice(item);

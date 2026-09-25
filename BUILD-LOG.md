@@ -5818,3 +5818,22 @@ Asked to add SPX through Mengantar: Mengantar's public API does not carry SPX
 not built. Verified: 754 tests, `astro check` 0/0/0, build, and headless
 Chrome on six admin pages at 1280 and 390 px.
 
+## 2026-09-25 — SPX courier through Mengantar
+
+A-296 reopened and built. The "Mengantar does not carry SPX" verdict above
+trusted the local documentation; a read-only probe of the live API disproved
+it. `/order/estimate?courier=all` returns `spx` (Jakarta Selatan Rp13.700,
+1–3 days; Jayapura Rp34.000, 3–4 days; COD covered both ways) with an
+undocumented `unsupportedOriginSpx` flag. The single-courier estimate rejects
+every SPX spelling tried (`Invalid courier`) while accepting `JT` and `Sap`
+case-sensitively; Mengantar confirmed `spx` for create-order to the operator,
+which is the evidence the code now rests on.
+
+The quote was already reaching `estimateRates`; `courier_rules` dropped it
+because no store had an SPX row. SPX joins `DEFAULT_COURIER_RULES`, migration
+`0059` adds an enabled, COD-on row to every store with a policy (schema version
+60), `unsupportedOriginSpx` hides the quote, and the admin labels it
+"SPX Express". Verified: 755 tests, `astro check` 0/0/0, build, and the real
+client plus rule filter against the live estimate offering `spx=13700` for
+COD. Not verified: an SPX `POST /order` (no live order was created) and the
+admin expedition page in a browser.

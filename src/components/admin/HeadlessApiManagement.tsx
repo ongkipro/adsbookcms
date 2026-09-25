@@ -358,7 +358,7 @@ export function HeadlessApiManagement() {
                               min={1}
                               max={600}
                               value={draftRateLimit}
-                              className="min-h-11"
+                              
                               onChange={(event) => setDraftRateLimit(Number(event.target.value))}
                             />
                           </label>
@@ -369,7 +369,7 @@ export function HeadlessApiManagement() {
                               min={1}
                               max={100000}
                               value={draftDailyQuota}
-                              className="min-h-11"
+                              
                               onChange={(event) => setDraftDailyQuota(Number(event.target.value))}
                             />
                           </label>
@@ -457,7 +457,7 @@ export function HeadlessApiManagement() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Contoh: Storefront Production"
                 autoComplete="off"
-                className="min-h-11"
+                
               />
             </label>
             <fieldset>
@@ -484,7 +484,7 @@ export function HeadlessApiManagement() {
                   min={1}
                   max={600}
                   value={rateLimit}
-                  className="min-h-11"
+                  
                   onChange={(event) => setRateLimit(Number(event.target.value))}
                 />
               </label>
@@ -495,7 +495,7 @@ export function HeadlessApiManagement() {
                   min={1}
                   max={100000}
                   value={dailyQuota}
-                  className="min-h-11"
+                  
                   onChange={(event) => setDailyQuota(Number(event.target.value))}
                 />
               </label>
@@ -513,7 +513,7 @@ export function HeadlessApiManagement() {
                 <Input
                   readOnly
                   value={generatedSecret}
-                  className="min-h-11 min-w-0 bg-white font-mono text-[11px]"
+                  className="min-w-0 font-mono"
                   aria-label="API key baru"
                   onFocus={(event) => event.currentTarget.select()}
                 />

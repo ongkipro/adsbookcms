@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DistrictCombobox, type DistrictOption } from "@/components/admin/DistrictCombobox";
@@ -111,7 +112,7 @@ function ReceiverCheck({ initialPhone }: { initialPhone: string }) {
         <CardTitle as="h2" className="flex items-center gap-2 text-base font-bold">
           <MessageCircle className="size-4 text-muted-foreground" aria-hidden="true" /> Riwayat penerima (RTS)
         </CardTitle>
-        <CardDescription>Persentase paket terkirim vs retur untuk nomor WhatsApp ini, dari data Mengantar.</CardDescription>
+        <CardDescription>Paket terkirim vs retur untuk nomor ini, dari data Mengantar.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <form
@@ -135,7 +136,7 @@ function ReceiverCheck({ initialPhone }: { initialPhone: string }) {
                 placeholder="081234567890"
                 aria-describedby="receiver-phone-hint"
                 aria-invalid={error ? true : undefined}
-                className="h-11 pr-10 font-mono"
+                className="pr-10 font-mono"
               />
               {phone && (
                 <Button type="button" variant="ghost" size="icon-sm" className="absolute right-1.5 top-1/2 -translate-y-1/2" aria-label="Kosongkan nomor" onClick={() => setPhone("")}>
@@ -143,7 +144,7 @@ function ReceiverCheck({ initialPhone }: { initialPhone: string }) {
                 </Button>
               )}
             </div>
-            <Button type="submit" size="xl" disabled={loading} aria-busy={loading}>
+            <Button type="submit" disabled={loading} aria-busy={loading}>
               {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Search aria-hidden="true" />}
               {loading ? "Memeriksa…" : "Periksa riwayat"}
             </Button>
@@ -291,7 +292,7 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
         <CardTitle as="h2" className="flex items-center gap-2 text-base font-bold">
           <Truck className="size-4 text-muted-foreground" aria-hidden="true" /> Cek ongkir multi-kurir
         </CardTitle>
-        <CardDescription>Bandingkan tarif, estimasi tiba, dan dukungan COD tiap ekspedisi.</CardDescription>
+        <CardDescription>Tarif, estimasi tiba, dan COD per kurir.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <form className="space-y-4" noValidate onSubmit={submit}>
@@ -323,11 +324,14 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,14rem)_minmax(0,14rem)_1fr] sm:items-end">
+          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label htmlFor="rate-weight" className="text-sm font-medium">Berat paket (kg)</label>
-              <Input id="rate-weight" type="number" inputMode="decimal" min="0.1" step="0.1" value={weight} onChange={(event) => setWeight(event.target.value)} className="h-11 font-mono" />
-              <div className="flex gap-1.5" role="group" aria-label="Berat cepat">
+              <label htmlFor="rate-weight" className="text-sm font-medium">Berat paket</label>
+              <InputGroup>
+                <InputGroupInput id="rate-weight" type="number" inputMode="decimal" min="0.1" step="0.1" value={weight} onChange={(event) => setWeight(event.target.value)} className="font-mono" />
+                <InputGroupAddon align="inline-end">kg</InputGroupAddon>
+              </InputGroup>
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Berat cepat">
                 {[1, 2, 3, 5].map((kg) => (
                   <Button key={kg} type="button" size="sm" variant={weightKg === kg ? "secondary" : "outline"} aria-pressed={weightKg === kg} onClick={() => setWeight(String(kg))}>
                     {kg} kg
@@ -336,11 +340,16 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
               </div>
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="rate-cod" className="text-sm font-medium">Nilai COD (opsional)</label>
-              <Input id="rate-cod" type="number" inputMode="numeric" min="0" step="1000" value={cod} onChange={(event) => setCod(event.target.value)} placeholder="0" aria-describedby="rate-cod-hint" className="h-11 font-mono" />
-              <p id="rate-cod-hint" className="text-xs text-muted-foreground">Isi untuk melihat biaya COD provider.</p>
+              <label htmlFor="rate-cod" className="text-sm font-medium">Nilai COD <span className="font-normal text-muted-foreground">(opsional)</span></label>
+              <InputGroup>
+                <InputGroupAddon>Rp</InputGroupAddon>
+                <InputGroupInput id="rate-cod" type="number" inputMode="numeric" min="0" step="1000" value={cod} onChange={(event) => setCod(event.target.value)} placeholder="0" aria-describedby="rate-cod-hint" className="font-mono" />
+              </InputGroup>
+              <p id="rate-cod-hint" className="text-xs text-muted-foreground">Menampilkan biaya COD dari provider.</p>
             </div>
-            <Button type="submit" size="xl" disabled={loading} aria-busy={loading} className="sm:justify-self-end">
+          </div>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={loading} aria-busy={loading}>
               {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Truck aria-hidden="true" />}
               {loading ? "Menghitung…" : "Cek tarif kurir"}
             </Button>
@@ -360,7 +369,7 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
               </div>
               <div className="flex gap-2">
                 <Select items={SORT_LABELS} value={sort} onValueChange={(value) => setSort((value as RateSort) ?? "price-asc")}>
-                  <SelectTrigger aria-label="Urutkan tarif" className="h-9 min-w-44">
+                  <SelectTrigger aria-label="Urutkan tarif" className="min-w-44">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -429,7 +438,9 @@ export default function RateCheckTools({
   initialPhone?: string;
 }) {
   return (
-    <div className="space-y-6">
+    // Side by side on a wide screen: both checks are short forms, and stacked
+    // they left half the desktop empty and pushed the rate form off-screen.
+    <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
       <ReceiverCheck initialPhone={initialPhone} />
       <RateCheck defaultOrigin={defaultOrigin} warehouseName={warehouseName} />
     </div>

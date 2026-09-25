@@ -1,6 +1,6 @@
 # Mengantar Integration — Technical Contract and Gap Register
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree (SPX, A-296)
+> Verified against disk: 2026-09-26 @ `fd18362` + working tree
 
 This document is the technical source of truth for AdsBookCMS behavior at the Mengantar boundary. It separates repository-observed transport code, locally verified application behavior, operator-gated live mutations, and provider contracts that remain unknown.
 

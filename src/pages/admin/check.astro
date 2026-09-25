@@ -16,16 +16,23 @@ try {
   // The checker still works without a default origin; say so in the log.
   console.error('admin-check-warehouse', error);
 }
+// "Menteng, Administrasi Jakarta Pusat, Daerah Khusus Ibukota Jakarta" does not
+// fit a field; the input shows district and city, the list shows the rest.
+const originParts = (warehouse?.origin_label || '').split(',').map((part) => part.trim()).filter(Boolean);
 const defaultOrigin = warehouse?.origin_area_id
-  ? { id: warehouse.origin_area_id, label: warehouse.origin_label || warehouse.origin_area_id }
+  ? {
+      id: warehouse.origin_area_id,
+      label: originParts.slice(0, 2).join(', ') || warehouse.origin_area_id,
+      detail: originParts.slice(2).join(', ') || undefined,
+    }
   : null;
 const initialPhone = Astro.url.searchParams.get('search')?.trim() || '';
 ---
 <AdminLayout title="Cek WA & Ongkir" activeMenu="scoring">
-  <div class="mx-auto max-w-5xl space-y-6">
+  <div class="space-y-6">
     <AdminPageHeader
       title="Cek WA & ongkir"
-      description="Periksa riwayat retur pembeli sebelum COD, lalu bandingkan ongkir antar-kurir."
+      description="Riwayat retur pembeli dan perbandingan ongkir kurir."
     />
     <RateCheckTools
       client:load

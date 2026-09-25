@@ -14,7 +14,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
 <AdminLayout title="Meta Pixel & CAPI" activeMenu="ads">
   <div class="space-y-6">
     <AdminPageHeader
-      title="Pixel & Conversions API (CAPI)"
+      title="Meta Pixel & CAPI"
       description="Kelola browser pixel, server-side events, deduplikasi event_id, dan ikuti tutorial konfigurasi lengkap."
       backHref="/admin/ads"
       backLabel="Ads & tracking"
@@ -128,7 +128,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
               maxlength="25"
               autocomplete="off"
               placeholder="123456789012345"
-              class="admin-input-flat h-11 font-mono text-base md:text-sm"
+              class="admin-input-flat font-mono"
             />
             <span class="mt-1.5 block text-[11px] text-slate-500">Ambil dari Events Manager → Data Sources → Pixel ID.</span>
           </label>
@@ -145,7 +145,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
                 maxlength="4096"
                 autocomplete="new-password"
                 placeholder="Masukkan token baru"
-                class="admin-input-flat h-11 pr-24 font-mono text-base md:text-sm"
+                class="admin-input-flat pr-24 font-mono"
               />
               <button
                 id="toggleToken"
@@ -172,7 +172,7 @@ const feedUrl = `${origin}/feed/meta-catalog.xml`;
               autocomplete="off"
               placeholder="TEST12345"
               pattern="TEST[0-9]{3,20}"
-              class="admin-input-flat h-11 font-mono text-base uppercase md:text-sm"
+              class="admin-input-flat font-mono uppercase"
             />
             <span class="mt-1.5 block text-[11px] leading-5 text-slate-500">Ambil dari Events Manager → Test Events. Memastikan test event terverifikasi real-time tanpa mengganggu data produksi.</span>
           </label>

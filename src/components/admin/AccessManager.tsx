@@ -9,7 +9,6 @@ import {
   Minus,
   Pencil,
   RefreshCw,
-  Search,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/admin/filter-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { AdminRole } from "../../lib/auth";
@@ -396,35 +396,35 @@ export function AccessManager() {
     <div className="space-y-6">
       {/* Overview Stats Bar */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex items-center gap-2 text-slate-500">
             <Users className="size-4 text-emerald-600" />
             <span className="text-xs font-bold">Total Akun</span>
           </div>
           <p className="mt-2 text-2xl font-black text-slate-950">{stats.total}</p>
         </div>
-        <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-4 shadow-xs">
+        <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-4 shadow-xs">
           <div className="flex items-center gap-2 text-emerald-800">
             <ShieldCheck className="size-4 text-emerald-600" />
             <span className="text-xs font-bold">Owner</span>
           </div>
           <p className="mt-2 text-2xl font-black text-emerald-950">{stats.owner}</p>
         </div>
-        <div className="rounded-2xl border border-blue-200/80 bg-blue-50/50 p-4 shadow-xs">
+        <div className="rounded-xl border border-blue-200/80 bg-blue-50/50 p-4 shadow-xs">
           <div className="flex items-center gap-2 text-blue-800">
             <CircleUserRound className="size-4 text-blue-600" />
             <span className="text-xs font-bold">Admin Ops</span>
           </div>
           <p className="mt-2 text-2xl font-black text-blue-950">{stats.admin}</p>
         </div>
-        <div className="rounded-2xl border border-purple-200/80 bg-purple-50/50 p-4 shadow-xs">
+        <div className="rounded-xl border border-purple-200/80 bg-purple-50/50 p-4 shadow-xs">
           <div className="flex items-center gap-2 text-purple-800">
             <Sparkles className="size-4 text-purple-600" />
             <span className="text-xs font-bold">Operator Ads</span>
           </div>
           <p className="mt-2 text-2xl font-black text-purple-950">{stats.advertiser}</p>
         </div>
-        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/50 p-4 col-span-2 sm:col-span-1 shadow-xs">
+        <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-4 col-span-2 sm:col-span-1 shadow-xs">
           <div className="flex items-center gap-2 text-amber-800">
             <UserCheck className="size-4 text-amber-600" />
             <span className="text-xs font-bold">Operator CS</span>
@@ -436,7 +436,7 @@ export function AccessManager() {
       {/* Main Grid: User List & Add Form */}
       <div className="grid grid-cols-1 min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
         {/* Left Column: User Directory */}
-        <Card className="min-w-0 rounded-2xl border-slate-200 shadow-xs">
+        <Card className="min-w-0 rounded-xl border-slate-200 shadow-xs">
           <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -464,22 +464,13 @@ export function AccessManager() {
 
             {/* Filter & Search Controls */}
             <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
-                <Input
-                  placeholder="Cari username, nama, atau email…"
-                  aria-label="Cari akun"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-9 rounded-xl border-slate-200 bg-slate-50/50 pl-9 text-xs"
-                />
-              </div>
+              <SearchInput className="flex-1" placeholder="Cari username, nama, atau email" aria-label="Cari akun" value={searchTerm} onValueChange={setSearchTerm} />
               <Select
                 items={ROLE_FILTER_LABELS}
                 value={roleFilter}
                 onValueChange={(value) => setRoleFilter(String(value ?? "all"))}
               >
-                <SelectTrigger size="sm" aria-label="Filter role" className="min-w-40 bg-white">
+                <SelectTrigger aria-label="Filter role" className="w-full sm:w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -615,7 +606,7 @@ export function AccessManager() {
         </Card>
 
         {/* Right Column: Add User Form */}
-        <Card className="min-w-0 rounded-2xl border-slate-200 shadow-xs h-fit">
+        <Card className="min-w-0 rounded-xl border-slate-200 shadow-xs h-fit">
           <CardHeader className="border-b border-slate-100 pb-4">
             <CardTitle className="flex items-center gap-2 text-base font-black text-slate-950">
               <UserPlus className="size-4 text-emerald-600" />
@@ -639,7 +630,7 @@ export function AccessManager() {
                   placeholder="Misal: Ahmad Fauzi"
                   value={form.display_name}
                   onChange={(e) => setForm({ ...form, display_name: e.target.value })}
-                  className="mt-1 h-9 rounded-xl border-slate-200 text-xs"
+                  className="mt-1"
                 />
               </div>
 
@@ -654,7 +645,7 @@ export function AccessManager() {
                     value && setForm({ ...form, role: value as AssignableRole })
                   }
                 >
-                  <SelectTrigger aria-label="Role" className="mt-1 h-10 w-full bg-white">
+                  <SelectTrigger aria-label="Role" className="mt-1 w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -683,7 +674,7 @@ export function AccessManager() {
                   onChange={(e) =>
                     setForm({ ...form, username: e.target.value.toLowerCase() })
                   }
-                  className="mt-1 h-9 font-mono rounded-xl border-slate-200 text-xs"
+                  className="mt-1 font-mono"
                 />
                 <span className="text-[10px] text-slate-400">
                   3–64 karakter (huruf kecil, angka, titik, garis bawah, strip).
@@ -699,7 +690,7 @@ export function AccessManager() {
                   placeholder="ahmad@perusahaan.com"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="mt-1 h-9 rounded-xl border-slate-200 text-xs"
+                  className="mt-1"
                 />
               </div>
 
@@ -729,7 +720,7 @@ export function AccessManager() {
                     placeholder="Minimal 8 karakter"
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    className="h-9 rounded-xl border-slate-200 pr-9 text-xs font-mono"
+                    className="pr-9 font-mono"
                   />
                   <button
                     type="button"
@@ -762,7 +753,7 @@ export function AccessManager() {
       {/* Edit User Modal Dialog */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-xs p-4">
-          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-950/10 animate-in fade-in zoom-in-95 duration-150">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-950/10 animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-base font-black text-slate-950">
               Edit Profil & Peran Pengguna
             </h3>
@@ -779,7 +770,7 @@ export function AccessManager() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, display_name: e.target.value })
                   }
-                  className="mt-1 h-9 rounded-xl border-slate-200 text-xs"
+                  className="mt-1"
                 />
               </div>
               <div>
@@ -790,7 +781,7 @@ export function AccessManager() {
                   onChange={(e) =>
                     setEditForm({ ...editForm, email: e.target.value })
                   }
-                  className="mt-1 h-9 rounded-xl border-slate-200 text-xs"
+                  className="mt-1"
                 />
               </div>
               <div>
@@ -802,7 +793,7 @@ export function AccessManager() {
                     value && setEditForm({ ...editForm, role: value as AssignableRole })
                   }
                 >
-                  <SelectTrigger aria-label="Role" className="mt-1 h-10 w-full bg-white">
+                  <SelectTrigger aria-label="Role" className="mt-1 w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -840,7 +831,7 @@ export function AccessManager() {
       {/* Reset Password Modal Dialog */}
       {resetUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-xs p-4">
-          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-slate-950/10 animate-in fade-in zoom-in-95 duration-150">
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-2xl ring-1 ring-slate-950/10 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-2 text-amber-700">
               <KeyRound className="size-5" />
               <h3 className="text-base font-black text-slate-950">
@@ -870,7 +861,7 @@ export function AccessManager() {
                   minLength={8}
                   value={newPasswordValue}
                   onChange={(e) => setNewPasswordValue(e.target.value)}
-                  className="mt-1 h-9 rounded-xl border-slate-200 font-mono text-xs"
+                  className="mt-1 font-mono"
                 />
               </div>
 
@@ -903,7 +894,7 @@ export function AccessManager() {
       )}
 
       {/* Permissions Matrix Reference Table */}
-      <Card className="min-w-0 rounded-2xl border-slate-200 shadow-xs">
+      <Card className="min-w-0 rounded-xl border-slate-200 shadow-xs">
         <CardHeader className="border-b border-slate-100 pb-4">
           <CardTitle className="flex items-center gap-2 text-base font-black text-slate-950">
             <ShieldCheck className="size-5 text-blue-600" aria-hidden="true" />
@@ -924,7 +915,7 @@ export function AccessManager() {
             {PERMISSION_ROWS.map((row) => (
               <section
                 key={row.capability}
-                className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs"
+                className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs"
               >
                 <h3 className="font-extrabold text-slate-950">{row.capability}</h3>
                 <p className="mt-0.5 text-xs text-slate-500">{row.description}</p>
@@ -961,7 +952,7 @@ export function AccessManager() {
           </div>
 
           {/* Desktop Table View */}
-          <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 md:block">
+          <div className="hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
             <table className="w-full min-w-[640px] text-left text-xs">
               <thead className="bg-slate-50/80">
                 <tr>

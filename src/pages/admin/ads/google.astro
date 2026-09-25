@@ -11,11 +11,11 @@ const storeName = Astro.locals.tenant.name;
 const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-catalog.xml`;
 ---
 
-<AdminLayout title="Google Ads Signal & Catalog Engine" activeMenu="ads">
+<AdminLayout title="Google Ads & Merchant Center" activeMenu="ads">
   <div class="space-y-6">
     <!-- Header Page -->
     <AdminPageHeader
-      title="Google Ads & Merchant Center Engine"
+      title="Google Ads & Merchant Center"
       description="Kelola GTM Container, Google Ads Purchase Conversion, Enhanced Conversions, Consent Mode v2, dan Catalog XML Feed dari satu tempat."
       backHref="/admin/ads"
       backLabel="Ads & tracking"
@@ -138,7 +138,7 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
             autocomplete="off"
             placeholder="GTM-XXXXXXX"
             pattern="GTM-[A-Za-z0-9]{4,20}"
-            class="admin-input-flat mt-2 h-11 font-mono text-base uppercase md:text-sm"
+            class="admin-input-flat mt-2 font-mono uppercase"
           />
           <p class="mt-1.5 text-[11px] leading-5 text-slate-500">
             Mengaktifkan container GTM tenant untuk event e-commerce <code>view_item</code>, <code>add_to_cart</code>, <code>begin_checkout</code>, dan <code>purchase</code>.
@@ -157,7 +157,7 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
               autocomplete="off"
               placeholder="AW-998877665"
               pattern="AW-[0-9]{5,20}"
-              class="admin-input-flat mt-2 h-11 font-mono text-base uppercase md:text-sm"
+              class="admin-input-flat mt-2 font-mono uppercase"
             />
             <p class="mt-1.5 text-[11px] text-slate-500">Format standar Google Tag: <code>AW-XXXXXXXXX</code></p>
           </div>
@@ -173,7 +173,7 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
               autocomplete="off"
               placeholder="AbCd_EFGHIJKlm"
               pattern="[A-Za-z0-9_-]{1,100}"
-              class="admin-input-flat mt-2 h-11 font-mono text-base md:text-sm"
+              class="admin-input-flat mt-2 font-mono"
             />
             <p class="mt-1.5 text-[11px] text-slate-500">Conversion Label khusus untuk event Purchase di Google Ads Manager.</p>
           </div>

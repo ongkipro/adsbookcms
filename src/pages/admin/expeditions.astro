@@ -6,10 +6,10 @@ export const prerender = false;
 ---
 
 <AdminLayout title="Ekspedisi" activeMenu="expeditions">
-  <div class="mx-auto max-w-6xl space-y-5">
+  <div class="space-y-5">
     <AdminPageHeader
       title="Layanan ekspedisi"
-      description="Atur kurir dan layanan COD yang tersedia di checkout. Perubahan langsung digunakan oleh Shipping Rates API."
+      description="Atur kurir dan layanan COD di checkout. Perubahan langsung berlaku."
     />
     <ExpeditionSettings client:load />
   </div>

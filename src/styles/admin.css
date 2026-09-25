@@ -13,6 +13,13 @@
 @source "../components/ui";
 @source "../pages/admin";
 @source "../pages/hello.astro";
+
+/* shadcn's base rule, missing here since the three-way CSS split: without it a
+   bare `border`/`border-b` falls back to currentColor in Tailwind v4 and draws
+   a black line under card headers, tables and panels. */
+@layer base {
+  *, ::before, ::after, ::backdrop { border-color: var(--border); }
+}
 @source "../layouts/AdminLayout.astro";
 
 @import "tw-animate-css";
@@ -51,7 +58,10 @@
   }
 
   .admin-input-flat {
-    @apply flex min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus-visible:outline-none focus-visible:border-blue-600 focus-visible:ring-2 focus-visible:ring-blue-600/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100 md:text-sm;
+    /* The static-page twin of the shadcn Input (ui/input.tsx): same height,
+       radius, border and type, so a form on an Astro page and one in an
+       island look like one system. */
+    @apply flex min-h-10 w-full rounded-lg border border-input bg-white px-2.5 py-1.5 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 disabled:opacity-100 md:text-sm;
   }
 
   .btn-primary:focus-visible,
@@ -134,7 +144,10 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  /* One radius for the whole operator UI, popups included: they portal to
+     <body>, outside .admin-shell, so a second value here made every select
+     and menu rounder than the control that opened it. */
+  --radius: 0.375rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -201,7 +214,7 @@
   --border: oklch(0.91 0.009 255);
   --input: oklch(0.89 0.012 255);
   --ring: oklch(0.58 0.12 255);
-  --radius: 0.75rem;
+  --radius: 0.375rem;
   --sidebar: oklch(0.985 0.003 255);
   --sidebar-foreground: oklch(0.19 0.024 255);
   --sidebar-accent: oklch(0.95 0.008 255);
@@ -239,13 +252,13 @@
 
 .admin-shell [data-slot="card"],
 .admin-shell section.bg-white,
-.admin-shell article.bg-white { border-color: rgba(203, 213, 225, 0.72); border-radius: 0.875rem; box-shadow: none; }
+.admin-shell article.bg-white { border-color: rgba(203, 213, 225, 0.72); border-radius: var(--radius-xl); box-shadow: none; }
 .admin-shell [data-slot="card-header"] { border-color: rgba(226, 232, 240, 0.82); }
 .admin-shell section.relative > [aria-hidden="true"].absolute { display: none; }
 .admin-shell .admin-main :where(h2, h3) { letter-spacing: -0.025em; }
 /* An InputGroup (combobox, search with addon) draws its own frame; the input
    inside it is borderless on purpose and must not get a second frame here. */
-.admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([data-slot="input-group-control"]), select, textarea, [data-slot="input-group"]) {
+.admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([data-slot="input-group-control"]), select, textarea, [data-slot="input-group"], [data-slot="select-trigger"]) {
   border-color: #dbe1e8;
   background-color: #fff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
@@ -259,7 +272,7 @@
 .admin-shell .admin-main :where(thead), .admin-shell .admin-main :where(tbody tr:hover) { background: #f8fafc; }
 .admin-shell .admin-main :where(th) { color: #64748b; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.055em; text-transform: uppercase; }
 .admin-shell .admin-main :where(tbody tr) { transition: background-color 120ms ease; }
-.admin-shell .admin-main :where([role="alert"]) { border-radius: 0.875rem; }
+.admin-shell .admin-main :where([role="alert"]) { border-radius: var(--radius-lg); }
 .admin-shell .admin-main :where(.animate-pulse) { background-image: linear-gradient(90deg, #f1f5f9, #f8fafc, #f1f5f9); }
 .admin-shell .animate-pulse { animation: none; }
 .admin-shell [data-slot='select-content'] { animation: none !important; transition: none !important; }
@@ -277,7 +290,7 @@
   .admin-shell .admin-main :where(section, article, form, fieldset).p-6,
   .admin-shell .admin-main [data-slot="card-content"].p-5,
   .admin-shell .admin-main [data-slot="card-header"].p-5 { padding: 1rem; }
-  .admin-shell [data-slot="card"], .admin-shell section.bg-white, .admin-shell article.bg-white { border-radius: 1rem; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035); }
+  .admin-shell [data-slot="card"], .admin-shell section.bg-white, .admin-shell article.bg-white { border-radius: var(--radius-xl); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035); }
   .admin-shell .admin-main :where(input:not([type="checkbox"]):not([type="radio"]):not([data-slot="input-group-control"]), select, textarea, [data-slot="input-group"]) { min-height: 3rem; }
   .admin-shell .admin-main [data-slot="input-group-control"] { align-self: stretch; }
   /* A Base UI select trigger is a <button>, so it took the 2.75rem button floor

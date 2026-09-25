@@ -574,7 +574,6 @@ export default function PaymentReconciliationQueue() {
             <Button
               type="button"
               variant="outline"
-              size="xl"
               className="w-full sm:w-auto"
               disabled={loading || refreshing}
               onClick={() => void loadQueue(pagination.page, true)}
@@ -592,7 +591,6 @@ export default function PaymentReconciliationQueue() {
               <Button
                 type="button"
                 variant={viewStatus === "pending" ? "default" : "outline"}
-                size="xl"
                 onClick={() => setViewStatus("pending")}
               >
                 Menunggu
@@ -601,7 +599,6 @@ export default function PaymentReconciliationQueue() {
               <Button
                 type="button"
                 variant={viewStatus === "paid" ? "default" : "outline"}
-                size="xl"
                 onClick={() => setViewStatus("paid")}
               >
                 Verifikasi terbaru
@@ -632,7 +629,6 @@ export default function PaymentReconciliationQueue() {
               <Button
                 type="button"
                 variant="outline"
-                size="xl"
                 onClick={() => void loadQueue(pagination.page)}
               >
                 Coba lagi
@@ -716,7 +712,6 @@ export default function PaymentReconciliationQueue() {
                             <TableCell className="pr-4 text-right whitespace-normal">
                               <Button
                                 type="button"
-                                size="xl"
                                 disabled={!transaction.confirmationEligible || !transaction.providerReference}
                                 onClick={() => openVerification(transaction)}
                               >
@@ -762,9 +757,12 @@ export default function PaymentReconciliationQueue() {
                         ) : (
                           <>
                             <TableCell className="whitespace-normal text-xs">
-                              <p className="font-medium">{transaction.confirmedBy || "Operator tidak tersedia"}</p>
+                              {/* No operator on the row means the hourly reconciliation (or the
+                                  provider webhook) settled it, not that someone is missing. */}
+                              <p className="font-medium">{transaction.confirmedBy || "Otomatis"}</p>
                               <p className="mt-1 text-muted-foreground">
-                                {transaction.confirmedRole || "—"} · {formatDate(transaction.confirmedAt)}
+                                {transaction.confirmedBy ? `${transaction.confirmedRole || "—"} · ` : "Status dari AutoLaris · "}
+                                {formatDate(transaction.confirmedAt)}
                               </p>
                             </TableCell>
                             <TableCell className="max-w-64 whitespace-normal break-words pr-4 text-xs leading-5 text-muted-foreground">
@@ -814,7 +812,6 @@ export default function PaymentReconciliationQueue() {
                   {viewStatus === "pending" && <CardFooter className="flex-col gap-2">
                     <Button
                       type="button"
-                      size="xl"
                       className="w-full"
                       disabled={!transaction.confirmationEligible || !transaction.providerReference}
                       onClick={() => openVerification(transaction)}
@@ -847,7 +844,6 @@ export default function PaymentReconciliationQueue() {
                   <Button
                     type="button"
                     variant="outline"
-                    size="xl"
                     disabled={pagination.page <= 1 || refreshing}
                     onClick={() => void loadQueue(pagination.page - 1, true)}
                   >
@@ -863,7 +859,6 @@ export default function PaymentReconciliationQueue() {
                   <Button
                     type="button"
                     variant="outline"
-                    size="xl"
                     disabled={pagination.page >= pagination.totalPages || refreshing}
                     onClick={() => void loadQueue(pagination.page + 1, true)}
                   >
@@ -922,7 +917,7 @@ export default function PaymentReconciliationQueue() {
                     <Input
                       ref={amountRef}
                       id="verified-amount"
-                      className="mt-2 h-11 font-mono"
+                      className="mt-2 font-mono"
                       inputMode="numeric"
                       autoComplete="off"
                       value={draft.amount}
@@ -943,7 +938,7 @@ export default function PaymentReconciliationQueue() {
                     <Input
                       ref={referenceRef}
                       id="provider-reference"
-                      className="mt-2 h-11 font-mono"
+                      className="mt-2 font-mono"
                       autoComplete="off"
                       value={draft.reference}
                       aria-invalid={Boolean(fieldErrors.reference)}
@@ -1000,10 +995,10 @@ export default function PaymentReconciliationQueue() {
               </div>
 
               <DialogFooter className="mt-5">
-                <Button type="button" variant="outline" size="xl" disabled={submitting} onClick={() => closeVerification(false)}>
+                <Button type="button" variant="outline" disabled={submitting} onClick={() => closeVerification(false)}>
                   Batal
                 </Button>
-                <Button type="submit" size="xl" disabled={submitting}>
+                <Button type="submit" disabled={submitting}>
                   {submitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}
                   {submitting ? "Menyimpan…" : "Konfirmasi lunas di CMS"}
                 </Button>

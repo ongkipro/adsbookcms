@@ -11,14 +11,13 @@ import {
   Plus,
   Search,
   Trash2,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { Input } from "../ui/input";
 import { Button, buttonVariants } from "../ui/button";
+import { SearchInput } from "./filter-bar";
 import {
   Dialog,
   DialogContent,
@@ -287,27 +286,7 @@ export default function LandingPageCatalog() {
       <div className="flex flex-col gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full">
           {/* Search Input */}
-          <div className="relative w-full sm:w-80">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" aria-hidden="true" />
-            <Input
-              type="search"
-              placeholder="Cari judul, slug, atau produk..."
-              aria-label="Cari landing page"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-xs text-slate-900 placeholder:text-slate-400 shadow-xs focus-visible:border-slate-300 focus-visible:ring-1 focus-visible:ring-slate-300"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-md hover:bg-slate-100"
-                aria-label="Hapus kata kunci pencarian"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
+          <SearchInput className="w-full sm:w-80" placeholder="Cari judul, slug, atau produk" aria-label="Cari landing page" value={search} onValueChange={setSearch} />
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">

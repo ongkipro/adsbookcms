@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-26 @ `fd18362` + working tree
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -119,7 +119,7 @@ can reach it.
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **764 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
+Current verified working-tree baseline: **769 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 
@@ -144,6 +144,13 @@ A permitted command is not an approved one. The tooling here runs with broad per
 Smallest change that is correct. Reuse what exists before adding; the codebase already has 100 non-test lib modules and duplicating one is the most common failure mode.
 
 Before adding a dependency, check whether the platform already provides it. Two headless UI libraries already ship side by side (`radix-ui` and `@base-ui/react`) — do not add a third.
+
+Admin UI follows the control contract in DESIGN-SYSTEM.md §7.1: shadcn
+primitives own every control's height, radius and colour (never pass them per
+call), filter rows are `FilterBar`/`FilterField`, search is `SearchInput`, page
+width belongs to AdminShell alone. `admin-controls.test.ts` and
+`admin-page-width.test.ts` fail the suite when a screen drifts from it — fix
+the screen, not the test.
 
 Fix root causes, not symptoms. Grep every caller before editing a shared function: one guard in the shared path is a smaller diff than one guard per call site, and patching only the path in front of you leaves siblings broken.
 

@@ -103,6 +103,8 @@ export function DistrictCombobox({
         inputValue={query}
         onInputValueChange={(next) => setQuery(next)}
         itemToStringLabel={(item: DistrictOption) => item.label}
+        // The hidden form input carries the area id, not the whole object as JSON.
+        itemToStringValue={(item: DistrictOption) => item.id}
         isItemEqualToValue={(item: DistrictOption, current: DistrictOption) => item.id === current.id}
         disabled={disabled}
       >

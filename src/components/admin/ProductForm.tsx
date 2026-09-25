@@ -318,7 +318,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                 maxLength={160}
                 value={title}
                 onChange={(event) => onTitleChange(event.target.value)}
-                className="admin-input-flat h-11 border-slate-300 bg-slate-50 text-base shadow-none focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 md:text-sm"
+                className="admin-input-flat focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
               />
             </label>
             <label>
@@ -333,7 +333,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                 onChange={(event) => {
                   setSlug(slugify(event.target.value));
                 }}
-                className="admin-input-flat h-11 border-slate-300 bg-slate-50 font-mono text-base shadow-none focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 md:text-sm"
+                className="admin-input-flat font-mono focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
               />
               <span className="mt-1 block text-[11px] text-slate-500">
                 Huruf kecil, angka, dan tanda hubung.
@@ -372,7 +372,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                       if (file) void uploadImage(file);
                       event.target.value = "";
                     }}
-                    className="block min-h-11 w-full border-slate-300 bg-slate-50 text-base text-slate-700 focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-emerald-700 file:px-4 file:text-xs file:font-bold file:text-white file:hover:bg-emerald-800 md:text-sm"
+                    className="block w-full text-slate-700 focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-emerald-700 file:px-4 file:text-xs file:font-bold file:text-white file:hover:bg-emerald-800"
                   />
                   <p
                     id="product-image-hint"
@@ -444,7 +444,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                       onChange={(event) =>
                         updateVariant(index, "title", event.target.value)
                       }
-                      className="admin-input-flat h-11 border-slate-300 bg-slate-50 text-base shadow-none focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 md:text-sm"
+                      className="admin-input-flat focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
                     />
                     <span className="mt-1 block text-[10px] text-slate-400">
                       Maks. 15 karakter (contoh: 500ml, 1 Liter, Beli 2)
@@ -465,7 +465,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                           event.target.value.toUpperCase(),
                         )
                       }
-                      className="admin-input-flat h-11 border-slate-300 bg-slate-50 font-mono text-base uppercase shadow-none focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 md:text-sm"
+                      className="admin-input-flat font-mono uppercase focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
                     />
                   </label>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
@@ -490,7 +490,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                       onChange={(event) =>
                         updateVariant(index, "price", event.target.value)
                       }
-                      className="admin-input-flat h-11 border-slate-300 bg-slate-50 text-base shadow-none focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 md:text-sm"
+                      className="admin-input-flat focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
                     />
                   </label>
                   <label>
@@ -510,7 +510,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                           event.target.value,
                         )
                       }
-                      className="admin-input-flat h-11 border-slate-300 bg-slate-50 text-base shadow-none focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 md:text-sm"
+                      className="admin-input-flat focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
                     />
                   </label>
                   <label>
@@ -527,7 +527,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                       onChange={(event) =>
                         updateVariant(index, "weight_grams", event.target.value)
                       }
-                      className="admin-input-flat h-11 border-slate-300 bg-slate-50 text-base shadow-none focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 md:text-sm"
+                      className="admin-input-flat focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
                     />
                   </label>
                 </div>

@@ -246,7 +246,7 @@ export default function SellerBankAccounts({
             disabled={pending}
             required
           >
-            <SelectTrigger id="seller-bank-code" className="h-11 border-slate-200 bg-white shadow-sm">
+            <SelectTrigger id="seller-bank-code" >
               <SelectValue>
                 {bankByCode.get(bankCode)?.label || "Pilih bank"}
               </SelectValue>
@@ -273,7 +273,7 @@ export default function SellerBankAccounts({
               setAccountHolder(cleanAccountHolder(event.target.value));
               setErrors((current) => ({ ...current, holder: undefined }));
             }}
-            className="h-11 border-slate-200 bg-white shadow-sm"
+            
             maxLength={100}
             autoComplete="off"
             aria-invalid={Boolean(errors.holder)}
@@ -300,7 +300,7 @@ export default function SellerBankAccounts({
               setAccountNumber(cleanAccountNumber(event.target.value));
               setErrors((current) => ({ ...current, number: undefined }));
             }}
-            className="h-11 border-slate-200 bg-white font-mono shadow-sm"
+            className="font-mono"
             inputMode="numeric"
             pattern="[0-9]{6,24}"
             minLength={6}
@@ -320,14 +320,13 @@ export default function SellerBankAccounts({
         </div>
 
         <div className="flex min-h-11 gap-2 md:pt-[25px]">
-          <Button type="submit" size="xl" className="min-w-32" disabled={pending}>
+          <Button type="submit" className="min-w-32" disabled={pending}>
             {pending ? "Menyimpan…" : editingId ? "Simpan Perubahan" : "Tambah Rekening"}
           </Button>
           {editingId && (
             <Button
               type="button"
               variant="outline"
-              size="xl"
               onClick={resetForm}
               disabled={pending}
               aria-label="Batalkan perubahan rekening"

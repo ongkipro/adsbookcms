@@ -34,15 +34,15 @@ const variables = [
 ];
 ---
 
-<AdminLayout title="CRM Templates" activeMenu="settings">
+<AdminLayout title="Template CRM" activeMenu="settings">
   <div class="space-y-6">
     <AdminPageHeader
-      title="CRM templates"
+      title="Template CRM"
       description="Edit pesan WhatsApp untuk welcome, order detail, follow-up 1–5, processing, completed, upselling, dan thanks page redirect."
       backHref="/admin/settings"
       backLabel="Pengaturan"
     />
-    <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <p class="text-xs font-bold text-slate-700">Variabel template</p>
       <p class="mt-1 text-[11px] leading-5 text-slate-500">Pilih kolom pesan terlebih dahulu, lalu tekan variabel untuk menyisipkannya di posisi kursor.</p>
       <div class="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Variabel template">
@@ -51,7 +51,7 @@ const variables = [
     </section>
     <div id="crmLoading" class="h-96 animate-pulse rounded-xl bg-slate-100" role="status" aria-live="polite" aria-busy="true" aria-atomic="true"><span class="sr-only">Memuat template CRM.</span></div><div id="crmError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
     <form id="crmForm" class="hidden space-y-3" novalidate aria-busy="false">
-      {steps.map((step,index) => <details class="group rounded-xl border border-slate-200 bg-white shadow-sm" open={index===0}><summary class="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 focus-visible:outline-2 focus-visible:outline-blue-600"><span><strong class="block text-sm text-slate-950">{step.label}</strong><span class="mt-0.5 block text-[11px] text-slate-500">{step.purpose}</span></span><span class="text-xs font-black text-slate-400 group-open:rotate-180" aria-hidden="true">⌄</span></summary><div class="border-t border-slate-200 p-4"><textarea rows="6" maxlength="2000" class="admin-input-flat min-h-36 resize-y text-base leading-6 md:text-sm" data-template-key={step.key} aria-label={`Template ${step.label}`}></textarea><div class="mt-2 flex items-center justify-between gap-3 text-[11px]"><span class="text-slate-500">Klik variable chip untuk menyisipkan ke editor aktif.</span><span class="font-mono font-bold text-slate-500" data-count-for={step.key}>0 / 2000</span></div></div></details>)}
+      {steps.map((step,index) => <details class="group rounded-xl border border-slate-200 bg-white shadow-sm" open={index===0}><summary class="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 focus-visible:outline-2 focus-visible:outline-blue-600"><span><strong class="block text-sm text-slate-950">{step.label}</strong><span class="mt-0.5 block text-[11px] text-slate-500">{step.purpose}</span></span><span class="text-xs font-black text-slate-400 group-open:rotate-180" aria-hidden="true">⌄</span></summary><div class="border-t border-slate-200 p-4"><textarea rows="6" maxlength="2000" class="admin-input-flat min-h-36 resize-y leading-6" data-template-key={step.key} aria-label={`Template ${step.label}`}></textarea><div class="mt-2 flex items-center justify-between gap-3 text-[11px]"><span class="text-slate-500">Klik variable chip untuk menyisipkan ke editor aktif.</span><span class="font-mono font-bold text-slate-500" data-count-for={step.key}>0 / 2000</span></div></div></details>)}
       <!-- The mobile bottom nav is fixed at bottom:0, 64px tall + safe area, z-40.
            A `bottom-3` sticky bar sits at 12px-56px above the viewport bottom, so the
            submit button was rendered underneath it and could not be tapped. Clear the

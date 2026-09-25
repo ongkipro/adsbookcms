@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-26 @ `fd18362` + working tree
 
 ## A21 — A landing page may become the product page
 
@@ -2504,6 +2504,45 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   `global.css` that no longer exists; it now names `admin.css`, where the
   tokens are. Measured at 390 px: every input on 30 pages and their popups
   is 16 px, so iOS does not zoom; no change was needed there.
+- [x] **A-306** — Admin desktop precision. Measured every admin page at 1280,
+  1440 and 1920px: at 1920 five page-level `max-w-*` wrappers gave five
+  different content edges (and payments sat left of the rest). Page width is
+  now AdminShell's `max-w-[1560px]` alone; all 25 pages share one edge at all
+  three widths, guarded by `admin-page-width.test.ts`. The orders and shipping
+  filter rows scrolled 34px sideways at 1280 (`flex-nowrap`); they wrap now.
+  One thin radius (`0.375rem`) for the whole admin, popups included (they
+  read `:root`, so they were rounder than their triggers), cards on
+  `rounded-xl`; trigger, popup and item measured 6 / 6 / 4.8px. Remaining
+  English titles and labels ("Order management", "Return to Sender",
+  "Snapshot performa toko", "Shipping Rates API") moved to Indonesian.
+- [x] **A-307** — Admin control contract. Controls were sized per call — five
+  heights (28–44px), radii from 4 to 17px, filter rows with fixed
+  `w-[140px]` columns that overlapped, five searches built as an icon over an
+  input. Now the shadcn primitives own it (40px everywhere on desktop), filter
+  rows are `FilterBar`/`FilterField`, search is `SearchInput`, and 60+ per-call
+  overrides and 28 `size="xl"` buttons were removed. `admin-controls.test.ts`
+  refuses a regression; writing it found that the first sweep had missed every
+  control whose `className` followed an arrow-function prop (the scanner
+  stopped at the `>` of `=>`), so the guard now reads tags brace-aware and was
+  mutation-checked. The admin CSS lacked shadcn's base `border-color` rule, so
+  every bare `border` drew black (currentColor); it is restored once. Courier
+  list became one compact table with locally drawn initials (the logos loaded
+  from a third-party avatar service); payment methods became rows in one card;
+  `/admin/settings` rewritten, its AutoLaris line had claimed confirmation was
+  manual although the hourly job settles it; an auto-settled payment read
+  "Operator tidak tersedia" and now reads "Otomatis · Status dari AutoLaris";
+  top-bar titles now match page titles. Checked after: 108 of 114 page/width
+  combinations clean (the six are correct 404/400s), one content edge on all
+  25 admin pages at three widths, inputs 16px on 30 pages at 390px, no control
+  overlaps, Meta Ads saved and reloaded, one pixel init at runtime, both feeds
+  valid with 10 items.
+  Follow-up the same day: filter selects rendered the raw value "all" until
+  hydration (no `items` map) and looked unlike the date filter, so toolbars
+  use `FilterSelect` (icon, value, chevron, `items` always set); every select
+  trigger carried a hidden "▼" text node from Base UI's default icon children,
+  copied with the page text; the kecamatan combobox's hidden input held the
+  option as JSON. The courier list became two columns with the couriers' own
+  marks, and the rate checker two side-by-side panels with `kg`/`Rp` addons.
 - [ ] **A-305** — Four destructive actions still ask through
   `window.confirm` (order delete, bulk delete, revoke access, revoke API
   key). They work; a shadcn confirmation dialog would match the rest.

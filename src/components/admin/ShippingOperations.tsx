@@ -8,12 +8,15 @@ import {
   PackageCheckIcon,
   PackageSearchIcon,
   RefreshCwIcon,
-  SearchIcon,
   TruckIcon,
+  PackageIcon,
+  RotateCcw,
+  Truck,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { FilterBar, FilterField, FilterSelect, SearchInput } from "./filter-bar";
 import { Checkbox } from "../ui/checkbox";
 import {
   Table,
@@ -505,7 +508,7 @@ export function ShippingOperations() {
           Data pengiriman gagal dimuat
         </h2>
         <p className="mt-2 text-sm text-slate-600">{loadError}</p>
-        <Button onClick={() => void loadData(true)} size="xl" className="mt-5">
+        <Button onClick={() => void loadData(true)} className="mt-5">
           <RefreshCwIcon className="size-4 mr-2" aria-hidden="true" /> Coba lagi
         </Button>
       </section>
@@ -577,7 +580,7 @@ export function ShippingOperations() {
               event.preventDefault();
               void schedulePickup();
             }}
-            className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_1fr_1.3fr_auto] lg:items-end"
+            className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_1fr_1.3fr_auto] lg:items-end"
           >
             <label>
               <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-600">
@@ -588,7 +591,7 @@ export function ShippingOperations() {
                 onValueChange={(val) => setWarehouseId(val ?? "")}
                 required
               >
-                <SelectTrigger className="h-11 bg-white">
+                <SelectTrigger >
                   <SelectValue placeholder="Pilih gudang" />
                 </SelectTrigger>
                 <SelectContent>
@@ -609,7 +612,7 @@ export function ShippingOperations() {
                 value={pickupAt}
                 min={defaultPickupDate()}
                 onChange={(event) => setPickupAt(event.target.value)}
-                className="h-11 bg-white shadow-none"
+                
                 required
               />
             </label>
@@ -622,13 +625,12 @@ export function ShippingOperations() {
                 onChange={(event) => setPickupNotes(event.target.value)}
                 maxLength={160}
                 placeholder="Contoh: ambil di loading dock timur"
-                className="h-11 bg-white shadow-none"
+                
               />
             </label>
             <Button
               type="submit"
               disabled={scheduling || selectedOrderIds.length === 0}
-              size="xl"
             >
               {scheduling ? (
                 <LoaderCircleIcon
@@ -726,129 +728,49 @@ export function ShippingOperations() {
 
       <section className="bg-transparent">
         <div className="pb-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="w-full lg:w-72 flex-shrink-0 relative">
-              <label
-                htmlFor="search-shipping"
-                className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500"
-              >
-                Pencarian
-              </label>
-              <SearchIcon
-                className="pointer-events-none absolute left-3 top-8 size-4 text-slate-400"
-                aria-hidden="true"
+          <FilterBar>
+            <FilterField label="Cari pengiriman" htmlFor="search-shipping" size="grow">
+              <SearchInput id="search-shipping" placeholder="Invoice, nama, WA, atau resi" value={search} onValueChange={setSearch} />
+            </FilterField>
+            <FilterField label="Periode order" htmlFor="shipping-date" size="sm">
+              <AdminDateRangeFilter value={dateSelection} onChange={setDateSelection} />
+            </FilterField>
+            <FilterField label="Status pengiriman" htmlFor="shipping-status" size="sm">
+              <FilterSelect
+                id="shipping-status"
+                icon={Truck}
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+                options={[{ value: "all", label: "Semua status" }, ...Object.entries(statusLabels).map(([value, label]) => ({ value, label }))]}
               />
-              <Input
-                id="search-shipping"
-                type="text"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Cari invoice, nama, WA, resi…"
-                className="h-11 w-full rounded-lg bg-white pl-9 shadow-sm border-slate-200"
+            </FilterField>
+            <FilterField label="Kurir" htmlFor="shipping-courier" size="sm">
+              <FilterSelect
+                id="shipping-courier"
+                icon={PackageIcon}
+                value={courierFilter}
+                onValueChange={setCourierFilter}
+                options={[{ value: "all", label: "Semua kurir" }, ...availableCouriers.map((courier) => ({ value: courier, label: courier }))]}
               />
-            </div>
-
-            <div className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-nowrap">
-              <div className="w-full sm:w-[140px]">
-                <label
-                  htmlFor="shipping-date"
-                  className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500"
-                >
-                  Periode order
-                </label>
-                <AdminDateRangeFilter
-                  value={dateSelection}
-                  onChange={setDateSelection}
-                  className="w-full rounded-lg shadow-sm"
-                />
-              </div>
-
-              <div className="w-full sm:w-[150px]">
-                <label
-                  htmlFor="shipping-status"
-                  className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500"
-                >
-                  Status Pengiriman
-                </label>
-                <Select
-                  value={statusFilter}
-                  onValueChange={(val) => setStatusFilter(val ?? "all")}
-                >
-                  <SelectTrigger
-                    id="shipping-status"
-                    className="h-11 w-full rounded-lg bg-white px-3 text-sm shadow-sm border-slate-200"
-                  >
-                    <SelectValue>
-                      {statusFilter === "all"
-                        ? "Semua status"
-                        : statusLabels[statusFilter] || "Pilih status"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua status</SelectItem>
-                    {Object.entries(statusLabels).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="w-full sm:w-[150px]">
-                <label
-                  htmlFor="shipping-courier"
-                  className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500"
-                >
-                  Kurir
-                </label>
-                <Select
-                  value={courierFilter}
-                  onValueChange={(val) => setCourierFilter(val ?? "all")}
-                >
-                  <SelectTrigger
-                    id="shipping-courier"
-                    className="h-11 w-full rounded-lg bg-white px-3 text-sm shadow-sm border-slate-200"
-                  >
-                    <SelectValue>
-                      {courierFilter === "all" ? "Semua kurir" : courierFilter}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua kurir</SelectItem>
-                    {availableCouriers.map((courier) => (
-                      <SelectItem key={courier} value={courier}>
-                        {courier}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button
-                variant="secondary"
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setStatusFilter("all");
-                  setActiveQueue("all");
-                  setCourierFilter("all");
-                  setDateSelection({ filter: "all", start: "", end: "" });
-                }}
-                disabled={!hasFilters}
-                size="xl"
-                className="w-full sm:w-auto shadow-sm"
-              >
-                Reset
-              </Button>
-            </div>
-            <p
-              className="mt-3 text-xs font-bold text-slate-500"
-              aria-live="polite"
+            </FilterField>
+            <Button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("all");
+                setActiveQueue("all");
+                setCourierFilter("all");
+                setDateSelection({ filter: "all", start: "", end: "" });
+              }}
+              disabled={!hasFilters}
+              variant="outline"
             >
-              Menampilkan {filteredShipments.length} dari {data.shipments.length} pengiriman
-            </p>
-          </div>
+              <RotateCcw aria-hidden="true" /> Reset
+            </Button>
+          </FilterBar>
+          <p className="mt-3 text-xs font-bold text-slate-500" aria-live="polite">
+            Menampilkan {filteredShipments.length} dari {data.shipments.length} pengiriman
+          </p>
         </div>
 
         <div id="shipping-queue-results" role="tabpanel" aria-live="polite">
@@ -892,7 +814,7 @@ export function ShippingOperations() {
           <>
             {/* Mobile Bulk Selection */}
             {visiblePickupIds.length > 0 && (
-              <section className="sticky top-2 z-20 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-950/5 backdrop-blur lg:hidden" aria-label="Navigasi pilihan bulk">
+              <section className="sticky top-2 z-20 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-950/5 backdrop-blur lg:hidden" aria-label="Navigasi pilihan bulk">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-black text-slate-950">Pilih order</p>

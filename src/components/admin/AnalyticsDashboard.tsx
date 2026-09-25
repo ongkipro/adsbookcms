@@ -101,10 +101,10 @@ function LoadingState() {
     >
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-32 rounded-2xl" />
+          <Skeleton key={index} className="h-32 rounded-xl" />
         ))}
       </div>
-      <Skeleton className="h-72 rounded-2xl" />
+      <Skeleton className="h-72 rounded-xl" />
     </div>
   );
 }
@@ -270,7 +270,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
       iconTone: "bg-blue-50 text-blue-700",
     },
     {
-      label: "Return to Sender",
+      label: "Retur (RTS)",
       value: percentage(data.rts_rate),
       note:
         data.rts_base > 0

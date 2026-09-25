@@ -5,7 +5,7 @@ import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
 export const prerender = false;
 ---
 
-<AdminLayout title="Konfigurasi Gudang" activeMenu="settings">
+<AdminLayout title="Gudang & pickup" activeMenu="settings">
   <div class="space-y-6">
     <AdminPageHeader
       title="Gudang & pickup"
@@ -29,15 +29,15 @@ export const prerender = false;
         <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
           <label>
             <span class="mb-1.5 block text-xs font-black text-slate-700">Nama gudang <span class="text-rose-500">*</span></span>
-            <input id="warehouseName" required maxlength="120" placeholder="Contoh: Kedai A29" class="admin-input-flat h-11 text-base md:text-sm" />
+            <input id="warehouseName" required maxlength="120" placeholder="Contoh: Kedai A29" class="admin-input-flat" />
           </label>
           <label>
             <span class="mb-1.5 block text-xs font-black text-slate-700">Nama PIC (penanggung jawab) <span class="text-rose-500">*</span></span>
-            <input id="contactName" required maxlength="120" autocomplete="name" placeholder="Contoh: Rini" class="admin-input-flat h-11 text-base md:text-sm" />
+            <input id="contactName" required maxlength="120" autocomplete="name" placeholder="Contoh: Rini" class="admin-input-flat" />
           </label>
           <label class="md:col-span-2">
             <span class="mb-1.5 block text-xs font-black text-slate-700">Nomor HP PIC <span class="text-rose-500">*</span></span>
-            <input id="contactPhone" required type="tel" inputmode="numeric" maxlength="16" autocomplete="tel" placeholder="08xxxxxxxxxx" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
+            <input id="contactPhone" required type="tel" inputmode="numeric" maxlength="16" autocomplete="tel" placeholder="08xxxxxxxxxx" class="admin-input-flat font-mono" />
             <small id="contactPhoneHint" class="mt-1 block text-xs text-slate-400">Format otomatis ke 62. Contoh: 081200000000 → 6281200000000</small>
           </label>
         </div>
@@ -82,11 +82,11 @@ export const prerender = false;
         <div class="grid-cols-1 grid gap-5">
           <label>
             <span class="mb-1.5 block text-xs font-black text-slate-700">Alamat jalan <span class="text-rose-500">*</span></span>
-            <textarea id="address" required maxlength="500" rows="2" autocomplete="street-address" placeholder="Contoh: Jl. Branjangan 18A" class="admin-input-flat min-h-20 resize-y text-base md:text-sm"></textarea>
+            <textarea id="address" required maxlength="500" rows="2" autocomplete="street-address" placeholder="Contoh: Jl. Branjangan 18A" class="admin-input-flat min-h-20 resize-y"></textarea>
           </label>
           <label>
             <span class="mb-1.5 block text-xs font-black text-slate-700">Pickup Address ID <span class="font-medium text-slate-400">(opsional)</span></span>
-            <input id="pickupAddressId" maxlength="120" autocomplete="off" placeholder="Dibuat otomatis jika kosong atau sudah tidak valid" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
+            <input id="pickupAddressId" maxlength="120" autocomplete="off" placeholder="Dibuat otomatis jika kosong atau sudah tidak valid" class="admin-input-flat font-mono" />
             <small class="mt-1 block text-xs text-slate-400">Jika ID lama sudah hilang di Mengantar, AdsBookCMS akan mencari alamat yang sama atau membuat alamat pickup baru.</small>
           </label>
         </div>

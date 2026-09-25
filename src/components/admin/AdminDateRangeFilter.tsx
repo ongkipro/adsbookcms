@@ -235,7 +235,7 @@ export function AdminDateRangeFilter({
         <button
           type="button"
           disabled={disabled}
-          className={`flex h-11 min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-left text-sm font-medium text-slate-900 shadow-none transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+          className={`flex h-10 w-full min-w-0 items-center gap-2 rounded-lg border border-input bg-white px-2.5 text-left text-sm font-medium text-slate-900 shadow-none transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
         >
           <CalendarDays className="size-4 shrink-0 text-slate-400" aria-hidden="true" />
           <span className="min-w-0 flex-1 truncate">{adminDateSelectionLabel(value)}</span>

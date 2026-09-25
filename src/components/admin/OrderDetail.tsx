@@ -509,7 +509,7 @@ function EditCustomerDialog({
           Edit Pembeli & Alamat
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto p-0 sm:max-w-2xl rounded-2xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto p-0 sm:max-w-2xl rounded-xl">
         <DialogHeader className="border-b border-slate-100 px-6 py-4 text-left">
           <DialogTitle className="text-base font-black text-slate-900">
             Edit Pembeli & Pengiriman
@@ -536,7 +536,7 @@ function EditCustomerDialog({
                 maxLength={100}
                 aria-invalid={showValidation && Boolean(fieldErrors.customer_name)}
                 aria-describedby={fieldErrors.customer_name ? "edit-customer-name-error" : undefined}
-                className="h-10 text-xs font-bold"
+                className="font-bold"
               />
               {showValidation && fieldErrors.customer_name && (
                 <span id="edit-customer-name-error" className="block text-[11px] font-semibold text-rose-700">
@@ -557,7 +557,7 @@ function EditCustomerDialog({
                 maxLength={40}
                 aria-invalid={showValidation && Boolean(fieldErrors.customer_phone)}
                 aria-describedby={fieldErrors.customer_phone ? "edit-customer-phone-error" : undefined}
-                className="h-10 text-xs font-bold font-mono"
+                className="font-bold font-mono"
               />
               {showValidation && fieldErrors.customer_phone && (
                 <span id="edit-customer-phone-error" className="block text-[11px] font-semibold text-rose-700">
@@ -578,7 +578,7 @@ function EditCustomerDialog({
               maxLength={500}
               aria-invalid={showValidation && Boolean(fieldErrors.address)}
               aria-describedby={fieldErrors.address ? "edit-customer-address-error" : undefined}
-              className="min-h-24 resize-y text-xs font-medium"
+              className="min-h-24 resize-y font-medium"
               placeholder="Contoh: Jl. Merdeka No. 12 RT 01/02"
             />
             {showValidation && fieldErrors.address && (
@@ -600,7 +600,7 @@ function EditCustomerDialog({
                 placeholder="Ketik minimal 2 huruf (contoh: Kebayoran Baru)"
                 aria-controls="edit-customer-location-results"
                 aria-describedby="edit-customer-location-help"
-                className="h-10 text-xs"
+                
               />
               <span id="edit-customer-location-help" className="block text-[11px] font-medium text-slate-500">
                 Pilih hasil pencarian agar kecamatan, kota, provinsi, dan ID tujuan tetap sinkron.
@@ -649,7 +649,7 @@ function EditCustomerDialog({
                   value={formData.district}
                   readOnly
                   placeholder="Nama kecamatan"
-                  className="h-8 text-xs font-semibold"
+                  className="font-semibold"
                 />
               </div>
               <div>
@@ -658,7 +658,7 @@ function EditCustomerDialog({
                   value={formData.city}
                   readOnly
                   placeholder="Nama kota/kabupaten"
-                  className="h-8 text-xs font-semibold"
+                  className="font-semibold"
                 />
               </div>
               <div>
@@ -667,7 +667,7 @@ function EditCustomerDialog({
                   value={formData.province}
                   readOnly
                   placeholder="Nama provinsi"
-                  className="h-8 text-xs font-semibold"
+                  className="font-semibold"
                 />
               </div>
               <div>
@@ -676,7 +676,7 @@ function EditCustomerDialog({
                   value={formData.postal_code}
                   readOnly
                   placeholder="5 digit"
-                  className="h-8 text-xs font-semibold font-mono"
+                  className="font-semibold font-mono"
                 />
               </div>
             </div>
@@ -1146,15 +1146,15 @@ export function OrderDetail({ invoice }: { invoice: string }) {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-24 animate-pulse rounded-2xl bg-slate-200/70" />
+        <div className="h-24 animate-pulse rounded-xl bg-slate-200/70" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
-            <div className="h-48 animate-pulse rounded-2xl bg-slate-200/70" />
-            <div className="h-64 animate-pulse rounded-2xl bg-slate-200/70" />
+            <div className="h-48 animate-pulse rounded-xl bg-slate-200/70" />
+            <div className="h-64 animate-pulse rounded-xl bg-slate-200/70" />
           </div>
           <div className="space-y-6">
-            <div className="h-40 animate-pulse rounded-2xl bg-slate-200/70" />
-            <div className="h-64 animate-pulse rounded-2xl bg-slate-200/70" />
+            <div className="h-40 animate-pulse rounded-xl bg-slate-200/70" />
+            <div className="h-64 animate-pulse rounded-xl bg-slate-200/70" />
           </div>
         </div>
       </div>
@@ -1163,7 +1163,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
 
   if (error || !order) {
     return (
-      <section className="rounded-2xl border border-rose-200 bg-white p-8 text-center shadow-sm max-w-xl mx-auto my-12" role="alert">
+      <section className="rounded-xl border border-rose-200 bg-white p-8 text-center shadow-sm max-w-xl mx-auto my-12" role="alert">
         <ShieldAlert className="size-12 text-rose-500 mx-auto mb-3" />
         <h2 className="text-xl font-black text-slate-950">Detail Order Tidak Ditemukan</h2>
         <p className="mt-2 text-xs font-semibold text-slate-600">{error || "Sistem tidak dapat menemukan record invoice ini."}</p>
@@ -1249,9 +1249,9 @@ export function OrderDetail({ invoice }: { invoice: string }) {
   const deliveryTotals = order.receiver_performance?.totals;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+    <div className="space-y-6 pb-16">
       {/* Top Navigation & Action Header */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <a
             href="/admin/orders"
@@ -1333,7 +1333,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 disabled={saving}
                 onValueChange={(value) => value && void updateStatus(value)}
               >
-                <SelectTrigger className="h-10 min-w-44 text-xs font-bold">
+                <SelectTrigger className="min-w-44 font-bold">
                   <SelectValue>{shippingLabels[order.shipping_status] || order.shipping_status}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -1373,7 +1373,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
         {/* Left Column: Customer, Address & Products */}
         <div className="lg:col-span-2 space-y-6">
           {/* Customer & Address Card */}
-          <Card className="rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6">
               <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
                 <MapPin className="size-4 text-slate-600" />
@@ -1435,7 +1435,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           </Card>
 
           {/* Ordered Products Card */}
-          <Card className="rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6 flex flex-row items-center justify-between">
               <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
                 <Package className="size-4 text-slate-600" />
@@ -1477,7 +1477,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           </Card>
 
           {/* Mengantar Expedition & Tracking Card */}
-          <Card className="rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6">
               <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
                 <Truck className="size-4 text-slate-600" />
@@ -1575,7 +1575,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
         {/* Right Column: Financials, Risk & CRM */}
         <div className="space-y-6">
           {/* Payment Summary Card */}
-          <Card className="rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6">
               <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
                 <CreditCard className="size-4 text-slate-600" />
@@ -1640,7 +1640,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           </Card>
 
           {/* Receiver Risk Card */}
-          <Card className="rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6">
               <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
                 <ShieldAlert className="size-4 text-slate-600" />
@@ -1683,7 +1683,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           </Card>
 
           {/* CRM WhatsApp Quick Actions */}
-          <Card className="rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6 flex flex-row items-center justify-between">
               <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
                 <MessageSquare className="size-4 text-slate-600" />

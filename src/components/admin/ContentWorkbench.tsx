@@ -199,7 +199,7 @@ export function ContentWorkbench() {
               onValueChange={(value) => value && void selectTarget(String(value))}
               disabled={loading || saving}
             >
-              <SelectTrigger aria-label="Target konten" className="h-11 w-full bg-white">
+              <SelectTrigger aria-label="Target konten" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

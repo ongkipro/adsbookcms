@@ -5,10 +5,10 @@ export const prerender = false;
 import NativeSelect from '../../../components/ui/NativeSelect.astro';
 ---
 
-<AdminLayout title="Store & Customer Service" activeMenu="settings">
+<AdminLayout title="Toko & customer service" activeMenu="settings">
   <div class="space-y-6">
     <AdminPageHeader
-      title="Store & customer service"
+      title="Toko & customer service"
       description="Informasi merchant dan kontak yang dipakai dalam komunikasi pelanggan."
       backHref="/admin/settings"
       backLabel="Pengaturan"
@@ -19,31 +19,31 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
       <div class="grid grid-cols-1 gap-5 p-5 md:grid-cols-2 md:p-6">
         <label class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Nama store</span>
-          <input id="storeName" required maxlength="120" autocomplete="organization" class="admin-input-flat h-11 text-base md:text-sm" />
+          <input id="storeName" required maxlength="120" autocomplete="organization" class="admin-input-flat" />
         </label>
         <label class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">WhatsApp customer service</span>
-          <input id="supportWhatsapp" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="081234567890" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
+          <input id="supportWhatsapp" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="081234567890" class="admin-input-flat font-mono" />
           <span class="mt-1.5 block text-[11px] text-slate-500">Gunakan 9–15 digit; awalan + diperbolehkan.</span>
         </label>
         <label class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Alamat storefront</span>
-          <input id="storeSiteUrl" inputmode="url" maxlength="200" placeholder="https://tokosaya.com" class="admin-input-flat h-11 text-base md:text-sm" />
+          <input id="storeSiteUrl" inputmode="url" maxlength="200" placeholder="https://tokosaya.com" class="admin-input-flat" />
           <span class="mt-1.5 block text-[11px] text-slate-500">Harus https. Dipakai untuk canonical, sitemap, dan feed katalog.</span>
         </label>
         <label class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Tagline</span>
-          <input id="storeTagline" maxlength="120" class="admin-input-flat h-11 text-base md:text-sm" />
+          <input id="storeTagline" maxlength="120" class="admin-input-flat" />
           <span class="mt-1.5 block text-[11px] text-slate-500">Muncul di judul halaman dan header storefront.</span>
         </label>
         <label class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Deskripsi</span>
-          <input id="storeDescription" maxlength="300" class="admin-input-flat h-11 text-base md:text-sm" />
+          <input id="storeDescription" maxlength="300" class="admin-input-flat" />
           <span class="mt-1.5 block text-[11px] text-slate-500">Meta description bawaan dan teks Open Graph.</span>
         </label>
         <label class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Logo</span>
-          <input id="storeLogo" maxlength="300" placeholder="/images/adsbook-mark.webp" class="admin-input-flat h-11 text-base md:text-sm" />
+          <input id="storeLogo" maxlength="300" placeholder="/images/adsbook-mark.webp" class="admin-input-flat" />
           <span class="mt-1.5 block text-[11px] text-slate-500">Kosongkan untuk memakai logo bawaan AdsBookCMS.</span>
         </label>
         <label class="block">
@@ -55,17 +55,17 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
         </label>
         <label class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Warna tema</span>
-          <input id="storeThemeColor" maxlength="7" spellcheck="false" placeholder="#111111" pattern="#[0-9a-fA-F]{6}" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
+          <input id="storeThemeColor" maxlength="7" spellcheck="false" placeholder="#111111" pattern="#[0-9a-fA-F]{6}" class="admin-input-flat font-mono" />
           <span class="mt-1.5 block text-[11px] text-slate-500">Heksadesimal enam digit. Mengisi <code>&lt;meta name="theme-color"&gt;</code>, yang mewarnai bilah browser di ponsel. Kosongkan untuk memakai <code>#111111</code>.</span>
         </label>
         <label class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Locale</span>
-          <input id="storeLocale" maxlength="10" spellcheck="false" placeholder="id-ID" pattern="[a-z]{2}(-[A-Z]{2})?" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
+          <input id="storeLocale" maxlength="10" spellcheck="false" placeholder="id-ID" pattern="[a-z]{2}(-[A-Z]{2})?" class="admin-input-flat font-mono" />
           <span class="mt-1.5 block text-[11px] text-slate-500">Mengisi <code>&lt;html lang&gt;</code>, <code>inLanguage</code> pada JSON-LD, dan locale Open Graph. Kosongkan untuk memakai <code>id-ID</code>.</span>
         </label>
         <label class="block">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Nama panel admin</span>
-          <input id="storeAdminName" maxlength="120" placeholder="AdsBookCMS Admin" class="admin-input-flat h-11 text-base md:text-sm" />
+          <input id="storeAdminName" maxlength="120" placeholder="AdsBookCMS Admin" class="admin-input-flat" />
           <span class="mt-1.5 block text-[11px] text-slate-500">Judul halaman admin dan halaman login. Tidak pernah tampil di storefront.</span>
         </label>
         <div class="block">
@@ -95,12 +95,12 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
         <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
           <label class="block">
             <span class="mb-1.5 block text-xs font-black text-slate-700">ID template</span>
-            <input id="templateDefinitionId" required minlength="2" maxlength="40" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="katalog-ringkas" class="admin-input-flat h-11 font-mono text-base md:text-sm" />
+            <input id="templateDefinitionId" required minlength="2" maxlength="40" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="katalog-ringkas" class="admin-input-flat font-mono" />
             <span class="mt-1.5 block text-[11px] text-slate-500">Huruf kecil, angka, dan tanda hubung.</span>
           </label>
           <label class="block">
             <span class="mb-1.5 block text-xs font-black text-slate-700">Nama template</span>
-            <input id="templateDefinitionName" required minlength="2" maxlength="80" placeholder="Katalog Ringkas" class="admin-input-flat h-11 text-base md:text-sm" />
+            <input id="templateDefinitionName" required minlength="2" maxlength="80" placeholder="Katalog Ringkas" class="admin-input-flat" />
           </label>
           <label class="block">
             <span class="mb-1.5 block text-xs font-black text-slate-700">Layout</span>
@@ -129,7 +129,7 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
         <p class="mt-1 text-xs leading-5 text-slate-500">Tentukan situs eksternal yang boleh menampilkan checkout AdsBookCMS di dalam iframe.</p>
         <label class="mt-5 block" for="embedAllowedOrigins">
           <span class="mb-1.5 block text-xs font-black text-slate-700">Origin HTTPS yang diizinkan</span>
-          <textarea id="embedAllowedOrigins" rows="5" maxlength="7524" spellcheck="false" aria-describedby="embedOriginsHelp" placeholder="https://toko.example&#10;https://promo.toko.example:8443" class="admin-input-flat min-h-36 resize-y py-3 font-mono text-base md:text-sm"></textarea>
+          <textarea id="embedAllowedOrigins" rows="5" maxlength="7524" spellcheck="false" aria-describedby="embedOriginsHelp" placeholder="https://toko.example&#10;https://promo.toko.example:8443" class="admin-input-flat min-h-36 resize-y py-3 font-mono"></textarea>
         </label>
         <p id="embedOriginsHelp" class="mt-2 text-[11px] leading-5 text-slate-500">Satu origin per baris, maksimal 25. Wajib memakai <code>https://</code> dan hanya boleh berisi domain atau subdomain serta port opsional. Domain dan subdomain berbeda, jadi daftarkan keduanya bila diperlukan. Path, query, fragment, kredensial, dan wildcard tidak diterima.</p>
       </div>

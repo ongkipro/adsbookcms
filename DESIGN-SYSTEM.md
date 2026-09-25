@@ -1,6 +1,6 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-09-09 @ `b7bc43b`
+> Verified against disk: 2026-09-26 @ `fd18362` + working tree (admin radius, page width, control contract)
 >
 > **The public palette is neutral plus one overridable accent (ADR-019, as
 > amended 2026-08-23).** Colour tokens below that describe the retired gold
@@ -93,16 +93,22 @@ Admin colour **is** tokenised. `.admin-shell` redefines the shadcn variables in 
 
 The `:root` oklch scale and its `.dark` overrides live in `src/styles/admin.css`,
 which is the only entry that imports shadcn. `--primary: oklch(0.546 0.245 262.881)`
-is a blue matching `ADMIN_ACCENT`; `.admin-shell` raises `--radius` from `0.625rem`
-to `0.75rem`.
+is a blue matching `ADMIN_ACCENT`. The admin radius is **one thin value,
+`--radius: 0.375rem`**, declared on both `:root` and `.admin-shell` in
+`admin.css`: shadcn popups (Select, Combobox, DropdownMenu) portal to `<body>`,
+outside `.admin-shell`, so two different values made every menu rounder than
+the control that opened it. The scale derives from it — `rounded-lg` 6px,
+`rounded-xl` ≈8px — and admin cards use `rounded-xl`; no admin file writes
+`rounded-2xl`/`rounded-3xl` or a fixed pixel radius for a card.
 
 The radius scale itself is **shared**, declared in `src/styles/foundation.css`.
 It reached every surface through shadcn's theme block until the three-way split;
 leaving it behind in `admin.css` silently reshaped every rounded corner on the
 storefront, because `rounded-md` fell back to Tailwind's `0.375rem`. `admin.css`
-also declares `--radius: 0.625rem` for shadcn's own `:root` block, and the two
-agree deliberately. Giving the storefront its own radius is a design decision,
-not something to arrive at by moving a file.
+overrides `--radius` for the admin surface only (above); the storefront never
+loads `admin.css` and keeps `foundation.css`'s `0.625rem`. Giving the
+storefront its own radius is a design decision, not something to arrive at by
+moving a file.
 
 The base variable set — `--bg-canvas: #fafafa`, `--text-main: #0f172a`,
 `--focus-ring: #2563eb` — is also in `foundation.css`. `--focus-ring` is live;
@@ -329,6 +335,14 @@ Inner content repeats `max-w-[480px]` independently rather than inheriting the s
 
 `AdminLayout` is not width-constrained: `flex h-dvh overflow-hidden` on the body (`src/layouts/AdminLayout.astro:39`), with layout owned by `AdminShell` and the shadcn sidebar.
 
+**Admin page width is one contract, owned by `AdminShell`:** the content box is
+`mx-auto w-full max-w-[1560px]`, the same box as the top bar. Pages and islands
+do not set their own centred `max-w-*`; before this rule five page widths gave
+five different content edges at 1920px. Measured 2026-09-26: all 25 admin
+pages share one left and right edge at 1280, 1440 and 1920px.
+`src/lib/admin-page-width.test.ts` refuses a centred page-level `max-w-5xl`/
+`6xl`/`7xl` coming back; inner blocks may still limit a paragraph or preview.
+
 ### 5.1 Admin navigation motion contract
 
 Admin navigation is intentionally static. Desktop renders direct workspace links
@@ -433,7 +447,43 @@ Class-variance-authority variants for storefront primitives live in `src/lib/ui-
 
 ### 7.1 `src/components/ui/` — shadcn primitives
 
-The directory contains 21 primitives used by admin React islands. The former zero-import primitives `input-group.tsx` and `popover.tsx` were removed by A-34. Treat this directory as shared admin infrastructure; extend an existing primitive before introducing another component system.
+The directory holds the shadcn primitives used by admin React islands (`input-group.tsx`, `popover.tsx` and `combobox.tsx` came back with A-295). Treat it as shared admin infrastructure; extend an existing primitive before introducing another component system.
+
+**Admin control contract (A-307).** The primitive owns a form control's
+geometry; a caller never does.
+
+| Control | Height (desktop) | Owner |
+| --- | --- | --- |
+| `Input`, `SelectTrigger`, `InputGroup`, `Combobox` input, `Button` default and `lg` | 40px (`h-10`) | `ui/*.tsx` |
+| `NativeSelect.astro`, `.admin-input-flat` (static Astro pages) | 40px | the static twins of the above |
+| Table row actions (`icon-sm`, row menus) | 32–36px | deliberately compact, inside a row |
+| Below 768px | 48px for inputs and triggers, 44px buttons | `admin.css` touch floor |
+
+- Callers pass layout only: width, `flex-1`, `font-mono`, a textarea's
+  `min-h-*`, `rounded-l-none` on an input joined to an addon. Never height,
+  radius, background, border colour, shadow or type size, and never `size="sm"`
+  on a `SelectTrigger` or `size="xl"` on an admin `Button`.
+- A filter toolbar is `FilterBar` + `FilterField` (one label style, a width from
+  `size`, wraps instead of overlapping) from `components/admin/filter-bar.tsx`.
+- Search is `SearchInput` from the same file — an `InputGroup` with the icon as
+  an addon and a clear button — never an icon absolutely positioned over an
+  `<Input>`.
+- A choice in a toolbar is `FilterSelect`: the date filter's look (leading
+  icon, value, chevron) with an `items` map always set, so the server-rendered
+  trigger reads the label ("Semua status"), never the raw value ("all").
+- Object-valued comboboxes set `itemToStringValue` to the id: the hidden form
+  input otherwise carries the whole object as JSON.
+- Courier marks live in `public/images/couriers/` (WebP ≤ 5 KB each, SVGs
+  checked for script, event handlers, external references and
+  `foreignObject`); a courier without one shows its initials.
+- Kecamatan search is `DistrictCombobox`; inside a modal dialog its popup
+  portals into the dialog.
+- The one declared exception is a dark code editor, marked `data-code-editor`.
+- Lists of a few settings or methods are rows in one card (`divide-y`), not a
+  card per item inside a card.
+
+`src/lib/admin-controls.test.ts` enforces all of this and reads JSX tags to
+their real end (a `>` inside `onChange={(e) => …}` does not close the tag).
 
 ### 7.2 `src/components/storefront/shared/`
 

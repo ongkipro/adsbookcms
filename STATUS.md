@@ -1,8 +1,28 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-26 @ `fd18362` + working tree (admin control contract)
 
-## 2026-09-25 — local development complete (uncommitted)
+## 2026-09-26 — couriers, dev data, and the admin UI contract
+
+- **SPX through Mengantar** (`784b0dc`, A-296): quoted as `spx`, default rule
+  and migration `0059`; create-order is confirmed by Mengantar support and not
+  yet observed on a live order.
+- **Pos Indonesia COD refusal** (`95fa341`, A-297): the documented 403 is
+  recognised at dispatch, the reason and delivered rate are kept on the order,
+  and COD Pos is switched off at checkout. Not observed from a blocked account.
+- **`npm run dev:seed`** (`dc85a38`, A-298/A-299): a running `dev:local` store
+  filled through its own HTTP surface; the audit on it fixed checkout-button
+  readiness disagreeing with the endpoints, two false copy claims and eleven
+  unnamed controls. Dead code removed (A-301).
+- **Admin UI** (`fd18362` and this change, A-302–A-307): every dropdown and
+  search on shadcn, one page width (AdminShell), one radius, one 40px control
+  height owned by the primitives, `FilterBar`/`SearchInput` for toolbars, all
+  guarded by `admin-controls.test.ts` and `admin-page-width.test.ts`
+  (DESIGN-SYSTEM.md §7.1). Open: A-300 (invented buyer names in
+  `SocialProofToast`), A-305 (`window.confirm` on four destructive actions),
+  the last orders-table column clipped at 1440px behind its scroll.
+
+## 2026-09-25 — local development complete (`b504340`)
 
 `npm run dev:local` runs the whole store on this machine with no account
 anywhere: local D1/KV/R2, stand-ins for Mengantar and AutoLaris, the scheduled
@@ -12,7 +32,7 @@ payment and the hourly reconciliation to `paid`, and dispatch with waybills.
 A landing page with two forms submits from the second one correctly. That run found six defects (A-294), all fixed; A-283 and A-284 closed; A-286
 partly. Gates: **754 tests**, `astro check` 0/0/0, build complete.
 
-## 2026-09-25 — one-click install (ADR-026, uncommitted)
+## 2026-09-25 — one-click install (ADR-026, `b504340`)
 
 The store now installs like WordPress, with Cloudflare as the host: a **Deploy
 to Cloudflare** button copies the repository, provisions D1/KV/R2 and deploys;
@@ -25,7 +45,7 @@ fresh local D1 with only `INSTALL_TOKEN` through `/install`, login and the
 dashboard checklist (390 px, no overflow, no console error); the generated key
 in `install_secrets`. **Not proven:** the button against a real account (A-292).
 
-## 2026-09-25 — full-system audit (uncommitted working tree)
+## 2026-09-25 — full-system audit (`b504340`)
 
 A five-lane read of the whole tree (money path, security boundary, ad signal,
 storefront/admin, docs vs disk) found 38 defects. Every one fixed here was
@@ -363,13 +383,14 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **747 / 754 passing** (2026-09-25) |
+| `npm test` | **769 / 769 passing** (2026-09-26) |
 | `npm run check` | 0 errors · 0 warnings · 0 hints |
-| `npm run build` | Cloudflare server bundle complete; 59 bundled migrations |
+| `npm run build` | Cloudflare server bundle complete; 60 bundled migrations |
 | PageSpeed Insights, mobile, official API (2026-08-24) | taniniaga 96 · carukesi 95 · permatamall 94 · zanobyshop 92 · skincarebpom 89 · zvara 85 — CLS 0.00 on every store |
 | Lighthouse accessibility, `/payment` & `/thanks` (2026-08-24) | 100, zero failed audits, on both pages on every install |
 | Browser smoke | A fresh isolated install exposed all ten default couriers through `/api/admin/expeditions`. `/admin/orders/abandoned` rendered its shadcn Card/Badge/Button/Dialog composition at 390, 768, and 1280 CSS px with zero overflow, no stuck busy state, no failed request, and no console error. A populated lead opened the conversion Dialog, focused the invalid address, and returned focus after `Escape`. A separate isolated owner session on `/admin/balance` rendered pending and locked AutoLaris rows, blocked blank manual-confirmation submission with focused inline errors, and an already-confirmed payment redirected `/payment` to `/thanks` with zero console errors. No live provider request, deployment, or remote D1 mutation occurred. |
 | Full-system screening | On 2026-08-22 every checkout path, the hybrid form decision, the payment gateway, and every admin surface and role gate were exercised against a running install (see `BUILD-LOG.md`). A real QRIS order reached AutoLaris and came back with a provider transaction id; every submit guard (honeypot, stale fare, bad phone, replayed token, COD to an excluded province, excluded-area address text) refused correctly; the order-status endpoint exposed no PII and refused a wrong token. One defect found and fixed: the public form-config endpoint served a stale COD-province policy for up to five minutes after an operator changed it. All rows created were removed and reserved stock restored. |
+| Live provider read, SPX | On 2026-09-25 a read-only production `/order/estimate?courier=all` returned `spx` (Jakarta Selatan Rp13.700, Jayapura Rp34.000, COD covered) with an undocumented `unsupportedOriginSpx` flag; the single-courier estimate refused every SPX spelling. No order, pickup or D1 write. |
 | Live provider read | On 2026-08-19 the repository's own clients were exercised against the real providers. Mengantar: `searchAddress("Cihapit")` resolved one area and `estimateRates` returned ten couriers with real prices (JNE Rp11.000, SiCepat Rp8.500, SAP Rp10.500). Read-only; no order, pickup, or D1 write. AutoLaris: `createPayment` on the provider's **published development key** returned a real virtual account for a Rp118.400 order, and `inquirePayment` read it back as `PENDING`. No production AutoLaris credential was used, no deployment occurred, and no remote D1 was touched. |
 
 ---

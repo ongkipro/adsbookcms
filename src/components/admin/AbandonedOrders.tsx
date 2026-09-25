@@ -17,7 +17,6 @@ import {
   MessageCircle,
   PackageSearch,
   RefreshCw,
-  Search,
   UserRoundPlus,
 } from "lucide-react";
 import { buildWaUrl } from "@/lib/crm-template";
@@ -26,6 +25,7 @@ import { etaLabel } from "@/lib/rate-check";
 import { groupLocationResults } from "@/lib/location-search";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/admin/filter-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -529,8 +529,8 @@ function ConversionDialog({
             </div>
           </section>
           <DialogFooter className="mx-0 mb-0 border-t px-0 pt-5 pb-0">
-            <Button type="button" variant="outline" size="xl" onClick={() => onClose()} disabled={saving}>Batal</Button>
-            <Button type="submit" size="xl" disabled={saving}>
+            <Button type="button" variant="outline" onClick={() => onClose()} disabled={saving}>Batal</Button>
+            <Button type="submit" disabled={saving}>
               {saving && <Loader2 className="animate-spin" aria-hidden="true" />}
               Jadikan order
             </Button>
@@ -626,7 +626,7 @@ export function AbandonedOrders() {
         <AlertCircle className="mx-auto size-8 text-destructive" aria-hidden="true" />
         <h2 className="mt-3 font-semibold">Pesanan tertinggal gagal dimuat</h2>
         <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-        <Button className="mt-4" size="xl" variant="outline" onClick={() => void load()}><RefreshCw />Coba lagi</Button>
+        <Button className="mt-4" variant="outline" onClick={() => void load()}><RefreshCw />Coba lagi</Button>
       </CardContent>
     </Card>
   );
@@ -643,13 +643,7 @@ export function AbandonedOrders() {
               below the select despite items-end. */}
           <div className="flex w-full flex-col gap-1.5 sm:w-72">
             <label htmlFor="abandoned-search" className="text-sm font-medium">Cari lead</label>
-            <span className="relative block">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              {/* sm:h-9 matches the select trigger. Below sm, admin.css gives
-                  every input a 3rem floor, so the trigger is raised to match it
-                  rather than the input being shrunk under a touch target. */}
-              <Input id="abandoned-search" className="pl-9 sm:h-9" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Produk, nama, WhatsApp, atau ABN" />
-            </span>
+            <SearchInput id="abandoned-search" value={search} onValueChange={(value) => { setSearch(value); setPage(1); }} placeholder="Produk, nama, WhatsApp, atau ABN" />
           </div>
           {/* gap, not space-y. Tailwind v4 puts space-y's margin on
               :not(:last-child), and Base UI's Select renders a hidden input as
@@ -659,7 +653,7 @@ export function AbandonedOrders() {
           <div className="flex w-full flex-col gap-1.5 sm:w-52">
             <label htmlFor="follow-up-filter" className="text-sm font-medium">Status follow-up</label>
             <Select value={status} onValueChange={(value) => { setStatus((value || "all") as FollowUpStatus | "all"); setPage(1); }}>
-              <SelectTrigger id="follow-up-filter" className="w-full sm:h-9 sm:min-h-9">
+              <SelectTrigger id="follow-up-filter" className="w-full">
                 {/* Base UI renders the raw value when Value has no children,
                     so the trigger read "all" instead of "Semua status". */}
                 <SelectValue>{status === "all" ? "Semua status" : followUpLabels[status]}</SelectValue>
@@ -748,7 +742,7 @@ export function AbandonedOrders() {
         <Pagination aria-label="Halaman pesanan tertinggal" className="justify-between">
           <PaginationContent className="w-full justify-between gap-3">
             <PaginationItem>
-              <Button type="button" variant="outline" size="xl" disabled={refreshing || pagination.page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+              <Button type="button" variant="outline" disabled={refreshing || pagination.page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
                 <ChevronLeft /> <span className="hidden sm:inline">Sebelumnya</span>
               </Button>
             </PaginationItem>
@@ -756,7 +750,7 @@ export function AbandonedOrders() {
               <span className="text-sm font-medium text-muted-foreground" aria-current="page">Halaman {pagination.page} dari {pagination.totalPages}</span>
             </PaginationItem>
             <PaginationItem>
-              <Button type="button" variant="outline" size="xl" disabled={refreshing || pagination.page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)}>
+              <Button type="button" variant="outline" disabled={refreshing || pagination.page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)}>
                 <span className="hidden sm:inline">Berikutnya</span> <ChevronRight />
               </Button>
             </PaginationItem>

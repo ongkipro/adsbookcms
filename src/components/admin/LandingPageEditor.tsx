@@ -439,7 +439,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
   const selectedProduct = products.find((p) => String(p.id) === productId);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-24 text-slate-900">
+    <div className="space-y-6 pb-24 text-slate-900">
       {/* Fixed Top Action Header */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -513,7 +513,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                   placeholder="Contoh: Promo Spesial Asahan Portable"
                   value={title}
                   onChange={(e) => handleTitleChange(e.target.value)}
-                  className="text-xs h-9 bg-white"
+                  
                 />
               </div>
 
@@ -528,7 +528,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                   </span>
                   <Input
                     id="landing-slug"
-                    className="rounded-l-none font-mono text-xs h-9 bg-white"
+                    className="rounded-l-none font-mono"
                     placeholder="promo-asahan-portable"
                     value={slug}
                     onChange={(e) => setSlug(generateSlug(e.target.value))}
@@ -551,7 +551,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                   <SelectTrigger className={`w-full h-11 text-xs bg-white rounded-xl ${!productId ? "border-amber-300 bg-amber-50/30" : "border-slate-300"}`}>
                     <SelectValue placeholder="-- Pilih Produk Katalog (D1) --" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-96 w-[var(--anchor-width)] min-w-[340px] sm:min-w-[480px] p-1.5 shadow-2xl rounded-2xl border border-slate-200 bg-white">
+                  <SelectContent className="max-h-96 w-[var(--anchor-width)] min-w-[340px] sm:min-w-[480px] p-1.5 shadow-2xl rounded-xl border border-slate-200 bg-white">
                     {products.map((p) => {
                       const prices = p.variants?.map((v) => v.price) || [];
                       const minPrice = prices.length ? Math.min(...prices) : 0;
@@ -666,7 +666,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                   placeholder="Judul SEO Google..."
                   value={metaTitle}
                   onChange={(e) => setMetaTitle(e.target.value)}
-                  className="text-xs h-8 bg-white"
+                  
                 />
               </div>
               <div className="space-y-1">
@@ -676,7 +676,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                   placeholder="Deskripsi singkat untuk pencarian Google & WhatsApp preview..."
                   value={metaDescription}
                   onChange={(e) => setMetaDescription(e.target.value)}
-                  className="text-xs min-h-[60px] bg-white"
+                  className="min-h-[60px]"
                 />
               </div>
             </CardContent>
@@ -704,7 +704,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
               </nav>
             )}
             {/* Stable Centered Mobile Device Mockup Frame */}
-            <div className="w-full max-w-[480px] mx-auto bg-white border border-slate-300 rounded-2xl shadow-sm overflow-hidden min-h-[680px] flex flex-col">
+            <div className="w-full max-w-[480px] mx-auto bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden min-h-[680px] flex flex-col">
               {/* Device Header Bar */}
               <div className="bg-slate-900 px-4 py-2 text-white flex items-center justify-between text-[11px] font-mono">
                 <span className="truncate max-w-[300px] text-slate-300">
@@ -820,6 +820,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
 
                             {isEditing ? (
                               <Textarea
+                                data-code-editor
                                 id={`html-${section.id}`}
                                 placeholder="<div class='py-4 text-center'><h2>{{product_name}}</h2></div>"
                                 className="font-mono text-[13px] min-h-[160px] bg-slate-900 text-slate-100 p-3 rounded-md border-slate-800 focus:ring-blue-500/20"
@@ -850,7 +851,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                       <div className="space-y-1">
                                         <label className="text-[11px] font-semibold text-slate-600">Perataan</label>
                                         <Select value={section.content_config.align ?? "left"} onValueChange={(align) => align && updateSection(section.id, { content_config: { ...section.content_config, align } })}>
-                                          <SelectTrigger aria-label="Perataan teks" className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                          <SelectTrigger aria-label="Perataan teks" ><SelectValue /></SelectTrigger>
                                           <SelectContent>
                                             <SelectItem value="left">Rata kiri</SelectItem>
                                             <SelectItem value="center">Tengah</SelectItem>
@@ -862,7 +863,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                         <div className="space-y-1">
                                           <label className="text-[11px] font-semibold text-slate-600">Ukuran</label>
                                           <Select value={section.content_config.size ?? "medium"} onValueChange={(size) => size && updateSection(section.id, { content_config: { ...section.content_config, size } })}>
-                                            <SelectTrigger aria-label="Ukuran headline" className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                            <SelectTrigger aria-label="Ukuran headline" ><SelectValue /></SelectTrigger>
                                             <SelectContent>
                                               <SelectItem value="small">Kecil</SelectItem>
                                               <SelectItem value="medium">Sedang</SelectItem>
@@ -877,7 +878,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                       value={section.content_config.text ?? ""}
                                       onChange={(event) => updateSection(section.id, { content_config: { ...section.content_config, text: event.target.value } })}
                                       placeholder={section.type === "headline" ? "Headline utama..." : "Tulis paragraf..."}
-                                      className="min-h-20 bg-white"
+                                      className="min-h-20"
                                     />
                                   </div>
                                 )}
@@ -887,7 +888,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                     value={(section.content_config.items ?? []).join("\n")}
                                     onChange={(event) => updateSection(section.id, { content_config: { items: event.target.value.split("\n") } })}
                                     placeholder="Satu manfaat per baris"
-                                    className="min-h-24 bg-white"
+                                    className="min-h-24"
                                   />
                                 )}
                                 {section.type === "image" && (
@@ -934,7 +935,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                       });
                                     }}
                                   >
-                                    <SelectTrigger className="h-8 text-xs bg-white">
+                                    <SelectTrigger >
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -959,7 +960,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                       })
                                     }
                                   >
-                                    <SelectTrigger className="h-8 text-xs bg-white">
+                                    <SelectTrigger >
                                       <SelectValue placeholder="Semua varian" />
                                     </SelectTrigger>
                                     <SelectContent className="max-h-64 p-1 shadow-lg rounded-xl border border-slate-200">

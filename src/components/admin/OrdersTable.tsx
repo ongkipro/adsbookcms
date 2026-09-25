@@ -14,8 +14,8 @@ import {
   AdminDateRangeFilter,
   type AdminDateSelection,
 } from "./AdminDateRangeFilter";
-import { Input } from "../ui/input";
 import { Button } from "../ui/button";
+import { FilterBar, FilterField, FilterSelect, SearchInput, type FilterOption } from "./filter-bar";
 import { Checkbox } from "../ui/checkbox";
 import {
   Table,
@@ -58,6 +58,9 @@ import {
   AlertCircle,
   CheckCircle2,
   ShieldAlert,
+  CreditCard,
+  Megaphone,
+  RotateCcw,
 } from "lucide-react";
 
 type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "UNKNOWN";
@@ -230,7 +233,7 @@ const quickStatusFilters = [
   { value: "shipped", label: "Dikirim" },
   { value: "delivered", label: "Selesai" },
   { value: "cancelled", label: "Batal" },
-] as const;
+];
 
 type QuickStatus = (typeof quickStatusFilters)[number]["value"];
 type StatusCounts = Record<QuickStatus, number>;
@@ -386,6 +389,30 @@ const paymentLabels: Record<string, string> = {
   failed: "Gagal",
   refunded: "Dikembalikan",
 };
+
+// The filter menus list the statuses an operator filters by, labelled once.
+const SHIPPING_FILTER_OPTIONS: FilterOption<string>[] = [
+  { value: "all", label: "Semua status" },
+  { value: "pending", label: "Menunggu" },
+  { value: "processing", label: "Diproses" },
+  { value: "shipped", label: "Dikirim" },
+  { value: "delivered", label: "Selesai" },
+  { value: "returned", label: "RTS" },
+  { value: "cancelled", label: "Batal" },
+] as const;
+const PAYMENT_FILTER_OPTIONS: FilterOption<string>[] = [
+  { value: "all", label: "Semua status" },
+  { value: "unpaid", label: "Belum dibayar" },
+  { value: "paid", label: "Lunas" },
+  { value: "expired", label: "Kedaluwarsa" },
+  { value: "failed", label: "Gagal" },
+];
+const SOURCE_FILTER_OPTIONS: FilterOption<string>[] = [
+  { value: "all", label: "Semua traffic" },
+  { value: "meta", label: "Meta Ads" },
+  { value: "google", label: "Google Ads" },
+  { value: "organic", label: "Organic / Direct" },
+];
 
 const paymentMethodLabels: Record<string, string> = {
   cod: "COD",
@@ -1006,8 +1033,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
           onClick={() => {
             setLoading(true);
             setRequestVersion((current) => current + 1);
-          }}
-          size="xl" className="mt-5"
+          }} className="mt-5"
         >
           Coba lagi
         </Button>
@@ -1132,7 +1158,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
 
       {selectedOrderIds.length > 0 && (
         <section
-          className="sticky top-3 z-20 flex flex-col gap-3 rounded-2xl border border-blue-200 bg-blue-50/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between"
+          className="sticky top-3 z-20 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between"
           aria-label="Aksi bulk order"
         >
           <div>
@@ -1157,7 +1183,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
             >
               <SelectTrigger
                 aria-label="Ubah status order terpilih"
-                className="min-h-11 w-full min-w-48 bg-white sm:w-auto"
+                className="w-full min-w-48 sm:w-auto"
               >
                 {bulkUpdating ? (
                   <span
@@ -1206,172 +1232,67 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
 
       <section className="bg-transparent">
         <div className="pb-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="w-full lg:w-72 flex-shrink-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <label
-                  htmlFor="search-order"
-                  className="block text-[10px] font-black uppercase tracking-wider text-slate-500"
-                >
-                  Pencarian
-                </label>
-                <a
-                  href="/admin/settings/crm"
-                  className="text-[10px] font-bold text-blue-600 hover:underline"
-                >
-                  Atur CRM
-                </a>
-              </div>
-              <Input
+          <FilterBar>
+            <FilterField label="Cari order" htmlFor="search-order" size="grow">
+              <SearchInput
                 id="search-order"
-                type="text"
-                placeholder="Cari invoice, nama, WA, resi…"
+                placeholder="Invoice, nama, WA, atau resi"
                 value={searchTerm}
-                onChange={(event) => {
-                  setSearchTerm(event.target.value);
+                onValueChange={(value) => {
+                  setSearchTerm(value);
                   setPage(1);
                 }}
-                className="h-11 w-full rounded-lg bg-white shadow-sm border-slate-200"
               />
-            </div>
-
-            <div className="grid grid-cols-2 items-end gap-3 sm:flex sm:flex-nowrap">
-              <div className="w-full sm:w-[140px]">
-                <label
-                  htmlFor="filter-date"
-                  className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500"
-                >
-                  Periode order
-                </label>
-                <AdminDateRangeFilter
-                  value={dateSelection}
-                  onChange={(next) => {
-                    setDateSelection(next);
-                    setPage(1);
-                  }}
-                  className="w-full rounded-lg shadow-sm"
-                />
-              </div>
-
-              <div className="w-full sm:w-[150px]">
-                <label
-                  htmlFor="filter-shipping"
-                  className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500"
-                >
-                  Status Pengiriman
-                </label>
-                <Select
-                  value={shippingFilter}
-                  onValueChange={(val) => {
-                    setShippingFilter(val ?? "all");
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger
-                    id="filter-shipping"
-                    className="h-11 w-full rounded-lg bg-white shadow-sm border-slate-200"
-                  >
-                    <SelectValue>
-                      {shippingFilter === "all"
-                        ? "Semua status"
-                        : shippingLabels[shippingFilter] || "Pilih status"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua status</SelectItem>
-                    <SelectItem value="pending">Menunggu</SelectItem>
-                    <SelectItem value="processing">Diproses</SelectItem>
-                    <SelectItem value="shipped">Dikirim</SelectItem>
-                    <SelectItem value="delivered">Selesai</SelectItem>
-                    <SelectItem value="returned">RTS</SelectItem>
-                    <SelectItem value="cancelled">Batal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="w-full sm:w-[150px]">
-                <label
-                  htmlFor="filter-payment"
-                  className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500"
-                >
-                  Status Pembayaran
-                </label>
-                <Select
-                  value={paymentFilter}
-                  onValueChange={(val) => {
-                    setPaymentFilter(val ?? "all");
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger
-                    id="filter-payment"
-                    className="h-11 w-full rounded-lg bg-white shadow-sm border-slate-200"
-                  >
-                    <SelectValue>
-                      {paymentFilter === "all"
-                        ? "Semua status"
-                        : paymentLabels[paymentFilter] || "Pilih status"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua status</SelectItem>
-                    <SelectItem value="unpaid">Belum dibayar</SelectItem>
-                    <SelectItem value="paid">Lunas</SelectItem>
-                    <SelectItem value="expired">Kedaluwarsa</SelectItem>
-                    <SelectItem value="failed">Gagal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="w-full sm:w-[150px]">
-                <label
-                  htmlFor="filter-source"
-                  className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500"
-                >
-                  Sumber Lead
-                </label>
-                <Select
-                  value={sourceFilter}
-                  onValueChange={(val) => {
-                    setSourceFilter(val ?? "all");
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger
-                    id="filter-source"
-                    className="h-11 w-full rounded-lg bg-white shadow-sm border-slate-200"
-                  >
-                    <SelectValue>
-                      {sourceFilter === "all"
-                        ? "Semua traffic"
-                        : sourceFilter === "meta"
-                        ? "Meta Ads"
-                        : sourceFilter === "google"
-                        ? "Google Ads"
-                        : sourceFilter === "organic"
-                        ? "Organic / Direct"
-                        : "Pilih sumber"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Semua traffic</SelectItem>
-                    <SelectItem value="meta">Meta Ads</SelectItem>
-                    <SelectItem value="google">Google Ads</SelectItem>
-                    <SelectItem value="organic">Organic / Direct</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button
-                variant="secondary"
-                onClick={resetFilters}
-                disabled={!hasFilters}
-                size="xl" className="w-full sm:w-auto shadow-sm"
-              >
-                Reset
-              </Button>
-            </div>
-          </div>
+            </FilterField>
+            <FilterField label="Periode order" htmlFor="filter-date" size="sm">
+              <AdminDateRangeFilter
+                value={dateSelection}
+                onChange={(next) => {
+                  setDateSelection(next);
+                  setPage(1);
+                }}
+              />
+            </FilterField>
+            <FilterField label="Status pengiriman" htmlFor="filter-shipping" size="sm">
+              <FilterSelect
+                id="filter-shipping"
+                icon={Truck}
+                value={shippingFilter}
+                onValueChange={(value) => {
+                  setShippingFilter(value);
+                  setPage(1);
+                }}
+                options={SHIPPING_FILTER_OPTIONS}
+              />
+            </FilterField>
+            <FilterField label="Status pembayaran" htmlFor="filter-payment" size="sm">
+              <FilterSelect
+                id="filter-payment"
+                icon={CreditCard}
+                value={paymentFilter}
+                onValueChange={(value) => {
+                  setPaymentFilter(value);
+                  setPage(1);
+                }}
+                options={PAYMENT_FILTER_OPTIONS}
+              />
+            </FilterField>
+            <FilterField label="Sumber lead" htmlFor="filter-source" size="sm">
+              <FilterSelect
+                id="filter-source"
+                icon={Megaphone}
+                value={sourceFilter}
+                onValueChange={(value) => {
+                  setSourceFilter(value);
+                  setPage(1);
+                }}
+                options={SOURCE_FILTER_OPTIONS}
+              />
+            </FilterField>
+            <Button variant="outline" onClick={resetFilters} disabled={!hasFilters}>
+              <RotateCcw aria-hidden="true" /> Reset
+            </Button>
+          </FilterBar>
           <p
             className="mt-3 text-xs font-bold text-slate-500"
             aria-live="polite"

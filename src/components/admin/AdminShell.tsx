@@ -263,6 +263,9 @@ export function AdminShell({
           )}
 
           <div id="admin-main" tabIndex={-1} className="admin-main min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-2 pb-[calc(5.25rem+env(safe-area-inset-bottom))] pt-3 sm:px-3 md:px-6 md:pb-8 md:pt-6 xl:px-8">
+            {/* The one page-width contract: every admin page fills this box, so the
+                header and content edges line up across menus. Pages do not set
+                their own max-width. */}
             <div className="mx-auto w-full max-w-[1560px]">{children}</div>
           </div>
 

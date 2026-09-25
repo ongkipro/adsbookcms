@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-26 @ `fd18362` + working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -5917,4 +5917,48 @@ Verified: 764 tests, `astro check` 0/0/0, build, docs check; in headless
 Chrome at 390 and 1280 px no horizontal overflow on the changed pages, the
 rate checker, warehouse picker and lead recovery driven by mouse, and a
 visible focus ring on the combobox. Not verified on a real iPhone.
+
+## 2026-09-26 — Admin desktop precision: one page width, one radius
+
+Asked to make the admin precise on desktop. Measured before changing: at
+1920px the 25 admin pages had five different content edges, because nine
+pages and two islands set their own centred `max-w-*` inside AdminShell's
+`max-w-[1560px]`; `/admin/orders` also scrolled 34px sideways at 1280px behind
+a `flex-nowrap` filter row. The shell's box is now the only page width, guarded
+by a test, and both filter rows wrap. Measured after: one edge on every page at
+every width, no overflow.
+
+Radius: `.admin-shell` said `0.75rem` and shadcn's `:root` said `0.625rem`, so
+every portaled menu was shaped differently from its trigger, and cards added
+fixed `0.875rem`/`1rem` on top. One `0.375rem` token now drives both, cards use
+`rounded-xl`. Remaining English page titles and dashboard labels moved to
+Indonesian. Verified: 765 tests, `astro check` 0/0/0, build; headless Chrome
+widths at 1280/1440/1920, inputs 16px on 30 pages at 390px, no mobile overflow
+on the changed pages, screenshots of dashboard, orders, order detail and
+expeditions.
+
+## 2026-09-26 — Admin control contract, and a full-system recheck
+
+Asked to stop explaining the same layout problem screen by screen. The pattern
+behind every report was one thing: shadcn controls sized per call. The
+primitives now own height (40px), radius and colour; filter rows, search and
+kecamatan search each have one component; a test refuses the old overrides.
+The test caught its own author: the first clean-up had silently skipped every
+control whose `className` came after an arrow-function prop, because the tag
+scanner stopped at the `>` of `=>`. It reads tags brace-aware now, and a
+planted violation fails it.
+
+Two defects surfaced beyond layout. `admin.css` lacked shadcn's base
+`border-color`, so bare borders drew in currentColor (black). `/admin/settings`
+told operators AutoLaris confirmation was manual, which the hourly job has not
+been since A-275; an auto-settled payment was labelled "Operator tidak
+tersedia". Both corrected.
+
+Full recheck after the change: 769 tests, `astro check` 0/0/0, build; 57 pages
+at 390 and 1280px with no console error, failed request, overflow or unlabeled
+control (the six flags are correct 404/400s — a draft product, an unknown
+page, `/embed/form` without a mode); one content edge on every admin page at
+1280/1440/1920; inputs 16px on 30 pages; Meta Ads saved, reloaded and
+restored, test-event guidance inline, one `fbq('init')` at runtime, both
+catalogue feeds valid. Not checked on a real phone.
 

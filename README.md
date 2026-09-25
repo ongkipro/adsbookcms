@@ -1,6 +1,6 @@
 # AdsBookCMS
 
-> Verified against disk: 2026-09-25 @ `95fa341` + working tree (dev:seed)
+> Verified against disk: 2026-09-26 @ `fd18362` + working tree
 
 A self-contained direct-response commerce CMS that installs onto Cloudflare Workers. One install runs one store: storefront, landing-page builder, checkout with COD and online payment, order management, courier dispatch, ad-signal tracking, and an admin dashboard — in a single Worker with its own database.
 

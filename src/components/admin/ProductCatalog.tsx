@@ -5,7 +5,6 @@ import {
   MoreHorizontal,
   Trash2,
   ChevronDown,
-  Search,
   Package,
   CheckCircle2,
   Layers,
@@ -20,6 +19,7 @@ import {
 import { catalogProductIdOrNull } from "../../lib/catalog-feed";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { SearchInput } from "@/components/admin/filter-bar";
 import {
   Table,
   TableBody,
@@ -607,17 +607,7 @@ export function ProductCatalog({
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
         {/* Controls Header: Search, Filters, Stats */}
         <div className="flex flex-col gap-4 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between lg:p-5">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-            <Input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Cari nama produk, ID, slug, atau kategori..."
-              aria-label="Cari produk"
-              className="h-11 pl-10 pr-4 bg-slate-50/50 shadow-none border-slate-200 focus:bg-white"
-            />
-          </div>
+          <SearchInput className="flex-1" value={query} onValueChange={setQuery} placeholder="Cari nama produk, ID, slug, atau kategori..." aria-label="Cari produk" />
 
           <div className="flex flex-wrap items-center gap-2">
             {/* Filter Status Pills */}
@@ -677,7 +667,7 @@ export function ProductCatalog({
                   value={categoryFilter}
                   onValueChange={(value) => setCategoryFilter(String(value ?? "all"))}
                 >
-                  <SelectTrigger size="sm" aria-label="Filter kategori produk" className="min-w-40 bg-white">
+                  <SelectTrigger aria-label="Filter kategori produk" className="min-w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1100,7 +1090,7 @@ export function ProductCatalog({
                     value={embedMode}
                     onValueChange={(value) => value && setEmbedMode(value as FormMode)}
                   >
-                    <SelectTrigger aria-label="Mode form" className="h-10 w-full bg-white">
+                    <SelectTrigger aria-label="Mode form" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1119,7 +1109,7 @@ export function ProductCatalog({
                     value={embedVariantId}
                     onValueChange={(value) => value && setEmbedVariantId(String(value))}
                   >
-                    <SelectTrigger aria-label="Varian awal" className="h-10 w-full bg-white">
+                    <SelectTrigger aria-label="Varian awal" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1195,7 +1185,7 @@ export function ProductCatalog({
                         value={standaloneUrl}
                         readOnly
                         aria-label="Link form produk"
-                        className="h-9 min-w-0 font-mono text-xs"
+                        className="min-w-0 font-mono"
                       />
                       <Button
                         type="button"

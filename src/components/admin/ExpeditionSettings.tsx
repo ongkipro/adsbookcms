@@ -1,5 +1,5 @@
-import { SearchIcon, MapPinIcon, PackageIcon } from 'lucide-react';
 import { Button } from '../ui/button';
+import { SearchInput } from './filter-bar';
 import {
   Combobox,
   ComboboxChip,
@@ -15,9 +15,8 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from '../ui/combobox';
-import { Input } from '../ui/input';
 
-import { AlertTriangleIcon, LoaderCircleIcon, RefreshCwIcon, SaveIcon, ShieldCheckIcon, TruckIcon } from 'lucide-react';
+import { AlertTriangleIcon, LoaderCircleIcon, RefreshCwIcon, SaveIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Switch } from '../ui/switch';
 import { toast } from 'sonner';
@@ -75,19 +74,20 @@ const courierNames: Record<string, string> = {
   SPX: 'SPX Express',
 };
 
+// Courier marks served from this install (`public/images/couriers`); a courier
+// without one falls back to its initials on its brand colour.
 const courierLogos: Record<string, string> = {
-  JNE: 'https://ui-avatars.com/api/?name=JNE&background=024ca3&color=fff&bold=true',
-  SiCepat: 'https://ui-avatars.com/api/?name=SiCepat&background=d81b23&color=fff&bold=true',
-  'J&T': 'https://ui-avatars.com/api/?name=J&T&background=dd1a21&color=fff&bold=true',
-  SAP: 'https://ui-avatars.com/api/?name=SAP&background=2c3e50&color=fff&bold=true',
-  Ninja: 'https://ui-avatars.com/api/?name=Ninja&background=c2002f&color=fff&bold=true',
-  Anteraja: 'https://ui-avatars.com/api/?name=Anteraja&background=ff3b83&color=fff&bold=true',
-  Lion: 'https://ui-avatars.com/api/?name=Lion&background=e20613&color=fff&bold=true',
-  IDexpress: 'https://ui-avatars.com/api/?name=ID&background=004f98&color=fff&bold=true',
-  Paxel: 'https://ui-avatars.com/api/?name=Paxel&background=42155e&color=fff&bold=true',
-  Pos: 'https://ui-avatars.com/api/?name=Pos&background=f07421&color=fff&bold=true',
-  SPX: 'https://ui-avatars.com/api/?name=SPX&background=ee4d2d&color=fff&bold=true',
+  JNE: '/images/couriers/jne.webp',
+  SiCepat: '/images/couriers/sicepat.svg',
+  'J&T': '/images/couriers/jt.webp',
+  SAP: '/images/couriers/sap.webp',
+  Anteraja: '/images/couriers/anteraja.webp',
+  Lion: '/images/couriers/lion.webp',
+  IDexpress: '/images/couriers/idexpress.webp',
+  Pos: '/images/couriers/pos.svg',
+  SPX: '/images/couriers/spx.svg',
 };
+const courierColors: Record<string, string> = { Paxel: '#42155e', Ninja: '#c2002f' };
 
 
 function Toggle({ checked, disabled, pending, label, onChange }: {
@@ -257,33 +257,11 @@ export function ExpeditionSettings() {
 
   return (
     <div className="space-y-6">
-      {/* Metric Cards */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Ringkasan ekspedisi">
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-4">
-            <span className="grid size-12 place-items-center rounded-xl bg-slate-100 text-slate-600"><PackageIcon className="size-6" /></span>
-            <div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Ekspedisi</p><p className="text-2xl font-black text-slate-950">{metrics.total}</p></div>
-          </div>
-        </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-4">
-            <span className="grid size-12 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><TruckIcon className="size-6" /></span>
-            <div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Ekspedisi Aktif</p><p className="text-2xl font-black text-slate-950">{metrics.active}</p></div>
-          </div>
-        </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-4">
-            <span className="grid size-12 place-items-center rounded-xl bg-sky-50 text-sky-600"><ShieldCheckIcon className="size-6" /></span>
-            <div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Support COD</p><p className="text-2xl font-black text-slate-950">{metrics.cod}</p></div>
-          </div>
-        </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-4">
-            <span className="grid size-12 place-items-center rounded-xl bg-rose-50 text-rose-600"><MapPinIcon className="size-6" /></span>
-            <div><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Non-COD Prov</p><p className="text-2xl font-black text-slate-950">{metrics.nonCodProvinces}</p></div>
-          </div>
-        </article>
-      </section>
+      <p className="text-sm text-slate-600" aria-label="Ringkasan ekspedisi">
+        <span className="font-semibold text-slate-950">{metrics.active}</span> dari {metrics.total} ekspedisi aktif ·{' '}
+        <span className="font-semibold text-slate-950">{metrics.cod}</span> menerima COD ·{' '}
+        <span className="font-semibold text-slate-950">{metrics.nonCodProvinces}</span> provinsi tanpa COD
+      </p>
 
       {/* Non-COD Policy */}
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
@@ -338,48 +316,56 @@ export function ExpeditionSettings() {
               <button type="button" onClick={() => setCourierFilter('active')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${courierFilter === 'active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Aktif</button>
               <button type="button" onClick={() => setCourierFilter('non_cod')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${courierFilter === 'non_cod' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Non-COD</button>
             </div>
-            <div className="relative max-w-xs w-full">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-              <Input type="text" aria-label="Cari ekspedisi" placeholder="Cari ekspedisi..." value={courierSearch} onChange={(e) => setCourierSearch(e.target.value)} className="pl-9" />
-            </div>
+            <SearchInput className="w-full max-w-xs" aria-label="Cari ekspedisi" placeholder="Cari ekspedisi" value={courierSearch} onValueChange={setCourierSearch} />
           </div>
         </div>
-        <div className="divide-y divide-slate-100 p-5 md:p-6">
-          {filteredCouriers.length === 0 ? (
-             <div className="py-8 text-center text-sm text-slate-500">Tidak ada kurir yang cocok.</div>
-          ) : filteredCouriers.map((courier) => {
-            const enabled = Boolean(courier.isEnabled);
-            const codEnabled = Boolean(courier.isCodEnabled);
-            const restrictions = courier.excludedProvinces?.split(',').filter(Boolean).length ?? 0;
-            const name = courierNames[courier.courierCode] || courier.courierCode;
-            const logo = courierLogos[courier.courierCode];
-            
-            return (
-              <article key={courier.id} className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="hidden sm:block shrink-0 size-10 rounded-lg border border-slate-100 bg-slate-50 overflow-hidden">
-                    {logo ? <img src={logo} alt={name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-black text-slate-300">{courier.courierCode[0]}</div>}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-black text-slate-950">{name}</h3>
-                      {enabled ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700"><span className="size-1.5 rounded-full bg-emerald-500"></span>Aktif</span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600"><span className="size-1.5 rounded-full bg-slate-400"></span>Nonaktif</span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-xs text-slate-500">{restrictions > 0 ? <span className="text-rose-600 font-semibold">{restrictions} provinsi tanpa COD</span> : 'Mendukung semua provinsi COD'}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-5 sm:w-56 shrink-0 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                  <div className="flex flex-col justify-center gap-1.5"><span className="text-[10px] font-black uppercase text-slate-500">Layanan</span><Toggle checked={enabled} disabled={Boolean(pending)} pending={pending === `${courier.id}-enabled`} label={`Layanan ${courier.courierCode}`} onChange={() => void toggle(courier, 'enabled')} /></div>
-                  <div className="flex flex-col justify-center gap-1.5"><span className="text-[10px] font-black uppercase text-slate-500">COD</span><Toggle checked={codEnabled} disabled={Boolean(pending) || !enabled} pending={pending === `${courier.id}-cod`} label={`COD ${courier.courierCode}`} onChange={() => void toggle(courier, 'cod')} /></div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+        {filteredCouriers.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-slate-500">Tidak ada kurir yang cocok.</p>
+        ) : (
+          // Two columns of compact rows: ten couriers fit one screen, and each
+          // row still reads left to right as courier → COD coverage → switches.
+          <ul className="grid grid-cols-1 gap-px bg-slate-100 lg:grid-cols-2">
+            {filteredCouriers.map((courier) => {
+              const enabled = Boolean(courier.isEnabled);
+              const codEnabled = Boolean(courier.isCodEnabled);
+              const restrictions = courier.excludedProvinces?.split(',').filter(Boolean).length ?? 0;
+              const name = courierNames[courier.courierCode] || courier.courierCode;
+              const logo = courierLogos[courier.courierCode];
+              return (
+                <li key={courier.id} className="flex items-center gap-3 bg-white px-5 py-3">
+                  <span className="grid h-8 w-12 shrink-0 place-items-center" aria-hidden="true">
+                    {logo ? (
+                      <img src={logo} alt="" className={`max-h-7 max-w-12 object-contain ${enabled ? '' : 'opacity-40 grayscale'}`} loading="lazy" />
+                    ) : (
+                      <span
+                        className="grid size-7 place-items-center rounded-md text-[10px] font-bold text-white"
+                        style={{ backgroundColor: enabled ? courierColors[courier.courierCode] ?? '#64748b' : '#cbd5e1' }}
+                      >
+                        {courier.courierCode.slice(0, 3).toUpperCase()}
+                      </span>
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block truncate font-medium ${enabled ? 'text-slate-900' : 'text-slate-400'}`}>{name}</span>
+                    <span className="block text-xs text-slate-500">
+                      {!enabled ? 'Nonaktif di checkout' : restrictions > 0 ? <span className="text-rose-600">{restrictions} provinsi tanpa COD</span> : 'COD semua provinsi'}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-4 text-xs text-slate-500">
+                    <span className="flex items-center gap-2">
+                      Layanan
+                      <Toggle checked={enabled} disabled={Boolean(pending)} pending={pending === `${courier.id}-enabled`} label={`Layanan ${name}`} onChange={() => void toggle(courier, 'enabled')} />
+                    </span>
+                    <span className="flex items-center gap-2">
+                      COD
+                      <Toggle checked={codEnabled} disabled={Boolean(pending) || !enabled} pending={pending === `${courier.id}-cod`} label={`COD ${name}`} onChange={() => void toggle(courier, 'cod')} />
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
     </div>

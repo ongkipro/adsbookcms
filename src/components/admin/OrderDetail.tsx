@@ -1067,7 +1067,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
         <ShieldAlert className="size-12 text-rose-500 mx-auto mb-3" />
         <h2 className="text-xl font-semibold text-slate-950">Detail Order Tidak Ditemukan</h2>
         <p className="mt-2 text-xs font-semibold text-slate-600">{error || "Sistem tidak dapat menemukan record invoice ini."}</p>
-        <a href="/admin/orders" className="inline-flex items-center gap-2 mt-6 h-10 px-5 rounded-xl bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800 transition-colors">
+        <a href="/admin/orders" className={buttonVariants({ className: "mt-6" })}>
           <ArrowLeft className="size-4" />
           Kembali ke Daftar Order
         </a>
@@ -1455,7 +1455,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
               ) : (
                 <a
                   href={`/admin/shipping?order=${encodeURIComponent(order.order_number)}`}
-                  className={cn(buttonVariants({ variant: "outline" }), "w-full h-10 text-xs font-semibold rounded-xl mt-2")}
+                  className={buttonVariants({ variant: "outline", className: "mt-2 w-full" })}
                 >
                   <ExternalLink className="mr-1.5 size-3.5" />
                   Lihat Manajemen Resi & Tracking

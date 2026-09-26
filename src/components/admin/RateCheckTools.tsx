@@ -248,7 +248,6 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
   const [origin, setOrigin] = React.useState<DistrictOption | null>(defaultOrigin);
   const [destination, setDestination] = React.useState<DistrictOption | null>(null);
   const [weight, setWeight] = React.useState("1");
-  const [cod, setCod] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [rates, setRates] = React.useState<QuotedRate[] | null>(null);
@@ -272,9 +271,7 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
     setLoading(true);
     setError("");
     try {
-      const codValue = Math.round(Number(cod) || 0);
       const params = new URLSearchParams({ action: "estimate", origin: origin.id, destination: destination.id, weight: String(weightKg) });
-      if (codValue > 0) params.set("cod", String(codValue));
       const response = await fetch(`/api/admin/ongkir?${params}`);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload.success === false || !Array.isArray(payload.data)) throw new Error(payload.error || payload.message || "Tarif kurir gagal dimuat.");
@@ -325,28 +322,18 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
             </div>
           </div>
 
-          <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label htmlFor="rate-weight" className="text-sm font-medium">Berat paket</label>
-              <InputGroup>
-                <InputGroupInput id="rate-weight" type="number" inputMode="decimal" min="0.1" step="0.1" value={weight} onChange={(event) => setWeight(event.target.value)} className="font-mono" />
-                <InputGroupAddon align="inline-end">kg</InputGroupAddon>
-              </InputGroup>
-              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Berat cepat">
-                {[1, 2, 3, 5].map((kg) => (
-                  <Button key={kg} type="button" size="sm" variant={weightKg === kg ? "secondary" : "outline"} aria-pressed={weightKg === kg} onClick={() => setWeight(String(kg))}>
-                    {kg} kg
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="rate-cod" className="text-sm font-medium">Nilai COD <span className="font-normal text-muted-foreground">(opsional)</span></label>
-              <InputGroup>
-                <InputGroupAddon>Rp</InputGroupAddon>
-                <InputGroupInput id="rate-cod" type="number" inputMode="numeric" min="0" step="1000" value={cod} onChange={(event) => setCod(event.target.value)} placeholder="0" aria-describedby="rate-cod-hint" className="font-mono" />
-              </InputGroup>
-              <p id="rate-cod-hint" className="text-xs text-muted-foreground">Menampilkan biaya COD dari provider.</p>
+          <div className="space-y-1.5 sm:max-w-xs">
+            <label htmlFor="rate-weight" className="text-sm font-medium">Berat paket</label>
+            <InputGroup>
+              <InputGroupInput id="rate-weight" type="number" inputMode="decimal" min="0.1" step="0.1" value={weight} onChange={(event) => setWeight(event.target.value)} className="font-mono" />
+              <InputGroupAddon align="inline-end">kg</InputGroupAddon>
+            </InputGroup>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Berat cepat">
+              {[1, 2, 3, 5].map((kg) => (
+                <Button key={kg} type="button" size="sm" variant={weightKg === kg ? "secondary" : "outline"} aria-pressed={weightKg === kg} onClick={() => setWeight(String(kg))}>
+                  {kg} kg
+                </Button>
+              ))}
             </div>
           </div>
           <div className="flex justify-end">
@@ -360,7 +347,7 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
 
         {rates && (
           <section aria-label="Hasil tarif kurir" className="space-y-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex gap-1.5" role="group" aria-label="Filter kurir">
                 {(["all", "cod"] as const).map((value) => (
                   <Button key={value} type="button" size="lg" variant={filter === value ? "secondary" : "outline"} aria-pressed={filter === value} onClick={() => setFilter(value)}>
@@ -368,9 +355,9 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
                   </Button>
                 ))}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Select items={SORT_LABELS} value={sort} onValueChange={(value) => setSort((value as RateSort) ?? "price-asc")}>
-                  <SelectTrigger aria-label="Urutkan tarif" className="min-w-44">
+                  <SelectTrigger aria-label="Urutkan tarif" className="w-44">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -379,7 +366,7 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
                     ))}
                   </SelectContent>
                 </Select>
-                <Button type="button" variant="outline" size="lg" disabled={!rates.length} onClick={() => void copy(ratesWhatsAppText(rates, destination?.label ?? "", weightKg), "Daftar tarif disalin untuk WhatsApp.")}>
+                <Button type="button" variant="outline" disabled={!rates.length} onClick={() => void copy(ratesWhatsAppText(rates, destination?.label ?? "", weightKg), "Daftar tarif disalin untuk WhatsApp.")}>
                   <Copy aria-hidden="true" /> Salin untuk WA
                 </Button>
               </div>
@@ -396,7 +383,6 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
                     <TableRow>
                       <TableHead>Kurir</TableHead>
                       <TableHead className="text-right">Ongkir</TableHead>
-                      <TableHead className="text-right">Biaya COD</TableHead>
                       <TableHead>Estimasi</TableHead>
                       <TableHead>COD</TableHead>
                     </TableRow>
@@ -411,7 +397,6 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
                           </span>
                         </TableCell>
                         <TableCell className="text-right font-mono font-semibold">{formatIdr(rate.price)}</TableCell>
-                        <TableCell className="text-right font-mono text-muted-foreground">{rate.cod_fee > 0 ? formatIdr(rate.cod_fee) : "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{etaLabel(rate.estimated_days) || "—"}</TableCell>
                         <TableCell>
                           {rate.unsupported_cod ? <Badge variant="outline">Non-COD</Badge> : <Badge variant="outline" className={TONE_CLASS.good}>Bisa COD</Badge>}

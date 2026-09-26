@@ -112,15 +112,22 @@ export async function buildMetaAdvancedMatching(
   const zip = normalizeMetaText(String(input?.postal_code ?? ""));
   const country = normalizeMetaText(String(input?.country ?? ""));
   const externalId = normalizeMetaText(String(input?.external_id ?? "")) ?? normalizedPhone;
+  // Web Crypto is absent outside a secure context (plain-http origin, some
+  // embedded webviews). The checkout scripts await this before their
+  // AddToCart/InitiateCheckout, so a throw here used to drop the event on
+  // all three legs — Pixel, CAPI and GTM — and, the event flag already set,
+  // never retry. A key that cannot be hashed is omitted; its raw value is
+  // never sent in its place.
+  const hash = (value: string | undefined) => (value ? sha256Hex(value).catch(() => undefined) : undefined);
   return {
-    ph: normalizedPhone ? await sha256Hex(normalizedPhone) : undefined,
-    fn: firstName ? await sha256Hex(firstName) : undefined,
-    ln: lastName ? await sha256Hex(lastName) : undefined,
-    ct: city ? await sha256Hex(city) : undefined,
-    st: state ? await sha256Hex(state) : undefined,
-    zp: zip ? await sha256Hex(zip) : undefined,
-    country: country ? await sha256Hex(country) : undefined,
-    external_id: externalId ? await sha256Hex(externalId) : undefined,
+    ph: await hash(normalizedPhone),
+    fn: await hash(firstName),
+    ln: await hash(lastName),
+    ct: await hash(city),
+    st: await hash(state),
+    zp: await hash(zip),
+    country: await hash(country),
+    external_id: await hash(externalId),
     client_user_agent:
       typeof navigator !== "undefined" ? navigator.userAgent : undefined,
   };

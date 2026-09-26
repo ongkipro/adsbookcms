@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-26 @ `499f2ee` + working tree (browser hashing fail-soft, form → thanks E2E)
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -237,6 +237,15 @@ AdsBookCMS:
   fallback used by the deliberately email-free native checkout;
 - first and last name after trim and normalization;
 - the stable advertiser-issued external ID described below.
+
+**A browser that cannot hash omits the key.** Web Crypto (`crypto.subtle`)
+exists only in a secure context; a plain-http origin or an unusual webview has
+none. Every browser hash (`buildMetaAdvancedMatching` in the checkout scripts,
+`hashSha256Hex` in the thanks tracker) then yields `undefined`, never `''` and
+never the raw value, and the event itself still fires. Before 2026-09-26 a
+throw there dropped `AddToCart` and `InitiateCheckout` on all three legs —
+Pixel, CAPI and GTM — with no retry, and the thanks page sent Google
+`sha256_phone_number: ""`. Both are tested in `meta-identity.test.ts`.
 
 Meta's current documentation is internally inconsistent: the customer-parameter
 index calls `external_id` hashing recommended while the live Payload Helper calls

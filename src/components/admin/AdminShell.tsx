@@ -1,4 +1,5 @@
 import * as React from "react";
+import { buttonVariants } from "../ui/button";
 import { StoreMark } from "./StoreMark";
 import {
   SidebarInset,
@@ -226,7 +227,7 @@ export function AdminShell({
               >
                 <Search className="size-[18px]" aria-hidden="true" />
               </button>}
-              {!mustChangePassword && <a href="/" target="_blank" rel="noopener noreferrer" className="hidden min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 xl:inline-flex">
+              {!mustChangePassword && <a href="/" target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "ghost", className: "hidden text-slate-600 xl:inline-flex" })}>
                 Lihat storefront <ArrowUpRight className="size-3.5" aria-hidden="true" />
               </a>}
               {/* A first-run session may only rotate its password; the bell

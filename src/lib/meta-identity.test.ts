@@ -302,3 +302,29 @@ test("both CAPI ingestion routes forward country to the outbox", () => {
     );
   }
 });
+
+test("buildMetaAdvancedMatching omits keys instead of throwing when Web Crypto is unavailable", async () => {
+  // Plain-http origins have no crypto.subtle; the checkout AddToCart used to
+  // die here on every leg. Omit the hashes, never substitute raw values.
+  const subtle = Object.getOwnPropertyDescriptor(globalThis.crypto, "subtle");
+  Object.defineProperty(globalThis.crypto, "subtle", { value: undefined, configurable: true });
+  try {
+    const am = await buildMetaAdvancedMatching({ customer_name: "Budi Santoso", customer_phone: "081234567890", city: "Jakarta" });
+    assert.equal(am.ph, undefined);
+    assert.equal(am.fn, undefined);
+    assert.equal(am.ct, undefined);
+    assert.ok(!JSON.stringify(am).includes("81234567890"), "raw phone must never stand in for its hash");
+    assert.ok(!JSON.stringify(am).toLowerCase().includes("budi"), "raw name must never stand in for its hash");
+  } finally {
+    if (subtle) Object.defineProperty(globalThis.crypto, "subtle", subtle);
+  }
+});
+
+test("the thanks tracker's hash returns undefined, never '', when it cannot hash", () => {
+  // '' reached Google as sha256_phone_number: "" and the Pixel as ph: "" —
+  // present-but-blank match keys — on any origin without Web Crypto.
+  const source = readFileSync("src/components/storefront/tracking/MetaThanksTracker.astro", "utf8");
+  const body = source.slice(source.indexOf("const hashSha256Hex"), source.indexOf("};", source.indexOf("const hashSha256Hex")));
+  assert.ok(body.length > 0, "hashSha256Hex not found");
+  assert.doesNotMatch(body, /return\s+''|return\s+""/);
+});

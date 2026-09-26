@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `fd18362` + working tree
+> Verified against disk: 2026-09-26 @ `499f2ee` + working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -5961,4 +5961,50 @@ page, `/embed/form` without a mode); one content edge on every admin page at
 1280/1440/1920; inputs 16px on 30 pages; Meta Ads saved, reloaded and
 restored, test-event guidance inline, one `fbq('init')` at runtime, both
 catalogue feeds valid. Not checked on a real phone.
+
+## 2026-09-26 — Admin type anatomy, button tiers, phone layout (`499f2ee`)
+
+Measured before changing anything: twelve font sizes from 9 to 30px and
+weights up to 900 on desktop, about 250 labels at 10px on a phone. The weights
+were a second defect hiding in the first: `foundation.css` loads Inter 400,
+600 and 700, so every `font-medium` primitive rendered at 400 and 800/900 at
+700. Admin now loads 500 itself and uses five sizes (12/14/16/20/24), weights
+400/500/600 and a 12px floor; a guard refuses the rest.
+
+Buttons had the same drift as the inputs before them: 32 static `.btn-*` call
+sites set their own height, so 44/36/32px buttons stood beside 40px ones. The
+class owns geometry now. `buttonVariants()` returns a merged string — on Astro
+pages the unmerged `border-transparent` had beaten `border-border`, drawing
+every outline button borderless.
+
+Phone: filters and KPI tiles two-up, a landing source filter that wrapped
+"CMS Manual" onto two lines replaced by `FilterSelect`, a duplicate "Tambah
+produk" removed, and `StoreMark` showing a store's initial where the 4:1
+product wordmark had been squeezed into a square. 774 tests.
+
+A later sweep across twelve viewports (320–2560px) found no overflow; the one
+defect, dashboard header links built by hand that wrapped at 768px, is fixed
+and a guard refuses hand-built link buttons. The rate checker lost its optional
+COD value field — with no value sent the provider fee column was always empty.
+
+## 2026-09-26 — Checkout to thanks, tracking re-verified end to end
+
+Each checkout form driven in headless Chrome from its legacy URL to `/thanks`,
+with `connect.facebook.net` and `googletagmanager.com` answered by local stubs
+that record every `fbq` and `dataLayer` call, so nothing reached either
+platform. The first run showed PageView, ViewContent and Purchase but no
+AddToCart or InitiateCheckout anywhere: the checkout scripts set the event's
+once-flag, then awaited advanced-matching hashes, and on an origin without Web
+Crypto the digest threw — Pixel, CAPI and GTM all lost the event, and the flag
+stopped any retry. Hashing now omits a key it cannot compute; the event fires.
+The same origin exposed the thanks page sending Google `sha256_phone_number:
+""`; its hash now returns `undefined`. In a secure context the hashes are all
+present.
+
+Verified: 308 with query kept on all three legacy routes; five events on three
+legs per form; one Purchase per order on reload; QRIS silent until paid via the
+hourly Advice job, then the same `INV-` Purchase; `gclid` and `_fbc` on every
+order; Purchase value is the product value (shipping and fees excluded, as
+TRACKING_SPECS §10 intends). 777 tests, `astro check` 0 errors. Not verified:
+CAPI delivery to Meta and a live Google Ads account.
 

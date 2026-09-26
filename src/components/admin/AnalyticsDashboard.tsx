@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { buttonVariants } from "../ui/button";
 import {
   Card,
   CardContent,
@@ -524,7 +525,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
               </p>
             )}
             {showPaymentsLink && (
-              <a href="/admin/payments" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50">
+              <a href="/admin/payments" className={buttonVariants({ variant: "outline", className: "w-full" })}>
                 Kelola payment
               </a>
             )}

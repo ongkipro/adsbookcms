@@ -1,6 +1,29 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `fd18362` + working tree (admin control contract)
+> Verified against disk: 2026-09-26 @ `499f2ee` + working tree (tracking fail-soft, responsive sweep)
+
+## 2026-09-26 — checkout tracking re-verified, admin type and phone layout
+
+- **Checkout → thanks tracking** (this change, A-311): the three forms driven
+  from their legacy URLs to `/thanks` with the Meta and Google tags stubbed
+  locally. 308s keep `fbclid`/`gclid`/UTM; PageView, ViewContent, AddToCart
+  and InitiateCheckout fire on Pixel, CAPI and GTM; one `INV-` Purchase on
+  Pixel, CAPI and Google Ads, none on reload; QRIS silent until the hourly
+  Advice job marks it paid. **Fixed:** without Web Crypto the checkout scripts
+  lost AddToCart/InitiateCheckout on all three legs, and `/thanks` sent Google
+  blank hashed keys. Not observed: CAPI delivery to Meta, a live Google Ads
+  account.
+- **Admin type anatomy and buttons** (`499f2ee`, A-309/A-310): five sizes,
+  weights 400/500/600, a 12px floor, Inter 500 loaded for admin; `.btn-*` and
+  `buttonVariants()` own button geometry; phone filters and KPI tiles two-up.
+  All guarded in `admin-controls.test.ts` (DESIGN-SYSTEM.md §7.1).
+- **Responsive sweep** (this change, A-312): eight admin pages at twelve
+  viewports, 320–2560px and phone landscape — no horizontal overflow; bottom
+  nav below 768px, icon rail to 1023px, full sidebar above, content capped at
+  1560px. The one defect, hand-built header links wrapping at 768px, fixed and
+  guarded. The rate checker's optional COD value field is gone (A-312).
+- Open: A-300, A-305, and a real-phone check. The orders table still scrolls
+  at 1440px; its row actions are now pinned.
 
 ## 2026-09-26 — couriers, dev data, and the admin UI contract
 
@@ -14,7 +37,7 @@
   filled through its own HTTP surface; the audit on it fixed checkout-button
   readiness disagreeing with the endpoints, two false copy claims and eleven
   unnamed controls. Dead code removed (A-301).
-- **Admin UI** (`fd18362` and this change, A-302–A-307): every dropdown and
+- **Admin UI** (`fd18362`, `5136e64`, A-302–A-307): every dropdown and
   search on shadcn, one page width (AdminShell), one radius, one 40px control
   height owned by the primitives, `FilterBar`/`SearchInput` for toolbars, all
   guarded by `admin-controls.test.ts` and `admin-page-width.test.ts`
@@ -407,7 +430,7 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 **Orders and shipping** — one shared lifecycle validates every single/bulk status transition, marks an order void exactly once on cancellation or deletion, refuses to dispatch a void order, and refuses to delete an order that is paid or already with the courier. **Pesanan tertinggal** has a dedicated product-first lead workspace and is excluded from normal order lists, summaries, details, bulk actions, and shipping. CS can record follow-up and explicitly convert one ABN lead into one complete pending INV with a current server-side rate, under the same COD-province policy as checkout. Checkout, conversion, and payment confirmation only persist or change eligibility. Mengantar dispatch runs solely after an explicit authenticated single/bulk operator action under a single-flight lease; provider acceptance rechecks the claim and dispatch-critical snapshot so concurrent cancellation or buyer edits cannot be overwritten. Accepted provider identifiers and provider-supplied waybills persist, duplicates are suppressed, and bounded failures remain pending and retryable. The Shipping workspace exposes exactly **Semua Pengiriman**, **Perlu Dibuatkan Resi**, **Perlu Pickup**, and **Sampai Tujuan**, with responsive state-valid actions and explicit sequential provider polling by waybill. `/order/pay-unpaid` recovery remains provider-blocked.
 
-**Admin** — 28 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker with an optional COD value that reveals the provider's own COD fee for comparison, payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. The JSON/AI content workbench is off the main navigation (ADR-018); `/admin/content` itself stays reachable and unchanged — it is no longer gated behind the storefront's setup-required state, since the home page now always renders. Both admin image-upload paths (product photos, content/hero media) route through one shared client-side compression rule (`src/lib/client-image.ts`: 1280px max edge, WebP quality 0.8, reuse only under 100KB) rather than two that could disagree — forward-only, no backfill of what is already in R2 (2026-08-24). Warehouse settings create the required single-row origin on a fresh install and update it thereafter. Fresh installation also creates the neutral nine-courier policy (Ninja retired, `0056`); migration `0042` repairs only installed stores with no courier rows and never overwrites an existing policy. Navigation and route authorization share one deny-by-default role policy. Phones use role-aware bottom navigation and sheets, tablet starts with a 48 px rail, desktop uses a 256 px sidebar, and first-run sessions expose only password rotation and logout.
+**Admin** — 28 pages: dashboard analytics, orders and order detail, product CRUD, landing pages, content workbench with Workers AI drafting, shipping, expeditions, RTS/rate checker (tariff, ETA and COD availability per courier), payments, balance reconciliation ledger, ads configuration for Meta and Google, store/warehouse/CRM settings, operator access management, and developer API keys. The JSON/AI content workbench is off the main navigation (ADR-018); `/admin/content` itself stays reachable and unchanged — it is no longer gated behind the storefront's setup-required state, since the home page now always renders. Both admin image-upload paths (product photos, content/hero media) route through one shared client-side compression rule (`src/lib/client-image.ts`: 1280px max edge, WebP quality 0.8, reuse only under 100KB) rather than two that could disagree — forward-only, no backfill of what is already in R2 (2026-08-24). Warehouse settings create the required single-row origin on a fresh install and update it thereafter. Fresh installation also creates the neutral nine-courier policy (Ninja retired, `0056`); migration `0042` repairs only installed stores with no courier rows and never overwrites an existing policy. Navigation and route authorization share one deny-by-default role policy. Phones use role-aware bottom navigation and sheets, tablet starts with a 48 px rail, desktop uses a 256 px sidebar, and first-run sessions expose only password rotation and logout.
 
 **Dashboard figures** — "Omset" is the value of orders still in play: cancelled and returned shipments and released payments are excluded by one predicate shared with the trend query, so the chart's bars always sum to the card above them. A separate collected figure counts paid orders net of shipping and COD fees, so a store with no paid orders no longer reports a seven-figure "pendapatan". Payment success is measured over online orders only (COD is paid on delivery and cannot prepay) and RTS over shipments that reached an outcome; every card states its base, and "Pesanan" headlines active orders with the dropped ones in the note. The default reporting period is this month. The trend chart's axis scales per tick so labels stay distinct, the all-time view fills empty days rather than skipping them, and a payment provider that has accepted requests but awaits its first manual confirmation reads healthy, not "no data".
 

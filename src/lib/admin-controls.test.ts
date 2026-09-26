@@ -144,3 +144,14 @@ test("admin type stays on the scale: 12px floor, weights 400/500/600", () => {
   );
   assert.deepEqual(offenders, []);
 });
+
+test("admin link buttons use buttonVariants or .btn-*, never a hand-built pill", () => {
+  // A link styled by hand (min-h-11 rounded-xl text-xs) escaped both Button
+  // guards and wrapped onto two lines at 768px on the dashboard header.
+  const files = [...globSync("src/components/admin/*.tsx"), ...globSync("src/pages/admin/**/*.astro")];
+  const handBuilt = /<a\b[^>]*class(?:Name)?="(?=[^"]*\b(?:min-h-1[01]|h-1[01])\b)(?=[^"]*\brounded-(?:lg|xl|md)\b)(?![^"]*\bbtn-)[^"]*"/g;
+  const offenders = files.flatMap((file) =>
+    readFileSync(file, "utf8").split("\n").flatMap((line, index) => (handBuilt.test(line) ? [`${file}:${index + 1}`] : [])),
+  );
+  assert.deepEqual(offenders, []);
+});

@@ -1,6 +1,6 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-09-26 @ `5136e64` + working tree (control contract, button tiers)
+> Verified against disk: 2026-09-26 @ `499f2ee` + working tree (control contract, type anatomy, responsive)
 >
 > **The public palette is neutral plus one overridable accent (ADR-019, as
 > amended 2026-08-23).** Colour tokens below that describe the retired gold
@@ -465,7 +465,9 @@ geometry; a caller never does.
   radius, background, border colour, shadow or type size, and never `size="sm"`
   on a `SelectTrigger` or `size="xl"` on an admin `Button`.
 - A page or card header action (save, edit, delete, refresh, preview) is the
-  default `Button` size. `buttonVariants()` returns a tailwind-merged string,
+  default `Button` size. A link that acts as a button is `buttonVariants()`
+  or `.btn-*`, never hand-built from `min-h-11 rounded-xl text-xs` (one
+  wrapped at 768px). `buttonVariants()` returns a tailwind-merged string,
   so an Astro page or an `<a>` using it directly keeps the variant's border
   (the unmerged base `border-transparent` used to win and drew outline
   buttons borderless). Guards: `admin-controls.test.ts` refuses geometry on

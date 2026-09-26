@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `fd18362` + working tree
+> Verified against disk: 2026-09-26 @ `499f2ee` + working tree
 
 ## A21 — A landing page may become the product page
 
@@ -2586,6 +2586,26 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   "Tambah produk" removed, `StoreMark` initial instead of an illegible
   wordmark. Desktop: filter labels no longer truncate (`sm` field 176px), the
   orders table pins its row actions at 1440.
+- [x] **A-311** — Checkout routing and tracking, form to thanks, re-verified
+  end to end in headless Chrome with the Meta and Google tags stubbed locally.
+  `/form-full`, `/form-hybrid`, `/form-middle` answer 308 to their canonical
+  routes keeping `fbclid`/`gclid`/UTM; each form fires PageView, ViewContent,
+  AddToCart and InitiateCheckout on Pixel, CAPI and GTM; `/thanks` fires one
+  Purchase keyed on the `INV-` number on the Pixel, CAPI and Google Ads
+  (`transaction_id`) and none on reload; QRIS fires nothing on `/payment` until
+  the hourly Advice job marks it paid, then the same Purchase. Click ids are on
+  every order. Found and fixed: a hashing failure (no Web Crypto) silently
+  killed AddToCart/InitiateCheckout on all three legs, and the thanks page
+  sent Google blank hashed keys. Not verified: CAPI delivery to Meta (no token
+  used locally, by design) and a real Google Ads account.
+- [x] **A-312** — Responsive sweep and rate-checker trim. Eight admin pages
+  at twelve viewports (320, 360, 390, 414, 768, 820, 1024, 1280, 1440, 1920,
+  2560 and 844×390): no horizontal overflow; nav transforms at 768/1024px.
+  Dashboard header links (hand-built, `min-h-11 rounded-xl text-xs`) wrapped
+  at 768px; they and three siblings now use `buttonVariants`/`.btn-*`, and a
+  guard refuses the pattern. The rate checker's optional COD value field and
+  its always-empty "Biaya COD" column were removed; its toolbar wraps inside
+  the card instead of spilling past it.
 - [ ] **A-305** — Four destructive actions still ask through
   `window.confirm` (order delete, bulk delete, revoke access, revoke API
   key). They work; a shadcn confirmation dialog would match the rest.

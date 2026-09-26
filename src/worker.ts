@@ -141,6 +141,8 @@ async function runScheduledMaintenance(
       webhookUrl: getEnvValue("OPS_ALERT_WEBHOOK_URL", {
         OPS_ALERT_WEBHOOK_URL: env.OPS_ALERT_WEBHOOK_URL,
       }),
+      // No request here, so the install names itself from its own config.
+      source: env.PUBLIC_SITE_URL,
     },
   );
 

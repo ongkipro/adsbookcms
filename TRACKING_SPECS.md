@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-09-26 @ `499f2ee` + working tree (browser hashing fail-soft, form → thanks E2E)
+> Verified against disk: 2026-09-26 @ `fc4015f` + working tree (Events Manager plugins observed live)
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -79,6 +79,24 @@ Security rules:
 - Google Ads conversion ID and label are both present or both absent;
 - browser configuration may contain only non-secret identifiers;
 - isolation between stores is the deployment boundary — a second store is a second install with its own D1 and its own credentials, not a scope column.
+
+### Pixel settings that live in Events Manager, not here
+
+`fbevents.js` also loads plugins chosen per pixel in Meta Events Manager, served
+from `connect.facebook.net/signals/config/<pixel-id>`. Two were found on a live
+install on 2026-09-26 and neither is visible in this repository:
+
+- `smartsetup` / `smartsetuptotalpriceextraction` — automatic event setup, which
+  infers events and scrapes a price and currency from the page's text. On an
+  `Rp130.000` page it logs `[Meta Pixel] - Invalid parameter format for currency`
+  in the console. Every event this code sends carries `currency: 'IDR'`; the
+  warning is the scraper's. Turning automatic event setup off for the pixel
+  removes it and the inferred events.
+- `openbridge` — the Meta Conversions API Gateway, which POSTs each browser
+  event to its own endpoint (an `*.on.aws` host) as a second server leg. The
+  store's own CAPI already is that leg (§6, §11); leave the Gateway attached only
+  if someone set it up on purpose, and then only with the same `event_id`
+  deduplication in mind.
 
 ## 4. Canonical Event Semantics
 

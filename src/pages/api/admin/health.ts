@@ -19,7 +19,7 @@ export const prerender = false;
  *
  * Counts, ages and states only. No order or customer payloads leave here.
  */
-export const GET: APIRoute = async ({ locals }) => {
+export const GET: APIRoute = async ({ locals, url }) => {
   const database = getRuntimeEnv(locals)?.OMS_DB as D1Database | undefined;
   if (!database?.prepare) {
     return jsonError('Database belum tersedia.', 503);
@@ -33,6 +33,7 @@ export const GET: APIRoute = async ({ locals }) => {
       {
         store: runtime?.SESSION as KVNamespace | undefined,
         webhookUrl: getEnvValue('OPS_ALERT_WEBHOOK_URL', runtime),
+        source: url.origin,
       },
     );
     return jsonOk({ health, alerts });

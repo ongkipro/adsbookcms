@@ -185,6 +185,7 @@ export function createMiddleware(
     await evaluateOperationalAlerts([schemaAlertFromError(schemaError)], {
       store: runtime?.SESSION as KVNamespace | undefined,
       webhookUrl: getEnvValue('OPS_ALERT_WEBHOOK_URL', runtime),
+      source: url.origin,
     });
 
     const apiRequest = url.pathname === '/api' || url.pathname.startsWith('/api/');

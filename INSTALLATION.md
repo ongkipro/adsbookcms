@@ -1,6 +1,6 @@
 # Installing AdsBookCMS
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-26 @ `fc4015f` + alert-webhook working tree
 
 This document describes how an install is actually stood up today, and where that process is still rougher than the product intends to be. It contains no commands that do not exist. Where a step is manual because the tooling has not been built yet, it says so and points at the gap.
 
@@ -282,6 +282,12 @@ installer can do for the operator:
   optionally AutoLaris or a bank account for non-COD payment — entered in
   `/admin`, listed by the dashboard's setup checklist.
 - **A domain**, attached in the Cloudflare dashboard when the store is ready.
+- **The store's own mark.** The logo is set in `/admin` (Settings → Store), but
+  the browser-tab and home-screen icons are files: replace `public/favicon.ico`,
+  `public/favicon.png`, `public/favicon-192.png` and `public/images/logo.svg` in
+  the install repo, or every tab shows the product's neutral emblem.
+- **An alert webhook** (`OPS_ALERT_WEBHOOK_URL`, OBSERVABILITY.md §5), or a
+  stalled conversion queue reaches no one.
 
 How a second store is created and kept current is settled by ADR-020 (§10);
 A-50 and A-52 are closed on it.

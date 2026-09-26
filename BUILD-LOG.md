@@ -6045,3 +6045,29 @@ the two rates. The charge stays two rounded-up parts, as Mengantar bills it;
 a test holds it within Rp2 of the flat figure. 778 tests. One unrelated test
 failed once and did not recur in five further runs; it was not identified.
 
+
+## 2026-09-26 — Alerts name their store; lessons from a live install pass
+
+A full pass on the taniniaga install (merge to `fc4015f`, live health, pixel and
+performance checks) turned up four things that belong to the product:
+
+- **An alert did not say which store raised it.** Several installs can share one
+  `OPS_ALERT_WEBHOOK_URL`, and the body carried the signal and reason only. It
+  now carries `store` (the request origin, or `PUBLIC_SITE_URL` from the cron)
+  and one readable line under `text` and `content`, so a Slack, Google Chat or
+  Discord incoming-webhook URL renders it without a relay. Every earlier field
+  is kept. OBSERVABILITY §5 also listed field names the code never sent
+  (`event_id`, `state`, `transition_at`); it now documents the real body.
+- **`wrangler triggers deploy` reads the built config.** Run after editing
+  `triggers.crons` without a build, it reports "Deployed triggers" and
+  re-applies the old schedule. RELEASE §1 says so.
+- **Favicons are brand assets once a store replaces them.** The ownership
+  manifest called them product-owned, which a copy-type update would have
+  overwritten. INSTALLATION §11 lists them with the alert webhook as manual steps.
+- **Two console findings are Meta's, not ours.** Events Manager's automatic
+  event setup (`smartsetup`) scrapes `Rp` prices and warns about currency, and a
+  Conversions API Gateway (`openbridge`) adds a second server leg. TRACKING_SPECS
+  §3 records both.
+
+**Evidence.** Two new tests in `operational-alerts.test.ts`, mutation-checked:
+dropping the `source` hand-off fails the webhook test.

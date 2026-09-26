@@ -1,6 +1,6 @@
 # Path-ownership manifest — copy-paste install updates
 
-> Verified against disk: 2026-08-27 @ `3bb51a3` + payment-recovery working tree
+> Verified against disk: 2026-09-26 @ `fc4015f` + alert-webhook working tree
 
 Authority: `DECISIONS.md` ADR-020, `PLAN.md`, `TASKS.md` A-153.
 
@@ -17,8 +17,8 @@ from the release:
 
 - `src/**` — all source, scripts, styles, and `src/db/migrations/**` (the sole
   ordered schema source; the install applies only the missing suffix).
-- `public/**` **except** merchant brand assets (see install-owned) — favicons,
-  shared static files.
+- `public/**` **except** merchant brand assets (see install-owned) — shared
+  static files, and the favicons until a store replaces them.
 - `package.json`, `package-lock.json` — product dependencies and scripts.
 - `astro.config.mjs`, `tsconfig.json`, `components.json` — product build config.
 - Product docs: `ARCHITECTURE.md`, `PRD.md`, `DECISIONS.md`, `TASKS.md`,
@@ -42,9 +42,13 @@ copy-paste update must leave them byte-identical:
   copy them across stores.
 - **`.wrangler/`**, `node_modules/`, `.astro/`, `dist/`, `tmp/` — local
   Cloudflare state and build artifacts. Gitignored; never copied.
-- **Merchant brand assets** in `public/images/` the store replaced —
-  `logo.svg`, `adsbook-mark.webp` (wordmark), `payment/**` marks. The product
-  ships neutral defaults; a store that swapped them keeps its own.
+- **Merchant brand assets** the store replaced — `public/images/logo.svg`
+  (admin and login tab icon), `public/images/adsbook-mark.webp` (wordmark),
+  `public/images/payment/**` marks, and the favicons `public/favicon.ico`,
+  `public/favicon.png` (32 px) and `public/favicon-192.png` (apple-touch; keep
+  it full-bleed, the OS rounds it). The product ships neutral defaults; a store
+  that swapped them keeps its own, and in a merge-type install a product change
+  to one of them is a conflict the store's copy wins.
 - **`RELEASE.md`** — once in a store's repo it is that install's adoption and
   deployment log, not the product release log. Do not overwrite it with the
   product's.

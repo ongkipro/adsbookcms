@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-26 @ `fc4015f` + alert-webhook working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -32,10 +32,18 @@ lines are the whole trigger block in `ci.yml`.
 ### Manual deploy
 
 `npx wrangler deploy` (or `npm run deploy`) deploys the working tree to whatever
-Worker `wrangler.jsonc` names. In **this** repository that file is placeholders
-(`example.com`, placeholder binding ids), so there is no production Worker to
-reach; the command belongs in an install, run against that install's own
-resources.
+Worker `wrangler.jsonc` names. In **this** repository that file is the one-click
+template (all-zero ids, which the deploy preflight refuses), so there is no
+production Worker to reach; the command belongs in an install, run against that
+install's own resources.
+
+`npx wrangler triggers deploy` changes only the cron schedule, but it reads the
+**built** config (`dist/server/wrangler.json`), not `wrangler.jsonc`. Run
+`npm run build` after editing `triggers.crons`, or the command reports
+"Deployed triggers" while re-applying the schedule of the previous build.
+Workers Free allows five cron triggers per account, shared by every install on
+it; the hourly cron carries AutoLaris expiry, outbox drains and the alert
+evaluation, so an install without one has none of those.
 
 ---
 

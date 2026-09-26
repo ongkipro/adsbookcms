@@ -1,6 +1,6 @@
 # Observability — AdsBookCMS
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-26 @ `fc4015f` + alert-webhook working tree
 
 This document describes what an operator can observe and what AdsBookCMS now alerts on for one running install. Cross-install aggregation and an external uptime probe remain separate decisions.
 
@@ -112,9 +112,24 @@ persists before notification. A failed notification remains `pending` so the nex
 scheduled run retries; a successful notification becomes `sent`. A
 firing→healthy recovery emits once and returns to healthy state.
 
-Webhook JSON is bounded and payload-free: `event_id`, `id`, `state`, `reason`,
-`transition`, and `transition_at`. It never includes order, customer, payment,
-credential, or request payloads.
+Webhook JSON is bounded and payload-free (`alertWebhookBody` in
+`src/lib/operational-alerts.ts`):
+
+| Field | Meaning |
+| --- | --- |
+| `version` | `1` |
+| `eventId` | `<signal>:<firing\|recovered>:<transitionAt>` — stable across retries, so a receiver can deduplicate |
+| `status` | `firing` or `recovered` |
+| `signal` | `schema`, `capi-outbox` or `google-ads-outbox` |
+| `reason` | the classifier's reason, e.g. `stalled`, `terminal-failures`, `recovered-from-stalled` |
+| `transitionAt` | ISO time of the transition |
+| `store` | the install's origin — the request's on a request path, `PUBLIC_SITE_URL` from the cron. Several installs can share one webhook; an alert that does not name its store cannot be acted on |
+| `text`, `content` | one readable line, `[FIRING] https://store.example capi-outbox: stalled (…)`, under the keys Slack / Google Chat / Mattermost (`text`) and Discord (`content`) render, so a chat incoming-webhook URL works as-is |
+
+It never includes order, customer, payment, credential, or request payloads.
+Set it with `npx wrangler secret put OPS_ALERT_WEBHOOK_URL` from the install;
+it must be `https:`. Until it is set the admin health panel reports
+`alerting: not-configured`.
 
 Logs and alert state remain per Worker. There is no aggregate view across installs.
 Building one means shipping telemetry off the install, so order and customer data

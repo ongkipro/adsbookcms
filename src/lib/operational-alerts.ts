@@ -53,6 +53,9 @@ type AlertLogger = Pick<Console, "error" | "info">;
 type EvaluateOptions = {
   store?: AlertStateStore;
   webhookUrl?: string;
+  /** Which install is speaking — its site URL. Several installs can share one
+   * webhook, and an alert that does not name its store cannot be acted on. */
+  source?: string;
   notify?: (event: OperationalAlertEvent) => Promise<void>;
   now?: () => string;
   logger?: AlertLogger;
@@ -85,9 +88,22 @@ function parseStoredState(value: string | null): StoredAlertState | null {
   return null;
 }
 
+/**
+ * The webhook body: the redacted event, the install that raised it, and one
+ * readable line under the two keys chat webhooks render — `text` (Slack,
+ * Google Chat, Mattermost) and `content` (Discord). A generic JSON receiver
+ * still gets every field it had before.
+ */
+export function alertWebhookBody(event: OperationalAlertEvent, source?: string) {
+  const store = source?.trim() || undefined;
+  const line = `[${event.status === "firing" ? "FIRING" : "RECOVERED"}]${store ? ` ${store}` : ""} ${event.signal}: ${event.reason} (${event.transitionAt})`;
+  return { ...event, store, text: line, content: line };
+}
+
 async function postAlertWebhook(
   webhookUrl: string,
   event: OperationalAlertEvent,
+  source?: string,
 ) {
   let url: URL;
   try {
@@ -104,7 +120,7 @@ async function postAlertWebhook(
   const response = await fetch(url.toString(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(event),
+    body: JSON.stringify(alertWebhookBody(event, source)),
     signal: AbortSignal.timeout(5_000),
   });
   if (!response.ok) throw new Error("alert webhook rejected notification");
@@ -226,7 +242,7 @@ async function evaluateSignal(
     ? options.notify
     : options.webhookUrl
       ? (payload: OperationalAlertEvent) =>
-          postAlertWebhook(options.webhookUrl as string, payload)
+          postAlertWebhook(options.webhookUrl as string, payload, options.source)
       : null;
 
   if (repeated && previous.notification !== "pending") {

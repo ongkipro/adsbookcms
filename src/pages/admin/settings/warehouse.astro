@@ -15,9 +15,9 @@ export const prerender = false;
     />
 
     <div id="warehouseLoading" class="h-96 animate-pulse rounded-xl bg-slate-100" role="status" aria-live="polite" aria-busy="true" aria-atomic="true"><span class="sr-only">Memuat konfigurasi gudang.</span></div>
-    <div id="warehouseError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
+    <div id="warehouseError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert" aria-live="assertive"></div>
     <div id="warehouseSetupBanner" class="hidden rounded-xl border border-blue-200 bg-blue-50 p-5 md:p-6">
-      <h2 class="mb-2 text-sm font-black text-blue-900">Selamat datang! Mari atur gudang pertama Anda.</h2>
+      <h2 class="mb-2 text-sm font-semibold text-blue-900">Selamat datang! Mari atur gudang pertama Anda.</h2>
       <p class="text-xs leading-relaxed text-blue-800">AdsBookCMS membutuhkan lokasi origin pengiriman yang valid untuk menghitung ongkos kirim dan mencari kurir yang tersedia. Silakan lengkapi form di bawah ini.</p>
     </div>
 
@@ -25,18 +25,18 @@ export const prerender = false;
 
       <!-- Section 1: Identitas Gudang & PIC -->
       <div class="border-b border-slate-100 p-5 md:p-6">
-        <p class="mb-4 text-[10px] font-black uppercase tracking-wider text-slate-400">Identitas Gudang & PIC</p>
+        <p class="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Identitas Gudang & PIC</p>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
           <label>
-            <span class="mb-1.5 block text-xs font-black text-slate-700">Nama gudang <span class="text-rose-500">*</span></span>
+            <span class="mb-1.5 block text-xs font-semibold text-slate-700">Nama gudang <span class="text-rose-500">*</span></span>
             <input id="warehouseName" required maxlength="120" placeholder="Contoh: Kedai A29" class="admin-input-flat" />
           </label>
           <label>
-            <span class="mb-1.5 block text-xs font-black text-slate-700">Nama PIC (penanggung jawab) <span class="text-rose-500">*</span></span>
+            <span class="mb-1.5 block text-xs font-semibold text-slate-700">Nama PIC (penanggung jawab) <span class="text-rose-500">*</span></span>
             <input id="contactName" required maxlength="120" autocomplete="name" placeholder="Contoh: Rini" class="admin-input-flat" />
           </label>
           <label class="md:col-span-2">
-            <span class="mb-1.5 block text-xs font-black text-slate-700">Nomor HP PIC <span class="text-rose-500">*</span></span>
+            <span class="mb-1.5 block text-xs font-semibold text-slate-700">Nomor HP PIC <span class="text-rose-500">*</span></span>
             <input id="contactPhone" required type="tel" inputmode="numeric" maxlength="16" autocomplete="tel" placeholder="08xxxxxxxxxx" class="admin-input-flat font-mono" />
             <small id="contactPhoneHint" class="mt-1 block text-xs text-slate-400">Format otomatis ke 62. Contoh: 081200000000 → 6281200000000</small>
           </label>
@@ -45,7 +45,7 @@ export const prerender = false;
 
       <!-- Section 2: Kecamatan Origin (Pin Pengiriman) -->
       <div class="border-b border-slate-100 p-5 md:p-6">
-        <p class="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Pin Origin Pengiriman <span class="text-rose-500">*</span></p>
+        <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Pin Origin Pengiriman <span class="text-rose-500">*</span></p>
         <p class="mb-4 text-xs leading-5 text-slate-500">Kecamatan/kelurahan gudang di database Mengantar. Menentukan titik awal kalkulasi ongkir dan jangkauan kurir.</p>
 
         <!-- Origin Pin Badge (shown when set) -->
@@ -55,10 +55,10 @@ export const prerender = false;
               <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 0 1 15 0Z" /></svg>
             </div>
             <div class="min-w-0 flex-1">
-              <p id="originPinLabel" class="text-sm font-black text-blue-900"></p>
+              <p id="originPinLabel" class="text-sm font-semibold text-blue-900"></p>
               <p id="originPinMeta" class="mt-0.5 text-xs text-blue-700"></p>
             </div>
-            <button id="originPinChange" type="button" class="min-h-11 shrink-0 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-bold text-blue-700 transition hover:bg-blue-100" aria-controls="originSearchPanel">Ganti</button>
+            <button id="originPinChange" type="button" class="min-h-11 shrink-0 rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100" aria-controls="originSearchPanel">Ganti</button>
           </div>
         </div>
 
@@ -77,15 +77,15 @@ export const prerender = false;
 
       <!-- Section 3: Alamat pickup -->
       <div class="border-b border-slate-100 p-5 md:p-6">
-        <p class="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Detail Alamat Pickup</p>
+        <p class="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Detail Alamat Pickup</p>
         <p class="mb-4 text-xs leading-5 text-slate-500">AdsBookCMS menyinkronkan alamat ini ke Mengantar dan menyimpan ID provider yang valid.</p>
         <div class="grid-cols-1 grid gap-5">
           <label>
-            <span class="mb-1.5 block text-xs font-black text-slate-700">Alamat jalan <span class="text-rose-500">*</span></span>
+            <span class="mb-1.5 block text-xs font-semibold text-slate-700">Alamat jalan <span class="text-rose-500">*</span></span>
             <textarea id="address" required maxlength="500" rows="2" autocomplete="street-address" placeholder="Contoh: Jl. Branjangan 18A" class="admin-input-flat min-h-20 resize-y"></textarea>
           </label>
           <label>
-            <span class="mb-1.5 block text-xs font-black text-slate-700">Pickup Address ID <span class="font-medium text-slate-400">(opsional)</span></span>
+            <span class="mb-1.5 block text-xs font-semibold text-slate-700">Pickup Address ID <span class="font-medium text-slate-400">(opsional)</span></span>
             <input id="pickupAddressId" maxlength="120" autocomplete="off" placeholder="Dibuat otomatis jika kosong atau sudah tidak valid" class="admin-input-flat font-mono" />
             <small class="mt-1 block text-xs text-slate-400">Jika ID lama sudah hilang di Mengantar, AdsBookCMS akan mencari alamat yang sama atau membuat alamat pickup baru.</small>
           </label>
@@ -94,8 +94,8 @@ export const prerender = false;
 
       <!-- Save -->
       <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <p id="warehouseStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p>
-        <button id="saveWarehouse" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">Simpan gudang</button>
+        <p id="warehouseStatus" class="min-h-5 text-xs font-semibold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p>
+        <button id="saveWarehouse" type="submit" class="btn-blue w-full sm:w-auto">Simpan gudang</button>
       </div>
     </form>
   </div>
@@ -128,7 +128,7 @@ export const prerender = false;
       status.setAttribute('role', state === 'error' ? 'alert' : 'status');
       status.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
       status.textContent = message;
-      status.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+      status.className = `min-h-5 text-xs font-semibold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
     };
 
     // --- Origin Pin State ---

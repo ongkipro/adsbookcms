@@ -2543,6 +2543,49 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   copied with the page text; the kecamatan combobox's hidden input held the
   option as JSON. The courier list became two columns with the couriers' own
   marks, and the rate checker two side-by-side panels with `kg`/`Rp` addons.
+  Then: couriers are one-line cards in a 3/2/1-column grid; shadcn `Card`
+  gets the 1px frame the hand-built panels had (it drew none, so panels
+  floated on the page background); the mobile gutter is 16px instead of 8px.
+  Then: toolbar filters became DropdownMenu radio groups sharing one trigger
+  class with the date filter (orders, shipping, access role, product category,
+  lead follow-up), so every filter is the same control; form fields keep
+  `Select` with `items`. `/admin/settings` rebuilt on Card + item rows (icon,
+  name with status badge, one-line purpose, technical detail, action).
+- [x] **A-308** — One vocabulary for shipping status and courier names.
+  `processing` read "Diproses", "Siap push Mengantar" and "Antrean Mengantar"
+  on three screens — the middle one wrong, since dispatch sets `processing`
+  only after Mengantar accepts the shipment; `src/lib/shipping-status.ts` now
+  labels it "Diproses Mengantar" everywhere. Couriers printed
+  `${code} · ${service}` and Mengantar repeats the code as the service
+  ("JNE · JNE", "lion · lion"); `src/lib/courier-names.ts` names each courier
+  once from any spelling of its code (tested). The order-detail status select
+  showed the raw value before hydration (no `items`). The edit-buyer dialog is
+  two columns (form | total and save), address two rows, the four read-only
+  location inputs one line, kecamatan search the shared `DistrictCombobox`,
+  couriers two columns. Order detail dropped its all-caps section titles,
+  field labels and badges; payments and settings are two-column on wide
+  screens, the fee policy no longer nests a framed box in a card.
+- [x] **A-309** — Button tiers and the last imprecise blocks.
+  32 static `.btn-*` call sites carried their own `min-h-11 px-6 text-xs`, so
+  Astro pages showed 44/36/32px buttons beside the 40px `Button`; the classes
+  now own geometry (h-10) and a guard refuses call-site overrides.
+  `buttonVariants()` returns a merged string — unmerged, `border-transparent`
+  beat the outline border on every Astro page using it. Header actions (order
+  detail edit/delete, landing save/preview, access refresh) moved to the
+  default size. Landing product picker: five rows then scroll, one-line
+  titles, price on the second line, `items` map for the server label. Meta
+  test event: input and button one 40px row, hint and result below.
+  Reconciliation: "Cek AutoLaris" and "Verifikasi" one row, one size.
+- [x] **A-310** — Admin type anatomy and phone layout. Measured: twelve
+  font sizes (9–30px) and weights to 900 on desktop, ~250 labels at 10px on a
+  phone, and every `font-medium` primitive rendering at 400 because the 500
+  face was never loaded. Now five sizes (12/14/16/20/24), weights 400/500/600,
+  a 12px floor, Inter 500 loaded for admin only; a guard enforces it. Phone:
+  filters two-up, KPI tiles two-up without their sentence, settings rows
+  icon-beside-text, landing source filter a `FilterSelect`, the duplicate
+  "Tambah produk" removed, `StoreMark` initial instead of an illegible
+  wordmark. Desktop: filter labels no longer truncate (`sm` field 176px), the
+  orders table pins its row actions at 1440.
 - [ ] **A-305** — Four destructive actions still ask through
   `window.confirm` (order delete, bulk delete, revoke access, revoke API
   key). They work; a shadcn confirmation dialog would match the rest.

@@ -5,6 +5,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FILTER_TRIGGER_CLASS } from "./filter-bar";
 import {
   CalendarDays,
   Check,
@@ -91,7 +92,7 @@ function CalendarMonth({
     <div className="min-w-0 flex-1">
       <div className="mb-2 grid grid-cols-7 text-center">
         {ADMIN_WEEKDAY_NAMES.map((name) => (
-          <span key={name} className="text-[10px] font-bold uppercase text-slate-400">
+          <span key={name} className="text-xs font-semibold uppercase text-slate-400">
             {name}
           </span>
         ))}
@@ -121,8 +122,8 @@ function CalendarMonth({
                   ? "cursor-not-allowed text-slate-300"
                   : "text-slate-700 hover:bg-slate-100",
                 inRange && !isEndpoint ? "bg-blue-50 text-blue-700" : "",
-                isEndpoint ? "bg-blue-600 font-bold text-white hover:bg-blue-600" : "",
-                isToday && !isEndpoint ? "font-bold text-blue-700 ring-1 ring-inset ring-blue-200" : "",
+                isEndpoint ? "bg-blue-600 font-semibold text-white hover:bg-blue-600" : "",
+                isToday && !isEndpoint ? "font-semibold text-blue-700 ring-1 ring-inset ring-blue-200" : "",
               ].join(" ")}
             >
               {day}
@@ -235,7 +236,7 @@ export function AdminDateRangeFilter({
         <button
           type="button"
           disabled={disabled}
-          className={`flex h-10 w-full min-w-0 items-center gap-2 rounded-lg border border-input bg-white px-2.5 text-left text-sm font-medium text-slate-900 shadow-none transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+          className={`${FILTER_TRIGGER_CLASS} ${className}`}
         >
           <CalendarDays className="size-4 shrink-0 text-slate-400" aria-hidden="true" />
           <span className="min-w-0 flex-1 truncate">{adminDateSelectionLabel(value)}</span>
@@ -256,7 +257,7 @@ export function AdminDateRangeFilter({
                   type="button"
                   onClick={() => choosePreset(option.value)}
                   className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium transition hover:bg-slate-100 ${
-                    active ? "bg-slate-100 font-bold text-slate-900" : "text-slate-700"
+                    active ? "bg-slate-100 font-semibold text-slate-900" : "text-slate-700"
                   }`}
                 >
                   <Check
@@ -279,7 +280,7 @@ export function AdminDateRangeFilter({
               >
                 <ChevronLeft className="size-4" aria-hidden="true" />
               </button>
-              <div className="flex flex-1 items-center justify-around gap-2 text-xs font-bold text-slate-900">
+              <div className="flex flex-1 items-center justify-around gap-2 text-xs font-semibold text-slate-900">
                 <span>
                   {ADMIN_MONTH_NAMES[Number(viewMonth.slice(5)) - 1]} {viewMonth.slice(0, 4)}
                 </span>
@@ -321,7 +322,7 @@ export function AdminDateRangeFilter({
                   type="button"
                   variant="secondary"
                   onClick={() => setOpen(false)}
-                  className="h-9 flex-1 text-xs sm:flex-none"
+                  className="flex-1 sm:flex-none"
                 >
                   Batal
                 </Button>
@@ -329,14 +330,14 @@ export function AdminDateRangeFilter({
                   type="button"
                   onClick={applyCustom}
                   disabled={!draft.ok}
-                  className="h-9 flex-1 text-xs sm:flex-none"
+                  className="flex-1 sm:flex-none"
                 >
                   Terapkan
                 </Button>
               </div>
             </div>
             <p
-              className={`mt-2 text-[11px] ${draft.ok || !draftStart || !draftEnd ? "text-slate-500" : "text-red-600"}`}
+              className={`mt-2 text-xs ${draft.ok || !draftStart || !draftEnd ? "text-slate-500" : "text-red-600"}`}
               role={draft.ok ? undefined : "alert"}
             >
               {!draftStart || !draftEnd

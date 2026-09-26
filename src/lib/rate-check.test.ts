@@ -27,7 +27,7 @@ test("the WhatsApp text lists every courier cheapest first and marks COD", () =>
   assert.match(text, /^\*Pilihan Ongkos Kirim \(2 kg\)\*\nTujuan: Tebet, Jakarta Selatan\n\n/);
   const lines = text.split("\n").slice(3);
   assert.equal(lines.length, 3);
-  assert.match(lines[0], /^• \*SPX\*: .*12\.000 \(1–3 hari\) \[COD OK\]$/);
+  assert.match(lines[0], /^• \*SPX Express\*: .*12\.000 \(1–3 hari\) \[COD OK\]$/);
   assert.doesNotMatch(lines[2], /COD OK/);
 });
 

@@ -189,7 +189,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 ## Modules
 
-101 modules under `src/lib`; 5 without a sibling test.
+103 modules under `src/lib`; 6 without a sibling test.
 `used by` lists routes importing the module directly — a module used by nothing
 is either transitive (imported by another lib) or dead, and only reading tells which.
 
@@ -216,6 +216,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `click-ids` | 17 | — | ✓ | `/api/meta-event` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` |
 | `client-image` | 8 | — | ✓ | — |
 | `cn` | 1 | — | ✓ | `/thanks` |
+| `courier-names` | 2 | — | ✓ | — |
 | `courier-rules` | 3 | — | ✓ | `/api/submit-order` `/api/admin/abandoned-orders` `/api/admin/orders/[id]` |
 | `crm-template` | 6 | — | ✓ | `/api/admin/orders` `/api/admin/settings` |
 | `daily-rotation` | 2 | — | ✓ | `/` |
@@ -282,6 +283,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `shipping-fallback` | 2 | — | **none** | — |
 | `shipping-queue` | 3 | — | ✓ | — |
 | `shipping-quote` | 6 | `courier_rules` `product_variants` `products` `warehouses` | ✓ | `/api/shipping-rates` `/api/submit-order` `/api/v1/checkout` `/api/v1/geo/shipping-rates` `/api/admin/abandoned-orders` `/api/admin/orders/[id]` |
+| `shipping-status` | 2 | — | **none** | — |
 | `social-proof-visibility` | 4 | — | **none** | — |
 | `store-ads` | 6 | `stores` | ✓ | `/api/meta-event` `/api/v1/storefront` `/api/v1/tracking/events` `/api/admin/ads` |
 | `store-config-cache` | 3 | — | ✓ | `/api/form-config` `/api/admin/expeditions` |

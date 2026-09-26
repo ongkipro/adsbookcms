@@ -185,13 +185,13 @@ export function ContentWorkbench() {
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Card>
         <CardHeader className="border-b border-slate-100">
-          <CardTitle as="h3" className="text-base font-black">Draft Storefront</CardTitle>
+          <CardTitle as="h3" className="text-base font-semibold">Draft Storefront</CardTitle>
           <p className="text-xs leading-5 text-slate-500">
             D1 adalah source of truth. Generate membuat draft; publish adalah aksi terpisah.
           </p>
         </CardHeader>
         <CardContent className="space-y-4 p-5">
-          <label className="grid-cols-1 grid gap-2 text-xs font-bold text-slate-700">
+          <label className="grid-cols-1 grid gap-2 text-xs font-semibold text-slate-700">
             Target konten
             <Select
               items={Object.fromEntries((index?.targets || []).map((target) => [target.key, target.label]))}
@@ -211,13 +211,13 @@ export function ContentWorkbench() {
               </SelectContent>
             </Select>
           </label>
-          <div className="flex flex-wrap gap-2 text-[11px] font-bold text-slate-500">
+          <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
             <span>Versi {record?.version || 0}</span>
             <span>·</span>
             <span>{record?.generated_by || "belum ada draft"}</span>
             {record?.published_at && <span>· Published {record.published_at}</span>}
           </div>
-          <label className="grid-cols-1 grid gap-2 text-xs font-bold text-slate-700">
+          <label className="grid-cols-1 grid gap-2 text-xs font-semibold text-slate-700">
             Draft JSON
             <textarea
               value={editor}
@@ -243,7 +243,7 @@ export function ContentWorkbench() {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle as="h3" className="text-sm font-black">Batas Operasional</CardTitle>
+            <CardTitle as="h3" className="text-sm font-semibold">Batas Operasional</CardTitle>
           </CardHeader>
           <CardContent className="text-xs leading-6 text-slate-600">
             AI hanya mengubah copy dan media reference. Harga, stok, SKU, variant ID, domain,
@@ -252,7 +252,7 @@ export function ContentWorkbench() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle as="h3" className="text-sm font-black">Media Tenant</CardTitle>
+            <CardTitle as="h3" className="text-sm font-semibold">Media Tenant</CardTitle>
             <p className="text-xs leading-5 text-slate-500">
               Upload gambar ke R2 tenant, lalu gunakan URL hasilnya pada field image di draft JSON.
             </p>
@@ -265,7 +265,7 @@ export function ContentWorkbench() {
                 aria-label="Pilih gambar untuk diunggah"
                 accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
                 required
-                className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-bold"
+                className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold"
               />
               <Button type="submit" variant="outline" disabled={uploading} className="w-full">
                 {uploading ? "Mengunggah..." : "Upload ke R2"}
@@ -289,13 +289,13 @@ export function ContentWorkbench() {
         {index?.canManageInstructions && (
           <Card>
             <CardHeader>
-              <CardTitle as="h3" className="text-sm font-black">Instruksi Tenant</CardTitle>
+              <CardTitle as="h3" className="text-sm font-semibold">Instruksi Tenant</CardTitle>
               <p className="text-xs leading-5 text-slate-500">
                 Guardrail dasar berasal dari repository. Isian ini hanya menambah aturan tenant dan tidak pernah ditampilkan kembali.
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-xs font-bold text-slate-600">
+              <p className="text-xs font-semibold text-slate-600">
                 Status: {index.instructionsConfigured ? "sudah dikonfigurasi" : "menggunakan guardrail repository"}
               </p>
               <textarea

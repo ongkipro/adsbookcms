@@ -135,8 +135,8 @@ if (database?.prepare) {
       description="Validasi pembayaran, alamat, risiko RTS, kurir, dan gudang. Konfirmasi order yang siap agar masuk ke antrean Pengiriman."
     >
       <div slot="actions" class="grid grid-cols-2 gap-2 sm:flex">
-        <a href="/admin/check" class="btn-secondary min-h-11 px-4 text-xs">Cek risiko</a>
-        <a href="/admin/shipping" class="btn-primary min-h-11 px-4 text-xs">Pengiriman</a>
+        <a href="/admin/check" class="btn-secondary">Cek risiko</a>
+        <a href="/admin/shipping" class="btn-primary">Pengiriman</a>
       </div>
     </AdminPageHeader>
     <OrdersTable initialOrders={initialOrders} client:load />

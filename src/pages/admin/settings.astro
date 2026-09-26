@@ -1,16 +1,21 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import AdminPageHeader from '../../components/admin/AdminPageHeader.astro';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { buttonVariants } from '../../components/ui/button';
+import { ChevronRight, CodeXml, CreditCard, MessageSquareText, ShoppingBag, Truck, UserCog, Warehouse } from 'lucide-react';
 export const prerender = false;
+
+// shadcn components rendered to static HTML: nothing on this page is
+// hydrated; the script below only wires the two check buttons.
 const mayManageAccess = Astro.locals.admin?.role === 'owner';
 const outline = buttonVariants({ variant: 'outline' });
 const links = [
-  { href: '/admin/settings/store', title: 'Toko & customer service', detail: 'Identitas toko, alamat storefront, dan WhatsApp CS.' },
-  { href: '/admin/settings/warehouse', title: 'Gudang & pickup', detail: 'Origin pengiriman, alamat pickup, dan PIC.' },
-  { href: '/admin/settings/crm', title: 'Template CRM', detail: 'Pesan welcome dan follow-up WhatsApp.' },
-  { href: '/admin/settings/developer', title: 'Headless API & domain', detail: 'API key dan domain yang boleh memanggil API.' },
-  ...(mayManageAccess ? [{ href: '/admin/settings/access', title: 'Akses pengguna', detail: 'Akun operator dan perannya.' }] : []),
+  { href: '/admin/settings/store', icon: ShoppingBag, title: 'Toko & customer service', detail: 'Identitas toko, alamat storefront, dan WhatsApp CS.' },
+  { href: '/admin/settings/warehouse', icon: Warehouse, title: 'Gudang & pickup', detail: 'Origin pengiriman, alamat pickup, dan PIC.' },
+  { href: '/admin/settings/crm', icon: MessageSquareText, title: 'Template CRM', detail: 'Pesan welcome dan follow-up WhatsApp.' },
+  { href: '/admin/settings/developer', icon: CodeXml, title: 'Headless API & domain', detail: 'API key dan domain yang boleh memanggil API.' },
+  ...(mayManageAccess ? [{ href: '/admin/settings/access', icon: UserCog, title: 'Akses pengguna', detail: 'Akun operator dan perannya.' }] : []),
 ];
 ---
 
@@ -21,50 +26,68 @@ const links = [
       description="Status integrasi dan semua halaman pengaturan toko."
     />
 
-    <section class="rounded-xl border bg-white" aria-labelledby="integrations-heading">
-      <h3 id="integrations-heading" class="border-b px-4 py-3 text-sm font-semibold text-slate-950">Integrasi</h3>
-      <div id="settingsLoading" class="p-4 text-sm text-slate-500" role="status" aria-live="polite" aria-busy="true">Memuat status integrasi…</div>
-      <div id="settingsError" class="hidden p-4 text-sm font-medium text-rose-700" role="alert"></div>
-      <div id="credentialCards" class="hidden divide-y">
-        <div class="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center">
-          <div class="min-w-0 flex-1">
-            <p class="font-semibold text-slate-950">Mengantar</p>
-            <p class="text-xs text-slate-500">Ongkir, COD, resi, pickup, dan tracking · key <span id="mengantarKey" class="font-mono">disembunyikan</span> · <span id="mengantarUrl" class="font-mono"></span></p>
-            <p id="mengantarStatus" class="mt-1 min-h-4 text-xs text-slate-500" role="status" aria-live="polite"></p>
+    <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle as="h3" className="font-semibold">Integrasi</CardTitle>
+        <CardDescription>Kunci API tersimpan di database toko dan tidak pernah ditampilkan utuh.</CardDescription>
+      </CardHeader>
+      <CardContent className="px-0">
+        <p id="settingsLoading" class="px-4 py-3 text-sm text-muted-foreground" role="status" aria-busy="true">Memuat status integrasi…</p>
+        <p id="settingsError" class="hidden px-4 py-3 text-sm text-destructive" role="alert"></p>
+        <div id="credentialCards" class="hidden divide-y">
+          <div class="flex flex-wrap items-start gap-3 px-4 py-4 sm:flex-nowrap sm:items-center">
+            <span class="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground" aria-hidden="true"><Truck className="size-4" /></span>
+            <div class="min-w-0 flex-1 basis-[calc(100%-3rem)] space-y-0.5 sm:basis-auto">
+              <p class="flex items-center gap-2 font-medium text-foreground">Mengantar <span id="mengantarBadge" class="rounded-md border px-1.5 py-0.5 text-xs font-medium">Memuat</span></p>
+              <p class="text-sm text-muted-foreground">Ongkir, COD, resi, pickup, dan tracking.</p>
+              <p class="font-mono text-xs text-muted-foreground">Key <span id="mengantarKey">••••</span> · <span id="mengantarUrl"></span></p>
+              <p id="mengantarStatus" class="text-xs empty:hidden" role="status" aria-live="polite"></p>
+            </div>
+            <button id="testMengantar" type="button" class:list={[outline, "w-full sm:w-auto"]}>Tes koneksi</button>
           </div>
-          <span id="mengantarBadge" class="w-fit rounded-md border px-2 py-0.5 text-xs font-medium">Memuat</span>
-          <button id="testMengantar" type="button" class={outline}>Tes koneksi</button>
+          <div class="flex flex-wrap items-start gap-3 px-4 py-4 sm:flex-nowrap sm:items-center">
+            <span class="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground" aria-hidden="true"><CreditCard className="size-4" /></span>
+            <div class="min-w-0 flex-1 basis-[calc(100%-3rem)] space-y-0.5 sm:basis-auto">
+              <p class="flex items-center gap-2 font-medium text-foreground">AutoLaris <span id="autolarisBadge" class="rounded-md border px-1.5 py-0.5 text-xs font-medium">Memuat</span></p>
+              <p class="text-sm text-muted-foreground">QRIS dan Virtual Account, dicek otomatis setiap jam.</p>
+              <p class="font-mono text-xs text-muted-foreground">Key <span id="autolarisKey">••••</span></p>
+              <p id="autolarisStatus" class="text-xs empty:hidden" role="status" aria-live="polite"></p>
+            </div>
+            <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+              <button id="testAutolaris" type="button" class={outline}>Periksa konfigurasi</button>
+              <a href="/admin/balance" class={outline}>Rekonsiliasi</a>
+            </div>
+          </div>
         </div>
-        <div class="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center">
-          <div class="min-w-0 flex-1">
-            <p class="font-semibold text-slate-950">AutoLaris</p>
-            <p class="text-xs text-slate-500">QRIS dan Virtual Account, dicek otomatis setiap jam; yang belum terbaca bisa dikonfirmasi manual · key <span id="autolarisKey" class="font-mono">disembunyikan</span></p>
-            <p id="autolarisStatus" class="mt-1 min-h-4 text-xs text-slate-500" role="status" aria-live="polite"></p>
-          </div>
-          <span id="autolarisBadge" class="w-fit rounded-md border px-2 py-0.5 text-xs font-medium">Memuat</span>
-          <div class="flex gap-2">
-            <button id="testAutolaris" type="button" class={outline}>Periksa konfigurasi</button>
-            <a href="/admin/balance" class={outline}>Rekonsiliasi</a>
-          </div>
-        </div>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
 
-    <nav class="rounded-xl border bg-white" aria-label="Halaman pengaturan">
-      <ul class="divide-y">
-        {links.map((link) => (
-          <li>
-            <a href={link.href} class="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
-              <span class="min-w-0 flex-1">
-                <span class="block font-medium text-slate-950">{link.title}</span>
-                <span class="block text-xs text-slate-500">{link.detail}</span>
-              </span>
-              <span class="text-slate-400" aria-hidden="true">›</span>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle as="h3" className="font-semibold">Pengaturan toko</CardTitle>
+        <CardDescription>Identitas, gudang, pesan, API, dan akses operator.</CardDescription>
+      </CardHeader>
+      <CardContent className="px-0">
+        <nav aria-label="Halaman pengaturan">
+          <ul class="divide-y">
+            {links.map(({ href, icon: Icon, title, detail }) => (
+              <li>
+                <a href={href} class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60">
+                  <span class="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground" aria-hidden="true"><Icon className="size-4" /></span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block font-medium text-foreground">{title}</span>
+                    <span class="block text-sm text-muted-foreground">{detail}</span>
+                  </span>
+                  <ChevronRight className="size-4 text-muted-foreground" aria-hidden="true" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </CardContent>
+    </Card>
+    </div>
   </div>
   <script>
     const text = (id: string, value: string) => {
@@ -76,13 +99,13 @@ const links = [
       if (!node) return;
       node.setAttribute('role', state === 'error' ? 'alert' : 'status');
       node.textContent = message;
-      node.className = `mt-1 min-h-4 text-xs ${state === 'success' ? 'text-emerald-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+      node.className = `text-xs empty:hidden ${state === 'success' ? 'text-emerald-700' : state === 'error' ? 'text-rose-700' : 'text-muted-foreground'}`;
     };
     const badge = (id: string, ready: boolean, label?: string) => {
       const node = document.getElementById(id);
       if (!node) return;
       node.textContent = label ?? (ready ? 'Aktif' : 'Belum dikonfigurasi');
-      node.className = `w-fit rounded-md border px-2 py-0.5 text-xs font-medium ${ready ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-600'}`;
+      node.className = `rounded-md border px-1.5 py-0.5 text-xs font-medium ${ready ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`;
     };
     const loading = document.getElementById('settingsLoading');
     fetch('/api/admin/settings', { headers: { Accept: 'application/json' } })
@@ -94,7 +117,7 @@ const links = [
       .then((data) => {
         badge('mengantarBadge', Boolean(data.mengantar.configured));
         const autolarisConfigured = Boolean(data.autolaris.api_key_configured);
-        badge('autolarisBadge', autolarisConfigured, autolarisConfigured ? 'API key tersimpan' : 'API key belum diatur');
+        badge('autolarisBadge', autolarisConfigured, autolarisConfigured ? 'Tersimpan' : 'Belum diatur');
         text('mengantarKey', data.mengantar.api_key_masked || 'belum diatur');
         text('mengantarUrl', data.mengantar.base_url || '');
         text('autolarisKey', data.autolaris.api_key_masked || 'belum diatur');

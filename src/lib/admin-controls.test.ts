@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { globSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
@@ -52,7 +52,8 @@ test("admin form controls take their size and shape from the shadcn primitive", 
     for (const { tag, body, index } of jsxTags(source, ["Input", "SelectTrigger", "Textarea", "InputGroup"])) {
       // A dark code editor is a deliberate, declared exception.
       if (/\bdata-code-editor\b/.test(body)) continue;
-      const classes = /className="([^"]*)"/.exec(body)?.[1] ?? "";
+      // className="…" or the static text of className={`… ${x}`}.
+      const classes = (/className="([^"]*)"/.exec(body)?.[1] ?? /className=\{`([^`]*)`\}/.exec(body)?.[1] ?? "").replace(/\$\{[^}]*\}/g, " ");
       const bad = classes
         .split(/\s+/)
         .filter(Boolean)
@@ -92,6 +93,54 @@ test("admin buttons use the control height, not the 44px marketing size", () => 
     jsxTags(readFileSync(file, "utf8"), ["Button"])
       .filter(({ body }) => /\ssize="xl"/.test(body))
       .map(({ index }) => `${file}@${index}`),
+  );
+  assert.deepEqual(offenders, []);
+});
+
+test("admin buttons take height, radius and type from the Button primitive", () => {
+  // Buttons were sized per call (h-7 … h-11, rounded-xl, text-xs font-black),
+  // so a toolbar or a header's actions never lined up. Size comes from the
+  // `size` prop (default, sm, lg, icon, icon-sm, icon-lg); callers keep layout.
+  const BUTTON_BANNED =
+    /^(?:sm:|md:|lg:)?(?:h-\d+(?:\.\d+)?|min-h-\d+|rounded(?:-(?!l-none|r-none|full)\S+)?|text-(?:xs|sm|base|\[[^\]]+\])|font-(?:bold|extrabold|black|semibold)|shadow(?:-\S+)?)$/;
+  const offenders = islands.flatMap((file) => {
+    const source = readFileSync(file, "utf8");
+    return jsxTags(source, ["Button"]).flatMap(({ body, index }) => {
+      const bad = (/className="([^"]*)"/.exec(body)?.[1] ?? "").split(/\s+/).filter((token) => BUTTON_BANNED.test(token));
+      return bad.length ? [`${file}:${source.slice(0, index).split("\n").length} <Button> ${bad.join(" ")}`] : [];
+    });
+  });
+  assert.deepEqual(offenders, []);
+});
+
+test("legacy .btn-* classes take their geometry from admin.css, not the call site", () => {
+  // .btn-primary/.btn-blue/.btn-secondary are Button's static-page twin at h-10.
+  // A call site that adds min-h-11, px-6 or text-xs puts a 44px button beside
+  // a 40px one - the drift the Button guard above exists to stop.
+  const banned = /^(?:sm:|md:)?(?:min-h-\S+|h-\d+\S*|px-\S+|text-(?:xs|sm|base|\[[^\]]+\])|rounded\S*|shadow\S*|font-\S+)$/;
+  const files = [...globSync("src/pages/**/*.astro"), ...globSync("src/components/**/*.tsx")];
+  const offenders = files.flatMap((file) =>
+    [...readFileSync(file, "utf8").matchAll(/class(?:Name)?="([^"]*\bbtn-(?:primary|blue|secondary)\b[^"]*)"/g)]
+      .flatMap((match) => match[1].split(/\s+/).filter((token) => banned.test(token)).map((token) => `${file} ${token}`)),
+  );
+  assert.deepEqual(offenders, []);
+});
+
+test("admin type stays on the scale: 12px floor, weights 400/500/600", () => {
+  // Measured before this guard: twelve sizes from 9px to 30px and weights up
+  // to 900 on one screen, ~250 labels at 10px on a phone. The scale is
+  // text-xs 12 (caption) · text-sm 14 (body, UI) · text-base 16 (section
+  // title, phone inputs) · text-xl/2xl 20/24 (page title, KPI) — DESIGN-SYSTEM §7.1.
+  const banned = /(?<![\w-])(?:[a-z0-9]+:)*(?:text-\[(?:[0-9]|1[01])px\]|text-\[0\.[0-6]\d*rem\]|font-(?:bold|extrabold|black)|text-[3-9]xl)(?![\w-])/g;
+  const files = [
+    ...globSync("src/components/admin/*.{tsx,astro}"),
+    ...globSync("src/pages/admin/**/*.astro"),
+    "src/layouts/AdminLayout.astro",
+  ];
+  const offenders = files.flatMap((file) =>
+    readFileSync(file, "utf8").split("\n").flatMap((line, index) =>
+      [...line.matchAll(banned)].map((match) => `${file}:${index + 1} ${match[0]}`),
+    ),
   );
   assert.deepEqual(offenders, []);
 });

@@ -18,14 +18,17 @@ import {
   PackageSearch,
   RefreshCw,
   UserRoundPlus,
+  ListChecks,
 } from "lucide-react";
 import { buildWaUrl } from "@/lib/crm-template";
 import { formatIdr } from "@/lib/format-idr";
+import { courierServiceLabel } from "@/lib/courier-names";
 import { etaLabel } from "@/lib/rate-check";
 import { groupLocationResults } from "@/lib/location-search";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/admin/filter-bar";
+import { FilterSelect } from "@/components/admin/filter-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -517,9 +520,9 @@ function ConversionDialog({
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Pilihan kurir dan ongkir">
                   {rates.map((rate) => {
                     const selected = form.courierServiceId === String(rate.courier_service_id);
-                    return <Button key={rate.courier_service_id} type="button" variant={selected ? "secondary" : "outline"} role="radio" aria-checked={selected} className="h-auto min-h-14 items-start justify-start whitespace-normal p-3 text-left" onClick={() => setForm({ ...form, courierServiceId: String(rate.courier_service_id) })}>
+                    return <Button key={rate.courier_service_id} type="button" variant={selected ? "secondary" : "outline"} role="radio" aria-checked={selected} className="h-auto items-start justify-start whitespace-normal p-3 text-left" onClick={() => setForm({ ...form, courierServiceId: String(rate.courier_service_id) })}>
                       <span>
-                        <span className="block font-semibold">{rate.courier_service && rate.courier_service !== rate.courier_code ? `${rate.courier_code} · ${rate.courier_service}` : rate.courier_code}</span>
+                        <span className="block font-semibold">{courierServiceLabel(rate.courier_code, rate.courier_service)}</span>
                         <span className="mt-0.5 block text-xs text-muted-foreground">{formatIdr(rate.shipping_cost)}{etaLabel(rate.estimated_days ?? "") ? ` · ${etaLabel(rate.estimated_days ?? "")}` : ""}</span>
                       </span>
                     </Button>;
@@ -652,17 +655,13 @@ export function AbandonedOrders() {
               gap ignores the out-of-flow input. */}
           <div className="flex w-full flex-col gap-1.5 sm:w-52">
             <label htmlFor="follow-up-filter" className="text-sm font-medium">Status follow-up</label>
-            <Select value={status} onValueChange={(value) => { setStatus((value || "all") as FollowUpStatus | "all"); setPage(1); }}>
-              <SelectTrigger id="follow-up-filter" className="w-full">
-                {/* Base UI renders the raw value when Value has no children,
-                    so the trigger read "all" instead of "Semua status". */}
-                <SelectValue>{status === "all" ? "Semua status" : followUpLabels[status]}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua status</SelectItem>
-                {Object.entries(followUpLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <FilterSelect
+              id="follow-up-filter"
+              icon={ListChecks}
+              value={status}
+              onValueChange={(value) => { setStatus(value as FollowUpStatus | "all"); setPage(1); }}
+              options={[{ value: "all", label: "Semua status" }, ...Object.entries(followUpLabels).map(([value, label]) => ({ value, label }))]}
+            />
           </div>
             {/* The count used to float under the card. On the row's trailing
                 edge it fills space that was simply blank. */}
@@ -726,11 +725,11 @@ export function AbandonedOrders() {
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
-                    <Button type="button" variant="outline" size="lg" className="min-h-11 w-full sm:w-auto lg:min-h-9" disabled={updatingId === lead.id} onClick={() => {
+                    <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" disabled={updatingId === lead.id} onClick={() => {
                       window.open(buildWaUrl(phone, message), "_blank", "noopener,noreferrer");
                       void followUp(lead);
                     }}><ExternalLink />{updatingId === lead.id ? "Mencatat…" : "Follow up WA"}</Button>
-                    <Button type="button" size="lg" className="min-h-11 w-full sm:w-auto lg:min-h-9" onClick={() => setSelectedLead(lead)}><UserRoundPlus />Jadikan order</Button>
+                    <Button type="button" size="lg" className="w-full sm:w-auto" onClick={() => setSelectedLead(lead)}><UserRoundPlus />Jadikan order</Button>
                   </div>
                 </div>
               );

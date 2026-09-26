@@ -15,6 +15,7 @@ import {
   type AdminDateSelection,
 } from "./AdminDateRangeFilter";
 import { Button } from "../ui/button";
+import { SHIPPING_STATUS_LABELS } from "@/lib/shipping-status";
 import { FilterBar, FilterField, FilterSelect, SearchInput, type FilterOption } from "./filter-bar";
 import { Checkbox } from "../ui/checkbox";
 import {
@@ -207,14 +208,7 @@ const mapOrder = (row: OrderRow): OrderItem => ({
   adClickIds: row.ad_click_ids || null,
 });
 
-const shippingLabels: Record<string, string> = {
-  pending: "Menunggu",
-  processing: "Diproses",
-  shipped: "Dikirim",
-  delivered: "Selesai",
-  returned: "RTS",
-  cancelled: "Batal",
-};
+const shippingLabels = SHIPPING_STATUS_LABELS;
 
 const shippingStatusStyles: Record<string, string> = {
   pending: "bg-amber-500",
@@ -288,7 +282,7 @@ function OrderActionMenu({
           variant="outline"
           size="sm"
           disabled={isUpdating}
-          className="h-8.5 px-3 rounded-lg border-slate-200 bg-white font-extrabold text-xs text-slate-800 hover:bg-slate-50 hover:text-slate-950 shadow-xs transition-colors"
+          className="px-3 border-slate-200 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 transition-colors"
         >
           {isUpdating ? (
             <span className="size-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-800" aria-hidden="true" />
@@ -300,14 +294,14 @@ function OrderActionMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-xl border border-slate-200 bg-white shadow-xl">
-        <DropdownMenuLabel className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+        <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
           Order {order.orderNumber}
         </DropdownMenuLabel>
         
         <DropdownMenuItem asChild>
           <a
             href={`/admin/orders/${encodeURIComponent(order.orderNumber)}`}
-            className="flex items-center gap-2 px-2 py-2 text-xs font-bold text-slate-800 rounded-lg hover:bg-slate-100 cursor-pointer"
+            className="flex items-center gap-2 px-2 py-2 text-xs font-semibold text-slate-800 rounded-lg hover:bg-slate-100 cursor-pointer"
           >
             <Eye className="size-4 text-slate-500" />
             <span>Lihat Detail Order</span>
@@ -317,7 +311,7 @@ function OrderActionMenu({
         <DropdownMenuItem
           onClick={() => onRefreshScoring(order.id)}
           disabled={isUpdating}
-          className="flex items-center gap-2 px-2 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
+          className="flex items-center gap-2 px-2 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer"
         >
           <ShieldAlert className="size-4 text-slate-500" />
           <span>Cek Risiko RTS (Mengantar)</span>
@@ -326,7 +320,7 @@ function OrderActionMenu({
 
         {order.providerOrderId ? (
           <>
-            <DropdownMenuLabel className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+            <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
               Update Status Ekspedisi
             </DropdownMenuLabel>
             {Object.entries(shippingLabels).map(([value, label]) => {
@@ -336,7 +330,7 @@ function OrderActionMenu({
                   key={value}
                   onClick={() => onShippingStatusChange(order.id, value)}
                   className={`flex items-center justify-between px-2 py-1.5 text-xs font-semibold rounded-lg cursor-pointer ${
-                    isCurrent ? 'bg-emerald-50 text-emerald-900 font-bold' : 'hover:bg-slate-100 text-slate-700'
+                    isCurrent ? 'bg-emerald-50 text-emerald-900 font-semibold' : 'hover:bg-slate-100 text-slate-700'
                   }`}
                 >
                   <span className="flex items-center gap-2">
@@ -352,7 +346,7 @@ function OrderActionMenu({
           <DropdownMenuItem
             onClick={() => onDispatch(order.id)}
             disabled={isUpdating || dispatching}
-            className="flex items-center gap-2 px-2 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-900 rounded-lg cursor-pointer"
+            className="flex items-center gap-2 px-2 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-900 rounded-lg cursor-pointer"
           >
             <Truck className="size-4 text-emerald-600" />
             <span>Push ke Mengantar</span>
@@ -370,7 +364,7 @@ function OrderActionMenu({
           variant="destructive"
           onClick={() => onDelete(order.id)}
           disabled={dispatching}
-          className="flex items-center gap-2 px-2 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 hover:text-rose-900 rounded-lg cursor-pointer"
+          className="flex items-center gap-2 px-2 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 hover:text-rose-900 rounded-lg cursor-pointer"
         >
           <Trash2 className="size-4 text-rose-600" />
           <span>Hapus Order</span>
@@ -483,11 +477,11 @@ function RiskBadge({
     >
       <div className="flex items-center justify-between gap-3">
         <span
-          className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black ${styles.badge}`}
+          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${styles.badge}`}
         >
           RTS {styles.label}
         </span>
-        <span className="font-mono text-xs font-black text-slate-900">
+        <span className="font-mono text-xs font-semibold text-slate-900">
           {hasValidRate ? `${deliveryRate}%` : "—"}
         </span>
       </div>
@@ -502,7 +496,7 @@ function RiskBadge({
           }}
         ></div>
       </div>
-      <p className="mt-1.5 text-[10px] font-bold text-slate-500">
+      <p className="mt-1.5 text-xs font-semibold text-slate-500">
         {styles.guidance}
       </p>
     </div>
@@ -519,7 +513,7 @@ function InstructionHint({ order }: { order: { paymentStatus?: string; paymentIn
   const hint = paymentInstructionHint(order.paymentStatus, order.paymentInstructionStatus);
   if (!hint) return null;
   return (
-    <span className="text-[10px] font-bold uppercase tracking-wide text-rose-600">
+    <span className="text-xs font-semibold uppercase tracking-wide text-rose-600">
       {hint === "expired" ? "Instruksi kedaluwarsa" : "Instruksi gagal"}
     </span>
   );
@@ -549,7 +543,7 @@ function PaymentBadge({ status }: { status: string }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${badgeStyle}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${badgeStyle}`}
     >
       <span className={`size-1.5 shrink-0 rounded-full ${dotColor}`} aria-hidden="true" />
       {paymentLabels[normalized] || status}
@@ -1025,7 +1019,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
         className="rounded-xl border border-rose-200 bg-white p-8 text-center shadow-sm"
         role="alert"
       >
-        <h3 className="text-lg font-black text-slate-950">
+        <h3 className="text-base font-semibold text-slate-950">
           Order gagal dimuat
         </h3>
         <p className="mt-2 text-sm text-slate-600">{loadError}</p>
@@ -1053,7 +1047,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
     <div className="space-y-5">
       {loadError && (
         <div
-          className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-800 sm:flex-row sm:items-center sm:justify-between"
           role="alert"
         >
           <span>{loadError}</span>
@@ -1071,19 +1065,19 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
         aria-label="Ringkasan order"
       >
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-          <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Total order
           </p>
-          <p className="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
             {summary.totalOrders}
           </p>
           <p className="mt-1 hidden text-xs text-slate-500 sm:block">Semua pesanan masuk.</p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-          <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Belum dibayar
           </p>
-          <p className="mt-2 text-2xl font-black tracking-tight text-amber-700 sm:text-3xl">
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-amber-700">
             {summary.unpaidCount}
           </p>
           <p className="mt-1 hidden text-xs text-slate-500 sm:block">
@@ -1091,10 +1085,10 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
           </p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-          <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Risiko RTS tinggi
           </p>
-          <p className="mt-2 text-2xl font-black tracking-tight text-rose-700 sm:text-3xl">
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-rose-700">
             {summary.highRiskCount}
           </p>
           <p className="mt-1 hidden text-xs text-slate-500 sm:block">
@@ -1102,10 +1096,10 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
           </p>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-          <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Nilai order
           </p>
-          <p className="mt-2 text-xl font-black tracking-tight text-slate-950">
+          <p className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
             {formatCurrency(summary.totalValue)}
           </p>
           <p className="mt-1 hidden text-xs text-slate-500 sm:block">
@@ -1129,7 +1123,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                 setShippingFilter(filter.value);
                 setPage(1);
               }}
-              className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-xs font-black transition-colors ${
+              className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-xs font-semibold transition-colors ${
                 active
                   ? "border-slate-950 bg-slate-950 text-white"
                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
@@ -1143,7 +1137,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
               )}
               {filter.label}
               <span
-                className={`min-w-5 rounded-full px-1.5 py-0.5 text-[10px] ${
+                className={`min-w-5 rounded-full px-1.5 py-0.5 text-xs ${
                   active
                     ? "bg-white/20 text-white"
                     : "bg-slate-100 text-slate-600"
@@ -1162,13 +1156,13 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
           aria-label="Aksi bulk order"
         >
           <div>
-            <p className="text-sm font-black text-slate-950">
+            <p className="text-sm font-semibold text-slate-950">
               {selectedOrderIds.length} order dipilih
             </p>
             <button
               type="button"
               onClick={() => setSelectedOrderIds([])}
-              className="mt-1 text-xs font-bold text-blue-700 hover:underline"
+              className="mt-1 text-xs font-semibold text-blue-700 hover:underline"
             >
               Batalkan pilihan
             </button>
@@ -1206,7 +1200,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                 type="button"
                 onClick={() => void dispatchOrders(selectedDispatchIds)}
                 disabled={dispatching || bulkUpdating || updatingOrderId !== ""}
-                className="min-h-11 w-full sm:w-auto"
+                className="w-full sm:w-auto"
               >
                 {dispatching ? (
                   <span
@@ -1222,7 +1216,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
               variant="destructive"
               onClick={() => void deleteOrders(selectedOrderIds)}
               disabled={dispatching || bulkUpdating}
-              className="min-h-11 w-full font-bold sm:w-auto"
+              className="w-full sm:w-auto"
             >
               Hapus {selectedOrderIds.length} Order
             </Button>
@@ -1294,7 +1288,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
             </Button>
           </FilterBar>
           <p
-            className="mt-3 text-xs font-bold text-slate-500"
+            className="mt-3 text-xs font-semibold text-slate-500"
             aria-live="polite"
           >
             {refreshing
@@ -1302,7 +1296,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
               : `Menampilkan ${firstVisibleOrder}–${lastVisibleOrder} dari ${pagination.totalItems} order`}
           </p>
           {updateNotice && (
-            <p className="mt-2 text-xs font-bold text-slate-600" role="status">
+            <p className="mt-2 text-xs font-semibold text-slate-600" role="status">
               {updateNotice}
             </p>
           )}
@@ -1326,14 +1320,14 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                   <div className="min-w-0">
                     <a
                       href={`/admin/orders/${encodeURIComponent(order.orderNumber)}`}
-                      className="break-all font-black text-slate-950 hover:text-blue-600 hover:underline"
+                      className="break-all font-semibold text-slate-950 hover:text-blue-600 hover:underline"
                     >
                       <HighlightSearchMatch
                         text={order.orderNumber}
                         query={searchTerm}
                       />
                     </a>
-                    <p className="mt-1 text-[11px] text-slate-400">
+                    <p className="mt-1 text-xs text-slate-400">
                       {formatDateTime(order.createdAt)}
                     </p>
                     <div className="mt-1">
@@ -1348,7 +1342,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                     <div className="mt-4 border-t border-slate-100 pt-4">
                   <a
                     href={`/admin/orders/${encodeURIComponent(order.orderNumber)}`}
-                    className="break-words font-black text-slate-900 hover:underline"
+                    className="break-words font-semibold text-slate-900 hover:underline"
                   >
                     {order.customerName}
                   </a>
@@ -1370,11 +1364,11 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                       </p>
                     )}
                     {order.variantName && (
-                      <p className="text-[11px] text-slate-500 truncate">
+                      <p className="text-xs text-slate-500 truncate">
                         {order.variantName}
                       </p>
                     )}
-                    <p className="mt-1 font-black text-slate-950 text-sm">
+                    <p className="mt-1 font-semibold text-slate-950 text-sm">
                       {formatCurrency(order.totalAmount)}
                     </p>
                   </div>
@@ -1387,32 +1381,32 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                   </div>
                   <div>
                     <p className="text-slate-500">Pengiriman</p>
-                    <p className="mt-1 font-black text-slate-950">
+                    <p className="mt-1 font-semibold text-slate-950">
                       {shippingLabels[order.shippingStatus] ||
                         order.shippingStatus}
                     </p>
                   </div>
                   <div>
                     <p className="text-slate-500">Kurir / resi</p>
-                    <p className="mt-1 break-all font-black text-slate-950">
+                    <p className="mt-1 break-all font-semibold text-slate-950">
                       {order.courierCode}
                       {order.cnoteNo ? ` · ${order.cnoteNo}` : ""}
                     </p>
                   </div>
                 </div>
                 <div className="mt-4">
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                     WhatsApp CRM
                   </p>
                   {renderCrmActions(order)}
                 </div>
                 {order.providerDispatchError && (
                   <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
-                    <p className="font-bold mb-1">Kendala Push ke Mengantar:</p>
+                    <p className="font-semibold mb-1">Kendala Push ke Mengantar:</p>
                     <p>{order.providerDispatchError}</p>
                   </div>
                 )}
-                <label className="mt-3 flex min-h-11 items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-900">
+                <label className="mt-3 flex min-h-11 items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-900">
                   <Checkbox
                     checked={selected}
                     onCheckedChange={(checked) =>
@@ -1428,7 +1422,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                   Pilih order untuk aksi bulk
                 </label>
                 <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                  <span className="text-xs font-bold text-slate-500">Aksi & Ekspedisi</span>
+                  <span className="text-xs font-semibold text-slate-500">Aksi & Ekspedisi</span>
                   <OrderActionMenu
                     order={order}
                     updatingOrderId={updatingOrderId}
@@ -1445,7 +1439,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
         <div className="hidden lg:block overflow-x-auto pb-16" aria-label="Tabel order desktop">
             <Table className="min-w-[1180px]">
               <TableHeader>
-                <TableRow className="bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500">
+                <TableRow className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
                   <TableHead className="w-12 px-4 py-3">
                     <Checkbox
                       checked={
@@ -1488,7 +1482,8 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                     Produk & Total
                   </TableHead>
                   <TableHead className="w-56 px-4 py-3">WhatsApp CRM</TableHead>
-                  <TableHead className="w-28 px-4 py-3 text-right">
+                  {/* The table outgrows a 1440 laptop by ~270px; the row actions stay pinned so they never scroll away. */}
+                  <TableHead className="sticky right-0 z-10 w-28 bg-slate-50 px-4 py-3 text-right shadow-[-8px_0_12px_-10px_rgba(15,23,42,0.25)]">
                     Aksi
                   </TableHead>
                 </TableRow>
@@ -1518,14 +1513,14 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                     <TableCell className="px-5 py-4 border-r border-slate-200">
                       <a
                         href={`/admin/orders/${encodeURIComponent(order.orderNumber)}`}
-                        className="whitespace-nowrap font-black text-slate-950 hover:text-blue-600 hover:underline"
+                        className="whitespace-nowrap font-semibold text-slate-950 hover:text-blue-600 hover:underline"
                       >
                         <HighlightSearchMatch
                           text={order.orderNumber}
                           query={searchTerm}
                         />
                       </a>
-                      <p className="mt-1 text-[11px] text-slate-400">
+                      <p className="mt-1 text-xs text-slate-400">
                         {formatDateTime(order.createdAt)}
                       </p>
                       <div className="mt-1">
@@ -1535,14 +1530,14 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                     <TableCell className="max-w-[210px] px-4 py-4">
                       <a
                         href={`/admin/orders/${encodeURIComponent(order.orderNumber)}`}
-                        className="block truncate font-black text-slate-900 hover:underline"
+                        className="block truncate font-semibold text-slate-900 hover:underline"
                       >
                         {order.customerName}
                       </a>
-                      <p className="mt-1 font-mono text-[11px] text-slate-500">
+                      <p className="mt-1 font-mono text-xs text-slate-500">
                         {order.customerPhone}
                       </p>
-                      <p className="mt-1 truncate text-[11px] text-slate-400">
+                      <p className="mt-1 truncate text-xs text-slate-400">
                         {[order.district, order.city, order.province]
                           .filter(Boolean)
                           .join(", ") || "Alamat belum lengkap"}
@@ -1558,23 +1553,23 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                       <div className="flex flex-wrap items-center gap-2">
                         <PaymentBadge status={order.paymentStatus} />
                         <InstructionHint order={order} />
-                        <span className="text-[10px] font-bold text-slate-500">
+                        <span className="text-xs font-semibold text-slate-500">
                           {paymentMethodLabels[order.paymentMethod] ||
                             order.paymentMethod}
                         </span>
                       </div>
-                      <p className="mt-2 font-black text-slate-900">
+                      <p className="mt-2 font-semibold text-slate-900">
                         {shippingLabels[order.shippingStatus] ||
                           order.shippingStatus}
                       </p>
-                      <p className="mt-1 font-mono text-[10px] text-slate-500">
+                      <p className="mt-1 font-mono text-xs text-slate-500">
                         {order.courierCode}
                         {order.cnoteNo
                           ? ` · ${order.cnoteNo}`
                           : " · resi belum tersedia"}
                       </p>
                       {order.providerDispatchError && (
-                        <p className="mt-1 text-[10px] text-rose-600 font-bold max-w-[200px] leading-tight">
+                        <p className="mt-1 text-xs text-rose-600 font-semibold max-w-[200px] leading-tight">
                           Error: {order.providerDispatchError}
                         </p>
                       )}
@@ -1586,18 +1581,18 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                         </p>
                       )}
                       {order.variantName && (
-                        <p className="text-[11px] text-slate-500 truncate max-w-[180px] ml-auto mt-0.5">
+                        <p className="text-xs text-slate-500 truncate max-w-[180px] ml-auto mt-0.5">
                           {order.variantName}
                         </p>
                       )}
-                      <p className="mt-1 font-black text-slate-950 text-sm">
+                      <p className="mt-1 font-semibold text-slate-950 text-sm">
                         {formatCurrency(order.totalAmount)}
                       </p>
                     </TableCell>
                     <TableCell className="px-4 py-4">
                       {renderCrmActions(order)}
                     </TableCell>
-                    <TableCell className="px-4 py-4 text-right">
+                    <TableCell className="sticky right-0 z-10 bg-white px-4 py-4 text-right shadow-[-8px_0_12px_-10px_rgba(15,23,42,0.25)]">
                       <OrderActionMenu
                         order={order}
                         updatingOrderId={updatingOrderId}
@@ -1619,7 +1614,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
             <Pagination>
               <PaginationContent className="w-full justify-between">
                 <div className="flex items-center">
-                  <p className="text-xs font-bold text-slate-500">
+                  <p className="text-xs font-semibold text-slate-500">
                     Halaman {pagination.page} dari {pagination.totalPages}
                   </p>
                 </div>
@@ -1677,7 +1672,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
 
         {filteredOrders.length === 0 && (
           <div className="border-t border-slate-200 p-10 text-center">
-            <p className="text-sm font-black text-slate-950">
+            <p className="text-sm font-semibold text-slate-950">
               Order tidak ditemukan
             </p>
             <p className="mt-1 text-xs text-slate-500">

@@ -14,69 +14,69 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
       backLabel="Pengaturan"
     />
     <div id="storeLoading" class="h-60 animate-pulse rounded-xl bg-slate-100" role="status" aria-live="polite" aria-busy="true" aria-atomic="true"><span class="sr-only">Memuat profil store.</span></div>
-    <div id="storeError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
+    <div id="storeError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert" aria-live="assertive"></div>
     <form id="storeForm" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm" novalidate aria-busy="false">
       <div class="grid grid-cols-1 gap-5 p-5 md:grid-cols-2 md:p-6">
         <label class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Nama store</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Nama store</span>
           <input id="storeName" required maxlength="120" autocomplete="organization" class="admin-input-flat" />
         </label>
         <label class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">WhatsApp customer service</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">WhatsApp customer service</span>
           <input id="supportWhatsapp" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="081234567890" class="admin-input-flat font-mono" />
-          <span class="mt-1.5 block text-[11px] text-slate-500">Gunakan 9–15 digit; awalan + diperbolehkan.</span>
+          <span class="mt-1.5 block text-xs text-slate-500">Gunakan 9–15 digit; awalan + diperbolehkan.</span>
         </label>
         <label class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Alamat storefront</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Alamat storefront</span>
           <input id="storeSiteUrl" inputmode="url" maxlength="200" placeholder="https://tokosaya.com" class="admin-input-flat" />
-          <span class="mt-1.5 block text-[11px] text-slate-500">Harus https. Dipakai untuk canonical, sitemap, dan feed katalog.</span>
+          <span class="mt-1.5 block text-xs text-slate-500">Harus https. Dipakai untuk canonical, sitemap, dan feed katalog.</span>
         </label>
         <label class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Tagline</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Tagline</span>
           <input id="storeTagline" maxlength="120" class="admin-input-flat" />
-          <span class="mt-1.5 block text-[11px] text-slate-500">Muncul di judul halaman dan header storefront.</span>
+          <span class="mt-1.5 block text-xs text-slate-500">Muncul di judul halaman dan header storefront.</span>
         </label>
         <label class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Deskripsi</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Deskripsi</span>
           <input id="storeDescription" maxlength="300" class="admin-input-flat" />
-          <span class="mt-1.5 block text-[11px] text-slate-500">Meta description bawaan dan teks Open Graph.</span>
+          <span class="mt-1.5 block text-xs text-slate-500">Meta description bawaan dan teks Open Graph.</span>
         </label>
         <label class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Logo</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Logo</span>
           <input id="storeLogo" maxlength="300" placeholder="/images/adsbook-mark.webp" class="admin-input-flat" />
-          <span class="mt-1.5 block text-[11px] text-slate-500">Kosongkan untuk memakai logo bawaan AdsBookCMS.</span>
+          <span class="mt-1.5 block text-xs text-slate-500">Kosongkan untuk memakai logo bawaan AdsBookCMS.</span>
         </label>
         <label class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Tampilan storefront</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Tampilan storefront</span>
           <NativeSelect id="storeTemplate" class="h-11 text-base md:text-sm">
             <option value="compact-market">Compact Market</option>
           </NativeSelect>
-          <span class="mt-1.5 block text-[11px] text-slate-500">Berlaku langsung tanpa build ulang.</span>
+          <span class="mt-1.5 block text-xs text-slate-500">Berlaku langsung tanpa build ulang.</span>
         </label>
         <label class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Warna tema</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Warna tema</span>
           <input id="storeThemeColor" maxlength="7" spellcheck="false" placeholder="#111111" pattern="#[0-9a-fA-F]{6}" class="admin-input-flat font-mono" />
-          <span class="mt-1.5 block text-[11px] text-slate-500">Heksadesimal enam digit. Mengisi <code>&lt;meta name="theme-color"&gt;</code>, yang mewarnai bilah browser di ponsel. Kosongkan untuk memakai <code>#111111</code>.</span>
+          <span class="mt-1.5 block text-xs text-slate-500">Heksadesimal enam digit. Mengisi <code>&lt;meta name="theme-color"&gt;</code>, yang mewarnai bilah browser di ponsel. Kosongkan untuk memakai <code>#111111</code>.</span>
         </label>
         <label class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Locale</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Locale</span>
           <input id="storeLocale" maxlength="10" spellcheck="false" placeholder="id-ID" pattern="[a-z]{2}(-[A-Z]{2})?" class="admin-input-flat font-mono" />
-          <span class="mt-1.5 block text-[11px] text-slate-500">Mengisi <code>&lt;html lang&gt;</code>, <code>inLanguage</code> pada JSON-LD, dan locale Open Graph. Kosongkan untuk memakai <code>id-ID</code>.</span>
+          <span class="mt-1.5 block text-xs text-slate-500">Mengisi <code>&lt;html lang&gt;</code>, <code>inLanguage</code> pada JSON-LD, dan locale Open Graph. Kosongkan untuk memakai <code>id-ID</code>.</span>
         </label>
         <label class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Nama panel admin</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Nama panel admin</span>
           <input id="storeAdminName" maxlength="120" placeholder="AdsBookCMS Admin" class="admin-input-flat" />
-          <span class="mt-1.5 block text-[11px] text-slate-500">Judul halaman admin dan halaman login. Tidak pernah tampil di storefront.</span>
+          <span class="mt-1.5 block text-xs text-slate-500">Judul halaman admin dan halaman login. Tidak pernah tampil di storefront.</span>
         </label>
         <div class="block">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Konten beranda</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Konten beranda</span>
           <a
             href="/admin/content"
-            class="btn-secondary inline-flex min-h-11 w-full items-center justify-center px-4 text-xs sm:w-auto"
+            class="btn-secondary w-full sm:w-auto"
           >
             Buka pengaturan konten
           </a>
-          <span class="mt-1.5 block text-[11px] text-slate-500">
+          <span class="mt-1.5 block text-xs text-slate-500">
             Hero, solusi, dan bagian beranda lainnya. Halaman itu sengaja tidak ada di menu;
             sebelumnya satu-satunya jalan ke sana adalah tombol di storefront yang hilang begitu
             konten diterbitkan.
@@ -84,56 +84,56 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
         </div>
       </div>
       <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <p id="storeStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p>
-        <button id="saveStore" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">Simpan profil store</button>
+        <p id="storeStatus" class="min-h-5 text-xs font-semibold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p>
+        <button id="saveStore" type="submit" class="btn-blue w-full sm:w-auto">Simpan profil store</button>
       </div>
     </form>
     <form id="templateDefinitionForm" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm" novalidate aria-busy="false">
       <div class="p-5 md:p-6">
-        <h2 class="text-base font-black text-slate-950">Tambah template storefront</h2>
+        <h2 class="text-base font-semibold text-slate-950">Tambah template storefront</h2>
         <p class="mt-1 text-xs leading-5 text-slate-500">Susun template dari bagian yang tersedia. Konfigurasi tersimpan tidak dapat menjalankan HTML atau JavaScript.</p>
         <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
           <label class="block">
-            <span class="mb-1.5 block text-xs font-black text-slate-700">ID template</span>
+            <span class="mb-1.5 block text-xs font-semibold text-slate-700">ID template</span>
             <input id="templateDefinitionId" required minlength="2" maxlength="40" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="katalog-ringkas" class="admin-input-flat font-mono" />
-            <span class="mt-1.5 block text-[11px] text-slate-500">Huruf kecil, angka, dan tanda hubung.</span>
+            <span class="mt-1.5 block text-xs text-slate-500">Huruf kecil, angka, dan tanda hubung.</span>
           </label>
           <label class="block">
-            <span class="mb-1.5 block text-xs font-black text-slate-700">Nama template</span>
+            <span class="mb-1.5 block text-xs font-semibold text-slate-700">Nama template</span>
             <input id="templateDefinitionName" required minlength="2" maxlength="80" placeholder="Katalog Ringkas" class="admin-input-flat" />
           </label>
           <label class="block">
-            <span class="mb-1.5 block text-xs font-black text-slate-700">Layout</span>
+            <span class="mb-1.5 block text-xs font-semibold text-slate-700">Layout</span>
             <NativeSelect id="templateDefinitionLayout" class="h-11 text-base md:text-sm">
               <option value="compact">Compact</option>
             </NativeSelect>
           </label>
           <fieldset class="block">
-            <legend class="mb-1.5 text-xs font-black text-slate-700">Bagian halaman</legend>
+            <legend class="mb-1.5 text-xs font-semibold text-slate-700">Bagian halaman</legend>
             <div class="flex min-h-11 flex-wrap items-center gap-4">
-              <label class="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-slate-700"><input id="templateSectionHero" type="checkbox" checked class="size-4" /> Hero</label>
-              <label class="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-slate-700"><input type="checkbox" checked disabled class="size-4" /> Katalog</label>
-              <label class="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-slate-700"><input id="templateSectionProofs" type="checkbox" checked class="size-4" /> Bukti sosial</label>
+              <label class="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-700"><input id="templateSectionHero" type="checkbox" checked class="size-4" /> Hero</label>
+              <label class="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked disabled class="size-4" /> Katalog</label>
+              <label class="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-slate-700"><input id="templateSectionProofs" type="checkbox" checked class="size-4" /> Bukti sosial</label>
             </div>
           </fieldset>
         </div>
       </div>
       <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <p id="templateDefinitionStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Template baru belum disimpan.</p>
-        <button id="saveTemplateDefinition" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">Tambah template</button>
+        <p id="templateDefinitionStatus" class="min-h-5 text-xs font-semibold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Template baru belum disimpan.</p>
+        <button id="saveTemplateDefinition" type="submit" class="btn-blue w-full sm:w-auto">Tambah template</button>
       </div>
     </form>
     <form id="embedOriginsForm" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm" novalidate aria-busy="false">
       <div class="p-5 md:p-6">
-        <h2 class="text-base font-black text-slate-950">Domain untuk embed checkout</h2>
+        <h2 class="text-base font-semibold text-slate-950">Domain untuk embed checkout</h2>
         <p class="mt-1 text-xs leading-5 text-slate-500">Tentukan situs eksternal yang boleh menampilkan checkout AdsBookCMS di dalam iframe.</p>
         <label class="mt-5 block" for="embedAllowedOrigins">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Origin HTTPS yang diizinkan</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Origin HTTPS yang diizinkan</span>
           <textarea id="embedAllowedOrigins" rows="5" maxlength="7524" spellcheck="false" aria-describedby="embedOriginsHelp" placeholder="https://toko.example&#10;https://promo.toko.example:8443" class="admin-input-flat min-h-36 resize-y py-3 font-mono"></textarea>
         </label>
-        <p id="embedOriginsHelp" class="mt-2 text-[11px] leading-5 text-slate-500">Satu origin per baris, maksimal 25. Wajib memakai <code>https://</code> dan hanya boleh berisi domain atau subdomain serta port opsional. Domain dan subdomain berbeda, jadi daftarkan keduanya bila diperlukan. Path, query, fragment, kredensial, dan wildcard tidak diterima.</p>
+        <p id="embedOriginsHelp" class="mt-2 text-xs leading-5 text-slate-500">Satu origin per baris, maksimal 25. Wajib memakai <code>https://</code> dan hanya boleh berisi domain atau subdomain serta port opsional. Domain dan subdomain berbeda, jadi daftarkan keduanya bila diperlukan. Path, query, fragment, kredensial, dan wildcard tidak diterima.</p>
       </div>
-      <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"><p id="embedOriginsStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p><button id="saveEmbedOrigins" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">Simpan domain embed</button></div>
+      <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"><p id="embedOriginsStatus" class="min-h-5 text-xs font-semibold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Perubahan belum ada.</p><button id="saveEmbedOrigins" type="submit" class="btn-blue w-full sm:w-auto">Simpan domain embed</button></div>
     </form>
   </div>
   <script>
@@ -173,21 +173,21 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
       status.setAttribute('role', state === 'error' ? 'alert' : 'status');
       status.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
       status.textContent = message;
-      status.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+      status.className = `min-h-5 text-xs font-semibold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
     };
     const showEmbedStatus = (message: string, state: 'idle' | 'success' | 'error') => {
       if (!embedStatus) return;
       embedStatus.setAttribute('role', state === 'error' ? 'alert' : 'status');
       embedStatus.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
       embedStatus.textContent = message;
-      embedStatus.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+      embedStatus.className = `min-h-5 text-xs font-semibold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
     };
     const showTemplateDefinitionStatus = (message: string, state: 'idle' | 'success' | 'error') => {
       if (!templateDefinitionStatus) return;
       templateDefinitionStatus.setAttribute('role', state === 'error' ? 'alert' : 'status');
       templateDefinitionStatus.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
       templateDefinitionStatus.textContent = message;
-      templateDefinitionStatus.className = `min-h-5 text-xs font-bold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+      templateDefinitionStatus.className = `min-h-5 text-xs font-semibold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
     };
 
     const populateTemplateOptions = (definitions: unknown, selectedId: string) => {

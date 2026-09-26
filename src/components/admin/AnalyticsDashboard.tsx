@@ -221,7 +221,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
         className="rounded-xl border border-rose-200 bg-rose-50/50 p-8 text-center"
         role="alert"
       >
-        <h2 className="text-base font-bold text-rose-950">
+        <h2 className="text-base font-semibold text-rose-950">
           Analitik tidak dapat dimuat
         </h2>
         <p className="mt-1.5 text-xs text-rose-700">{error}</p>
@@ -326,7 +326,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
           </span>
           <div>
             <p className="text-xs font-medium text-slate-900">Periode laporan</p>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Semua metrik mengikuti periode ini; dibuka pada bulan berjalan (WIB).
             </p>
           </div>
@@ -347,7 +347,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
             disabled={refreshing}
             aria-label="Perbarui data dashboard"
             aria-busy={refreshing}
-            className="size-11 shrink-0 border border-slate-200 bg-white shadow-none"
+            className="size-11 shrink-0 border border-slate-200 bg-white"
           >
             <RefreshCw
               className={`size-4 ${refreshing ? "animate-spin" : ""}`}
@@ -360,7 +360,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
 
       {error && (
         <div
-          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-800"
+          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-800"
           role="alert"
         >
           {error}{data ? " Data periode terakhir yang berhasil dimuat tetap ditampilkan." : ""}
@@ -375,17 +375,17 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
           <Card key={metric.label} className="overflow-hidden border-slate-200 shadow-none">
             <CardContent className="p-3.5 sm:p-5">
               <div className="flex items-start justify-between gap-2">
-                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-slate-500 sm:text-[11px]">
+                <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500 sm:text-xs">
                   {metric.label}
                 </p>
                 <span className={`hidden size-8 shrink-0 place-items-center rounded-xl sm:grid ${metric.iconTone}`}>
                   <metric.icon className="size-4" aria-hidden="true" />
                 </span>
               </div>
-              <p className={`mt-3 text-lg font-semibold tabular-nums tracking-[-0.035em] sm:text-2xl ${metric.tone}`}>
+              <p className={`mt-3 text-lg font-semibold tabular-nums tracking-tight sm:text-2xl ${metric.tone}`}>
                 {metric.value}
               </p>
-              <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-slate-500 sm:text-[11px]">
+              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500 sm:text-xs">
                 {metric.note}
               </p>
             </CardContent>
@@ -499,7 +499,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
                     <p className="truncate text-xs font-medium text-slate-800">
                       {item.name}
                     </p>
-                    <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                    <p className="mt-0.5 text-xs leading-4 text-slate-500">
                       {item.detail}
                     </p>
                   </div>

@@ -15,7 +15,7 @@ const { id } = Astro.params;
       description="Ubah konfigurasi dan layout halaman promosi."
     >
       <div slot="actions">
-        <a href="/admin/landing-pages" class="btn-secondary min-h-11 px-4 text-xs">Kembali</a>
+        <a href="/admin/landing-pages" class="btn-secondary">Kembali</a>
       </div>
     </AdminPageHeader>
     {id ? <LandingPageEditor landingPageId={id} client:only="react" /> : null}

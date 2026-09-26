@@ -1,3 +1,4 @@
+import { courierDisplayName } from "./courier-names.ts";
 import { formatIdr } from "./format-idr.ts";
 
 /** One quote row as `/api/admin/ongkir?action=estimate` returns it. */
@@ -39,7 +40,7 @@ export function visibleRates(rates: readonly QuotedRate[], filter: RateFilter, s
 export function ratesWhatsAppText(rates: readonly QuotedRate[], destination: string, weightKg: number) {
   const lines = visibleRates(rates, "all", "price-asc").map((rate) => {
     const eta = etaLabel(rate.estimated_days) ? ` (${etaLabel(rate.estimated_days)})` : "";
-    return `• *${rate.courier_code.toUpperCase()}*: ${formatIdr(rate.price)}${eta}${rate.unsupported_cod ? "" : " [COD OK]"}`;
+    return `• *${courierDisplayName(rate.courier_code)}*: ${formatIdr(rate.price)}${eta}${rate.unsupported_cod ? "" : " [COD OK]"}`;
   });
   return [`*Pilihan Ongkos Kirim (${weightKg} kg)*`, `Tujuan: ${destination}`, "", ...lines].join("\n");
 }

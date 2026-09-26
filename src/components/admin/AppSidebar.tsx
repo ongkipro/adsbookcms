@@ -12,6 +12,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { StoreMark } from "./StoreMark";
 import { ChevronRight, LogOut } from "lucide-react";
 import {
   ADMIN_ACCENT,
@@ -22,11 +23,6 @@ import {
 } from "./admin-navigation";
 import { CMS_VERSION } from "@/lib/version";
 
-// A store that has not set its own logo gets the product's neutral mark,
-// never another store's wordmark. /images/logo.webp was the demo store's,
-// and it was hardcoded here, so every install wore it. Same defect as
-// LOGIN-10, one surface over.
-const PRODUCT_MARK = "/images/adsbook-mark.webp";
 
 export function AppSidebar({
   activeMenu,
@@ -65,14 +61,10 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" tooltip={`${storeName} Dashboard`} className="h-14 rounded-xl px-2 hover:bg-sidebar-accent">
               <a href={restricted ? profileNavItem.href : "/admin/dashboard"} aria-label={restricted ? "Buka keamanan akun" : `Buka dashboard ${storeName}`}>
-                <img
-                  src={siteLogo || PRODUCT_MARK}
-                  alt={storeName}
-                  className="size-9 shrink-0 object-contain"
-                />
+                <StoreMark logo={siteLogo} name={storeName} className="size-9" />
                 <span className="grid-cols-1 grid min-w-0 flex-1 text-left leading-tight">
                   <span className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">{storeName}</span>
-                  <span className="truncate text-[10px] text-slate-500">{displayDomain}</span>
+                  <span className="truncate text-xs text-slate-500">{displayDomain}</span>
                 </span>
               </a>
             </SidebarMenuButton>
@@ -83,7 +75,7 @@ export function AppSidebar({
       <SidebarContent className="px-2">
         {restricted && (
           <SidebarGroup className="py-1">
-            <SidebarGroupLabel className="mb-0.5 h-6 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
+            <SidebarGroupLabel className="mb-0.5 h-6 px-2 text-xs font-medium uppercase tracking-wider text-slate-400">
               Keamanan akun
             </SidebarGroupLabel>
             <SidebarMenu>
@@ -100,7 +92,7 @@ export function AppSidebar({
         )}
         {groups.map((group) => (
           <SidebarGroup key={group.label} className="py-1">
-            <SidebarGroupLabel className="mb-0.5 h-6 px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
+            <SidebarGroupLabel className="mb-0.5 h-6 px-2 text-xs font-medium uppercase tracking-wider text-slate-400">
               {group.label}
             </SidebarGroupLabel>
             <SidebarMenu>
@@ -154,7 +146,7 @@ export function AppSidebar({
                               <SidebarMenuSubButton
                                 asChild
                                 isActive={childActive}
-                                className="h-8 rounded-md px-2 text-xs font-normal text-slate-500 hover:bg-slate-100 hover:text-slate-950 data-[active=true]:font-medium data-[active=true]:text-blue-700"
+                                className="h-8 rounded-md px-2 text-sm font-normal text-slate-500 hover:bg-slate-100 hover:text-slate-950 data-[active=true]:font-medium data-[active=true]:text-blue-700"
                               >
                                 <a
                                   href={child.href}
@@ -193,9 +185,9 @@ export function AppSidebar({
             </form>
           </SidebarMenuItem>
         </SidebarMenu>
-        <div className="mt-2 flex items-center justify-between rounded-lg border border-slate-200/80 bg-slate-50/80 px-2.5 py-1.5 text-[11px] font-medium text-slate-500 group-data-[collapsible=icon]:hidden">
+        <div className="mt-2 flex items-center justify-between rounded-lg border border-slate-200/80 bg-slate-50/80 px-2.5 py-1.5 text-xs font-medium text-slate-500 group-data-[collapsible=icon]:hidden">
           <span className="font-medium text-slate-700">AdsBookCMS</span>
-          <span className="rounded bg-slate-200/70 px-1.5 py-0.5 font-mono text-[10px] font-medium text-slate-600">
+          <span className="rounded bg-slate-200/70 px-1.5 py-0.5 font-mono text-xs font-medium text-slate-600">
             v{CMS_VERSION.version}
           </span>
         </div>

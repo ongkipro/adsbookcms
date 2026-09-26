@@ -225,7 +225,7 @@ export default function SellerBankAccounts({
         Rekening tujuan transfer
       </h4>
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950">
-        <strong className="block font-bold">Cek ulang sebelum menyimpan</strong>
+        <strong className="block font-semibold">Cek ulang sebelum menyimpan</strong>
         Pastikan pilihan bank, nama penerima, dan nomor rekening sama persis dengan
         buku tabungan atau aplikasi bank. Rekening aktif langsung tersedia di
         checkout sesuai urutan daftar.
@@ -237,7 +237,7 @@ export default function SellerBankAccounts({
         noValidate
       >
         <div className="space-y-1.5">
-          <label htmlFor="seller-bank-code" className="block text-xs font-bold text-slate-700">
+          <label htmlFor="seller-bank-code" className="block text-xs font-semibold text-slate-700">
             Bank
           </label>
           <Select
@@ -262,7 +262,7 @@ export default function SellerBankAccounts({
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="seller-bank-holder" className="block text-xs font-bold text-slate-700">
+          <label htmlFor="seller-bank-holder" className="block text-xs font-semibold text-slate-700">
             Nama penerima
           </label>
           <Input
@@ -283,14 +283,14 @@ export default function SellerBankAccounts({
           />
           <p
             id="seller-bank-holder-help"
-            className={`text-[11px] leading-4 ${errors.holder ? "font-semibold text-rose-700" : "text-slate-500"}`}
+            className={`text-xs leading-4 ${errors.holder ? "font-semibold text-rose-700" : "text-slate-500"}`}
           >
             {errors.holder || "Hanya huruf; tanpa angka. Harus sama dengan nama pemilik rekening."}
           </p>
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="seller-bank-number" className="block text-xs font-bold text-slate-700">
+          <label htmlFor="seller-bank-number" className="block text-xs font-semibold text-slate-700">
             Nomor rekening
           </label>
           <Input
@@ -313,7 +313,7 @@ export default function SellerBankAccounts({
           />
           <p
             id="seller-bank-number-help"
-            className={`text-[11px] leading-4 ${errors.number ? "font-semibold text-rose-700" : "text-slate-500"}`}
+            className={`text-xs leading-4 ${errors.number ? "font-semibold text-rose-700" : "text-slate-500"}`}
           >
             {errors.number || "Hanya 6–24 digit angka; tanpa huruf, spasi, atau tanda baca."}
           </p>
@@ -339,7 +339,7 @@ export default function SellerBankAccounts({
       </form>
 
       <p
-        className={`min-h-5 text-xs font-bold ${statusError ? "text-rose-700" : "text-emerald-700"}`}
+        className={`min-h-5 text-xs font-semibold ${statusError ? "text-rose-700" : "text-emerald-700"}`}
         role={statusError ? "alert" : "status"}
         aria-live="polite"
       >
@@ -370,10 +370,10 @@ export default function SellerBankAccounts({
                 />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-bold text-slate-950">
+                    <p className="truncate text-sm font-semibold text-slate-950">
                       {account.bank_code} · {account.account_holder}
                     </p>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${account.is_active ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${account.is_active ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}>
                       {account.is_active && <CheckCircle2 className="size-3" />}
                       {account.is_active ? "Aktif" : "Nonaktif"}
                     </span>

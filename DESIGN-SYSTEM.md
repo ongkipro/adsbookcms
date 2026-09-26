@@ -1,6 +1,6 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-09-26 @ `fd18362` + working tree (admin radius, page width, control contract)
+> Verified against disk: 2026-09-26 @ `5136e64` + working tree (control contract, button tiers)
 >
 > **The public palette is neutral plus one overridable accent (ADR-019, as
 > amended 2026-08-23).** Colour tokens below that describe the retired gold
@@ -455,7 +455,8 @@ geometry; a caller never does.
 | Control | Height (desktop) | Owner |
 | --- | --- | --- |
 | `Input`, `SelectTrigger`, `InputGroup`, `Combobox` input, `Button` default and `lg` | 40px (`h-10`) | `ui/*.tsx` |
-| `NativeSelect.astro`, `.admin-input-flat` (static Astro pages) | 40px | the static twins of the above |
+| `NativeSelect.astro`, `.admin-input-flat`, `.btn-primary` / `.btn-blue` / `.btn-secondary` (static Astro pages) | 40px | the static twins of the above, in `admin.css` |
+| `size="sm"` buttons: chips, quick picks, row actions, section adders | 28px | a compact tier inside a panel — never a page or card header action |
 | Table row actions (`icon-sm`, row menus) | 32–36px | deliberately compact, inside a row |
 | Below 768px | 48px for inputs and triggers, 44px buttons | `admin.css` touch floor |
 
@@ -463,14 +464,25 @@ geometry; a caller never does.
   `min-h-*`, `rounded-l-none` on an input joined to an addon. Never height,
   radius, background, border colour, shadow or type size, and never `size="sm"`
   on a `SelectTrigger` or `size="xl"` on an admin `Button`.
+- A page or card header action (save, edit, delete, refresh, preview) is the
+  default `Button` size. `buttonVariants()` returns a tailwind-merged string,
+  so an Astro page or an `<a>` using it directly keeps the variant's border
+  (the unmerged base `border-transparent` used to win and drew outline
+  buttons borderless). Guards: `admin-controls.test.ts` refuses geometry on
+  `<Button>` and on any `.btn-*` class string.
 - A filter toolbar is `FilterBar` + `FilterField` (one label style, a width from
   `size`, wraps instead of overlapping) from `components/admin/filter-bar.tsx`.
 - Search is `SearchInput` from the same file — an `InputGroup` with the icon as
   an addon and a clear button — never an icon absolutely positioned over an
   `<Input>`.
-- A choice in a toolbar is `FilterSelect`: the date filter's look (leading
-  icon, value, chevron) with an `items` map always set, so the server-rendered
-  trigger reads the label ("Semua status"), never the raw value ("all").
+- Choose by role, not taste:
+  - **a toolbar filter** (status, source, category, role, date) is
+    `FilterSelect` — a DropdownMenu with a radio group sharing
+    `FILTER_TRIGGER_CLASS` with the date filter, so every filter trigger is
+    the same control (leading icon, label, chevron) and renders its own label;
+  - **a form field** whose value is submitted and validated is `Select` with an
+    `items` map always set (so the server render reads the label, never the
+    raw value) — it keeps `aria-invalid`, form reset and keyboard typeahead.
 - Object-valued comboboxes set `itemToStringValue` to the id: the hidden form
   input otherwise carries the whole object as JSON.
 - Courier marks live in `public/images/couriers/` (WebP ≤ 5 KB each, SVGs
@@ -481,9 +493,44 @@ geometry; a caller never does.
 - The one declared exception is a dark code editor, marked `data-code-editor`.
 - Lists of a few settings or methods are rows in one card (`divide-y`), not a
   card per item inside a card.
+- Every panel has the same 1px frame: `admin.css` gives shadcn `Card` (which
+  draws none in base-nova) the border the hand-built sections already had.
+- Page gutter is 16px below `md`, 24px from `md`, 32px from `xl` (AdminShell).
+- A small, uniform set with two switches each (couriers) is a grid of one-line
+  cards: mark and name on the left, switches on the right, coverage shown only
+  when restricted.
 
 `src/lib/admin-controls.test.ts` enforces all of this and reads JSX tags to
 their real end (a `>` inside `onChange={(e) => …}` does not close the tag).
+
+**Admin type anatomy (A-310).** Inter; the admin loads 400/500/600
+(`admin.css` adds the 500 face `foundation.css` does not ship — without it every
+`font-medium` primitive rendered at 400). Five sizes, three weights, a 12px floor:
+
+| Role | Desktop | Phone (<768px) | Class |
+| --- | --- | --- | --- |
+| Page title (`AdminPageHeader`, order id) | 24/600 | 20/600 | `text-xl md:text-2xl font-semibold tracking-tight` |
+| KPI value | 24/600 | 24/600 | `text-2xl font-semibold` (tabular for money) |
+| Card / section title, top bar title | 16/600 | 16/600 | `text-base font-semibold` |
+| Body, table cell, sidebar and submenu item, menu item, button, input | 14/400 (UI 500) | 14; inputs 16 | `text-sm` — phone inputs 16px so iOS never zooms |
+| Label, helper, meta, badge, table head, sidebar section, bottom nav | 12/400–600 | 12 | `text-xs` — table head and section labels uppercase, `tracking-wider` |
+
+- Weights: 400 reading text, 500 interactive (buttons, nav, active item,
+  labels), 600 titles and emphasis. `font-bold`, `font-extrabold` and
+  `font-black` are not used in admin; they rendered as the same 700 face
+  anyway.
+- Nothing below 12px (`text-[9–11px]` measured on ~250 phone labels before
+  this). A code editor may use 13px mono.
+- `admin-controls.test.ts` enforces the floor, the weight ceiling and the
+  absence of `text-3xl`+ across `components/admin`, `pages/admin` and
+  `AdminLayout`.
+
+**Phone layout.** A fixed-size `FilterField` is half the row below `sm`, so a
+four-filter toolbar is two rows; KPI tiles are two-up and drop their
+explanatory sentence; a settings row keeps its icon beside the text and puts
+actions under it. A store without its own logo shows its initial
+(`StoreMark`) — the product mark is a 4:1 wordmark, illegible in a square.
+A table wider than the page pins its row actions (`sticky right-0`).
 
 ### 7.2 `src/components/storefront/shared/`
 

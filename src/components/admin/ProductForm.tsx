@@ -279,13 +279,13 @@ export function ProductForm({ productId }: { productId?: string }) {
         className="rounded-xl border border-rose-200 bg-slate-50 p-8 text-center shadow-sm"
         role="alert"
       >
-        <h2 className="text-lg font-black text-slate-950">
+        <h2 className="text-base font-semibold text-slate-950">
           Produk gagal dimuat
         </h2>
         <p className="mt-2 text-sm text-slate-600">{loadError}</p>
         <a
           href="/admin/products"
-          className="btn-primary mt-5 min-h-11 bg-emerald-700 px-5 text-xs hover:bg-emerald-800 focus-visible:outline-emerald-700"
+          className="btn-primary mt-5 bg-emerald-700 hover:bg-emerald-800 focus-visible:outline-emerald-700"
         >
           Kembali ke katalog
         </a>
@@ -301,7 +301,7 @@ export function ProductForm({ productId }: { productId?: string }) {
       <div className="space-y-6">
         <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-5">
-            <h2 className="text-base font-black text-slate-950">
+            <h2 className="text-base font-semibold text-slate-950">
               Informasi produk
             </h2>
             <p className="mt-1 text-xs text-slate-500">
@@ -310,7 +310,7 @@ export function ProductForm({ productId }: { productId?: string }) {
           </div>
           <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
             <label>
-              <span className="mb-1.5 block text-xs font-black text-slate-700">
+              <span className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Nama produk
               </span>
               <Input
@@ -322,7 +322,7 @@ export function ProductForm({ productId }: { productId?: string }) {
               />
             </label>
             <label>
-              <span className="mb-1.5 block text-xs font-black text-slate-700">
+              <span className="mb-1.5 block text-xs font-semibold text-slate-700">
                 Slug
               </span>
               <Input
@@ -335,14 +335,14 @@ export function ProductForm({ productId }: { productId?: string }) {
                 }}
                 className="admin-input-flat font-mono focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
               />
-              <span className="mt-1 block text-[11px] text-slate-500">
+              <span className="mt-1 block text-xs text-slate-500">
                 Huruf kecil, angka, dan tanda hubung.
               </span>
             </label>
             <div className="md:col-span-2">
               <label
                 htmlFor="product-image"
-                className="mb-1.5 block text-xs font-black text-slate-700"
+                className="mb-1.5 block text-xs font-semibold text-slate-700"
               >
                 Foto produk
               </label>
@@ -355,7 +355,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                       className="h-full w-full object-contain"
                     />
                   ) : (
-                    <span className="px-2 text-center text-[11px] font-bold text-slate-400">
+                    <span className="px-2 text-center text-xs font-semibold text-slate-400">
                       Belum ada foto
                     </span>
                   )}
@@ -372,11 +372,11 @@ export function ProductForm({ productId }: { productId?: string }) {
                       if (file) void uploadImage(file);
                       event.target.value = "";
                     }}
-                    className="block w-full text-slate-700 focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-emerald-700 file:px-4 file:text-xs file:font-bold file:text-white file:hover:bg-emerald-800"
+                    className="block w-full text-slate-700 focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20 file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-emerald-700 file:px-4 file:text-xs file:font-semibold file:text-white file:hover:bg-emerald-800"
                   />
                   <p
                     id="product-image-hint"
-                    className="mt-2 text-[11px] leading-5 text-slate-500"
+                    className="mt-2 text-xs leading-5 text-slate-500"
                   >
                     Format WebP (ototmatis dikonversi & dibuang file originalnya). Maksimal 2 MB.
                   </p>
@@ -384,7 +384,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                     <button
                       type="button"
                       onClick={() => setImageUrl("")}
-                      className="mt-2 min-h-11 text-xs font-black text-rose-700 hover:underline"
+                      className="mt-2 min-h-11 text-xs font-semibold text-rose-700 hover:underline"
                     >
                       Hapus foto dari produk
                     </button>
@@ -397,7 +397,7 @@ export function ProductForm({ productId }: { productId?: string }) {
         <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-base font-black text-slate-950">
+              <h2 className="text-base font-semibold text-slate-950">
                 Varian produk
               </h2>
               <p className="mt-1 text-xs text-slate-500">
@@ -412,7 +412,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                   emptyVariant(`new-${nextVariantKey.current++}`),
                 ])
               }
-              className="btn-secondary min-h-11 px-4 text-xs"
+              className="btn-secondary"
             >
               Tambah varian
             </button>
@@ -423,16 +423,16 @@ export function ProductForm({ productId }: { productId?: string }) {
                 key={variant.key}
                 className="rounded-xl border border-slate-200 p-4"
               >
-                <legend className="px-2 text-xs font-black text-slate-700">
+                <legend className="px-2 text-xs font-semibold text-slate-700">
                   Varian {index + 1}
                 </legend>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <label>
                     <div className="mb-1 flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-600">
+                      <span className="text-xs font-semibold text-slate-600">
                         Nama varian
                       </span>
-                      <span className={`text-[10px] font-medium ${variant.title.length > 15 ? 'font-bold text-red-600' : 'text-slate-400'}`}>
+                      <span className={`text-xs font-medium ${variant.title.length > 15 ? 'font-semibold text-red-600' : 'text-slate-400'}`}>
                         {variant.title.length}/15
                       </span>
                     </div>
@@ -446,12 +446,12 @@ export function ProductForm({ productId }: { productId?: string }) {
                       }
                       className="admin-input-flat focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
                     />
-                    <span className="mt-1 block text-[10px] text-slate-400">
+                    <span className="mt-1 block text-xs text-slate-400">
                       Maks. 15 karakter (contoh: 500ml, 1 Liter, Beli 2)
                     </span>
                   </label>
                   <label>
-                    <span className="mb-1 block text-xs font-bold text-slate-600">
+                    <span className="mb-1 block text-xs font-semibold text-slate-600">
                       SKU
                     </span>
                     <Input
@@ -469,7 +469,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                     />
                   </label>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                    <span className="block text-xs font-bold text-slate-600">
+                    <span className="block text-xs font-semibold text-slate-600">
                       Variant ID
                     </span>
                     <span className="mt-1 block font-mono text-sm text-slate-700">
@@ -477,7 +477,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                     </span>
                   </div>
                   <label>
-                    <span className="mb-1 block text-xs font-bold text-slate-600">
+                    <span className="mb-1 block text-xs font-semibold text-slate-600">
                       Harga (IDR)
                     </span>
                     <Input
@@ -494,7 +494,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                     />
                   </label>
                   <label>
-                    <span className="mb-1 block text-xs font-bold text-slate-600">
+                    <span className="mb-1 block text-xs font-semibold text-slate-600">
                       Harga Coret (IDR)
                     </span>
                     <Input
@@ -514,7 +514,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                     />
                   </label>
                   <label>
-                    <span className="mb-1 block text-xs font-bold text-slate-600">
+                    <span className="mb-1 block text-xs font-semibold text-slate-600">
                       Berat (gram)
                     </span>
                     <Input
@@ -539,7 +539,7 @@ export function ProductForm({ productId }: { productId?: string }) {
                       current.filter((_, itemIndex) => itemIndex !== index),
                     )
                   }
-                  className="mt-4 inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-black text-rose-700 hover:bg-rose-50 disabled:text-slate-400"
+                  className="mt-4 inline-flex min-h-11 items-center rounded-lg px-3 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:text-slate-400"
                 >
                   Hapus varian {index + 1}
                 </button>
@@ -562,15 +562,15 @@ export function ProductForm({ productId }: { productId?: string }) {
           <div className="p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Ringkasan
                 </p>
-                <h2 className="mt-2 break-words text-xl font-black text-slate-950">
+                <h2 className="mt-2 break-words text-xl font-semibold text-slate-950">
                   {title || (editing ? "Produk tanpa nama" : "Produk baru")}
                 </h2>
               </div>
               <span
-                className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}
+                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}
               >
                 {active ? "Aktif" : "Draft"}
               </span>
@@ -578,7 +578,7 @@ export function ProductForm({ productId }: { productId?: string }) {
             <dl className="mt-5 grid grid-cols-2 gap-3 text-xs">
               <div className="rounded-lg bg-slate-50 p-3">
                 <dt className="text-slate-500">Product / Content ID</dt>
-                <dd className="mt-1 font-mono font-black text-slate-900">
+                <dd className="mt-1 font-mono font-semibold text-slate-900">
                   {/* `catalogProductId` throws on a row that predates the
                       five-digit scheme, and a throw in a React render blanks
                       the whole form — leaving the operator unable to open, see
@@ -590,48 +590,48 @@ export function ProductForm({ productId }: { productId?: string }) {
               </div>
               <div className="rounded-lg bg-slate-50 p-3">
                 <dt className="text-slate-500">Varian</dt>
-                <dd className="mt-1 font-black text-slate-900">
+                <dd className="mt-1 font-semibold text-slate-900">
                   {variants.length}
                 </dd>
               </div>
               <div className="col-span-2 rounded-lg bg-slate-50 p-3">
                 <dt className="text-slate-500">Slug</dt>
-                <dd className="mt-1 break-all font-mono font-bold text-slate-900">
+                <dd className="mt-1 break-all font-mono font-semibold text-slate-900">
                   {slug || "Belum diisi"}
                 </dd>
               </div>
               <div className="rounded-lg bg-slate-50 p-3">
                 <dt className="text-slate-500">Kategori</dt>
-                <dd className="mt-1 font-black text-slate-900">
+                <dd className="mt-1 font-semibold text-slate-900">
                   {category || "Umum"}
                 </dd>
               </div>
               <div className="rounded-lg bg-slate-50 p-3">
                 <dt className="text-slate-500">Foto</dt>
-                <dd className="mt-1 font-black text-slate-900">
+                <dd className="mt-1 font-semibold text-slate-900">
                   {imageUrl ? "Tersimpan" : "Belum ada"}
                 </dd>
               </div>
             </dl>
-            <p className="mt-3 text-[11px] leading-5 text-slate-500">
+            <p className="mt-3 text-xs leading-5 text-slate-500">
               Product ID menjadi <code>content_id</code> untuk tracking Meta
               dan Google.
             </p>
             <button
               type="submit"
               disabled={saving || uploading}
-              className="btn-primary mt-6 min-h-11 w-full bg-emerald-700 px-5 text-xs hover:bg-emerald-800 focus-visible:outline-emerald-700"
+              className="btn-primary mt-6 w-full bg-emerald-700 hover:bg-emerald-800 focus-visible:outline-emerald-700"
             >
               {saving ? "Menyimpan…" : "Simpan Produk"}
             </button>
             <a
               href="/admin/products"
-              className="btn-secondary mt-2 min-h-11 w-full px-5 text-xs"
+              className="btn-secondary mt-2 w-full"
             >
               Batal
             </a>
             <p
-              className={`mt-4 min-h-5 text-xs font-bold ${statusTone === "error" ? "text-rose-700" : statusTone === "success" ? "text-emerald-700" : "text-slate-500"}`}
+              className={`mt-4 min-h-5 text-xs font-semibold ${statusTone === "error" ? "text-rose-700" : statusTone === "success" ? "text-emerald-700" : "text-slate-500"}`}
               role="status"
               aria-live="polite"
             >

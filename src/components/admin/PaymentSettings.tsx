@@ -139,7 +139,7 @@ function FeeChoice({
     },
   ];
   return (
-    <fieldset className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+    <fieldset className="space-y-2">
       <legend className="px-1 text-sm font-semibold text-card-foreground">{legend}</legend>
       <p className="text-xs leading-5 text-muted-foreground">{description}</p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label={`Penanggung fee ${legend}`}>
@@ -153,7 +153,7 @@ function FeeChoice({
               aria-checked={selected}
               onClick={() => onChange(option.value)}
               disabled={disabled}
-              className={`flex min-h-16 items-start gap-3 rounded-lg border px-3 py-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+              className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                 selected
                   ? "border-primary bg-primary/10 text-foreground"
                   : "border-border bg-background text-muted-foreground hover:bg-muted"
@@ -381,6 +381,11 @@ export default function PaymentSettings({ channels }: { channels: PaymentChannel
 
       <InlineNotice notice={notice} />
 
+      {/* Two columns on a wide screen: what is live at checkout on the left,
+          how it is configured on the right. One column made the page a long
+          scroll with half the desktop empty. */}
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+      <div className="min-w-0 space-y-5">
       <Card>
         <CardHeader className="border-b">
           <CardTitle as="h3" className="font-semibold">Status metode pembayaran</CardTitle>
@@ -510,13 +515,15 @@ export default function PaymentSettings({ channels }: { channels: PaymentChannel
           </Table>
         </CardContent>
       </Card>
+      </div>
 
+      <div className="min-w-0 space-y-5">
       <Card>
         <CardHeader className="border-b">
           <CardTitle as="h3" className="font-semibold">Kebijakan biaya transaksi</CardTitle>
           <CardDescription>Tentukan apakah fee dibayar pembeli atau dipotong dari hasil seller.</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <CardContent className="grid grid-cols-1 gap-5">
           <FeeChoice
             legend="Pembayaran online"
             description="QRIS 0,7%; VA BCA Rp6.500; VA lain Rp3.000 per transaksi."
@@ -614,6 +621,8 @@ export default function PaymentSettings({ channels }: { channels: PaymentChannel
           </CollapsibleContent>
         </Card>
       </Collapsible>
+      </div>
+      </div>
 
       <style>{`
         @media (max-width: 767px) {

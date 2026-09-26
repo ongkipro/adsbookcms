@@ -34,7 +34,7 @@ const channels = AUTOLARIS_CHECKOUT_CHANNELS.map((code) => ({
   <div class="space-y-6">
     <AdminPageHeader
       title="Metode pembayaran"
-      description="Kelola metode checkout, channel AutoLaris, biaya transaksi, konfigurasi Create Order, verifikasi manual, dan rekening transfer dari satu workspace."
+      description="Metode checkout, channel AutoLaris, biaya transaksi, dan rekening transfer."
     />
 
     <PaymentSettings client:load channels={channels} />

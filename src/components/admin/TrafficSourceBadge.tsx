@@ -13,12 +13,12 @@ export function TrafficSourceBadge({
 
   const sizeClasses =
     size === 'xs'
-      ? 'px-2 py-0.5 text-[9px]'
-      : 'px-2.5 py-1 text-[10px]';
+      ? 'px-2 py-0.5 text-xs'
+      : 'px-2.5 py-1 text-xs';
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 font-bold rounded-full border transition-colors ${sizeClasses} ${source.badgeClass} ${className}`}
+      className={`inline-flex items-center gap-1.5 font-semibold rounded-full border transition-colors ${sizeClasses} ${source.badgeClass} ${className}`}
       title={
         source.details.utm_campaign
           ? `Campaign: ${source.details.utm_campaign}`

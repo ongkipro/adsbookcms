@@ -1,7 +1,7 @@
 import { formatIdr } from "@/lib/format-idr";
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from "@/lib/payment-fee-policy";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
-import { type SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type SyntheticEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildWaUrl, defaultCrmTemplates, renderCrmMessage } from "../../lib/crm-template";
 import { CrmActionGroup } from "./CrmActionGroup";
 import { CRM_STEPS } from "./CrmActionButton";
@@ -11,8 +11,12 @@ import { Button, buttonVariants } from "../ui/button";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { toast } from "sonner";
+import { SHIPPING_STATUS_LABELS } from "@/lib/shipping-status";
+import { courierServiceLabel } from "@/lib/courier-names";
+import { DistrictCombobox, type DistrictOption } from "@/components/admin/DistrictCombobox";
+import { FilterSelect } from "@/components/admin/filter-bar";
+import { etaLabel } from "@/lib/rate-check";
 import { cn } from "@/lib/utils";
 import { groupLocationResults } from "../../lib/location-search";
 import {
@@ -31,6 +35,7 @@ import {
   RefreshCw,
   Edit3,
   Loader2,
+  Lock as LockIcon,
 } from "lucide-react";
 
 type OrderItem = {
@@ -132,14 +137,7 @@ type ShippingRate = {
   estimated_days?: string;
 };
 
-const shippingLabels: Record<string, string> = {
-  pending: "Menunggu konfirmasi",
-  processing: "Siap push Mengantar",
-  shipped: "Dikirim",
-  delivered: "Selesai",
-  returned: "RTS",
-  cancelled: "Batal",
-};
+const shippingLabels = SHIPPING_STATUS_LABELS;
 
 const shippingStatusBadges: Record<string, string> = {
   abandoned: "bg-rose-50 text-rose-900 border-rose-200",
@@ -212,11 +210,7 @@ function EditCustomerDialog({
   const formRef = useRef<HTMLFormElement>(null);
   const [showValidation, setShowValidation] = useState(false);
   const [ratesLoading, setRatesLoading] = useState(false);
-  const [searchLocation, setSearchLocation] = useState("");
-  const [locations, setLocations] = useState<LocationOption[]>([]);
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
-  const [isSearchingLocations, setIsSearchingLocations] = useState(false);
-  const [locationError, setLocationError] = useState("");
   const [useSubdistrict] = useState(false);
   const [selectedCourierServiceId, setSelectedCourierServiceId] = useState("");
   const [formData, setFormData] = useState({
@@ -241,9 +235,6 @@ function EditCustomerDialog({
       postal_code: order.postal_code || "",
       destination_area_id: order.destination_area_id || "",
     });
-    setSearchLocation("");
-    setLocations([]);
-    setLocationError("");
     setShowValidation(false);
   }, [order, open]);
 
@@ -251,13 +242,6 @@ function EditCustomerDialog({
     if (submitError) submitErrorRef.current?.focus();
   }, [submitError]);
 
-  const visibleLocations = useMemo(
-    () =>
-      useSubdistrict
-        ? locations
-        : groupLocationResults(locations).map((group) => group.items[0]),
-    [locations, useSubdistrict]
-  );
   const customerEditable = !order.provider_order_id;
   const courierEditable =
     customerEditable &&
@@ -266,43 +250,20 @@ function EditCustomerDialog({
   const locationEditable = courierEditable;
   const firstItem = order.items?.[0];
 
-  useEffect(() => {
-    const query = searchLocation.trim();
-    if (query.length < 2) {
-      setLocations([]);
-      setLocationError("");
-      setIsSearchingLocations(false);
-      return;
-    }
-    const controller = new AbortController();
-    setIsSearchingLocations(true);
-    setLocationError("");
-    const timer = window.setTimeout(() => {
-      void fetch(
-        `/api/locations?search=${encodeURIComponent(query)}`,
-        {
-          headers: { Accept: "application/json" },
-          signal: controller.signal,
-        }
-      )
-        .then(async (response) => {
-          const payload = await response.json().catch(() => ({}));
-          if (!response.ok || !payload.success) throw new Error(payload.error || "Gagal mencari kecamatan");
-          const items = ((payload.items && payload.items.length ? payload.items : payload.alternatives) || payload.locations || []) as LocationOption[];
-          setLocations(items);
-        })
-        .catch((err) => {
-          if (err.name !== "AbortError") setLocationError(err.message || "Terjadi kesalahan");
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setIsSearchingLocations(false);
-        });
-    }, 300);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [searchLocation, useSubdistrict]);
+  // The combobox shows labels; saving needs the full row behind one.
+  const locationRows = useRef(new Map<string, LocationOption>());
+  const searchLocations = useCallback(
+    async (query: string, signal: AbortSignal): Promise<DistrictOption[]> => {
+      const response = await fetch(`/api/locations?search=${encodeURIComponent(query)}`, { headers: { Accept: "application/json" }, signal });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) throw new Error(payload.error || "Gagal mencari kecamatan");
+      const items = ((payload.items && payload.items.length ? payload.items : payload.alternatives) || payload.locations || []) as LocationOption[];
+      const rows = useSubdistrict ? items : groupLocationResults(items).map((group) => group.items[0]);
+      for (const row of rows) locationRows.current.set(String(row.id), row);
+      return rows.map((row) => ({ id: String(row.id), label: row.label, detail: [row.district, row.city, row.province].filter(Boolean).join(", ") }));
+    },
+    [useSubdistrict],
+  );
 
   useEffect(() => {
     if (
@@ -489,7 +450,12 @@ function EditCustomerDialog({
   };
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex items-center gap-2">
+    {!customerEditable && (
+      <span className="hidden items-center gap-1 text-xs text-slate-500 lg:inline-flex">
+        <LockIcon className="size-3.5" aria-hidden="true" /> Terkunci, shipment sudah dibuat
+      </span>
+    )}
     <Dialog open={open} onOpenChange={(nextOpen) => {
       if (!loading) {
         setSubmitError("");
@@ -500,32 +466,33 @@ function EditCustomerDialog({
         <Button
           type="button"
           variant="outline"
-          size="sm"
           disabled={!customerEditable}
           title={!customerEditable ? "Data terkunci karena shipment Mengantar sudah dibuat." : undefined}
-          className="h-8.5 px-3 rounded-lg border-slate-200 bg-white font-extrabold text-xs text-slate-700 hover:bg-slate-50"
         >
-          <Edit3 className="mr-1.5 size-3.5 text-slate-500" />
-          Edit Pembeli & Alamat
+          <Edit3 aria-hidden="true" />
+          Edit pembeli & alamat
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto p-0 sm:max-w-2xl rounded-xl">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] overflow-y-auto p-0 sm:max-w-4xl rounded-xl">
         <DialogHeader className="border-b border-slate-100 px-6 py-4 text-left">
-          <DialogTitle className="text-base font-black text-slate-900">
+          <DialogTitle className="text-base font-semibold text-slate-900">
             Edit Pembeli & Pengiriman
           </DialogTitle>
           <DialogDescription className="text-xs">
             Data pembeli dapat diperbarui sebelum shipment dibuat. Kurir hanya dapat diganti untuk order COD yang masih menunggu.
           </DialogDescription>
         </DialogHeader>
-        <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4 px-6 py-5">
+        <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid grid-cols-1 gap-6 px-6 py-5 md:grid-cols-[minmax(0,1fr)_17rem]">
+          {/* Two columns: what the operator edits on the left, what it costs
+              and the save action on the right, where they stay in view. */}
+          <div className="min-w-0 space-y-4">
           {submitError && (
             <div ref={submitErrorRef} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800" role="alert" tabIndex={-1}>
               {submitError}
             </div>
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block space-y-1 text-xs font-bold text-slate-700">
+            <label className="block space-y-1 text-xs font-semibold text-slate-700">
               <span>Nama Lengkap</span>
               <Input
                 id="edit-customer-name"
@@ -536,15 +503,15 @@ function EditCustomerDialog({
                 maxLength={100}
                 aria-invalid={showValidation && Boolean(fieldErrors.customer_name)}
                 aria-describedby={fieldErrors.customer_name ? "edit-customer-name-error" : undefined}
-                className="font-bold"
+                className="font-semibold"
               />
               {showValidation && fieldErrors.customer_name && (
-                <span id="edit-customer-name-error" className="block text-[11px] font-semibold text-rose-700">
+                <span id="edit-customer-name-error" className="block text-xs font-semibold text-rose-700">
                   {fieldErrors.customer_name}
                 </span>
               )}
             </label>
-            <label className="block space-y-1 text-xs font-bold text-slate-700">
+            <label className="block space-y-1 text-xs font-semibold text-slate-700">
               <span>Nomor WhatsApp / HP</span>
               <Input
                 id="edit-customer-phone"
@@ -557,17 +524,17 @@ function EditCustomerDialog({
                 maxLength={40}
                 aria-invalid={showValidation && Boolean(fieldErrors.customer_phone)}
                 aria-describedby={fieldErrors.customer_phone ? "edit-customer-phone-error" : undefined}
-                className="font-bold font-mono"
+                className="font-semibold font-mono"
               />
               {showValidation && fieldErrors.customer_phone && (
-                <span id="edit-customer-phone-error" className="block text-[11px] font-semibold text-rose-700">
+                <span id="edit-customer-phone-error" className="block text-xs font-semibold text-rose-700">
                   {fieldErrors.customer_phone}
                 </span>
               )}
             </label>
           </div>
 
-          <label className="block space-y-1 text-xs font-bold text-slate-700">
+          <label className="block space-y-1 text-xs font-semibold text-slate-700">
             <span>Alamat Jalan / Rumah</span>
             <Textarea
               id="edit-customer-address"
@@ -578,119 +545,58 @@ function EditCustomerDialog({
               maxLength={500}
               aria-invalid={showValidation && Boolean(fieldErrors.address)}
               aria-describedby={fieldErrors.address ? "edit-customer-address-error" : undefined}
-              className="min-h-24 resize-y font-medium"
+              rows={2}
+              className="resize-y"
               placeholder="Contoh: Jl. Merdeka No. 12 RT 01/02"
             />
             {showValidation && fieldErrors.address && (
-              <span id="edit-customer-address-error" className="block text-[11px] font-semibold text-rose-700">
+              <span id="edit-customer-address-error" className="block text-xs font-semibold text-rose-700">
                 {fieldErrors.address}
               </span>
             )}
           </label>
 
           <div className="space-y-2 border-t border-slate-100 pt-3">
-            <label className="block space-y-1 text-xs font-bold text-slate-700">
-              <span>Cari Kecamatan / Kota</span>
-              <Input
+            <div className="space-y-1.5">
+              <label htmlFor="edit-customer-location-search" className="text-sm font-medium text-slate-700">Kecamatan tujuan</label>
+              <DistrictCombobox
                 id="edit-customer-location-search"
-                value={searchLocation}
-                onChange={(e) => setSearchLocation(e.target.value)}
+                minChars={2}
                 disabled={!locationEditable}
-                type="search"
-                placeholder="Ketik minimal 2 huruf (contoh: Kebayoran Baru)"
-                aria-controls="edit-customer-location-results"
-                aria-describedby="edit-customer-location-help"
-                
+                placeholder="Ketik minimal 2 huruf, misalnya Kebayoran Baru"
+                value={formData.destination_area_id ? { id: formData.destination_area_id, label: [formData.district, formData.city].filter(Boolean).join(", ") } : null}
+                onChange={(option) => {
+                  const loc = option ? locationRows.current.get(option.id) : undefined;
+                  if (!loc) return;
+                  setFormData({
+                    ...formData,
+                    district: loc.district || "",
+                    city: loc.city || "",
+                    province: loc.province || "",
+                    postal_code: loc.postal_code || formData.postal_code || "",
+                    destination_area_id: String(loc.id || (loc as any).location_id || "").trim(),
+                  });
+                }}
+                search={searchLocations}
               />
-              <span id="edit-customer-location-help" className="block text-[11px] font-medium text-slate-500">
-                Pilih hasil pencarian agar kecamatan, kota, provinsi, dan ID tujuan tetap sinkron.
-              </span>
-            </label>
-
-            {isSearchingLocations && (
-              <p className="text-[11px] font-bold text-blue-600">Mencari area...</p>
-            )}
-            {locationError && (
-              <p className="text-[11px] font-bold text-rose-600">{locationError}</p>
-            )}
-
-            {visibleLocations.length > 0 && (
-              <div id="edit-customer-location-results" className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 space-y-1" aria-label="Hasil pencarian lokasi">
-                {visibleLocations.map((loc) => (
-                  <button
-                    key={loc.id}
-                    type="button"
-                    onClick={() => {
-                      const areaId = String(loc.id || (loc as any).location_id || "").trim();
-                      setFormData({
-                        ...formData,
-                        district: loc.district || "",
-                        city: loc.city || "",
-                        province: loc.province || "",
-                        postal_code: loc.postal_code || formData.postal_code || "",
-                        destination_area_id: areaId,
-                      });
-                      setLocations([]);
-                      setSearchLocation("");
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs rounded-lg hover:bg-white transition-colors"
-                  >
-                    <span className="font-bold text-slate-950 block">{loc.label}</span>
-                    <span className="text-[10px] text-slate-500">{[loc.district, loc.city, loc.province].filter(Boolean).join(", ")}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
-              <div>
-                <span className="text-[10px] font-bold uppercase text-slate-400">Kecamatan</span>
-                <Input
-                  value={formData.district}
-                  readOnly
-                  placeholder="Nama kecamatan"
-                  className="font-semibold"
-                />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase text-slate-400">Kota / Kab</span>
-                <Input
-                  value={formData.city}
-                  readOnly
-                  placeholder="Nama kota/kabupaten"
-                  className="font-semibold"
-                />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase text-slate-400">Provinsi</span>
-                <Input
-                  value={formData.province}
-                  readOnly
-                  placeholder="Nama provinsi"
-                  className="font-semibold"
-                />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold uppercase text-slate-400">Kode Pos</span>
-                <Input
-                  value={formData.postal_code}
-                  readOnly
-                  placeholder="5 digit"
-                  className="font-semibold font-mono"
-                />
-              </div>
             </div>
+
+            <p className="text-xs text-slate-500">
+              {formData.district
+                ? [formData.district, formData.city, formData.province, formData.postal_code].filter(Boolean).join(", ")
+                : "Belum ada kecamatan tujuan."}
+            </p>
           </div>
 
           {/* Opsi Kurir & Biaya Pengiriman (Ongkir) */}
           <div className="space-y-2 border-t border-slate-100 pt-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
                 <Truck className="size-4 text-emerald-600" />
                 <span>Pilih Kurir & Biaya Pengiriman (Ongkir)</span>
               </span>
               {ratesLoading && (
-                <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1 animate-pulse">
+                <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 animate-pulse">
                   <Loader2 className="size-3 animate-spin" /> Memuat tarif...
                 </span>
               )}
@@ -702,7 +608,7 @@ function EditCustomerDialog({
                 <div className="h-12 w-full rounded-xl bg-slate-100 animate-pulse border border-slate-200" />
               </div>
             ) : shippingRates.length > 0 ? (
-              <div className="grid-cols-1 grid gap-2 max-h-52 overflow-y-auto pr-1" role="radiogroup" aria-label="Pilihan kurir dan ongkir">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Pilihan kurir dan ongkir">
                 {shippingRates.map((rate) => {
                   const isSelected = String(rate.courier_service_id) === selectedCourierServiceId;
                   return (
@@ -713,7 +619,7 @@ function EditCustomerDialog({
                       role="radio"
                       aria-checked={isSelected}
                       className={cn(
-                        "w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between",
+                        "flex w-full items-center justify-between rounded-lg border p-2.5 text-left transition-colors",
                         isSelected
                           ? "border-emerald-600 bg-emerald-50/60 ring-1 ring-emerald-600/30 shadow-xs"
                           : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
@@ -730,19 +636,17 @@ function EditCustomerDialog({
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-black text-xs uppercase text-slate-900">
-                              {rate.courier_code} · {rate.courier_service}
+                            <span className="text-sm font-medium text-slate-900">
+                              {courierServiceLabel(rate.courier_code, rate.courier_service)}
                             </span>
                           </div>
-                          {rate.estimated_days && (
-                            <span className="text-[10px] font-bold text-slate-500 block mt-0.5">
-                              Estimasi: {rate.estimated_days}
-                            </span>
+                          {etaLabel(rate.estimated_days ?? "") && (
+                            <span className="mt-0.5 block text-xs text-slate-500">{etaLabel(rate.estimated_days ?? "")}</span>
                           )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="font-black text-xs text-emerald-700">
+                        <span className="font-semibold text-xs text-emerald-700">
                           {currency(rate.shipping_cost)}
                         </span>
                       </div>
@@ -752,17 +656,17 @@ function EditCustomerDialog({
               </div>
             ) : !courierEditable ? (
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
-                <span className="font-bold block text-slate-800">Biaya Ongkir Terkunci</span>
+                <span className="font-semibold block text-slate-800">Biaya Ongkir Terkunci</span>
                 <span>
                   Layanan pengiriman & ongkir saat ini:{" "}
                   <strong className="text-slate-900">
-                    {[order.courier_code, order.courier_service].filter(Boolean).join(" · ").toUpperCase() || "Belum ditentukan"}
+                    {order.courier_code ? courierServiceLabel(order.courier_code, order.courier_service) : "Belum ditentukan"}
                   </strong>{" "}
                   ({currency(order.shipping_cost || 0)})
                 </span>
               </div>
             ) : formData.destination_area_id ? (
-              <p className="text-xs text-amber-700 font-bold bg-amber-50 p-3 rounded-xl border border-amber-200">
+              <p className="text-xs text-amber-700 font-semibold bg-amber-50 p-3 rounded-xl border border-amber-200">
                 Tidak ada pilihan kurir otomatis yang tersedia untuk lokasi ini ({formData.district || formData.destination_area_id}). Silakan ketik dan pilih ulang kecamatan dari menu pencarian di atas.
               </p>
             ) : (
@@ -780,6 +684,10 @@ function EditCustomerDialog({
                 Pilih layanan kurir untuk lokasi COD yang baru sebelum menyimpan.
               </p>
             )}
+          </div>
+
+          </div>
+          <aside className="space-y-3 md:sticky md:top-0 md:self-start">
           {/* Ringkasan Real-Time Total Order (Preview) */}
           {(() => {
             const itemTotal =
@@ -800,15 +708,13 @@ function EditCustomerDialog({
               : orderAmount;
             return (
               <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-1.5 text-xs">
-                <span className="font-bold text-slate-700 text-[10px] uppercase tracking-wider block">
-                  Ringkasan Total Order (Preview Setelah Simpan)
-                </span>
+                <span className="block text-sm font-semibold text-slate-900">Total setelah disimpan</span>
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal Produk</span>
                   <span className="font-semibold text-slate-900">{currency(itemTotal)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Biaya Pengiriman (Ongkir Baru)</span>
+                  <span>Ongkir</span>
                   <span className="font-semibold text-emerald-700">{currency(newShippingCost)}</span>
                 </div>
                 {discount > 0 && (
@@ -823,41 +729,35 @@ function EditCustomerDialog({
                     <span className="font-semibold text-slate-900">{currency(codFee.totalFee)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-black text-sm text-slate-900 pt-1.5 border-t border-slate-200">
-                  <span>Total Tagihan Order</span>
+                <div className="flex justify-between font-semibold text-sm text-slate-900 pt-1.5 border-t border-slate-200">
+                  <span>Total tagihan</span>
                   <span className="text-emerald-700">{currency(newTotalAmount)}</span>
                 </div>
               </div>
             );
           })()}
-          </div>
-
-          <DialogFooter className="border-t border-slate-100 pt-4">
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={loading}
-              className="h-10 text-xs font-bold"
+              className="w-full"
             >
               Batal
             </Button>
             <Button
               type="submit"
               disabled={loading || (!customerDirty && !selectedRateChanged)}
-              className="h-10 text-xs font-bold"
+              className="w-full"
             >
               {loading ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
           </DialogFooter>
+          </aside>
         </form>
       </DialogContent>
     </Dialog>
-    {!customerEditable && (
-      <span className="max-w-52 text-right text-[10px] leading-snug text-slate-500">
-        Terkunci: shipment Mengantar sudah dibuat.
-      </span>
-    )}
     </div>
   );
 }
@@ -1165,9 +1065,9 @@ export function OrderDetail({ invoice }: { invoice: string }) {
     return (
       <section className="rounded-xl border border-rose-200 bg-white p-8 text-center shadow-sm max-w-xl mx-auto my-12" role="alert">
         <ShieldAlert className="size-12 text-rose-500 mx-auto mb-3" />
-        <h2 className="text-xl font-black text-slate-950">Detail Order Tidak Ditemukan</h2>
+        <h2 className="text-xl font-semibold text-slate-950">Detail Order Tidak Ditemukan</h2>
         <p className="mt-2 text-xs font-semibold text-slate-600">{error || "Sistem tidak dapat menemukan record invoice ini."}</p>
-        <a href="/admin/orders" className="inline-flex items-center gap-2 mt-6 h-10 px-5 rounded-xl bg-slate-900 text-xs font-bold text-white hover:bg-slate-800 transition-colors">
+        <a href="/admin/orders" className="inline-flex items-center gap-2 mt-6 h-10 px-5 rounded-xl bg-slate-900 text-xs font-semibold text-white hover:bg-slate-800 transition-colors">
           <ArrowLeft className="size-4" />
           Kembali ke Daftar Order
         </a>
@@ -1255,10 +1155,10 @@ export function OrderDetail({ invoice }: { invoice: string }) {
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <a
             href="/admin/orders"
-            className="inline-flex items-center gap-1.5 text-xs font-extrabold text-slate-600 hover:text-slate-950 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition-colors hover:text-slate-950"
           >
-            <ArrowLeft className="size-4" />
-            <span>Kembali ke Daftar Order</span>
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            <span>Kembali ke daftar order</span>
           </a>
 
           <div className="flex items-center gap-2">
@@ -1267,12 +1167,10 @@ export function OrderDetail({ invoice }: { invoice: string }) {
             <Button
               type="button"
               variant="destructive"
-              size="sm"
               onClick={() => void deleteOrder()}
               disabled={saving}
-              className="h-8.5 px-3 rounded-lg font-extrabold text-xs"
             >
-              <Trash2 className="mr-1.5 size-3.5" />
+              <Trash2 aria-hidden="true" />
               Hapus
             </Button>
           </div>
@@ -1281,22 +1179,22 @@ export function OrderDetail({ invoice }: { invoice: string }) {
         <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className={`gap-1.5 text-[10px] font-black uppercase tracking-wider ${paymentStatusStyle}`}>
+              <Badge variant="outline" className={`gap-1.5 text-xs font-medium ${paymentStatusStyle}`}>
                 <span className={`size-1.5 shrink-0 rounded-full ${paymentDotColor}`} aria-hidden="true" />
                 {paymentLabels[paymentStatus] || order.payment_status}
               </Badge>
-              <Badge variant="outline" className={`gap-1.5 text-[10px] font-black uppercase tracking-wider ${shippingStatusBadges[order.shipping_status] || "bg-slate-100 text-slate-800"}`}>
+              <Badge variant="outline" className={`gap-1.5 text-xs font-medium ${shippingStatusBadges[order.shipping_status] || "bg-slate-100 text-slate-800"}`}>
                 <span className={`size-1.5 shrink-0 rounded-full ${shippingStatusDots[order.shipping_status] || "bg-slate-400"}`} aria-hidden="true" />
                 {shippingLabels[order.shipping_status] || order.shipping_status}
               </Badge>
-              <Badge variant="outline" className={`text-[10px] font-black uppercase tracking-wider ${risk.style}`}>
+              <Badge variant="outline" className={`text-xs font-medium ${risk.style}`}>
                 {risk.label}
               </Badge>
               <TrafficSourceBadge adClickIds={order.ad_click_ids} />
             </div>
 
             <div className="mt-2 flex items-center gap-3">
-              <h2 className="font-mono text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
+              <h2 className="font-mono text-xl font-semibold tracking-tight text-slate-950 md:text-2xl">
                 {order.order_number}
               </h2>
               <button
@@ -1308,7 +1206,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                     "Nomor order",
                   )
                 }
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md transition-colors"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md transition-colors"
                 title="Salin nomor order"
               >
                 {copiedTarget === "invoice" ? (
@@ -1321,29 +1219,24 @@ export function OrderDetail({ invoice }: { invoice: string }) {
             </div>
 
             <p className="mt-1 text-xs text-slate-500">
-              Dibuat pada {formatDate(order.created_at)} · ID Internal <span className="font-mono font-bold">{order.id}</span>
+              Dibuat pada {formatDate(order.created_at)} · ID Internal <span className="font-mono font-semibold">{order.id}</span>
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-600">Status:</span>
-              <Select
-                value={order.shipping_status}
-                disabled={saving}
-                onValueChange={(value) => value && void updateStatus(value)}
-              >
-                <SelectTrigger className="min-w-44 font-bold">
-                  <SelectValue>{shippingLabels[order.shipping_status] || order.shipping_status}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {shippingLabels[value] || value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <span className="text-sm text-slate-600">Status</span>
+              <div className="w-52">
+                <FilterSelect
+                  id="order-shipping-status"
+                  ariaLabel="Status pengiriman"
+                  icon={Truck}
+                  value={order.shipping_status}
+                  onValueChange={(value) => void updateStatus(value)}
+                  disabled={saving}
+                  options={statusOptions.map((value) => ({ value, label: shippingLabels[value] || value }))}
+                />
+              </div>
             </div>
 
             {safePhone && (
@@ -1351,7 +1244,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 href={`https://wa.me/${waNumber}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-9.5 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors"
+                className="inline-flex h-9.5 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition-colors"
               >
                 <Phone className="size-3.5" />
                 <span>Chat WhatsApp</span>
@@ -1361,7 +1254,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
         </div>
 
         {notice && (
-          <div className="mt-3 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-bold text-slate-700 flex items-center justify-between">
+          <div className="mt-3 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-semibold text-slate-700 flex items-center justify-between">
             <span>{notice}</span>
             {saving && <RefreshCw className="size-3.5 animate-spin text-slate-500" />}
           </div>
@@ -1375,26 +1268,26 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           {/* Customer & Address Card */}
           <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6">
-              <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <MapPin className="size-4 text-slate-600" />
-                <span>Identitas Pemesan & Alamat Pengiriman</span>
+                <span>Pembeli & alamat</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 sm:p-6 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Nama Lengkap</span>
-                  <p className="mt-1 text-base font-black text-slate-950">{order.customer_name || "—"}</p>
+                  <span className="block text-xs text-slate-500">Nama Lengkap</span>
+                  <p className="mt-1 text-base font-semibold text-slate-950">{order.customer_name || "—"}</p>
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Nomor HP / WhatsApp</span>
-                  <p className="mt-1 font-mono text-sm font-black text-slate-950">{safePhone || "—"}</p>
+                  <span className="block text-xs text-slate-500">Nomor HP / WhatsApp</span>
+                  <p className="mt-1 font-mono text-sm font-semibold text-slate-950">{safePhone || "—"}</p>
                 </div>
               </div>
 
               <div className="border-t border-slate-100 pt-4">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <span className="block text-xs text-slate-500">
                     Alamat Jalan
                   </span>
                   <button
@@ -1407,7 +1300,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                         "Alamat pelanggan",
                       )
                     }
-                    className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                     title="Salin alamat lengkap pelanggan"
                   >
                     {copiedTarget === "address" ? (
@@ -1425,9 +1318,9 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                   {[order.district, order.city, order.province].filter(Boolean).join(", ")} {order.postal_code || ""}
                 </p>
                 {order.destination_area_id && (
-                  <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md">
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-mono text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md">
                     <span>ID Area Mengantar:</span>
-                    <strong className="font-bold text-slate-800">{order.destination_area_id}</strong>
+                    <strong className="font-semibold text-slate-800">{order.destination_area_id}</strong>
                   </p>
                 )}
               </div>
@@ -1437,11 +1330,11 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           {/* Ordered Products Card */}
           <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6 flex flex-row items-center justify-between">
-              <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <Package className="size-4 text-slate-600" />
-                <span>Rincian Produk Dipesan</span>
+                <span>Produk</span>
               </CardTitle>
-              <span className="rounded-full bg-slate-200/70 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+              <span className="rounded-full bg-slate-200/70 px-2 py-0.5 text-xs font-semibold text-slate-700">
                 {items.length} item
               </span>
             </CardHeader>
@@ -1454,7 +1347,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 items.map((item) => (
                   <div key={item.id} className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
                     <div className="min-w-0">
-                      <h3 className="font-black text-sm text-slate-950 truncate">
+                      <h3 className="font-semibold text-sm text-slate-950 truncate">
                         {item.product_title || "Produk"}
                       </h3>
                       <p className="mt-0.5 text-xs text-slate-500 font-medium">
@@ -1463,10 +1356,10 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-black text-sm text-slate-950">
+                      <p className="font-semibold text-sm text-slate-950">
                         {currency(item.unit_price * item.quantity)}
                       </p>
-                      <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+                      <p className="mt-0.5 text-xs font-semibold text-slate-500">
                         {item.quantity} x {currency(item.unit_price)}
                       </p>
                     </div>
@@ -1479,23 +1372,23 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           {/* Mengantar Expedition & Tracking Card */}
           <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6">
-              <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <Truck className="size-4 text-slate-600" />
-                <span>Pengiriman & Ekspedisi Mengantar</span>
+                <span>Pengiriman</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 sm:p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Kurir & Layanan</span>
-                  <p className="mt-1 text-sm font-black text-slate-900">
-                    {[order.courier_code, order.courier_service].filter(Boolean).join(" · ").toUpperCase() || "Belum dipilih"}
+                  <span className="block text-xs text-slate-500">Kurir & Layanan</span>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {order.courier_code ? courierServiceLabel(order.courier_code, order.courier_service) : "Belum dipilih"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Nomor Resi</span>
+                  <span className="block text-xs text-slate-500">Nomor Resi</span>
                   <div className="mt-1 flex items-center gap-2">
-                    <p className={`min-w-0 break-all font-mono text-sm font-black ${order.cnote_no ? "text-emerald-700" : "text-amber-700"}`}>
+                    <p className={`min-w-0 break-all font-mono text-sm font-semibold ${order.cnote_no ? "text-emerald-700" : "text-amber-700"}`}>
                       {order.cnote_no || "Belum diterbitkan"}
                     </p>
                     {order.cnote_no && (
@@ -1524,22 +1417,22 @@ export function OrderDetail({ invoice }: { invoice: string }) {
 
               <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Gudang Pengirim</span>
-                  <p className="mt-1 text-xs font-bold text-slate-800">
+                  <span className="block text-xs text-slate-500">Gudang Pengirim</span>
+                  <p className="mt-1 text-xs font-semibold text-slate-800">
                     {order.warehouse_name || "Default Warehouse"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">ID Provider Order</span>
-                  <p className="mt-1 break-all font-mono text-xs font-bold text-slate-800">
+                  <span className="block text-xs text-slate-500">ID Provider Order</span>
+                  <p className="mt-1 break-all font-mono text-xs font-semibold text-slate-800">
                     {order.provider_order_id || "—"}
                   </p>
                 </div>
               </div>
 
               {order.provider_dispatch_error && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-800">
-                  <p className="font-black text-rose-900">Gagal Push ke Mengantar:</p>
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
+                  <p className="font-semibold text-rose-900">Gagal Push ke Mengantar:</p>
                   <p className="mt-0.5 font-normal leading-relaxed">{order.provider_dispatch_error}</p>
                 </div>
               )}
@@ -1550,7 +1443,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                     type="button"
                     onClick={() => void pushToMengantar()}
                     disabled={saving || !canConfirm}
-                    className="w-full h-11 text-xs font-bold rounded-xl"
+                    className="w-full"
                   >
                     {!paymentReady
                       ? "Menunggu Pembayaran Online"
@@ -1562,7 +1455,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
               ) : (
                 <a
                   href={`/admin/shipping?order=${encodeURIComponent(order.order_number)}`}
-                  className={cn(buttonVariants({ variant: "outline" }), "w-full h-10 text-xs font-bold rounded-xl mt-2")}
+                  className={cn(buttonVariants({ variant: "outline" }), "w-full h-10 text-xs font-semibold rounded-xl mt-2")}
                 >
                   <ExternalLink className="mr-1.5 size-3.5" />
                   Lihat Manajemen Resi & Tracking
@@ -1577,22 +1470,22 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           {/* Payment Summary Card */}
           <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6">
-              <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <CreditCard className="size-4 text-slate-600" />
-                <span>Ringkasan Pembayaran</span>
+                <span>Pembayaran</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 sm:p-6 space-y-3 text-xs">
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-medium">Metode Pembayaran</span>
-                <span className="font-bold text-slate-900">
+                <span className="font-semibold text-slate-900">
                   {paymentMethodLabels[order.payment_method] || String(order.payment_method || "COD").toUpperCase()}
                 </span>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-medium">Status Pembayaran</span>
-                <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase ${paymentStatusStyle}`}>
+                <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium ${paymentStatusStyle}`}>
                   <span className={`size-1.5 shrink-0 rounded-full ${paymentDotColor}`} aria-hidden="true" />
                   {paymentLabels[paymentStatus] || order.payment_status}
                 </span>
@@ -1601,28 +1494,28 @@ export function OrderDetail({ invoice }: { invoice: string }) {
               <div className="border-t border-slate-100 pt-3 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 font-medium">Subtotal Produk</span>
-                  <span className="font-bold text-slate-900">
+                  <span className="font-semibold text-slate-900">
                     {currency(items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0))}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 font-medium">Biaya Ongkir</span>
-                  <span className="font-bold text-slate-900">{currency(order.shipping_cost || 0)}</span>
+                  <span className="font-semibold text-slate-900">{currency(order.shipping_cost || 0)}</span>
                 </div>
 
                 {order.payment_method === "cod" && (
                   <>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500 font-medium">Biaya COD (3%)</span>
-                      <span className="font-bold text-slate-900">{currency(order.cod_service_fee || 0)}</span>
+                      <span className="font-semibold text-slate-900">{currency(order.cod_service_fee || 0)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500 font-medium">PPN 11% (dari Fee COD)</span>
-                      <span className="font-bold text-slate-900">{currency(order.cod_service_fee_vat || 0)}</span>
+                      <span className="font-semibold text-slate-900">{currency(order.cod_service_fee_vat || 0)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500 font-medium">Penanggung Fee COD</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${order.cod_fee_bearer === "buyer" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>
+                      <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${order.cod_fee_bearer === "buyer" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}>
                         {order.cod_fee_bearer === "buyer" ? "Pembeli" : "Seller"}
                       </span>
                     </div>
@@ -1631,8 +1524,8 @@ export function OrderDetail({ invoice }: { invoice: string }) {
               </div>
 
               <div className="border-t-2 border-slate-900 pt-3 flex justify-between items-center">
-                <span className="font-black text-slate-950 text-sm">Total Tagihan</span>
-                <span className="font-black text-emerald-700 text-lg">
+                <span className="font-semibold text-slate-950 text-sm">Total Tagihan</span>
+                <span className="font-semibold text-emerald-700 text-lg">
                   {currency(order.total_amount || 0)}
                 </span>
               </div>
@@ -1642,42 +1535,39 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           {/* Receiver Risk Card */}
           <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6">
-              <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <ShieldAlert className="size-4 text-slate-600" />
-                <span>Riwayat & Performa Penerima (RTS)</span>
+                <span>Riwayat penerima (RTS)</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 sm:p-6 space-y-3 text-xs">
               <div className="flex items-baseline justify-between">
-                <span className="font-mono text-3xl font-black text-slate-950">
+                <span className="font-mono text-2xl font-semibold text-slate-950">
                   {order.receiver_delivery_rate == null ? "—" : `${order.receiver_delivery_rate}%`}
                 </span>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${risk.style}`}>
+                <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${risk.style}`}>
                   {risk.label}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500">Tingkat keberhasilan pengiriman historis nomor HP ini.</p>
+              <p className="text-xs text-slate-500">Paket terkirim dari seluruh riwayat nomor ini.</p>
 
               {deliveryTotals && typeof deliveryTotals === "object" && (
-                <div className="rounded-xl bg-slate-50 p-3 text-[11px] text-slate-700 font-medium space-y-1 border border-slate-100">
-                  <p>
-                    <strong className="text-slate-950 font-bold">{deliveryTotals.delivered ?? 0}</strong> terkirim ·{" "}
-                    <strong className="text-rose-700 font-bold">{deliveryTotals.rts ?? 0}</strong> RTS ·{" "}
-                    <strong className="text-blue-700 font-bold">{deliveryTotals.inProgress ?? 0}</strong> diproses
-                  </p>
-                </div>
+                <dl className="grid grid-cols-3 gap-2 border-y py-2 text-center">
+                  <div><dt className="text-xs text-slate-500">Terkirim</dt><dd className="font-mono text-base font-semibold text-emerald-700">{deliveryTotals.delivered ?? 0}</dd></div>
+                  <div><dt className="text-xs text-slate-500">RTS</dt><dd className="font-mono text-base font-semibold text-rose-700">{deliveryTotals.rts ?? 0}</dd></div>
+                  <div><dt className="text-xs text-slate-500">Diproses</dt><dd className="font-mono text-base font-semibold text-sky-700">{deliveryTotals.inProgress ?? 0}</dd></div>
+                </dl>
               )}
 
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={() => void refreshRtsScoring()}
                 disabled={saving}
-                className="w-full h-9 text-xs font-bold rounded-xl mt-2 border-slate-200"
+                className="w-full"
               >
-                <RefreshCw className={cn("mr-1.5 size-3.5", saving && "animate-spin")} />
-                {saving ? "Memeriksa..." : "Cek / Refresh Risiko RTS (Mengantar)"}
+                <RefreshCw className={cn(saving && "animate-spin")} aria-hidden="true" />
+                {saving ? "Memeriksa…" : "Perbarui riwayat"}
               </Button>
             </CardContent>
           </Card>
@@ -1685,11 +1575,11 @@ export function OrderDetail({ invoice }: { invoice: string }) {
           {/* CRM WhatsApp Quick Actions */}
           <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6 flex flex-row items-center justify-between">
-              <CardTitle className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                 <MessageSquare className="size-4 text-slate-600" />
-                <span>CRM Follow-up WhatsApp</span>
+                <span>Follow-up WhatsApp</span>
               </CardTitle>
-              <a href="/admin/settings/crm" className="text-[11px] font-bold text-emerald-700 hover:underline">
+              <a href="/admin/settings/crm" className="text-xs font-semibold text-emerald-700 hover:underline">
                 Pengaturan
               </a>
             </CardHeader>
@@ -1701,7 +1591,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 size="md"
               />
               <div className="mt-4 border-t border-slate-100 pt-4">
-                <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                <p className="mb-2 text-xs text-slate-500">
                   Salin pesan CRM
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -1719,7 +1609,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                             `Template ${step.fullLabel}`,
                           )
                         }
-                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-[11px] font-bold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
+                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
                         title={`Salin ${step.title}`}
                       >
                         {copied ? (

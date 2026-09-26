@@ -710,40 +710,41 @@ export default function PaymentReconciliationQueue() {
                               </p>
                             </TableCell>
                             <TableCell className="pr-4 text-right whitespace-normal">
-                              <Button
-                                type="button"
-                                disabled={!transaction.confirmationEligible || !transaction.providerReference}
-                                onClick={() => openVerification(transaction)}
-                              >
-                                <ShieldCheck aria-hidden="true" />
-                                Verifikasi
-                              </Button>
+                              {/* One row, one size: the check reads first, the confirmation last. */}
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  disabled={
+                                    !transaction.providerReference ||
+                                    inquiries[transaction.id]?.loading
+                                  }
+                                  onClick={() => void runProviderInquiry(transaction)}
+                                >
+                                  {inquiries[transaction.id]?.loading ? (
+                                    <Loader2 className="animate-spin" aria-hidden="true" />
+                                  ) : (
+                                    <Search aria-hidden="true" />
+                                  )}
+                                  Cek AutoLaris
+                                </Button>
+                                <Button
+                                  type="button"
+                                  disabled={!transaction.confirmationEligible || !transaction.providerReference}
+                                  onClick={() => openVerification(transaction)}
+                                >
+                                  <ShieldCheck aria-hidden="true" />
+                                  Verifikasi
+                                </Button>
+                              </div>
                               {(!transaction.confirmationEligible || !transaction.providerReference) && (
-                                <p className="mt-2 max-w-56 text-right text-xs leading-5 text-destructive">
+                                <p className="mt-2 ml-auto max-w-64 text-right text-xs leading-5 text-destructive">
                                   {formatBlockReason(transaction.confirmationBlockReason)}
                                 </p>
                               )}
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="mt-2"
-                                disabled={
-                                  !transaction.providerReference ||
-                                  inquiries[transaction.id]?.loading
-                                }
-                                onClick={() => void runProviderInquiry(transaction)}
-                              >
-                                {inquiries[transaction.id]?.loading ? (
-                                  <Loader2 className="animate-spin" aria-hidden="true" />
-                                ) : (
-                                  <Search aria-hidden="true" />
-                                )}
-                                Cek ke AutoLaris
-                              </Button>
                               {inquiries[transaction.id]?.message && (
                                 <p
-                                  className={`mt-2 max-w-56 text-right text-xs leading-5 ${
+                                  className={`mt-1 ml-auto max-w-64 text-right text-xs leading-5 ${
                                     inquiries[transaction.id].tone === "destructive"
                                       ? "text-destructive"
                                       : "text-muted-foreground"

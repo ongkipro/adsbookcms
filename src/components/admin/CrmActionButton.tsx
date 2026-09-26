@@ -63,7 +63,7 @@ export const CrmActionButton: React.FC<CrmActionButtonProps> = ({
 
   if (variant === 'compact') {
     const sizeClasses = size === 'sm'
-      ? 'h-7 min-w-[28px] px-1.5 text-[11px]'
+      ? 'h-7 min-w-[28px] px-1.5 text-xs'
       : 'h-8 min-w-[32px] px-2 text-xs';
 
     return (
@@ -73,7 +73,7 @@ export const CrmActionButton: React.FC<CrmActionButtonProps> = ({
         rel="noopener noreferrer"
         onClick={handleClick}
         title={title}
-        className={`inline-flex items-center justify-center font-bold rounded transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 ${sizeClasses} ${
+        className={`inline-flex items-center justify-center font-semibold rounded transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 ${sizeClasses} ${
           isClicked
             ? 'bg-slate-900 text-white hover:bg-slate-800 focus:ring-slate-900'
             : 'bg-emerald-800 text-white hover:bg-emerald-900 focus:ring-emerald-800 shadow-xs'
@@ -94,16 +94,16 @@ export const CrmActionButton: React.FC<CrmActionButtonProps> = ({
       // h-11 below sm: this is an <a>, so the shell's `min-height: 2.75rem` mobile
       // rule (which only matches <button> and a.btn-*) never reached it and the ten
       // CRM steps were 32px tap targets on a phone.
-      className={`inline-flex h-11 sm:h-8 items-center justify-between gap-1 rounded-lg px-2 text-xs font-bold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+      className={`inline-flex h-11 sm:h-8 items-center justify-between gap-1 rounded-lg px-2 text-xs font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 ${
         isClicked
           ? 'bg-slate-900 text-white hover:bg-slate-800 focus:ring-slate-900 shadow-xs'
           : 'bg-emerald-800 text-white hover:bg-emerald-900 focus:ring-emerald-800 shadow-xs active:scale-[0.98]'
       } ${!waUrl ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       <span className="hidden sm:inline truncate">{displayText}</span>
-      <span className="inline sm:hidden truncate text-[10px]">{displayMobile}</span>
+      <span className="inline sm:hidden truncate text-xs">{displayMobile}</span>
       {isClicked && (
-        <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-[9px] font-black text-slate-950">
+        <span className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-xs font-semibold text-slate-950">
           ✓
         </span>
       )}

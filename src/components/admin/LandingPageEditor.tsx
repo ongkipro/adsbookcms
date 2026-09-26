@@ -443,18 +443,18 @@ export default function LandingPageEditor({ landingPageId }: Props) {
       {/* Fixed Top Action Header */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-semibold text-sm shrink-0 shadow-xs">
             480
           </div>
           <div>
-            <h2 className="text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <h2 className="text-base font-semibold tracking-tight text-slate-900 flex items-center gap-2">
               {title || (landingPageId ? "Edit Landing Page" : "Buat Landing Page Baru")}
               {isActive ? (
-                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-2 py-0.5">
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs px-2 py-0.5">
                   Published
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="text-[10px] px-2 py-0.5">Draft</Badge>
+                <Badge variant="secondary" className="text-xs px-2 py-0.5">Draft</Badge>
               )}
             </h2>
             <p className="text-xs text-slate-500 font-mono mt-0.5">
@@ -468,22 +468,18 @@ export default function LandingPageEditor({ landingPageId }: Props) {
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              className="h-9 text-xs bg-white border-slate-300"
               onClick={() => window.open(`/${slug}?preview=1`, "_blank")}
             >
-              <Eye className="w-4 h-4 mr-1.5 text-slate-600" /> Live Preview
+              <Eye aria-hidden="true" /> Preview
             </Button>
           )}
 
           <Button
             onClick={handleSave}
             disabled={loading}
-            size="sm"
-            className="h-9 text-xs bg-slate-900 hover:bg-slate-800 text-white font-medium px-4"
           >
-            <CheckCircle2 className="w-4 h-4 mr-1.5" />
-            {loading ? "Menyimpan..." : "Simpan Landing Page"}
+            <CheckCircle2 aria-hidden="true" />
+            {loading ? "Menyimpan…" : "Simpan landing page"}
           </Button>
         </div>
       </div>
@@ -543,15 +539,17 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                   Produk Katalog (D1) <span className="text-red-500">*</span>
                 </label>
                 <Select
+                  items={Object.fromEntries(products.map((product) => [String(product.id), product.title]))}
                   value={productId}
                   onValueChange={(value) => {
                     if (value) setProductId(value);
                   }}
                 >
-                  <SelectTrigger className={`w-full h-11 text-xs bg-white rounded-xl ${!productId ? "border-amber-300 bg-amber-50/30" : "border-slate-300"}`}>
-                    <SelectValue placeholder="-- Pilih Produk Katalog (D1) --" />
+                  <SelectTrigger className="w-full" aria-invalid={!productId || undefined}>
+                    <SelectValue placeholder="Pilih produk" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-96 w-[var(--anchor-width)] min-w-[340px] sm:min-w-[480px] p-1.5 shadow-2xl rounded-xl border border-slate-200 bg-white">
+                  {/* Five rows, then scroll: the catalogue can hold hundreds. */}
+                  <SelectContent alignItemWithTrigger={false} className="max-h-[17.5rem] w-(--anchor-width) min-w-80">
                     {products.map((p) => {
                       const prices = p.variants?.map((v) => v.price) || [];
                       const minPrice = prices.length ? Math.min(...prices) : 0;
@@ -567,38 +565,33 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                         <SelectItem
                           key={p.id}
                           value={String(p.id)}
-                          className="text-xs py-2.5 px-3 border-b border-slate-100/90 last:border-b-0 cursor-pointer focus:bg-slate-100/90 rounded-xl transition-colors my-0.5"
+                          className="py-2"
                         >
-                          <div className="flex items-start justify-between w-full gap-3 min-w-0 py-0.5">
-                            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          <div className="flex w-full min-w-0 items-center justify-between gap-3">
+                            <div className="flex min-w-0 flex-1 items-center gap-2.5">
                               {p.image_url ? (
                                 <img
                                   src={p.image_url}
                                   alt=""
-                                  className="w-9 h-9 rounded-lg border border-slate-200 object-cover shrink-0 mt-0.5 shadow-2xs"
+                                  className="size-9 shrink-0 rounded-md border object-cover"
                                 />
                               ) : (
-                                <div className="w-9 h-9 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                                <div className="grid size-9 shrink-0 place-items-center rounded-md border bg-slate-100">
                                   <Package className="w-4 h-4 text-slate-400" />
                                 </div>
                               )}
                               <div className="min-w-0 flex-1 text-left">
-                                <div
-                                  className="font-semibold text-slate-900 leading-snug line-clamp-2 whitespace-normal break-words"
-                                  title={p.title}
-                                >
+                                <div className="truncate font-medium text-slate-900" title={p.title}>
                                   {p.title}
                                 </div>
-                                <div className="text-[11px] text-slate-500 mt-0.5 font-normal flex items-center gap-1.5">
-                                  {p.category && <span className="capitalize">{p.category}</span>}
-                                  {p.category && <span>•</span>}
-                                  <span>{p.variants?.length || 0} Varian</span>
+                                {/* The price rides the second line so a range never squeezes the title. */}
+                                <div className="truncate text-xs text-slate-500">
+                                  <span className="font-medium text-slate-700 tabular-nums">{priceLabel}</span>
+                                  {p.category && <span className="capitalize"> · {p.category}</span>}
+                                  <span> · {p.variants?.length || 0} varian</span>
                                 </div>
                               </div>
                             </div>
-                            <span className="shrink-0 font-mono font-extrabold text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-lg shadow-2xs self-start mt-0.5">
-                              {priceLabel}
-                            </span>
                           </div>
                         </SelectItem>
                       );
@@ -607,28 +600,24 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                 </Select>
 
                 {selectedProduct && (
-                  <div className="p-3 bg-slate-50/90 rounded-xl border border-slate-200/90 text-xs flex items-center gap-3 mt-2 shadow-2xs">
+                  <div className="mt-2 flex items-center gap-3 text-xs">
                     {selectedProduct.image_url ? (
                       <img
                         src={selectedProduct.image_url}
                         alt={selectedProduct.title}
-                        className="w-10 h-10 rounded-lg border border-slate-200 object-cover shrink-0 shadow-2xs"
+                        className="size-9 shrink-0 rounded-md border object-cover"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-lg border border-slate-200 bg-slate-200/80 flex items-center justify-center shrink-0">
+                      <div className="grid size-9 shrink-0 place-items-center rounded-md border bg-slate-100">
                         <Package className="w-5 h-5 text-slate-400" />
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-slate-900 line-clamp-1" title={selectedProduct.title}>
+                      <div className="truncate font-medium text-slate-900" title={selectedProduct.title}>
                         {selectedProduct.title}
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
-                        <span className="font-mono text-[10px] bg-slate-200/70 text-slate-700 px-1.5 py-0.5 rounded font-bold">
-                          /{selectedProduct.slug}
-                        </span>
-                        <span>•</span>
-                        <span>{selectedProduct.variants?.length || 0} Varian Aktif</span>
+                      <div className="truncate text-slate-500">
+                        <span className="font-mono">/{selectedProduct.slug}</span> · {selectedProduct.variants?.length || 0} varian aktif
                       </div>
                     </div>
                   </div>
@@ -639,7 +628,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
               <div className="pt-2 border-t flex items-center justify-between">
                 <div>
                   <span id="landing-publish-label" className="text-xs font-semibold text-slate-700 block">Status Terbit</span>
-                  <span id="landing-publish-hint" className="text-[11px] text-slate-500">Aktifkan untuk akses publik</span>
+                  <span id="landing-publish-hint" className="text-xs text-slate-500">Aktifkan untuk akses publik</span>
                 </div>
                 <Switch
                   checked={isActive}
@@ -660,7 +649,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
             </CardHeader>
             <CardContent className="space-y-3 pt-3">
               <div className="space-y-1">
-                <label htmlFor="landing-meta-title" className="text-[11px] font-medium text-slate-600">Meta Title</label>
+                <label htmlFor="landing-meta-title" className="text-xs font-medium text-slate-600">Meta Title</label>
                 <Input
                   id="landing-meta-title"
                   placeholder="Judul SEO Google..."
@@ -670,7 +659,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                 />
               </div>
               <div className="space-y-1">
-                <label htmlFor="landing-meta-description" className="text-[11px] font-medium text-slate-600">Meta Description</label>
+                <label htmlFor="landing-meta-description" className="text-xs font-medium text-slate-600">Meta Description</label>
                 <Textarea
                   id="landing-meta-description"
                   placeholder="Deskripsi singkat untuk pencarian Google & WhatsApp preview..."
@@ -691,13 +680,13 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                 <Smartphone className="w-4 h-4 text-blue-600" />
                 Mobile preview (<strong>480px</strong>)
               </span>
-              <span className="text-[11px] text-slate-500">{sections.length} section{sections.length === 1 ? "" : "s"}</span>
+              <span className="text-xs text-slate-500">{sections.length} section{sections.length === 1 ? "" : "s"}</span>
             </div>
 
             {sections.length > 0 && (
               <nav aria-label="Navigasi section" className="flex max-w-[480px] mx-auto gap-1 overflow-x-auto pb-1">
                 {sections.map((section, index) => (
-                  <Button key={section.id} type="button" variant={editingSectionId === section.id ? "secondary" : "outline"} size="sm" onClick={() => focusSection(section.id)} className="h-7 shrink-0 px-2 text-[11px]">
+                  <Button key={section.id} type="button" variant={editingSectionId === section.id ? "secondary" : "outline"} size="sm" onClick={() => focusSection(section.id)} className="shrink-0 px-2">
                     {index + 1}
                   </Button>
                 ))}
@@ -706,11 +695,11 @@ export default function LandingPageEditor({ landingPageId }: Props) {
             {/* Stable Centered Mobile Device Mockup Frame */}
             <div className="w-full max-w-[480px] mx-auto bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden min-h-[680px] flex flex-col">
               {/* Device Header Bar */}
-              <div className="bg-slate-900 px-4 py-2 text-white flex items-center justify-between text-[11px] font-mono">
+              <div className="bg-slate-900 px-4 py-2 text-white flex items-center justify-between text-xs font-mono">
                 <span className="truncate max-w-[300px] text-slate-300">
                   {previewOrigin}/{slug || "preview"}
                 </span>
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-slate-800 text-slate-200 border-slate-700">
+                <Badge variant="outline" className="text-xs px-1.5 py-0 bg-slate-800 text-slate-200 border-slate-700">
                   480px Storefront
                 </Badge>
               </div>
@@ -732,7 +721,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                       {/* Section Header */}
                       <div className="bg-slate-50 px-3 py-2 border-b border-slate-100 flex items-center justify-between text-xs">
                         <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-                          <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[10px] flex items-center justify-center font-bold">
+                          <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-xs flex items-center justify-center font-semibold">
                             {index + 1}
                           </span>
                           {section.type === "html" ? (
@@ -810,7 +799,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                         updateSection(section.id, { content_html: (section.content_html || "") + item.code });
                                       }
                                     }}
-                                    className="text-[10px] px-2 py-1 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 rounded-md font-mono border border-slate-200 shadow-sm transition-colors cursor-pointer"
+                                    className="text-xs px-2 py-1 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 rounded-md font-mono border border-slate-200 shadow-sm transition-colors cursor-pointer"
                                   >
                                     {item.code}
                                   </button>
@@ -849,7 +838,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                   <div className="space-y-2">
                                     <div className="grid grid-cols-2 gap-2">
                                       <div className="space-y-1">
-                                        <label className="text-[11px] font-semibold text-slate-600">Perataan</label>
+                                        <label className="text-xs font-semibold text-slate-600">Perataan</label>
                                         <Select value={section.content_config.align ?? "left"} onValueChange={(align) => align && updateSection(section.id, { content_config: { ...section.content_config, align } })}>
                                           <SelectTrigger aria-label="Perataan teks" ><SelectValue /></SelectTrigger>
                                           <SelectContent>
@@ -861,7 +850,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                       </div>
                                       {section.type === "headline" ? (
                                         <div className="space-y-1">
-                                          <label className="text-[11px] font-semibold text-slate-600">Ukuran</label>
+                                          <label className="text-xs font-semibold text-slate-600">Ukuran</label>
                                           <Select value={section.content_config.size ?? "medium"} onValueChange={(size) => size && updateSection(section.id, { content_config: { ...section.content_config, size } })}>
                                             <SelectTrigger aria-label="Ukuran headline" ><SelectValue /></SelectTrigger>
                                             <SelectContent>
@@ -906,7 +895,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                               </>
                             ) : (
                               <>
-                                {section.type === "headline" && <h2 className="text-xl font-bold">{section.content_config.text || "Headline belum diisi"}</h2>}
+                                {section.type === "headline" && <h2 className="text-xl font-semibold">{section.content_config.text || "Headline belum diisi"}</h2>}
                                 {section.type === "paragraph" && <p className="leading-relaxed">{section.content_config.text || "Paragraf belum diisi"}</p>}
                                 {(section.type === "numbered_list" || section.type === "bullet_list") && (
                                   section.type === "numbered_list"
@@ -925,7 +914,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                             {isEditing ? (
                               <div className="space-y-2 text-xs">
                                 <div>
-                                  <label className="text-[11px] font-semibold text-slate-600">Layout Mode</label>
+                                  <label className="text-xs font-semibold text-slate-600">Layout Mode</label>
                                   <Select
                                     value={section.form_config?.mode || "hybrid"}
                                     onValueChange={(value) => {
@@ -947,7 +936,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                 </div>
 
                                 <div>
-                                  <label className="text-[11px] font-semibold text-slate-600">Varian Default</label>
+                                  <label className="text-xs font-semibold text-slate-600">Varian Default</label>
                                   <Select
                                     value={section.form_config?.selected_variant_id || "none"}
                                     onValueChange={(value) =>
@@ -975,7 +964,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                         >
                                           <div className="flex items-start justify-between w-full gap-3 min-w-0">
                                             <span className="font-medium text-slate-900 line-clamp-2 whitespace-normal break-words leading-snug">{v.title}</span>
-                                            <span className="shrink-0 font-mono font-bold text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md self-start">
+                                            <span className="shrink-0 font-mono font-semibold text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md self-start">
                                               {formatIdr(v.price)}
                                             </span>
                                           </div>
@@ -991,7 +980,7 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                                   <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
                                   <div>
                                     <span className="font-semibold">Native Form Checkout COD</span>
-                                    <div className="text-[10px] text-emerald-700">
+                                    <div className="text-xs text-emerald-700">
                                       Mode: {section.form_config?.mode || "hybrid"} • Anchor: #checkout-form
                                     </div>
                                   </div>
@@ -1009,21 +998,21 @@ export default function LandingPageEditor({ landingPageId }: Props) {
                   <div className="text-center py-20 border border-dashed rounded-xl bg-white space-y-2">
                     <Package className="w-8 h-8 text-slate-300 mx-auto" />
                     <p className="text-xs text-slate-500 font-medium">Canvas Halaman Masih Kosong</p>
-                    <p className="text-[11px] text-slate-400">Klik tombol di bawah untuk menambah section</p>
+                    <p className="text-xs text-slate-400">Klik tombol di bawah untuk menambah section</p>
                   </div>
                 )}
               </div>
 
               {/* Add Section Buttons */}
               <div className="p-3 bg-white border-t border-slate-200 flex flex-wrap items-center justify-center gap-2">
-                <p className="w-full text-center text-[11px] font-medium text-slate-600">Tambah section ke canvas</p>
-                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("headline")} className="h-8 text-xs"><Type className="w-3.5 h-3.5 mr-1" />Headline</Button>
-                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("paragraph")} className="h-8 text-xs"><Type className="w-3.5 h-3.5 mr-1" />Paragraf</Button>
-                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("numbered_list")} className="h-8 text-xs"><List className="w-3.5 h-3.5 mr-1" />Daftar angka</Button>
-                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("bullet_list")} className="h-8 text-xs"><List className="w-3.5 h-3.5 mr-1" />Bullet</Button>
-                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("image")} className="h-8 text-xs"><Image className="w-3.5 h-3.5 mr-1" />Gambar</Button>
-                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={addHtmlSection} className="h-8 text-xs"><Code className="w-3.5 h-3.5 mr-1" />HTML</Button>
-                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={addFormSection} className="h-8 text-xs"><Plus className="w-3.5 h-3.5 mr-1" />Form COD</Button>
+                <p className="w-full text-center text-xs font-medium text-slate-600">Tambah section ke canvas</p>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("headline")} ><Type className="w-3.5 h-3.5 mr-1" />Headline</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("paragraph")} ><Type className="w-3.5 h-3.5 mr-1" />Paragraf</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("numbered_list")} ><List className="w-3.5 h-3.5 mr-1" />Daftar angka</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("bullet_list")} ><List className="w-3.5 h-3.5 mr-1" />Bullet</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={() => addSection("image")} ><Image className="w-3.5 h-3.5 mr-1" />Gambar</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={addHtmlSection} ><Code className="w-3.5 h-3.5 mr-1" />HTML</Button>
+                <Button type="button" variant="outline" size="sm" disabled={loading} onClick={addFormSection} ><Plus className="w-3.5 h-3.5 mr-1" />Form COD</Button>
               </div>
             </div>
           </div>

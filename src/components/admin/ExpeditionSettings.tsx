@@ -20,6 +20,7 @@ import { AlertTriangleIcon, LoaderCircleIcon, RefreshCwIcon, SaveIcon } from 'lu
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Switch } from '../ui/switch';
 import { toast } from 'sonner';
+import { courierDisplayName } from '../../lib/courier-names';
 import { INDONESIAN_PROVINCES } from '../../lib/province';
 
 const PROVINCE_NAMES = new Map(INDONESIAN_PROVINCES.map((province) => [province.code, province.name]));
@@ -58,20 +59,6 @@ type CourierRule = {
   isEnabled: number;
   isCodEnabled: number;
   excludedProvinces: string | null;
-};
-
-const courierNames: Record<string, string> = {
-  JNE: 'JNE Express',
-  SiCepat: 'SiCepat Ekspres',
-  'J&T': 'J&T Express',
-  SAP: 'SAP Express',
-  Ninja: 'Ninja Xpress',
-  Anteraja: 'Anteraja',
-  Lion: 'Lion Parcel',
-  IDexpress: 'ID Express',
-  Paxel: 'Paxel',
-  Pos: 'Pos Indonesia',
-  SPX: 'SPX Express',
 };
 
 // Courier marks served from this install (`public/images/couriers`); a courier
@@ -153,7 +140,7 @@ export function ExpeditionSettings() {
 
   const filteredCouriers = useMemo(() => {
     return couriers.filter((c) => {
-      const name = courierNames[c.courierCode] || c.courierCode;
+      const name = courierDisplayName(c.courierCode);
       const matchesSearch = name.toLowerCase().includes(courierSearch.toLowerCase()) || c.courierCode.toLowerCase().includes(courierSearch.toLowerCase());
       const matchesFilter =
         courierFilter === 'all'
@@ -204,7 +191,7 @@ export function ExpeditionSettings() {
           return next;
         }),
       );
-      toast.success(`${courierNames[courier.courierCode] || courier.courierCode} diperbarui`);
+      toast.success(`${courierDisplayName(courier.courierCode)} diperbarui`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Terjadi kesalahan');
       await load();
@@ -252,7 +239,7 @@ export function ExpeditionSettings() {
   }
 
   if (loadError) {
-    return <section className="rounded-xl border border-rose-200 bg-white p-8 text-center shadow-sm" role="alert"><AlertTriangleIcon className="mx-auto size-8 text-rose-600" aria-hidden="true" /><h2 className="mt-4 text-lg font-black text-slate-950">Ekspedisi gagal dimuat</h2><p className="mt-2 text-sm text-slate-600">{loadError}</p><button type="button" onClick={() => void load()} className="btn-primary mt-5 min-h-11 px-5 text-xs"><RefreshCwIcon className="size-4" aria-hidden="true" /> Coba lagi</button></section>;
+    return <section className="rounded-xl border border-rose-200 bg-white p-8 text-center shadow-sm" role="alert"><AlertTriangleIcon className="mx-auto size-8 text-rose-600" aria-hidden="true" /><h2 className="mt-4 text-base font-semibold text-slate-950">Ekspedisi gagal dimuat</h2><p className="mt-2 text-sm text-slate-600">{loadError}</p><button type="button" onClick={() => void load()} className="btn-primary mt-5"><RefreshCwIcon className="size-4" aria-hidden="true" /> Coba lagi</button></section>;
   }
 
   return (
@@ -267,7 +254,7 @@ export function ExpeditionSettings() {
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-lg font-black tracking-tight text-slate-950">Kebijakan Wilayah Khusus Non-COD</h2>
+            <h2 className="text-base font-semibold tracking-tight text-slate-950">Kebijakan Wilayah Khusus Non-COD</h2>
             <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">
               Pilih provinsi yang tidak boleh menggunakan COD. Kebijakan toko ini terpisah dari pembatasan provinsi milik masing-masing ekspedisi.
             </p>
@@ -276,7 +263,7 @@ export function ExpeditionSettings() {
             type="button"
             onClick={() => void savePolicy()}
             disabled={!policyChanged || policyPending}
-            className="btn-primary min-h-11 shrink-0 px-5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {policyPending ? <LoaderCircleIcon className="size-4 animate-spin" aria-hidden="true" /> : <SaveIcon className="size-4" aria-hidden="true" />}
             Simpan kebijakan
@@ -306,15 +293,15 @@ export function ExpeditionSettings() {
         <div className="border-b border-slate-100 p-5 md:p-6 space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-black tracking-tight text-slate-950">Daftar Ekspedisi</h2>
+              <h2 className="text-base font-semibold tracking-tight text-slate-950">Daftar Ekspedisi</h2>
               <p className="mt-1 text-xs leading-5 text-slate-500">Layanan nonaktif tidak muncul di checkout. COD hanya muncul jika layanan dan COD sama-sama aktif.</p>
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex bg-slate-100 p-1 rounded-lg">
-              <button type="button" onClick={() => setCourierFilter('all')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${courierFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Semua</button>
-              <button type="button" onClick={() => setCourierFilter('active')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${courierFilter === 'active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Aktif</button>
-              <button type="button" onClick={() => setCourierFilter('non_cod')} className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${courierFilter === 'non_cod' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Non-COD</button>
+              <button type="button" onClick={() => setCourierFilter('all')} className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${courierFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Semua</button>
+              <button type="button" onClick={() => setCourierFilter('active')} className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${courierFilter === 'active' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Aktif</button>
+              <button type="button" onClick={() => setCourierFilter('non_cod')} className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${courierFilter === 'non_cod' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>Non-COD</button>
             </div>
             <SearchInput className="w-full max-w-xs" aria-label="Cari ekspedisi" placeholder="Cari ekspedisi" value={courierSearch} onValueChange={setCourierSearch} />
           </div>
@@ -322,44 +309,46 @@ export function ExpeditionSettings() {
         {filteredCouriers.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-slate-500">Tidak ada kurir yang cocok.</p>
         ) : (
-          // Two columns of compact rows: ten couriers fit one screen, and each
-          // row still reads left to right as courier → COD coverage → switches.
-          <ul className="grid grid-cols-1 gap-px bg-slate-100 lg:grid-cols-2">
+          // One card per courier, one line per card: the mark and name, then
+          // the two switches. Coverage shows only when it is restricted.
+          <ul className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 xl:grid-cols-3">
             {filteredCouriers.map((courier) => {
               const enabled = Boolean(courier.isEnabled);
               const codEnabled = Boolean(courier.isCodEnabled);
               const restrictions = courier.excludedProvinces?.split(',').filter(Boolean).length ?? 0;
-              const name = courierNames[courier.courierCode] || courier.courierCode;
+              const name = courierDisplayName(courier.courierCode);
               const logo = courierLogos[courier.courierCode];
               return (
-                <li key={courier.id} className="flex items-center gap-3 bg-white px-5 py-3">
-                  <span className="grid h-8 w-12 shrink-0 place-items-center" aria-hidden="true">
+                <li key={courier.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${enabled ? 'bg-white' : 'bg-slate-50'}`}>
+                  <span className="grid h-8 w-11 shrink-0 place-items-center" aria-hidden="true">
                     {logo ? (
-                      <img src={logo} alt="" className={`max-h-7 max-w-12 object-contain ${enabled ? '' : 'opacity-40 grayscale'}`} loading="lazy" />
+                      <img src={logo} alt="" className={`max-h-7 max-w-11 object-contain ${enabled ? '' : 'opacity-40 grayscale'}`} loading="lazy" />
                     ) : (
                       <span
-                        className="grid size-7 place-items-center rounded-md text-[10px] font-bold text-white"
+                        className="grid size-7 place-items-center rounded-md text-xs font-semibold text-white"
                         style={{ backgroundColor: enabled ? courierColors[courier.courierCode] ?? '#64748b' : '#cbd5e1' }}
                       >
                         {courier.courierCode.slice(0, 3).toUpperCase()}
                       </span>
                     )}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className={`block truncate font-medium ${enabled ? 'text-slate-900' : 'text-slate-400'}`}>{name}</span>
-                    <span className="block text-xs text-slate-500">
-                      {!enabled ? 'Nonaktif di checkout' : restrictions > 0 ? <span className="text-rose-600">{restrictions} provinsi tanpa COD</span> : 'COD semua provinsi'}
-                    </span>
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className={`truncate font-medium ${enabled ? 'text-slate-900' : 'text-slate-400'}`}>{name}</span>
+                    {restrictions > 0 && (
+                      <span className="shrink-0 rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-medium text-rose-700" title={`${restrictions} provinsi tanpa COD`}>
+                        −{restrictions} prov
+                      </span>
+                    )}
                   </span>
-                  <span className="flex shrink-0 items-center gap-4 text-xs text-slate-500">
-                    <span className="flex items-center gap-2">
-                      Layanan
+                  <span className="flex shrink-0 items-center gap-3 text-xs text-slate-500">
+                    <label className="flex items-center gap-1.5">
+                      Aktif
                       <Toggle checked={enabled} disabled={Boolean(pending)} pending={pending === `${courier.id}-enabled`} label={`Layanan ${name}`} onChange={() => void toggle(courier, 'enabled')} />
-                    </span>
-                    <span className="flex items-center gap-2">
+                    </label>
+                    <label className="flex items-center gap-1.5">
                       COD
                       <Toggle checked={codEnabled} disabled={Boolean(pending) || !enabled} pending={pending === `${courier.id}-cod`} label={`COD ${name}`} onChange={() => void toggle(courier, 'cod')} />
-                    </span>
+                    </label>
                   </span>
                 </li>
               );
@@ -429,7 +418,7 @@ function ProvincePicker({
                   {(code: string) => (
                     <ComboboxItem key={code} value={code}>
                       <span className="flex-1">{provinceLabel(code)}</span>
-                      <span className="font-mono text-[10px] text-muted-foreground">{code}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{code}</span>
                     </ComboboxItem>
                   )}
                 </ComboboxCollection>

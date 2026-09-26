@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DistrictCombobox, type DistrictOption } from "@/components/admin/DistrictCombobox";
 import { formatIdr } from "@/lib/format-idr";
+import { courierDisplayName } from "@/lib/courier-names";
 import {
   RISK_COPY,
   etaLabel,
@@ -109,7 +110,7 @@ function ReceiverCheck({ initialPhone }: { initialPhone: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2" className="flex items-center gap-2 text-base font-bold">
+        <CardTitle as="h2" className="flex items-center gap-2 text-base font-semibold">
           <MessageCircle className="size-4 text-muted-foreground" aria-hidden="true" /> Riwayat penerima (RTS)
         </CardTitle>
         <CardDescription>Paket terkirim vs retur untuk nomor ini, dari data Mengantar.</CardDescription>
@@ -159,9 +160,9 @@ function ReceiverCheck({ initialPhone }: { initialPhone: string }) {
             <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-muted/40 p-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Tingkat keberhasilan pengiriman</p>
-                <p id="receiver-rate" className="font-mono text-4xl font-bold">
+                <p id="receiver-rate" className="font-mono text-2xl font-semibold">
                   {formatRate(result.deliveryRate)}
-                  <span className="text-xl text-muted-foreground">%</span>
+                  <span className="text-base text-muted-foreground">%</span>
                 </p>
                 <p className="font-mono text-xs text-muted-foreground">
                   {result.phone} · diperiksa {new Date(result.checkedAt).toLocaleString("id-ID")}
@@ -202,7 +203,7 @@ function ReceiverCheck({ initialPhone }: { initialPhone: string }) {
               ].map(([label, value, tone]) => (
                 <div key={String(label)} className="rounded-lg border border-slate-200 p-3">
                   <dt className="text-xs text-muted-foreground">{label}</dt>
-                  <dd className={`mt-1 font-mono text-2xl font-bold ${tone}`}>{value}</dd>
+                  <dd className={`mt-1 font-mono text-2xl font-semibold ${tone}`}>{value}</dd>
                 </div>
               ))}
             </dl>
@@ -289,7 +290,7 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h2" className="flex items-center gap-2 text-base font-bold">
+        <CardTitle as="h2" className="flex items-center gap-2 text-base font-semibold">
           <Truck className="size-4 text-muted-foreground" aria-hidden="true" /> Cek ongkir multi-kurir
         </CardTitle>
         <CardDescription>Tarif, estimasi tiba, dan COD per kurir.</CardDescription>
@@ -404,8 +405,8 @@ function RateCheck({ defaultOrigin, warehouseName }: { defaultOrigin: DistrictOp
                     {rows.map((rate) => (
                       <TableRow key={`${rate.courier_code}-${rate.courier_service}`}>
                         <TableCell className="font-medium">
-                          <span className="flex items-center gap-2 uppercase">
-                            {rate.courier_code}
+                          <span className="flex items-center gap-2">
+                            {courierDisplayName(rate.courier_code)}
                             {rate.price === cheapest && <Badge variant="secondary" className="normal-case">Termurah</Badge>}
                           </span>
                         </TableCell>

@@ -36,7 +36,7 @@ const primaryActions = mayManageOrders
   <div class="space-y-4 md:space-y-5">
     <header class="flex flex-col gap-3 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-end sm:justify-between sm:pb-5">
       <div>
-        <h2 class="text-2xl font-semibold tracking-[-0.035em] text-slate-950 md:text-3xl">Ringkasan bisnis</h2>
+        <h2 class="text-xl font-semibold tracking-tight text-slate-950 md:text-2xl">Ringkasan bisnis</h2>
         <p class="mt-1 max-w-2xl text-sm leading-5 text-slate-500 md:leading-6">Pantau penjualan, pembayaran, dan risiko operasional dalam satu tampilan.</p>
       </div>
       <div class="grid grid-cols-2 gap-2 sm:flex">
@@ -59,7 +59,7 @@ const primaryActions = mayManageOrders
               <span
                 aria-hidden="true"
                 class:list={[
-                  'mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
+                  'mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
                   step.done ? 'bg-emerald-600 text-white' : 'border border-slate-300 text-transparent',
                 ]}
               >✓</span>

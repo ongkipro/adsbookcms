@@ -200,7 +200,7 @@ export default function OperationalHealth() {
                       <p className="text-xs font-medium text-slate-900">
                         {SIGNAL_TITLES[signal.id]}
                       </p>
-                      <p className="text-[11px] leading-relaxed text-slate-500">
+                      <p className="text-xs leading-relaxed text-slate-500">
                         {REASONS[signal.reason] || signal.reason}
                         {metrics ? ` · ${metrics}` : ""}
                       </p>
@@ -210,7 +210,7 @@ export default function OperationalHealth() {
                           timestamp — and "Terakhir sukses —" beside it reads as a missing
                           measurement rather than an absent one. */}
                       {signal.id !== "alerting" && (
-                        <span className="text-right text-[11px] text-slate-500">
+                        <span className="text-right text-xs text-slate-500">
                           {ageLabel(signal)}
                           <br />
                           <span className="font-medium text-slate-700">
@@ -219,7 +219,7 @@ export default function OperationalHealth() {
                         </span>
                       )}
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium ${STATE_TONE[signal.state]}`}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium ${STATE_TONE[signal.state]}`}
                       >
                         <Icon className="size-3.5" aria-hidden />
                         {STATE_LABEL[signal.state]}
@@ -229,7 +229,7 @@ export default function OperationalHealth() {
                 );
               })}
             </ul>
-            <p className="mt-3 text-[11px] text-slate-500">
+            <p className="mt-3 text-xs text-slate-500">
               Versi {health.build.version} ({health.build.releaseTag}) · skema{" "}
               {health.build.appliedSchemaVersion ?? "?"}/{health.build.expectedSchemaVersion}
               {health.build.schemaState === "match" ? "" : ` · ${health.build.schemaState}`}

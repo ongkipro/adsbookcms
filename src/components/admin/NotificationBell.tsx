@@ -242,7 +242,7 @@ export function NotificationBell() {
         >
           <Bell className="size-[18px]" aria-hidden="true" />
           {unread > 0 && (
-            <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-5 text-white">
+            <span className="absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full bg-red-600 px-1 text-xs font-semibold leading-5 text-white">
               {badge}
             </span>
           )}
@@ -253,13 +253,13 @@ export function NotificationBell() {
         className="w-[min(22rem,calc(100vw-1.5rem))] p-0"
       >
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2.5">
-          <p className="text-xs font-bold text-slate-900">Notifikasi</p>
+          <p className="text-xs font-semibold text-slate-900">Notifikasi</p>
           <div className="flex items-center gap-1">
             {unread > 0 && (
               <button
                 type="button"
                 onClick={markAllRead}
-                className="rounded-lg px-2 py-1 text-[11px] font-bold text-blue-600 transition hover:bg-blue-50"
+                className="rounded-lg px-2 py-1 text-xs font-semibold text-blue-600 transition hover:bg-blue-50"
               >
                 Tandai semua dibaca
               </button>
@@ -310,17 +310,17 @@ export function NotificationBell() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    <span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-900">
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-900">
                       {item.title}
                     </span>
                     {item.unread && (
                       <span className="size-1.5 shrink-0 rounded-full bg-blue-600" aria-hidden="true" />
                     )}
                   </span>
-                  <span className="mt-0.5 block truncate text-[11px] text-slate-600">
+                  <span className="mt-0.5 block truncate text-xs text-slate-600">
                     {item.body}
                   </span>
-                  <span className="mt-0.5 block text-[10px] font-medium text-slate-400">
+                  <span className="mt-0.5 block text-xs font-medium text-slate-400">
                     {relativeTime(item.created_at)}
                   </span>
                 </span>

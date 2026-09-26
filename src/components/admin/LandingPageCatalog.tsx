@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Check,
+  Layers,
   Copy,
   ExternalLink,
   Globe,
@@ -17,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Button, buttonVariants } from "../ui/button";
-import { SearchInput } from "./filter-bar";
+import { FilterSelect, SearchInput } from "./filter-bar";
 import {
   Dialog,
   DialogContent,
@@ -292,7 +293,7 @@ export default function LandingPageCatalog() {
           <div className="flex items-center gap-2">
             <a
               href="/admin/landing-pages/new"
-              className={`${buttonVariants({ variant: "default" })} h-9 text-xs font-medium shrink-0 bg-blue-600 hover:bg-blue-700 text-white`}
+              className={buttonVariants({ variant: "default", className: "shrink-0" })}
             >
               <Plus className="w-3.5 h-3.5 mr-1.5" />
               Buat Landing Page
@@ -315,7 +316,7 @@ export default function LandingPageCatalog() {
               }`}
             >
               Semua
-              <span className="rounded-full bg-slate-200/80 px-1.5 py-0.5 text-[10px] tabular-nums text-slate-700">
+              <span className="rounded-full bg-slate-200/80 px-1.5 py-0.5 text-xs tabular-nums text-slate-700">
                 {pages.length}
               </span>
             </button>
@@ -330,7 +331,7 @@ export default function LandingPageCatalog() {
               }`}
             >
               Published
-              <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] tabular-nums text-emerald-800">
+              <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-xs tabular-nums text-emerald-800">
                 {publishedCount}
               </span>
             </button>
@@ -345,69 +346,22 @@ export default function LandingPageCatalog() {
               }`}
             >
               Draft
-              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] tabular-nums text-amber-800">
+              <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs tabular-nums text-amber-800">
                 {draftCount}
               </span>
             </button>
           </div>
 
-          {/* Source Tabs Filter */}
-          <div className="flex w-full max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-1 text-[11px] font-medium sm:w-auto">
-            <span className="px-2 text-slate-400 font-bold uppercase text-[9px]">Sumber:</span>
-            <button
-              type="button"
-              onClick={() => setSourceFilter("all")}
-              className={`px-2 py-0.5 rounded transition-all ${
-                sourceFilter === "all" ? "bg-white text-slate-900 shadow-xs font-bold" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              Semua
-            </button>
-            <button
-              type="button"
-              onClick={() => setSourceFilter("manual")}
-              className={`px-2 py-0.5 rounded transition-all ${
-                sourceFilter === "manual" ? "bg-white text-blue-700 shadow-xs font-bold" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              CMS Manual
-            </button>
-            <button
-              type="button"
-              onClick={() => setSourceFilter("native")}
-              className={`px-2 py-0.5 rounded transition-all ${
-                sourceFilter === "native" ? "bg-white text-sky-700 shadow-xs font-bold" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              Native Astro
-            </button>
-            <button
-              type="button"
-              onClick={() => setSourceFilter("static")}
-              className={`px-2 py-0.5 rounded transition-all ${
-                sourceFilter === "static" ? "bg-white text-emerald-700 shadow-xs font-bold" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              Static Astro
-            </button>
-            <button
-              type="button"
-              onClick={() => setSourceFilter("ai")}
-              className={`px-2 py-0.5 rounded transition-all ${
-                sourceFilter === "ai" ? "bg-white text-purple-700 shadow-xs font-bold" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              AI Generated
-            </button>
-            <button
-              type="button"
-              onClick={() => setSourceFilter("injected")}
-              className={`px-2 py-0.5 rounded transition-all ${
-                sourceFilter === "injected" ? "bg-white text-amber-700 shadow-xs font-bold" : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              Injected / External
-            </button>
+          {/* A toolbar filter, so the shared FilterSelect: the hand-built segment wrapped "CMS Manual" onto two lines on a phone. */}
+          <div className="w-full sm:w-52">
+            <FilterSelect
+              id="landing-source-filter"
+              ariaLabel="Filter sumber landing page"
+              icon={Layers}
+              value={sourceFilter}
+              onValueChange={(value) => setSourceFilter(value as typeof sourceFilter)}
+              options={[{ value: "all", label: "Semua sumber" }, { value: "manual", label: "CMS Manual" }, { value: "native", label: "Native Astro" }, { value: "static", label: "Static Astro" }, { value: "ai", label: "AI Generated" }, { value: "injected", label: "Injected / External" }]}
+            />
           </div>
         </div>
       </div>
@@ -437,7 +391,7 @@ export default function LandingPageCatalog() {
                       setStatusFilter("all");
                       setSourceFilter("all");
                     }}
-                    className="mt-2 min-h-11 text-xs"
+                    className="mt-2"
                   >
                     Reset Filter
                   </Button>
@@ -502,12 +456,12 @@ export default function LandingPageCatalog() {
                           </a>
                         </h3>
                         {isActive ? (
-                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">
+                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             Published
                           </span>
                         ) : (
-                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
                             Draft
                           </span>
@@ -516,7 +470,7 @@ export default function LandingPageCatalog() {
 
                       {/* Slug + salin link — desktop column 1 */}
                       <div className="mt-2 flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate rounded bg-slate-100 px-1.5 py-1 font-mono text-[11px] text-slate-500">
+                        <span className="min-w-0 flex-1 truncate rounded bg-slate-100 px-1.5 py-1 font-mono text-xs text-slate-500">
                           /{page.slug}
                         </span>
                         <button
@@ -537,24 +491,24 @@ export default function LandingPageCatalog() {
                       {/* Sumber + produk — desktop columns 2 and 3 */}
                       <dl className="mt-3 space-y-2 rounded-lg bg-slate-50/80 p-2.5">
                         <div className="flex items-center justify-between gap-2">
-                          <dt className="text-[10px] font-semibold uppercase text-slate-500">
+                          <dt className="text-xs font-semibold uppercase text-slate-500">
                             Tipe Sumber
                           </dt>
                           <dd>
-                            <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-bold ${srcBadge.color}`}>
+                            <span className={`inline-block px-2 py-0.5 rounded border text-xs font-semibold ${srcBadge.color}`}>
                               {srcBadge.label}
                             </span>
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-[10px] font-semibold uppercase text-slate-500">
+                          <dt className="text-xs font-semibold uppercase text-slate-500">
                             Produk Terkait
                           </dt>
                           <dd className="mt-0.5 break-words text-xs font-medium text-slate-800">
                             {page.product_title || (isStatic ? "Static Landing Page" : "Unknown Product")}
                           </dd>
                           {page.product_id && (
-                            <dd className="mt-1 break-all font-mono text-[10px] text-slate-500">
+                            <dd className="mt-1 break-all font-mono text-xs text-slate-500">
                               ID: {page.product_id}
                             </dd>
                           )}
@@ -593,7 +547,7 @@ export default function LandingPageCatalog() {
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="outline"
-                              className="min-h-11 min-w-11 shrink-0 text-slate-500"
+                              size="icon-lg" className="shrink-0 text-slate-500"
                               aria-label={`Aksi lain untuk ${page.title}`}
                             >
                               <MoreHorizontal className="size-4" />
@@ -649,7 +603,7 @@ export default function LandingPageCatalog() {
                         <Button
                           type="button"
                           variant="outline"
-                          className="mt-2 min-h-11 w-full gap-1.5 text-xs font-semibold"
+                          className="mt-2 w-full gap-1.5"
                           disabled={duplicatingPageId !== null}
                           aria-busy={duplicatingPageId === page.id}
                           aria-label={`Duplikasi Page ${page.title}`}
@@ -699,7 +653,7 @@ export default function LandingPageCatalog() {
                                   {page.title}
                                 </a>
                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                  <span className="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                                     /{page.slug}
                                   </span>
                                   <button
@@ -720,7 +674,7 @@ export default function LandingPageCatalog() {
 
                             {/* Source Badge */}
                             <TableCell className="py-3">
-                              <span className={`inline-block px-2 py-0.5 rounded border text-[10px] font-bold ${srcBadge.color}`}>
+                              <span className={`inline-block px-2 py-0.5 rounded border text-xs font-semibold ${srcBadge.color}`}>
                                 {srcBadge.label}
                               </span>
                             </TableCell>
@@ -732,7 +686,7 @@ export default function LandingPageCatalog() {
                                   {page.product_title || (isStatic ? "Static Landing Page" : "Unknown Product")}
                                 </span>
                                 {page.product_id && (
-                                  <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                                  <span className="text-xs font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
                                     ID: {page.product_id}
                                   </span>
                                 )}
@@ -761,7 +715,7 @@ export default function LandingPageCatalog() {
                                   href={`/${page.slug}?preview=1`}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className={`${buttonVariants({ variant: "ghost", size: "icon" })} w-8 h-8 text-slate-500 hover:text-slate-900`}
+                                  className={buttonVariants({ variant: "ghost", size: "icon", className: "text-slate-500 hover:text-slate-900" })}
                                   title="Preview Live"
                                 >
                                   <ExternalLink className="w-3.5 h-3.5" />
@@ -769,7 +723,7 @@ export default function LandingPageCatalog() {
                                 {!isStatic && (
                                   <a
                                     href={`/admin/landing-pages/${page.id}/edit`}
-                                    className={`${buttonVariants({ variant: "ghost", size: "icon" })} w-8 h-8 text-slate-500 hover:text-slate-900`}
+                                    className={buttonVariants({ variant: "ghost", size: "icon", className: "text-slate-500 hover:text-slate-900" })}
                                     title="Edit Builder"
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
@@ -780,7 +734,7 @@ export default function LandingPageCatalog() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 gap-1.5 px-2 text-[11px] font-semibold"
+                                    className="gap-1.5 px-2"
                                     disabled={duplicatingPageId !== null}
                                     aria-busy={duplicatingPageId === page.id}
                                     aria-label={`Duplikasi Page ${page.title}`}
@@ -802,7 +756,7 @@ export default function LandingPageCatalog() {
 
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="w-8 h-8 text-slate-500 hover:text-slate-900">
+                                    <Button variant="ghost" size="icon" className="text-slate-500 hover:text-slate-900">
                                       <MoreHorizontal className="w-3.5 h-3.5" />
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -866,9 +820,9 @@ export default function LandingPageCatalog() {
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border border-slate-200 bg-white rounded-xl px-5 py-3.5 shadow-xs">
           <p className="text-xs text-slate-500 font-medium">
-            Menampilkan <span className="font-bold text-slate-900">{(page - 1) * itemsPerPage + 1}</span>–
-            <span className="font-bold text-slate-900">{Math.min(page * itemsPerPage, filtered.length)}</span> dari{" "}
-            <span className="font-bold text-slate-900">{filtered.length}</span> landing page
+            Menampilkan <span className="font-semibold text-slate-900">{(page - 1) * itemsPerPage + 1}</span>–
+            <span className="font-semibold text-slate-900">{Math.min(page * itemsPerPage, filtered.length)}</span> dari{" "}
+            <span className="font-semibold text-slate-900">{filtered.length}</span> landing page
           </p>
           <div className="flex items-center gap-1.5">
             <Button
@@ -876,11 +830,11 @@ export default function LandingPageCatalog() {
               size="sm"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="h-8 px-3 text-xs bg-white"
+              className="px-3 bg-white"
             >
               Sebelumnya
             </Button>
-            <div className="flex items-center gap-1 px-2 text-xs font-bold text-slate-700">
+            <div className="flex items-center gap-1 px-2 text-xs font-semibold text-slate-700">
               Halaman {page} dari {totalPages}
             </div>
             <Button
@@ -888,7 +842,7 @@ export default function LandingPageCatalog() {
               size="sm"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              className="h-8 px-3 text-xs bg-white"
+              className="px-3 bg-white"
             >
               Selanjutnya
             </Button>
@@ -927,7 +881,7 @@ export default function LandingPageCatalog() {
               size="sm"
               onClick={() => setPageToDelete(null)}
               disabled={isDeleting}
-              className="text-xs"
+              
             >
               Batal
             </Button>
@@ -936,7 +890,7 @@ export default function LandingPageCatalog() {
               size="sm"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="text-xs bg-red-600 hover:bg-red-700"
+              className="bg-red-600 hover:bg-red-700"
             >
               {isDeleting ? "Menghapus..." : "Ya, Hapus Landing Page"}
             </Button>

@@ -19,24 +19,24 @@ export const prerender = false;
       <span class="sr-only">Memuat pengaturan Headless API.</span>
     </div>
     
-    <div id="devError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-800" role="alert" aria-live="assertive"></div>
+    <div id="devError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert" aria-live="assertive"></div>
 
     <form id="headlessOriginsForm" class="hidden rounded-xl border border-slate-200 bg-white shadow-sm" novalidate aria-busy="false">
       <div class="p-5 md:p-6">
         <div class="flex items-center justify-between">
           <div>
-            <h2 class="text-base font-black text-slate-950">Domain Allowlist Headless API</h2>
+            <h2 class="text-base font-semibold text-slate-950">Domain Allowlist Headless API</h2>
             <p class="mt-1 text-xs leading-5 text-slate-500">
               Daftar domain & subdomain eksternal yang diizinkan mengakses REST API v1. Setiap request tetap wajib membawa API key aktif.
             </p>
           </div>
-          <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-600/20">
+          <span class="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
             API Key Required
           </span>
         </div>
 
         <label class="mt-5 block" for="headlessAllowedOrigins">
-          <span class="mb-1.5 block text-xs font-black text-slate-700">Origin HTTPS & Subdomain Wildcard yang diizinkan</span>
+          <span class="mb-1.5 block text-xs font-semibold text-slate-700">Origin HTTPS & Subdomain Wildcard yang diizinkan</span>
           <textarea
             id="headlessAllowedOrigins"
             rows="5"
@@ -48,7 +48,7 @@ export const prerender = false;
           ></textarea>
         </label>
         
-        <p id="headlessOriginsHelp" class="mt-2 text-[11px] leading-5 text-slate-500">
+        <p id="headlessOriginsHelp" class="mt-2 text-xs leading-5 text-slate-500">
           Satu origin per baris. Format yang didukung:
           <br />• Exact Domain: <code>https://toko.com</code>
           <br />• Wildcard Subdomain: <code>https://*.toko.com</code> (mengizinkan seluruh subdomain seperti app.toko.com, checkout.toko.com)
@@ -57,10 +57,10 @@ export const prerender = false;
       </div>
 
       <div class="flex flex-col gap-3 border-t border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <p id="headlessOriginsStatus" class="min-h-5 text-xs font-bold text-slate-500" role="status" aria-live="polite" aria-atomic="true">
+        <p id="headlessOriginsStatus" class="min-h-5 text-xs font-semibold text-slate-500" role="status" aria-live="polite" aria-atomic="true">
           Perubahan belum ada.
         </p>
-        <button id="saveHeadlessOrigins" type="submit" class="btn-blue min-h-11 w-full px-6 text-xs sm:w-auto">
+        <button id="saveHeadlessOrigins" type="submit" class="btn-blue w-full sm:w-auto">
           Simpan domain allowlist
         </button>
       </div>
@@ -70,7 +70,7 @@ export const prerender = false;
 
     <!-- Headless API Reference Cards -->
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-      <h2 class="text-base font-black text-slate-950">Dokumentasi REST API v1</h2>
+      <h2 class="text-base font-semibold text-slate-950">Dokumentasi REST API v1</h2>
       <p class="mt-1 text-xs leading-5 text-slate-500">
         Endpoint Headless API terautentikasi yang dapat dipanggil dari frontend kustom menggunakan API key aktif.
       </p>
@@ -78,48 +78,48 @@ export const prerender = false;
       <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
         <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
           <div class="flex items-center gap-2">
-            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">GET</span>
-            <code class="font-bold text-slate-900">/api/v1/storefront</code>
+            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-xs font-semibold text-white">GET</span>
+            <code class="font-semibold text-slate-900">/api/v1/storefront</code>
           </div>
           <p class="mt-1 text-slate-600">Ambil konfigurasi toko, nama merchant, dan info branding.</p>
         </div>
 
         <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
           <div class="flex items-center gap-2">
-            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">GET</span>
-            <code class="font-bold text-slate-900">/api/v1/products</code>
+            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-xs font-semibold text-white">GET</span>
+            <code class="font-semibold text-slate-900">/api/v1/products</code>
           </div>
           <p class="mt-1 text-slate-600">Daftar katalog produk aktif, varian, dan harga.</p>
         </div>
 
         <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
           <div class="flex items-center gap-2">
-            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">GET</span>
-            <code class="font-bold text-slate-900">/api/v1/products/:slug</code>
+            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-xs font-semibold text-white">GET</span>
+            <code class="font-semibold text-slate-900">/api/v1/products/:slug</code>
           </div>
           <p class="mt-1 text-slate-600">Detail produk spesifik berdasarkan slug.</p>
         </div>
 
         <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
           <div class="flex items-center gap-2">
-            <span class="rounded bg-emerald-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">POST</span>
-            <code class="font-bold text-slate-900">/api/v1/checkout</code>
+            <span class="rounded bg-emerald-600 px-1.5 py-0.5 font-mono text-xs font-semibold text-white">POST</span>
+            <code class="font-semibold text-slate-900">/api/v1/checkout</code>
           </div>
           <p class="mt-1 text-slate-600">Submit pesanan checkout (COD & Non-COD) dari form kustom.</p>
         </div>
 
         <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
           <div class="flex items-center gap-2">
-            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">GET</span>
-            <code class="font-bold text-slate-900">/api/v1/geo/districts?q=...</code>
+            <span class="rounded bg-blue-600 px-1.5 py-0.5 font-mono text-xs font-semibold text-white">GET</span>
+            <code class="font-semibold text-slate-900">/api/v1/geo/districts?q=...</code>
           </div>
           <p class="mt-1 text-slate-600">Pencarian cepat nama kecamatan/kota pelanggan.</p>
         </div>
 
         <div class="rounded-lg border border-slate-100 bg-slate-50 p-3.5 text-xs">
           <div class="flex items-center gap-2">
-            <span class="rounded bg-indigo-600 px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">POST</span>
-            <code class="font-bold text-slate-900">/api/v1/geo/shipping-rates</code>
+            <span class="rounded bg-indigo-600 px-1.5 py-0.5 font-mono text-xs font-semibold text-white">POST</span>
+            <code class="font-semibold text-slate-900">/api/v1/geo/shipping-rates</code>
           </div>
           <p class="mt-1 text-slate-600">Kalkulasi otomatis opsi kurir & tarif ongkir ke lokasi tujuan.</p>
         </div>
@@ -140,7 +140,7 @@ export const prerender = false;
       status.setAttribute('role', state === 'error' ? 'alert' : 'status');
       status.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
       status.textContent = message;
-      status.className = `min-h-5 text-xs font-bold ${
+      status.className = `min-h-5 text-xs font-semibold ${
         state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'
       }`;
     };

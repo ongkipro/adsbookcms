@@ -12,7 +12,7 @@ import '../styles/form-hybrid.css';
 import '../styles/landing-pages/landing.css';
 import { defaultCatalogContentId } from '../lib/catalog-feed';
 import SocialProofToast from '../components/storefront/shared/SocialProofToast.astro';
-import { cardImageSrc } from '../lib/image-derivative';
+import { recentOrderCount } from '../lib/social-proof';
 
 export const prerender = false;
 
@@ -51,6 +51,8 @@ const product = await getStorefrontProduct(Astro.locals, page.product_id);
 if (!product) {
   return Astro.rewrite('/404');
 }
+// The store's real orders (A-300); under the threshold the toast renders nothing.
+const socialProofOrders = await recentOrderCount(getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined);
 
 // When this page has taken over the product's page, the product URL is its
 // only address, so a direct visit to the landing slug is sent there.
@@ -133,8 +135,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
       section is merchant-authored, so the hero blocker is left unset and only
       the checkout form suppresses the toast. */}
   <SocialProofToast
-    productLabel={product.productName}
-    productImage={cardImageSrc(product.heroImage)}
+    orderCount={socialProofOrders}
     heroSelector=""
     formSelector="#checkout-form"
   />

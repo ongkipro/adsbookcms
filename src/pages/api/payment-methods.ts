@@ -8,6 +8,7 @@ import { getRuntimeEnv } from "../../lib/env";
 import { getProviderConfig } from "../../lib/provider-config";
 import {
   calculatePaymentAdminFee,
+  COD_EFFECTIVE_RATE_LABEL,
   COD_SERVICE_FEE_RATE,
   COD_SERVICE_FEE_VAT_RATE,
   normalizePaymentFeeBearer,
@@ -112,7 +113,7 @@ export const GET: APIRoute = async ({ locals }) => {
           admin_fee_vat_rate: COD_SERVICE_FEE_VAT_RATE,
           fee_bearer: codFeeBearer,
           fee_basis: "merchandise_plus_shipping",
-          fee_description: "Biaya layanan 3% + PPN 11% dari biaya layanan",
+          fee_description: `Biaya COD ${COD_EFFECTIVE_RATE_LABEL} dari harga + ongkir, sudah termasuk PPN`,
           is_active: isCodEnabled,
         },
         ...AUTOLARIS_CHANNEL_OPTIONS.map((channel) => {

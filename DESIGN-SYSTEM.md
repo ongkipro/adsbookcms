@@ -1,6 +1,6 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-09-26 @ `499f2ee` + working tree (control contract, type anatomy, responsive)
+> Verified against disk: 2026-09-26 @ `01f87ed` + working tree (control contract, type anatomy, responsive)
 >
 > **The public palette is neutral plus one overridable accent (ADR-019, as
 > amended 2026-08-23).** Colour tokens below that describe the retired gold
@@ -472,6 +472,9 @@ geometry; a caller never does.
   (the unmerged base `border-transparent` used to win and drew outline
   buttons borderless). Guards: `admin-controls.test.ts` refuses geometry on
   `<Button>` and on any `.btn-*` class string.
+- A destructive action confirms through `useConfirm`
+  (`components/admin/useConfirm.tsx`), a shadcn Dialog naming the
+  consequence and the action — never `window.confirm`, which a guard refuses.
 - A filter toolbar is `FilterBar` + `FilterField` (one label style, a width from
   `size`, wraps instead of overlapping) from `components/admin/filter-bar.tsx`.
 - Search is `SearchInput` from the same file — an `InputGroup` with the icon as

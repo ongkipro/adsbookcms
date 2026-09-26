@@ -23,6 +23,15 @@ export type PaymentFeeBearer = "buyer" | "seller";
 export const COD_SERVICE_FEE_RATE = 0.03;
 export const COD_SERVICE_FEE_VAT_RATE = 0.11;
 
+/**
+ * The two rates as the one figure a buyer or operator reads: 3% × 1.11 =
+ * "3,33%" of price + shipping, VAT included. Derived from the rates so the
+ * copy moves with them. It describes the price; the charge itself is still
+ * computed in two rounded-up parts, which is why a bill can sit a rupiah or
+ * two above a flat 3,33%.
+ */
+export const COD_EFFECTIVE_RATE_LABEL = `${(COD_SERVICE_FEE_RATE * (1 + COD_SERVICE_FEE_VAT_RATE) * 100).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%`;
+
 export type CodFeeBreakdown = {
   baseAmount: number;
   serviceFee: number;

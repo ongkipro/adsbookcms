@@ -36,29 +36,3 @@ export function isToastBlocked(blockers: SocialProofBlockers): boolean {
     blockers.tabHidden
   );
 }
-
-/**
- * Fisher-Yates. `sort(() => Math.random() - 0.5)` is not a uniform shuffle:
- * its comparator is inconsistent, so some orderings appear far more often
- * than others — a "random" rotation that visibly repeats.
- *
- * `random` is injected so a test can pin the permutation instead of asserting
- * on chance.
- */
-export function shuffleBuyers<T>(
-  list: readonly T[],
-  random: () => number = Math.random,
-): T[] {
-  const shuffled = [...list];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
-}
-
-/** Rotates through the buyer list, wrapping at the end rather than stopping. */
-export function nextBuyerIndex(current: number, total: number): number {
-  if (total <= 0) return 0;
-  return (current + 1) % total;
-}

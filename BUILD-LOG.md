@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `499f2ee` + working tree
+> Verified against disk: 2026-09-26 @ `01f87ed` + working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6007,4 +6007,41 @@ hourly Advice job, then the same `INV-` Purchase; `gclid` and `_fbc` on every
 order; Purchase value is the product value (shipping and fees excluded, as
 TRACKING_SPECS §10 intends). 777 tests, `astro check` 0 errors. Not verified:
 CAPI delivery to Meta and a live Google Ads account.
+
+## 2026-09-26 — Social proof from real orders (A-300)
+
+The purchase toast on product and landing pages rotated twenty invented buyers
+with a verified badge — a fabricated purchase claim, and the kind an ad
+platform or a consumer regulator reads as misleading. The owner chose a real
+aggregate over removal, and made it store-wide: a store runs many landing
+pages, and one number per store is true on all of them. `recentOrderCount`
+counts the store's orders in the last 24 hours at render, excluding void
+(`stock_restored_at`), cancelled and returned; below three, or on a failed
+query, the toast does not render. It shows once per page view — a timer
+repeating one real sentence would read as a stream of orders that did not
+happen. The product thumbnail gave way to a bag icon, since a store-wide
+number beside one product's photo reads as that product's number.
+
+Verified: SSR renders "34 orang memesan dalam 24 jam terakhir" on a product
+page and a landing page (34 is this local store's real count); on a phone the
+toast shows below the hero, hides after 8s and does not return; the landing
+page used for the check keeps it hidden because its form is on screen from
+the top, as designed. 776 tests — three tests of the deleted rotation code
+went with it, three new ones cover the threshold, the query and the absence
+of invented buyers.
+
+## 2026-09-26 — Confirmations, bank form, one COD figure (A-305, A-313)
+
+`window.confirm` guarded four destructive actions and could not say what
+would happen in the admin's own terms; `useConfirm` is a promise-returning
+shadcn Dialog, so each call site stayed one line. Verified in the browser:
+"Hapus pesanan INV-10036?" opens, Batal closes it and the order remains.
+
+The seller bank form had four fields squeezed into one row; it is stacked now,
+and the bank select shows logos in the list and the trigger. The owner asked
+whether the COD fee is simply 3,33% — it is (3% × 1.11), so the copy says so
+on the settings page and to the buyer at checkout, from a label derived from
+the two rates. The charge stays two rounded-up parts, as Mengantar bills it;
+a test holds it within Rp2 of the flat figure. 778 tests. One unrelated test
+failed once and did not recur in five further runs; it was not identified.
 

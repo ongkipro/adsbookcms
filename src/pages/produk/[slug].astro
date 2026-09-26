@@ -9,7 +9,8 @@ import RatingStars from '../../components/storefront/shared/RatingStars.astro';
 import GeoIpResolvedForm from '../../components/storefront/forms/GeoIpResolvedForm.astro';
 import ProductImageGallery from '../../components/storefront/ProductImageGallery.astro';
 import SocialProofToast from '../../components/storefront/shared/SocialProofToast.astro';
-import { cardImageSrc } from '../../lib/image-derivative';
+import { recentOrderCount } from '../../lib/social-proof';
+import { getRuntimeEnv } from '../../lib/env';
 import { resolveFormModeContext } from '../../lib/form-mode';
 import '../../styles/form-hybrid.css';
 import { defaultCatalogContentId } from '../../lib/catalog-feed';
@@ -45,6 +46,8 @@ if (productPageLanding) {
     }),
   );
 }
+// The store's real orders (A-300); under the threshold the toast renders nothing.
+const socialProofOrders = await recentOrderCount(getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined);
 
 const cheapestVariant = [...product.variants].sort((a, b) => a.price - b.price)[0] ?? null;
 const displayPrice = cheapestVariant?.price ?? product.price;
@@ -436,8 +439,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     </section>
 
     <SocialProofToast
-      productLabel={product.productName}
-      productImage={cardImageSrc(productImages[0] ?? product.heroImage)}
+      orderCount={socialProofOrders}
     />
 
     <!-- Sticky Mobile Purchase Bar (Auto-hides while the hero or the order

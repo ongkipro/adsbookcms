@@ -24,7 +24,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | `/404` | GET | public | — | `src/pages/404.astro` | `catalog` `image-derivative` | `product_variants` `products` | `catalog.test.ts` `image-derivative.test.ts` |
 | `/payment` | GET | public | — | `src/pages/payment.astro` | `format-idr` `payment-brand` | — | `format-idr.test.ts` `payment-brand.test.ts` |
 | `/produk` | GET | public | — | `src/pages/produk/index.astro` | `catalog` `format-idr` | `product_variants` `products` | `catalog.test.ts` `format-idr.test.ts` |
-| `/produk/[slug]` | GET | public | — | `src/pages/produk/[slug].astro` | `catalog` `catalog-feed` `form-mode` `image-derivative` `landing-pages` | `landing_pages` `landing_sections` `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `form-mode.test.ts` `image-derivative.test.ts` `landing-pages.test.ts` |
+| `/produk/[slug]` | GET | public | — | `src/pages/produk/[slug].astro` | `catalog` `catalog-feed` `env` `form-mode` `landing-pages` `social-proof` | `landing_pages` `landing_sections` `orders` `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `form-mode.test.ts` `landing-pages.test.ts` |
 | `/thanks` | GET | public | — | `src/pages/thanks.astro` | `catalog` `cn` `public-store` `ui-variants` | `product_variants` `products` `stores` | `catalog.test.ts` `cn.test.ts` `public-store.test.ts` `ui-variants.test.ts` |
 
 ## Content page (9)
@@ -45,7 +45,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 | Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `/[slug]` | GET | public | — | `src/pages/[slug].astro` | `admin-session` `auth-secret` `catalog` `catalog-feed` `env` `image-derivative` `landing-pages` `public-store` | `admin_credentials` `admin_sessions` `install_secrets` `landing_pages` `landing_sections` `product_variants` `products` `stores` | `admin-session.test.ts` `auth-secret.test.ts` `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `image-derivative.test.ts` `landing-pages.test.ts` `public-store.test.ts` |
+| `/[slug]` | GET | public | — | `src/pages/[slug].astro` | `admin-session` `auth-secret` `catalog` `catalog-feed` `env` `landing-pages` `public-store` `social-proof` | `admin_credentials` `admin_sessions` `install_secrets` `landing_pages` `landing_sections` `orders` `product_variants` `products` `stores` | `admin-session.test.ts` `auth-secret.test.ts` `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `landing-pages.test.ts` `public-store.test.ts` |
 | `/contoh-landing` | GET | public | — | `src/pages/contoh-landing.astro` | `catalog` `catalog-feed` `landing-pages` | `landing_pages` `landing_sections` `product_variants` `products` | `catalog.test.ts` `catalog-feed.test.ts` `landing-pages.test.ts` |
 | `/landing-page` | GET | public | — | `src/pages/landing-page/index.astro` | `landing-pages` | `landing_pages` `landing_sections` `products` | `landing-pages.test.ts` |
 | `/solusi-terbaru` | GET | public | — | `src/pages/solusi-terbaru.astro` | — | — | — |
@@ -189,7 +189,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 ## Modules
 
-103 modules under `src/lib`; 6 without a sibling test.
+104 modules under `src/lib`; 7 without a sibling test.
 `used by` lists routes importing the module directly — a module used by nothing
 is either transitive (imported by another lib) or dead, and only reading tells which.
 
@@ -225,7 +225,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `district-catalog` | 1 | — | ✓ | `/api/locations` `/api/v1/geo/districts` |
 | `embed-markup` | 5 | — | ✓ | `/embed/form` |
 | `embed-security` | 6 | — | ✓ | `/api/admin/settings` |
-| `env` | 4 | — | ✓ | `/` `/[slug]` `/hybrid-form` `/assets/[...key]` `/media/[...key]` `/hello` `/api/form-config` `/api/geo-province` `/api/install` `/api/locations` `/api/meta-event` `/api/order-status` `/api/payment-methods` `/api/record-abandoned-order` `/api/shipping-rates` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/geo/shipping-rates` `/api/v1/orders/status` `/api/v1/storefront` `/api/v1/tracking/events` `/api/webhooks/autolaris` `/admin/check` `/admin/dashboard` `/admin/orders` `/admin/products` `/api/admin/abandoned-orders` `/api/admin/access` `/api/admin/ads` `/api/admin/analytics` `/api/admin/check` `/api/admin/content` `/api/admin/expeditions` `/api/admin/health` `/api/admin/logout` `/api/admin/media` `/api/admin/notifications` `/api/admin/ongkir` `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/orders/retention` `/api/admin/payment-reconciliation` `/api/admin/products` `/api/admin/profile` `/api/admin/rules` `/api/admin/seller-bank-accounts` `/api/admin/settings` `/api/admin/settings/developer` `/api/admin/shipping` `/api/admin/upload-r2` |
+| `env` | 4 | — | ✓ | `/` `/produk/[slug]` `/[slug]` `/hybrid-form` `/assets/[...key]` `/media/[...key]` `/hello` `/api/form-config` `/api/geo-province` `/api/install` `/api/locations` `/api/meta-event` `/api/order-status` `/api/payment-methods` `/api/record-abandoned-order` `/api/shipping-rates` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/geo/shipping-rates` `/api/v1/orders/status` `/api/v1/storefront` `/api/v1/tracking/events` `/api/webhooks/autolaris` `/admin/check` `/admin/dashboard` `/admin/orders` `/admin/products` `/api/admin/abandoned-orders` `/api/admin/access` `/api/admin/ads` `/api/admin/analytics` `/api/admin/check` `/api/admin/content` `/api/admin/expeditions` `/api/admin/health` `/api/admin/logout` `/api/admin/media` `/api/admin/notifications` `/api/admin/ongkir` `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/orders/retention` `/api/admin/payment-reconciliation` `/api/admin/products` `/api/admin/profile` `/api/admin/rules` `/api/admin/seller-bank-accounts` `/api/admin/settings` `/api/admin/settings/developer` `/api/admin/shipping` `/api/admin/upload-r2` |
 | `excluded-area` | 1 | — | ✓ | `/api/submit-middle-order` |
 | `form-config` | 6 | — | ✓ | `/embed/form` `/full-form` `/hybrid-form` `/middle-form` `/api/form-config` |
 | `form-mode` | 8 | `stores` | ✓ | `/produk/[slug]` `/geoipform` `/hybrid-form` `/api/form-config` `/api/geo-province` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/storefront` `/api/admin/abandoned-orders` |
@@ -238,7 +238,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `headless-client` | 14 | — | ✓ | — |
 | `headless-openapi` | 1 | — | ✓ | `/api/v1/openapi.json` |
 | `html-escape` | 1 | — | ✓ | — |
-| `image-derivative` | 1 | — | ✓ | `/404` `/produk/[slug]` `/[slug]` |
+| `image-derivative` | 1 | — | ✓ | `/404` |
 | `install` | 6 | `admin_credentials` `courier_rules` `stores` | ✓ | `/api/install` |
 | `json-ld` | 14 | — | ✓ | — |
 | `json-script` | 1 | — | ✓ | — |
@@ -267,7 +267,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `paid-order-purchase` | 2 | `order_items` `orders` `product_variants` `products` | ✓ | `/api/admin/payment-reconciliation` |
 | `payment-brand` | 6 | — | ✓ | `/payment` `/api/payment-methods` |
 | `payment-dispatch-policy` | 5 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
-| `payment-fee-policy` | 10 | — | ✓ | `/api/payment-methods` `/admin/payments` `/api/admin/orders/[id]` |
+| `payment-fee-policy` | 11 | — | ✓ | `/api/payment-methods` `/admin/payments` `/api/admin/orders/[id]` |
 | `product-mutation` | 9 | `order_items` `product_variants` `products` `storefront_content` | ✓ | `/api/admin/products` |
 | `provider-config` | 5 | `stores` | ✓ | `/api/locations` `/api/payment-methods` `/api/submit-order` `/api/v1/checkout` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` |
 | `province` | 12 | — | ✓ | `/api/submit-middle-order` `/api/v1/checkout` `/api/admin/expeditions` |
@@ -284,7 +284,8 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `shipping-queue` | 3 | — | ✓ | — |
 | `shipping-quote` | 6 | `courier_rules` `product_variants` `products` `warehouses` | ✓ | `/api/shipping-rates` `/api/submit-order` `/api/v1/checkout` `/api/v1/geo/shipping-rates` `/api/admin/abandoned-orders` `/api/admin/orders/[id]` |
 | `shipping-status` | 2 | — | **none** | — |
-| `social-proof-visibility` | 4 | — | **none** | — |
+| `social-proof-visibility` | 2 | — | **none** | — |
+| `social-proof` | 3 | `orders` | **none** | `/produk/[slug]` `/[slug]` |
 | `store-ads` | 6 | `stores` | ✓ | `/api/meta-event` `/api/v1/storefront` `/api/v1/tracking/events` `/api/admin/ads` |
 | `store-config-cache` | 3 | — | ✓ | `/api/form-config` `/api/admin/expeditions` |
 | `storefront-content` | 12 | `storefront_content` | ✓ | `/api/admin/content` |

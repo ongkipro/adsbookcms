@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   calculateAutoLarisRequestAmount,
   calculateCodFeeBreakdown,
+  COD_EFFECTIVE_RATE_LABEL,
   calculateCodCustomerTotal,
   calculatePaymentAdminFee,
   normalizePaymentFeeBearer,
@@ -65,4 +66,17 @@ test("invalid persisted fee bearer fails closed to buyer", () => {
   assert.equal(normalizePaymentFeeBearer("seller"), "seller");
   assert.equal(normalizePaymentFeeBearer("merchant"), "buyer");
   assert.equal(normalizePaymentFeeBearer(null), "buyer");
+});
+
+test("the COD rate reads as one figure, derived from the two it combines", () => {
+  // 3% service fee + 11% VAT on that fee = 3,33% of price + shipping.
+  assert.equal(COD_EFFECTIVE_RATE_LABEL, "3,33%");
+  // On a round base the two rounded-up parts land exactly on the figure…
+  assert.equal(calculateCodFeeBreakdown(100_000).totalFee, 3_330);
+  // …and never more than two rupiah above it anywhere else.
+  for (const base of [1, 999, 12_345, 79_000 + 19_681, 250_001]) {
+    const flat = base * 0.0333;
+    const { totalFee } = calculateCodFeeBreakdown(base);
+    assert.ok(totalFee >= flat && totalFee - flat <= 2, `${base}: ${totalFee} vs ${flat}`);
+  }
 });

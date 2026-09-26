@@ -63,6 +63,20 @@ function cleanAccountNumber(value: string) {
   return value.replace(/\D/g, "").slice(0, 24);
 }
 
+// Logo + name, in the list and in the trigger alike, so the chosen bank reads
+// the same way the saved accounts below it do.
+function BankOption({ asset, label }: { asset: string; label: string }) {
+  return (
+    <span className="flex items-center gap-2.5">
+      <img src={asset} alt="" className="h-5 w-10 shrink-0 object-contain" />
+      <span>{label}</span>
+    </span>
+  );
+}
+
+// The server render reads the label from here instead of the raw code.
+const BANK_ITEMS = Object.fromEntries(SELLER_BANK_OPTIONS.map((bank) => [bank.code, bank.label]));
+
 export default function SellerBankAccounts({
   onAccountsChange,
 }: {
@@ -232,29 +246,33 @@ export default function SellerBankAccounts({
       </div>
 
       <form
-        className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-start"
+        className="grid max-w-xl grid-cols-1 gap-4"
         onSubmit={handleSubmit}
         noValidate
       >
         <div className="space-y-1.5">
-          <label htmlFor="seller-bank-code" className="block text-xs font-semibold text-slate-700">
+          <label htmlFor="seller-bank-code" className="block text-xs font-medium text-slate-700">
             Bank
           </label>
           <Select
+            items={BANK_ITEMS}
             value={bankCode}
             onValueChange={(value) => setBankCode(value || DEFAULT_BANK_CODE)}
             disabled={pending}
             required
           >
-            <SelectTrigger id="seller-bank-code" >
+            <SelectTrigger id="seller-bank-code" className="w-full">
               <SelectValue>
-                {bankByCode.get(bankCode)?.label || "Pilih bank"}
+                {(value: string) => {
+                  const bank = bankByCode.get(value);
+                  return bank ? <BankOption asset={bank.asset} label={bank.label} /> : "Pilih bank";
+                }}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent alignItemWithTrigger={false}>
               {SELLER_BANK_OPTIONS.map((bank) => (
                 <SelectItem key={bank.code} value={bank.code}>
-                  {bank.label}
+                  <BankOption asset={bank.asset} label={bank.label} />
                 </SelectItem>
               ))}
             </SelectContent>
@@ -262,7 +280,7 @@ export default function SellerBankAccounts({
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="seller-bank-holder" className="block text-xs font-semibold text-slate-700">
+          <label htmlFor="seller-bank-holder" className="block text-xs font-medium text-slate-700">
             Nama penerima
           </label>
           <Input
@@ -290,7 +308,7 @@ export default function SellerBankAccounts({
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="seller-bank-number" className="block text-xs font-semibold text-slate-700">
+          <label htmlFor="seller-bank-number" className="block text-xs font-medium text-slate-700">
             Nomor rekening
           </label>
           <Input
@@ -319,8 +337,8 @@ export default function SellerBankAccounts({
           </p>
         </div>
 
-        <div className="flex min-h-11 gap-2 md:pt-[25px]">
-          <Button type="submit" className="min-w-32" disabled={pending}>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={pending}>
             {pending ? "Menyimpan…" : editingId ? "Simpan Perubahan" : "Tambah Rekening"}
           </Button>
           {editingId && (

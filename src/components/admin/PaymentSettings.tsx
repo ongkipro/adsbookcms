@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { COD_EFFECTIVE_RATE_LABEL } from "@/lib/payment-fee-policy";
 import {
   AlertCircle,
   CheckCircle2,
@@ -396,7 +397,7 @@ export default function PaymentSettings({ channels }: { channels: PaymentChannel
           <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
             <div className="min-w-0 flex-1">
               <h4 className="font-semibold text-card-foreground">COD</h4>
-              <p className="text-xs text-muted-foreground">Tunai saat pesanan tiba melalui kurir · fee 3% + PPN ditanggung {codFeeBearer === "buyer" ? "pembeli" : "seller"}</p>
+              <p className="text-xs text-muted-foreground">Tunai saat pesanan tiba melalui kurir · biaya {COD_EFFECTIVE_RATE_LABEL} termasuk PPN, ditanggung {codFeeBearer === "buyer" ? "pembeli" : "seller"}</p>
             </div>
             <StatusBadge ready={codEnabled}>{loading ? "Memuat" : codEnabled ? "Aktif" : "Nonaktif"}</StatusBadge>
             <Switch
@@ -533,7 +534,7 @@ export default function PaymentSettings({ channels }: { channels: PaymentChannel
           />
           <FeeChoice
             legend="COD"
-            description="3% dari harga + ongkir, ditambah PPN 11% atas biaya layanan."
+            description={`${COD_EFFECTIVE_RATE_LABEL} dari harga + ongkir, sudah termasuk PPN (biaya 3% + PPN 11% atas biaya itu).`}
             value={codFeeBearer}
             onChange={setCodFeeBearer}
             disabled={mutationsDisabled}

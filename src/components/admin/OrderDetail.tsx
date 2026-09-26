@@ -1,4 +1,5 @@
 import { formatIdr } from "@/lib/format-idr";
+import { useConfirm } from "./useConfirm";
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from "@/lib/payment-fee-policy";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
 import { type SyntheticEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -763,6 +764,7 @@ function EditCustomerDialog({
 }
 
 export function OrderDetail({ invoice }: { invoice: string }) {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -987,7 +989,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
 
   const deleteOrder = async () => {
     if (!order) return;
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus pesanan ${order.order_number}? Tindakan ini tidak dapat dibatalkan.`)) {
+    if (!(await confirm({ title: `Hapus pesanan ${order.order_number}?`, description: "Pesanan terhapus permanen dan tidak dapat dikembalikan.", confirmLabel: "Hapus pesanan" }))) {
       return;
     }
     setSaving(true);
@@ -1150,6 +1152,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
 
   return (
     <div className="space-y-6 pb-16">
+      {confirmDialog}
       {/* Top Navigation & Action Header */}
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">

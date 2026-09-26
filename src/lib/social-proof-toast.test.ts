@@ -1,12 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import {
-  isToastBlocked,
-  nextBuyerIndex,
-  shuffleBuyers,
-  type SocialProofBlockers,
-} from "./social-proof-visibility.ts";
+import { isToastBlocked, type SocialProofBlockers } from "./social-proof-visibility.ts";
+import { recentOrderCount, SOCIAL_PROOF_MIN_ORDERS, socialProofMessage } from "./social-proof.ts";
 
 const TOAST = readFileSync(
   "src/components/storefront/shared/SocialProofToast.astro",
@@ -67,37 +63,6 @@ test("the toast returns once every blocker clears", () => {
   assert.equal(isToastBlocked(state), false, "free again after leaving the form");
 });
 
-test("buyer rotation wraps instead of running off the end", () => {
-  assert.equal(nextBuyerIndex(0, 3), 1);
-  assert.equal(nextBuyerIndex(1, 3), 2);
-  assert.equal(nextBuyerIndex(2, 3), 0);
-  // An empty list must not produce NaN and index into nothing.
-  assert.equal(nextBuyerIndex(0, 0), 0);
-});
-
-test("the shuffle is a real permutation, keeping every buyer exactly once", () => {
-  const buyers = ["a", "b", "c", "d", "e", "f"];
-  // A fixed generator pins the permutation, so this asserts the algorithm
-  // rather than asserting on chance.
-  const values = [0.9, 0.1, 0.7, 0.3, 0.5];
-  let i = 0;
-  const shuffled = shuffleBuyers(buyers, () => values[i++ % values.length]);
-
-  assert.equal(shuffled.length, buyers.length, "no buyer dropped or duplicated");
-  assert.deepEqual([...shuffled].sort(), [...buyers].sort(), "same set, reordered");
-  assert.notDeepEqual(shuffled, buyers, "this generator must actually reorder");
-  assert.deepEqual(buyers, ["a", "b", "c", "d", "e", "f"], "input must not be mutated");
-});
-
-test("a single-entry buyer list survives the shuffle", () => {
-  assert.deepEqual(shuffleBuyers(["solo"]), ["solo"]);
-  assert.deepEqual(shuffleBuyers([]), []);
-});
-
-// ---------------------------------------------------------------------------
-// Markup and wiring facts, which only the source can answer.
-// ---------------------------------------------------------------------------
-
 test("the toast can never intercept a tap, and is never announced", () => {
   const rootTag = TOAST.slice(
     TOAST.indexOf("<div\n  data-social-proof"),
@@ -130,8 +95,7 @@ test("the component wires every input the decision logic expects", () => {
   assert.match(TOAST, /IntersectionObserver/, "hero and form visibility");
   assert.match(TOAST, /visibilitychange/, "tab visibility");
   assert.match(TOAST, /addEventListener\('focus'/, "form focus");
-  assert.match(TOAST, /shuffleBuyers\(buyers\)/);
-  assert.match(TOAST, /nextBuyerIndex\(currentIndex, shuffled\.length\)/);
+  assert.match(TOAST, /socialProofMessage\(orderCount\)/, "the count decides whether anything renders");
 });
 
 test("a missing or invalid blocker selector degrades instead of stranding the toast", () => {
@@ -168,10 +132,52 @@ test("init is deferred past load so the toast cannot touch LCP or INP", () => {
   assert.match(TOAST, /window\.addEventListener\('load'/);
 });
 
-test("the toast reads no customer data", () => {
-  // The buyer list is illustrative. Reading real orders would publish customer
-  // names and cities to strangers on a public page — a disclosure, not proof.
+test("the toast invents no buyer and names no real one", () => {
+  // A-300: it rotated twenty invented buyers under a verified badge. The count
+  // comes from the page (server-side); the component itself reads no data and
+  // carries no names, cities or verification claim.
   assert.doesNotMatch(TOAST, /OMS_DB|order-status|\/api\//);
+  assert.doesNotMatch(TOAST, /Ibu |Bapak |badge-check|data-buyer|Baru saja memesan/);
+  assert.match(PRODUCT_PAGE, /orderCount=\{socialProofOrders\}/);
+  assert.match(LANDING_PAGE, /orderCount=\{socialProofOrders\}/);
+});
+
+test("the notice states a real count only at or above the threshold", () => {
+  assert.equal(SOCIAL_PROOF_MIN_ORDERS, 3);
+  assert.equal(socialProofMessage(0), null);
+  assert.equal(socialProofMessage(SOCIAL_PROOF_MIN_ORDERS - 1), null, "a small number is omitted, never rounded up");
+  assert.equal(socialProofMessage(Number.NaN), null);
+  assert.equal(socialProofMessage(2.5), null);
+  assert.equal(socialProofMessage(3), "3 orang memesan dalam 24 jam terakhir");
+  assert.equal(socialProofMessage(1200), "1.200 orang memesan dalam 24 jam terakhir");
+  // Store-wide: a store runs many landing pages, so the sentence names no product.
+  assert.doesNotMatch(socialProofMessage(9) ?? "", /produk/);
+});
+
+test("the count is store-wide, excludes void, cancelled and returned orders, and fails to zero", async () => {
+  let sql = "";
+  const database = {
+    prepare(text: string) {
+      sql = text;
+      return { first: async () => ({ n: 7 }) };
+    },
+  } as unknown as D1Database;
+  assert.equal(await recentOrderCount(database), 7);
+  assert.match(sql, /FROM orders/);
+  assert.doesNotMatch(sql, /product_id/, "one number per store, true on every landing page");
+  assert.match(sql, /stock_restored_at IS NULL/);
+  assert.match(sql, /NOT IN \('cancelled', 'returned'\)/);
+  assert.match(sql, /'-24 hours'/);
+
+  const failing = { prepare() { throw new Error("D1 down"); } } as unknown as D1Database;
+  const error = console.error;
+  console.error = () => {};
+  try {
+    assert.equal(await recentOrderCount(failing), 0, "a failure omits the notice");
+  } finally {
+    console.error = error;
+  }
+  assert.equal(await recentOrderCount(undefined), 0);
 });
 
 test("both public product surfaces mount the toast against anchors they render", () => {

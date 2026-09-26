@@ -1,4 +1,5 @@
 import { formatIdr } from "@/lib/format-idr";
+import { useConfirm } from "./useConfirm";
 import { paymentInstructionHint } from "../../lib/order-instruction-hint";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
 import { CrmActionGroup } from "./CrmActionGroup";
@@ -552,6 +553,7 @@ function PaymentBadge({ status }: { status: string }) {
 }
 
 export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [orders, setOrders] = useState<OrderItem[]>(initialOrders || []);
   const [searchTerm, setSearchTerm] = useState(() =>
     typeof window === "undefined"
@@ -908,7 +910,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
   };
   const deleteOrders = async (orderIds: string[]) => {
     if (orderIds.length === 0) return;
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus ${orderIds.length} pesanan? Tindakan ini tidak dapat dibatalkan.`)) {
+    if (!(await confirm({ title: `Hapus ${orderIds.length} pesanan?`, description: "Pesanan terhapus permanen dan tidak dapat dikembalikan.", confirmLabel: "Hapus pesanan" }))) {
       return;
     }
     setDispatching(true);
@@ -1045,6 +1047,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
     visibleOrderIds.every((orderId) => selectedOrderIds.includes(orderId));
   return (
     <div className="space-y-5">
+      {confirmDialog}
       {loadError && (
         <div
           className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-800 sm:flex-row sm:items-center sm:justify-between"

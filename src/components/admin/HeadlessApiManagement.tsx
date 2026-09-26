@@ -1,4 +1,5 @@
 import { useEffect, useState, type SubmitEvent } from "react";
+import { useConfirm } from "./useConfirm";
 import { Check, Copy, KeyRound, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,7 @@ function formatTimestamp(value: string | null): string {
 }
 
 export function HeadlessApiManagement() {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [keys, setKeys] = useState<DeveloperApiKey[]>([]);
   const [auditEvents, setAuditEvents] = useState<HeadlessAuditEvent[]>([]);
   const [name, setName] = useState("");
@@ -237,7 +239,7 @@ export function HeadlessApiManagement() {
   };
 
   const revokeKey = async (key: DeveloperApiKey) => {
-    if (!window.confirm(`Cabut API key “${key.name}”? Integrasi yang memakainya akan langsung berhenti.`)) {
+    if (!(await confirm({ title: "Cabut API key?", description: `API key “${key.name}” langsung tidak berlaku. Integrasi yang memakainya berhenti.`, confirmLabel: "Cabut key" }))) {
       return;
     }
 
@@ -263,6 +265,7 @@ export function HeadlessApiManagement() {
 
   return (
     <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      {confirmDialog}
       <Card className="min-w-0">
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">

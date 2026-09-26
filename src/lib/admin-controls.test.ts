@@ -155,3 +155,11 @@ test("admin link buttons use buttonVariants or .btn-*, never a hand-built pill",
   );
   assert.deepEqual(offenders, []);
 });
+
+test("admin destructive actions confirm through useConfirm, never window.confirm", () => {
+  // A-305: the browser dialog cannot be styled or described and reads as a
+  // system error on a phone. `useConfirm` is the one confirmation.
+  const files = [...globSync("src/components/admin/*.tsx"), ...globSync("src/pages/admin/**/*.astro")];
+  const offenders = files.filter((file) => file !== "src/components/admin/useConfirm.tsx" && /\bwindow\.confirm\s*\(|(?<![\w.])confirm\s*\(\s*[`"']/.test(readFileSync(file, "utf8")));
+  assert.deepEqual(offenders, []);
+});

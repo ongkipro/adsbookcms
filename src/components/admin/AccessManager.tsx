@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useConfirm } from "./useConfirm";
 import {
   AlertTriangle,
   Check,
@@ -184,6 +185,7 @@ function generateRandomPassword() {
 }
 
 export function AccessManager() {
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [users, setUsers] = useState<AccessUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -369,7 +371,7 @@ export function AccessManager() {
   };
 
   const remove = async (user: AccessUser) => {
-    if (!window.confirm(`Cabut seluruh hak akses akun "${user.username}"?`)) {
+    if (!(await confirm({ title: "Cabut akses akun?", description: `Akun "${user.username}" kehilangan seluruh hak akses dan sesinya berakhir.`, confirmLabel: "Cabut akses" }))) {
       return;
     }
     setSaving(true);
@@ -396,6 +398,7 @@ export function AccessManager() {
 
   return (
     <div className="space-y-6">
+      {confirmDialog}
       {/* Overview Stats Bar */}
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">

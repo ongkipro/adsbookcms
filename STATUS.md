@@ -1,6 +1,6 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `499f2ee` + working tree (tracking fail-soft, responsive sweep)
+> Verified against disk: 2026-09-26 @ `01f87ed` + working tree (tracking fail-soft, responsive sweep)
 
 ## 2026-09-26 — checkout tracking re-verified, admin type and phone layout
 
@@ -22,7 +22,13 @@
   nav below 768px, icon rail to 1023px, full sidebar above, content capped at
   1560px. The one defect, hand-built header links wrapping at 768px, fixed and
   guarded. The rate checker's optional COD value field is gone (A-312).
-- Open: A-300, A-305, and a real-phone check. The orders table still scrolls
+- **Social proof is real** (this change, A-300): the purchase toast states the
+  store's actual orders in the last 24 hours, product-free, and nothing under 3;
+  the twenty invented buyers are gone.
+- **Confirmations and payment copy** (this change, A-305, A-313): destructive
+  admin actions confirm in a shadcn dialog; the seller bank form is stacked
+  with bank logos; COD reads as 3,33% of price + shipping, VAT included.
+- Open: a real-phone check. The orders table still scrolls
   at 1440px; its row actions are now pinned.
 
 ## 2026-09-26 — couriers, dev data, and the admin UI contract
@@ -41,8 +47,7 @@
   search on shadcn, one page width (AdminShell), one radius, one 40px control
   height owned by the primitives, `FilterBar`/`SearchInput` for toolbars, all
   guarded by `admin-controls.test.ts` and `admin-page-width.test.ts`
-  (DESIGN-SYSTEM.md §7.1). Open: A-300 (invented buyer names in
-  `SocialProofToast`), A-305 (`window.confirm` on four destructive actions),
+  (DESIGN-SYSTEM.md §7.1). Open then: A-300 (since closed), A-305 (`window.confirm` on four destructive actions),
   the last orders-table column clipped at 1440px behind its scroll.
 
 ## 2026-09-25 — local development complete (`b504340`)

@@ -13,21 +13,19 @@
  * form field holds focus: over the hero it competes with the product photo,
  * and over the form it competes with the thing it exists to cause.
  *
- * The buyer names below are ILLUSTRATIVE, not real orders — the same standing
- * this store's promo-stock counter already has (`readStablePromoStock`).
- * Nothing here reads D1, and it must not start: real buyer names and cities
- * are customer PII, and publishing them on a public product page to strangers
- * would be a disclosure, not social proof. If a merchant ever asks for "real"
- * notifications, the honest form is an aggregate ("12 orang memesan hari ini"),
- * never an individual.
+ * It states one real aggregate — the store's orders in the last 24 hours,
+ * counted server-side by `src/lib/social-proof.ts`, naming no product (the
+ * same number is true on every landing page) — and renders nothing when
+ * that count is under the threshold. It once rotated twenty invented buyers
+ * under a verified badge (A-300); that was a fabricated purchase claim.
  */
+
 import Icon from './Icon.astro';
+import { socialProofMessage } from '../../../lib/social-proof';
 
 interface Props {
-  /** Product name shown as "Baru saja memesan <label>". */
-  productLabel: string;
-  /** Thumbnail, ideally the card derivative (`cardImageSrc`). */
-  productImage: string;
+  /** The store's real orders in the last 24 hours (`recentOrderCount`). */
+  orderCount: number;
   /** Selector for the hero element that blocks the toast. Empty = no hero
    *  blocker, for a page (a landing page) that has no gallery of its own. */
   heroSelector?: string;
@@ -36,13 +34,14 @@ interface Props {
 }
 
 const {
-  productLabel,
-  productImage,
+  orderCount,
   heroSelector = '[data-gallery]',
   formSelector = '#form-pemesanan',
 } = Astro.props;
+const message = socialProofMessage(orderCount);
 ---
 
+{message && (
 <div
   data-social-proof
   data-hero-selector={heroSelector}
@@ -53,37 +52,13 @@ const {
   <div
     class="flex items-center gap-3 rounded-full border border-[#E5E5E5] bg-white/95 p-2 pr-4 shadow-[0_12px_24px_rgba(17,17,17,0.08),0_4px_12px_rgba(17,17,17,0.04)] backdrop-blur-md"
   >
-    <div
-      class="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[#F5F5F5] ring-1 ring-[#E5E5E5]"
-    >
-      <img
-        src={productImage}
-        alt=""
-        width="40"
-        height="40"
-        class="h-full w-full object-cover"
-        loading="lazy"
-        decoding="async"
-      />
+    <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#F5F5F5] text-[#111111] ring-1 ring-[#E5E5E5]">
+      <Icon name="lucide:shopping-bag" class="h-5 w-5" />
     </div>
-
-    <div class="min-w-0 flex-1 text-left">
-      <div class="flex items-center gap-1">
-        <span class="truncate text-[12.5px] font-bold text-[#111111]" data-buyer-name></span>
-        <span class="inline-flex shrink-0 text-[#2c6ecb]">
-          <Icon name="lucide:badge-check" class="h-4 w-4" />
-        </span>
-        <span class="ml-auto shrink-0 text-[10.5px] font-medium text-[#555555]" data-buyer-time></span>
-      </div>
-      <p class="mt-0.5 truncate text-[11.5px] leading-tight text-[#555555]">
-        Baru saja memesan <strong class="font-semibold text-[#1f5199]">{productLabel}</strong><span
-          class="text-[10.5px] text-[#555555]"
-          data-buyer-location></span>
-      </p>
-    </div>
+    <p class="min-w-0 flex-1 text-left text-[13px] leading-snug text-[#333333]">{message}</p>
   </div>
 </div>
-
+)}
 <style>
   [data-social-proof] {
     transition:
@@ -101,11 +76,7 @@ const {
 <script>
   // The rules live in a module both this component and its tests can load;
   // this script is the DOM wiring around them. See social-proof-visibility.ts.
-  import {
-    isToastBlocked,
-    nextBuyerIndex,
-    shuffleBuyers,
-  } from '../../../lib/social-proof-visibility.ts';
+  import { isToastBlocked } from '../../../lib/social-proof-visibility.ts';
 
   const initSocialProof = () => {
     const toast = document.querySelector<HTMLElement>('[data-social-proof]');
@@ -126,32 +97,6 @@ const {
     const hero = findBlocker(toast.dataset.heroSelector);
     const formSection = findBlocker(toast.dataset.formSelector);
 
-    const buyers = [
-      { name: 'Ibu Ratna', location: 'Bekasi, Jawa Barat', time: 'Baru saja' },
-      { name: 'Bapak Hendra', location: 'Medan, Sumut', time: '2 mnt lalu' },
-      { name: 'Ibu Sari', location: 'Tangerang, Banten', time: '1 mnt lalu' },
-      { name: 'Bapak Yusuf', location: 'Makassar, Sulsel', time: '5 mnt lalu' },
-      { name: 'Ibu Dewi', location: 'Semarang, Jateng', time: '3 mnt lalu' },
-      { name: 'Bapak Rizki', location: 'Palembang, Sumsel', time: '4 mnt lalu' },
-      { name: 'Ibu Fitri', location: 'Depok, Jawa Barat', time: '7 mnt lalu' },
-      { name: 'Bapak Agus', location: 'Denpasar, Bali', time: 'Baru saja' },
-      { name: 'Ibu Lestari', location: 'Surabaya, Jatim', time: '6 mnt lalu' },
-      { name: 'Bapak Dimas', location: 'Bogor, Jawa Barat', time: '2 mnt lalu' },
-      { name: 'Ibu Yanti', location: 'Pekanbaru, Riau', time: '8 mnt lalu' },
-      { name: 'Bapak Fauzi', location: 'Banjarmasin, Kalsel', time: '3 mnt lalu' },
-      { name: 'Ibu Nita', location: 'Bandung, Jawa Barat', time: '5 mnt lalu' },
-      { name: 'Bapak Eko', location: 'Balikpapan, Kaltim', time: '1 mnt lalu' },
-      { name: 'Ibu Rahma', location: 'Malang, Jawa Timur', time: '9 mnt lalu' },
-      { name: 'Bapak Irfan', location: 'Padang, Sumbar', time: '4 mnt lalu' },
-      { name: 'Ibu Wulan', location: 'Solo, Jawa Tengah', time: 'Baru saja' },
-      { name: 'Bapak Taufik', location: 'Cirebon, Jawa Barat', time: '6 mnt lalu' },
-      { name: 'Ibu Endah', location: 'Yogyakarta, DIY', time: '2 mnt lalu' },
-      { name: 'Bapak Salman', location: 'Serang, Banten', time: '5 mnt lalu' },
-    ];
-
-    const shuffled = shuffleBuyers(buyers);
-
-    let currentIndex = 0;
     // Both default to "assumed blocking" until the IntersectionObserver's own
     // first callback confirms otherwise — that callback is always async, so a
     // form already in view at load (a short landing page, or a tall viewport
@@ -166,9 +111,9 @@ const {
     let isToastShowing = false;
     let timerId: ReturnType<typeof setTimeout> | null = null;
 
-    const nameEl = toast.querySelector('[data-buyer-name]');
-    const locEl = toast.querySelector('[data-buyer-location]');
-    const timeEl = toast.querySelector('[data-buyer-time]');
+    // One real sentence, shown once per page view: repeating it on a timer
+    // would read as a stream of new orders that did not happen.
+    let shown = false;
 
     const clearTimer = () => {
       if (timerId) clearTimeout(timerId);
@@ -192,33 +137,24 @@ const {
 
     const showToast = () => {
       clearTimer();
+      if (shown) return;
       if (isBlocked()) {
         timerId = setTimeout(showToast, 3000);
         return;
       }
 
-      const buyer = shuffled[currentIndex];
-      if (nameEl) nameEl.textContent = buyer.name;
-      if (locEl) locEl.textContent = ` • ${buyer.location}`;
-      if (timeEl) timeEl.textContent = buyer.time;
-
       toast.classList.remove('opacity-0', '-translate-y-16', 'scale-95');
       toast.classList.add('opacity-100', 'translate-y-0', 'scale-100');
       isToastShowing = true;
-
-      const duration = Math.floor(Math.random() * (15000 - 8000 + 1)) + 8000;
       timerId = setTimeout(() => {
         hideToast();
-        const delayNext = Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
-        currentIndex = nextBuyerIndex(currentIndex, shuffled.length);
-        timerId = setTimeout(showToast, delayNext);
-      }, duration);
+        shown = true;
+      }, 8000);
     };
-
     const handleVisibilityUpdate = () => {
       if (isBlocked()) {
         if (isToastShowing) hideToast();
-      } else if (!isToastShowing) {
+      } else if (!isToastShowing && !shown) {
         showToast();
       }
     };

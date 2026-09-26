@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `499f2ee` + working tree
+> Verified against disk: 2026-09-26 @ `01f87ed` + working tree
 
 ## A21 — A landing page may become the product page
 
@@ -2456,12 +2456,14 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   aria-hidden, checkout dedupe window, 10/min checkout limit, wrong-password
   401, product validation shown to the operator, temporary-password change
   ending the session, customer-service role limits (pages redirect, APIs 403).
-- [ ] **A-300** — Decide on `SocialProofToast`: it shows invented buyer names
-  as "Baru saja memesan …" with a verified badge on product and landing
-  pages. The component documents this as deliberate; a fabricated purchase
-  notice may be misleading advertising for Indonesian consumer law and ad
-  platform policy. The component's own note names the honest alternative (an
-  aggregate from real orders).
+- [x] **A-300** — `SocialProofToast` rotated twenty invented buyers ("Ibu
+  Ratna, Bekasi — baru saja memesan") under a verified badge on product and
+  landing pages: a fabricated purchase claim. Decided with the owner: one real
+  store-wide aggregate, product-free because a store runs many landing pages —
+  "N orang memesan dalam 24 jam terakhir", counted at render by
+  `src/lib/social-proof.ts` (void, cancelled and returned excluded), shown
+  once per page view and not at all below 3 orders or on a failed query. No
+  names, cities or badge; the rotation helpers and their tests are gone.
 - [x] **A-301** — Dead code removed: `autolaris-balance.ts` (its loader lost
   its last caller when the manual reconciliation queue replaced it; its one
   test covered only that summary), four unused helpers in `validation.ts`,
@@ -2606,7 +2608,17 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   guard refuses the pattern. The rate checker's optional COD value field and
   its always-empty "Biaya COD" column were removed; its toolbar wraps inside
   the card instead of spilling past it.
-- [ ] **A-305** — Four destructive actions still ask through
-  `window.confirm` (order delete, bulk delete, revoke access, revoke API
-  key). They work; a shadcn confirmation dialog would match the rest.
+- [x] **A-305** — The four destructive actions (order delete, bulk order
+  delete, revoke access, revoke API key) confirm through `useConfirm`, a
+  shadcn Dialog returning a promise, instead of `window.confirm`; each names
+  its consequence and its action ("Hapus pesanan", "Cabut akses"). A guard in
+  `admin-controls.test.ts` refuses `window.confirm` in admin.
+- [x] **A-313** — Seller bank form stacked top to bottom (bank, holder,
+  number, then the action) instead of four squeezed columns; the bank select
+  shows each bank's logo in the list and the trigger, opens below it, and
+  carries an `items` map. COD fee copy reads one figure, "3,33% dari harga +
+  ongkir, sudah termasuk PPN", on the payment settings and at checkout —
+  `COD_EFFECTIVE_RATE_LABEL`, derived from the two rates. The charge itself
+  is unchanged: 3% and 11% VAT, each rounded up, never more than Rp2 above a
+  flat 3,33% (tested).
 

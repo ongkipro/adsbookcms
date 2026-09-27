@@ -6071,3 +6071,18 @@ performance checks) turned up four things that belong to the product:
 
 **Evidence.** Two new tests in `operational-alerts.test.ts`, mutation-checked:
 dropping the `source` hand-off fails the webhook test.
+
+## 2026-09-27 — Landing page table fits its column
+
+The desktop landing-page table ran sideways on a store with long titles: the
+shadcn cell is `whitespace-nowrap`, and five columns plus a labelled "Duplikasi
+Page" button gave a long title nowhere to go. It is now a fixed four-column
+table — Landing Page, Produk Terkait, Status, Aksi. The source badge rides
+beside the slug, title and product wrap to two lines then clamp, the product id
+drops to its own line, and duplicate moved into the row menu, which lost the
+Preview and Edit entries the row already shows as icons.
+
+**Evidence.** Rendered at 1024 and 1440 px with a local store carrying the
+live install's long titles: table width equal to its container, no page
+overflow; the row menu opens with its four actions. 780 tests, `astro check`
+clean; the 12 px type floor test caught an `11px` first draft.

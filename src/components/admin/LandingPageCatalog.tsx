@@ -623,16 +623,24 @@ export default function LandingPageCatalog() {
                 })}
               </div>
 
-              {/* Desktop table */}
+              {/* Desktop table. Fixed layout with four columns: the shadcn cell
+                  is `whitespace-nowrap`, so a long title or product name used to
+                  push the table sideways. Source type rides beside the slug,
+                  duplicate lives in the row menu, and text wraps to two lines. */}
               <div className="hidden lg:block" aria-label="Tabel landing page desktop">
-                <Table>
+                <Table className="table-fixed">
+                  <colgroup>
+                    <col />
+                    <col className="w-[32%]" />
+                    <col className="w-28" />
+                    <col className="w-28" />
+                  </colgroup>
                   <TableHeader className="bg-slate-50/80">
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-semibold text-slate-700">Landing Page & Slug</TableHead>
-                      <TableHead className="text-xs font-semibold text-slate-700">Tipe Sumber</TableHead>
+                      <TableHead className="pl-4 text-xs font-semibold text-slate-700">Landing Page</TableHead>
                       <TableHead className="text-xs font-semibold text-slate-700">Produk Terkait</TableHead>
                       <TableHead className="text-xs font-semibold text-slate-700">Status</TableHead>
-                      <TableHead className="text-xs font-semibold text-slate-700 text-right">Aksi</TableHead>
+                      <TableHead className="pr-4 text-xs font-semibold text-slate-700 text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -643,54 +651,49 @@ export default function LandingPageCatalog() {
 
                         return (
                           <TableRow key={page.id} className="hover:bg-slate-50/60 transition-colors">
-                            {/* Title & Slug */}
-                            <TableCell className="py-3">
-                              <div className="flex flex-col">
-                                <a
-                                  href={isStatic ? `/${page.slug}` : `/admin/landing-pages/${page.id}/edit`}
-                                  className="font-semibold text-sm text-slate-900 hover:text-blue-600 transition-colors line-clamp-1"
+                            {/* Title, slug and source */}
+                            <TableCell className="py-3 pl-4 whitespace-normal">
+                              <a
+                                href={isStatic ? `/${page.slug}` : `/admin/landing-pages/${page.id}/edit`}
+                                title={page.title}
+                                className="line-clamp-2 break-words text-sm font-semibold leading-snug text-slate-900 transition-colors hover:text-blue-600"
+                              >
+                                {page.title}
+                              </a>
+                              <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                                <span className="min-w-0 truncate rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500">
+                                  /{page.slug}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyLink(page)}
+                                  title="Salin URL lengkap"
+                                  aria-label={`Salin URL ${page.slug}`}
+                                  className="shrink-0 rounded p-0.5 text-slate-400 transition-colors hover:text-slate-700"
                                 >
-                                  {page.title}
-                                </a>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span className="font-mono text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                                    /{page.slug}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyLink(page)}
-                                    title="Salin URL lengkap"
-                                    className="text-slate-400 hover:text-slate-700 p-0.5 rounded transition-colors"
-                                  >
-                                    {copiedSlug === page.slug ? (
-                                      <Check className="w-3 h-3 text-emerald-600" />
-                                    ) : (
-                                      <Copy className="w-3 h-3" />
-                                    )}
-                                  </button>
-                                </div>
+                                  {copiedSlug === page.slug ? (
+                                    <Check className="w-3 h-3 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </button>
+                                <span className={`shrink-0 whitespace-nowrap rounded border px-1.5 py-px text-xs font-semibold ${srcBadge.color}`}>
+                                  {srcBadge.label}
+                                </span>
                               </div>
-                            </TableCell>
-
-                            {/* Source Badge */}
-                            <TableCell className="py-3">
-                              <span className={`inline-block px-2 py-0.5 rounded border text-xs font-semibold ${srcBadge.color}`}>
-                                {srcBadge.label}
-                              </span>
                             </TableCell>
 
                             {/* Product */}
-                            <TableCell className="py-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium text-slate-800">
-                                  {page.product_title || (isStatic ? "Static Landing Page" : "Unknown Product")}
-                                </span>
-                                {page.product_id && (
-                                  <span className="text-xs font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
-                                    ID: {page.product_id}
-                                  </span>
-                                )}
-                              </div>
+                            <TableCell className="py-3 whitespace-normal">
+                              <p
+                                title={page.product_title || undefined}
+                                className="line-clamp-2 break-words text-xs font-medium leading-snug text-slate-800"
+                              >
+                                {page.product_title || (isStatic ? "Static Landing Page" : "Unknown Product")}
+                              </p>
+                              {page.product_id && (
+                                <p className="mt-0.5 font-mono text-xs text-slate-400">ID: {page.product_id}</p>
+                              )}
                             </TableCell>
 
                             {/* Status */}
@@ -709,14 +712,15 @@ export default function LandingPageCatalog() {
                             </TableCell>
 
                             {/* Quick Actions */}
-                            <TableCell className="py-3 text-right">
-                              <div className="flex items-center justify-end gap-1">
+                            <TableCell className="py-3 pr-4 text-right">
+                              <div className="flex items-center justify-end gap-0.5">
                                 <a
                                   href={`/${page.slug}?preview=1`}
                                   target="_blank"
                                   rel="noreferrer"
                                   className={buttonVariants({ variant: "ghost", size: "icon", className: "text-slate-500 hover:text-slate-900" })}
                                   title="Preview Live"
+                                  aria-label={`Preview ${page.title}`}
                                 >
                                   <ExternalLink className="w-3.5 h-3.5" />
                                 </a>
@@ -725,54 +729,35 @@ export default function LandingPageCatalog() {
                                     href={`/admin/landing-pages/${page.id}/edit`}
                                     className={buttonVariants({ variant: "ghost", size: "icon", className: "text-slate-500 hover:text-slate-900" })}
                                     title="Edit Builder"
+                                    aria-label={`Edit ${page.title}`}
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
                                   </a>
                                 )}
-                                {!isStatic && (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-1.5 px-2"
-                                    disabled={duplicatingPageId !== null}
-                                    aria-busy={duplicatingPageId === page.id}
-                                    aria-label={`Duplikasi Page ${page.title}`}
-                                    onClick={() => void handleDuplicate(page)}
-                                    title="Duplikasi landing page"
-                                  >
-                                    {duplicatingPageId === page.id ? (
-                                      <Loader2 className="size-3.5 animate-spin" />
-                                    ) : (
-                                      <Copy className="size-3.5" />
-                                    )}
-                                    <span className="hidden xl:inline">
-                                      {duplicatingPageId === page.id
-                                        ? "Menduplikasi..."
-                                        : "Duplikasi Page"}
-                                    </span>
-                                  </Button>
-                                )}
 
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="text-slate-500 hover:text-slate-900">
-                                      <MoreHorizontal className="w-3.5 h-3.5" />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-slate-500 hover:text-slate-900"
+                                      aria-label={`Aksi lain untuk ${page.title}`}
+                                    >
+                                      {duplicatingPageId === page.id ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : (
+                                        <MoreHorizontal className="w-3.5 h-3.5" />
+                                      )}
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-44">
-                                    <DropdownMenuItem asChild>
-                                      <a href={`/${page.slug}?preview=1`} target="_blank" rel="noreferrer">
-                                        <ExternalLink className="w-3.5 h-3.5 mr-2 text-slate-500" />
-                                        Preview Live
-                                      </a>
-                                    </DropdownMenuItem>
+                                  <DropdownMenuContent align="end" className="w-52">
                                     {!isStatic && (
-                                      <DropdownMenuItem asChild>
-                                        <a href={`/admin/landing-pages/${page.id}/edit`}>
-                                          <Pencil className="w-3.5 h-3.5 mr-2 text-slate-500" />
-                                          Edit Layout
-                                        </a>
+                                      <DropdownMenuItem
+                                        disabled={duplicatingPageId !== null}
+                                        onClick={() => void handleDuplicate(page)}
+                                      >
+                                        <Layers className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                                        Duplikasi Page
                                       </DropdownMenuItem>
                                     )}
                                     {!page.id.startsWith("static:") && (

@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `01f87ed` + working tree
+> Verified against disk: 2026-09-28 @ `2a04340` + working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6110,3 +6110,13 @@ Bringing carukesi forward surfaced two product gaps, both silent:
 
 **Evidence.** Two new tests (782). The hook test was run against carukesi's
 bootstrap and failed on `__PS_META_INIT__ must be exposed`.
+
+## 2026-09-28 — A pixel can be refused for its own domain
+
+After carukesi was brought forward, its landing page sent CAPI events as usual
+but no browser event ever left: fbevents logged that the pixel is unavailable
+on the site because of its traffic permission settings, and made no
+`facebook.com/tr` request. The outbox read `sent` and the health panel read
+healthy, because CAPI is not subject to that list. TRACKING_SPECS §3 now names
+the symptom and the one check that catches it after a domain goes live. The fix
+belongs to Events Manager, not to this repository.

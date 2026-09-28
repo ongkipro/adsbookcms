@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-09-28 @ `a917994` + working tree (bootstrap hook test, ViewContent contents)
+> Verified against disk: 2026-09-28 @ `2a04340` + working tree (traffic permissions observed live)
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -97,6 +97,17 @@ install on 2026-09-26 and neither is visible in this repository:
   store's own CAPI already is that leg (§6, §11); leave the Gateway attached only
   if someone set it up on purpose, and then only with the same `event_id`
   deduplication in mind.
+- **Traffic permissions** — a per-pixel allow or block list of domains. A
+  domain outside it gets
+  `[Meta pixel] <id> is unavailable on this website due to it's traffic permission settings`
+  in the console, and fbevents then sends **no browser event at all**: no
+  `facebook.com/tr` request leaves the page, while the stub, the init and this
+  code's own `/api/meta-event` calls all look normal. CAPI is not subject to it,
+  so the outbox keeps showing `sent` and the panel stays healthy — half the
+  signal is gone and nothing in the store says so. Found on a live install on
+  2026-09-28 for its own domain. The fix is in Events Manager (the pixel's
+  Settings → Traffic permissions); after a new domain goes live, open it once
+  with the console showing and confirm a `facebook.com/tr` request leaves.
 
 ## 4. Canonical Event Semantics
 

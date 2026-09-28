@@ -15,7 +15,6 @@ import {
   NativeLandingReadOnlyError,
   reconcileNativeLandingPages,
   changesHtmlSections,
-  RESERVED_LANDING_SLUGS,
   isReservedLandingSlug,
   setLandingPageAsProductPage,
   updateLandingPage,

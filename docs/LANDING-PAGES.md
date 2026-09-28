@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-28 @ `a917994` + reserve-native-slugs working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -28,13 +28,17 @@ then falls through to 404.
 
 **The collision this creates is real, and now refused rather than silent.**
 If a static route and a CMS landing page claim the same slug, the static file
-wins and the CMS page becomes unreachable. So the CMS refuses every slug in
-`RESERVED_LANDING_SLUGS` (`src/lib/landing-pages.ts`) — every top-level route
-under `src/pages/`, native landing pages included — and
-`landing-pages.test.ts` fails when a new top-level page is added without
-reserving its slug. Adding a native route therefore means adding its slug to
-that list too; before doing so, check `/admin/landing-pages` for an existing
-CMS page with that slug, which the new file would shadow.
+wins and the CMS page becomes unreachable. So the CMS refuses every slug
+`isReservedLandingSlug` (`src/lib/landing-pages.ts`) names: the product's own
+top-level routes (`RESERVED_LANDING_SLUGS`), every entry in the native register,
+and `installRouteSlugs` — an install's other route files, such as a legacy slug
+that 301s to a renamed page. All three live where their owner edits:
+the product list in the product, the other two in
+`src/data/native-landing-pages.ts`, which an install already owns.
+`landing-pages.test.ts` fails when a top-level page is covered by none of them.
+Registering a native page reserves its slug with no second edit; before adding
+one, check `/admin/landing-pages` for an existing CMS page with that slug,
+which the new file would shadow.
 
 ### The one exception: a landing page that *is* the product page
 

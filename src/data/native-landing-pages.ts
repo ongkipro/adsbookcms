@@ -43,3 +43,12 @@ export const nativeLandingPages: NativeLandingPage[] = [
   //   description: 'Landing khusus kampanye Lebaran.',
   // },
 ];
+
+/**
+ * Other top-level route files this install serves that are not landing pages —
+ * a legacy slug that 301s to a renamed page, say. A CMS landing page on one of
+ * these slugs would save and never be reachable, because the route file
+ * answers first, so the CMS refuses them. Every entry in `nativeLandingPages`
+ * is refused the same way without being repeated here.
+ */
+export const installRouteSlugs: string[] = [];

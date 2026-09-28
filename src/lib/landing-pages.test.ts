@@ -16,6 +16,7 @@ import {
   reconcileNativeLandingPages,
   changesHtmlSections,
   RESERVED_LANDING_SLUGS,
+  isReservedLandingSlug,
   setLandingPageAsProductPage,
   updateLandingPage,
   validateLandingPageSlug,
@@ -614,9 +615,19 @@ test("a landing slug cannot shadow a route the store already serves", () => {
     .map((entry) => entry.name.replace(/\.(astro|ts)$/, "").replace(/\.(txt|xml)$/, ""))
     .filter((name) => !name.startsWith("[") && name !== "index");
   for (const segment of segments) {
-    assert.ok(RESERVED_LANDING_SLUGS.has(segment), `src/pages/${segment} is not reserved`);
+    // An install's own route file is reserved through its native register or
+    // `installRouteSlugs` (src/data/native-landing-pages.ts), not this list.
+    assert.ok(isReservedLandingSlug(segment), `src/pages/${segment} is not reserved`);
     assert.equal(validateLandingPageSlug(segment).valid, false, segment);
   }
+});
+
+test("a native landing slug and an install route are refused as CMS slugs", () => {
+  const native = [{ slug: "promo-native", title: "T", productSlug: "p", description: "d", isActive: false }];
+  assert.equal(isReservedLandingSlug("promo-native", native, []), true, "inactive native still owns its file");
+  assert.equal(isReservedLandingSlug("legacy-redirect", [], ["legacy-redirect"]), true);
+  assert.equal(isReservedLandingSlug("promo-bebas", native, ["legacy-redirect"]), false);
+  assert.equal(isReservedLandingSlug("thanks", [], []), true);
 });
 
 test("only a change to raw HTML needs an owner, not a page that merely carries it", () => {

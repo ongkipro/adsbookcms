@@ -6086,3 +6086,27 @@ Preview and Edit entries the row already shows as icons.
 live install's long titles: table width equal to its container, no page
 overflow; the row menu opens with its four actions. 780 tests, `astro check`
 clean; the 12 px type floor test caught an `11px` first draft.
+
+## 2026-09-28 — Native slugs reserved; the pixel bootstrap keeps its hooks
+
+Bringing carukesi forward surfaced two product gaps, both silent:
+
+- **A CMS landing page could take a native page's slug.** The CMS refused only
+  the product's own route list, and the docs told an install to add its native
+  slug to that product-owned list — a divergence every merge then fights.
+  `isReservedLandingSlug` now refuses the product list, every entry in the
+  native register (active or not: the file exists either way) and a new
+  `installRouteSlugs` for an install's other route files, such as a legacy slug
+  that 301s. Both lists live in `src/data/native-landing-pages.ts`, which the
+  install already owns.
+- **A bootstrap without `__PS_META_INIT__` passed every test.** carukesi
+  rewrote `MetaPixelBase` on 2026-08-28 to load fbevents immediately; the
+  rewrite kept one init, so the init-count checks stayed green while `/thanks`
+  and both forms handed their matching to a hook that no longer existed. A
+  runtime test now requires both hooks, no early init on an awaiting page, and
+  a refused second init; it fails against the carukesi file.
+- `ViewContent` from `MetaLandingTracker` also carries `contents`, the one part
+  of carukesi's tracker change worth keeping.
+
+**Evidence.** Two new tests (782). The hook test was run against carukesi's
+bootstrap and failed on `__PS_META_INIT__ must be exposed`.

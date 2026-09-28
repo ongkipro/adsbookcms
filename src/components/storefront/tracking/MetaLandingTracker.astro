@@ -50,6 +50,10 @@ const { slug, contentId, contentName, price } = Astro.props;
       const data = {
         content_name: contentName,
         content_ids: contentId ? [contentId] : undefined,
+        // Meta matches a catalogue item on `contents` as well as `content_ids`.
+        contents: contentId
+          ? [{ id: contentId, quantity: 1, item_price: Number(price || 1) }]
+          : undefined,
         content_type: 'product',
         value: Number(price || 1),
         currency: 'IDR',

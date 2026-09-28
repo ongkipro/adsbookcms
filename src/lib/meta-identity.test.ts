@@ -143,6 +143,50 @@ test("the Pixel bootstrap mints and hashes one stable first-party external ID", 
   assert.equal(pageViewOptions?.eventID, windowStub.__META_PAGEVIEW_EVENT_ID__);
 });
 
+test("the Pixel bootstrap exposes the hooks /thanks and the forms call, and inits once", async () => {
+  // `/thanks`, form-middle and form-hybrid hand their advanced matching to
+  // `window.__PS_META_INIT__` and pull the library forward with
+  // `__PS_LOAD_META_PIXEL__`, each behind `?.`. A bootstrap without them fails
+  // nothing — the matching is dropped in silence. An install once shipped
+  // exactly that rewrite, with one init and so past the init-count checks.
+  const match = PIXEL_BASE.match(
+    /<script\b[^>]*\bis:inline\b[^>]*>([\s\S]*)<\/script>/,
+  );
+  assert.ok(match, "MetaPixelBase must keep its inline bootstrap");
+
+  const calls: unknown[][] = [];
+  const windowStub: Record<string, any> = {
+    location: { protocol: "https:" },
+    addEventListener: () => undefined,
+    setTimeout: () => 1,
+    // The page declares it will supply matching, as /thanks does.
+    __PS_META_AWAIT_MATCHING__: true,
+    fbq: (...args: unknown[]) => calls.push(args),
+  };
+  const documentStub = {
+    cookie: "",
+    createElement: () => ({}),
+    head: { appendChild: () => undefined },
+  };
+  new Function(
+    "pixelId", "metaExternalIdCookie", "window", "document", "crypto", "TextEncoder", "Uint8Array",
+    match[1],
+  )("1234567890", "adsbook_meta_external_id", windowStub, documentStub, globalThis.crypto, TextEncoder, Uint8Array);
+
+  for (let i = 0; i < 50 && typeof windowStub.__PS_META_INIT__ !== "function"; i += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.equal(typeof windowStub.__PS_META_INIT__, "function", "__PS_META_INIT__ must be exposed");
+  assert.equal(typeof windowStub.__PS_LOAD_META_PIXEL__, "function", "__PS_LOAD_META_PIXEL__ must be exposed");
+  assert.equal(calls.filter((args) => args[0] === "init").length, 0, "an awaiting page is not init'd early");
+
+  assert.equal(windowStub.__PS_META_INIT__({ ph: "hashed-phone" }), true);
+  assert.equal(windowStub.__PS_META_INIT__({ fn: "late" }), false, "a second init is refused");
+  const inits = calls.filter((args) => args[0] === "init");
+  assert.equal(inits.length, 1);
+  assert.equal((inits[0][2] as Record<string, unknown>).ph, "hashed-phone");
+});
+
 test("the browser Pixel's advanced-matching object hashes every field CAPI also hashes for the same event", async () => {
   // This is the gap that motivated the shared builder: AddToCart and
   // InitiateCheckout already send city/province/postal_code/country to the

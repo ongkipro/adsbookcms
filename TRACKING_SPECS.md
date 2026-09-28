@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-09-26 @ `fc4015f` + working tree (Events Manager plugins observed live)
+> Verified against disk: 2026-09-28 @ `a917994` + working tree (bootstrap hook test, ViewContent contents)
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -140,6 +140,14 @@ The contract that replaces it:
 - **Nothing else calls `fbq('init')`.** `meta-identity.test.ts` scans the thanks
   tracker's source (comments stripped) and fails if one reappears;
   `meta-purchase-dedup.test.ts` fails if the tracker issues one at runtime.
+- **The bootstrap keeps its hooks.** Every caller reaches
+  `__PS_META_INIT__` and `__PS_LOAD_META_PIXEL__` through `?.`, so a bootstrap
+  rewritten without them still inits once, still fires `PageView`, and drops the
+  Purchase's matching in silence — an install shipped exactly that rewrite on
+  2026-08-28 to load the library sooner. `meta-identity.test.ts` runs the real
+  bootstrap and fails unless both hooks exist, an awaiting page is not init'd
+  early, and a second `__PS_META_INIT__` is refused. Loading sooner is a change
+  to the deferral inside this contract, never a replacement of it.
 - **A form page cannot upgrade its matching.** The pixel has already initialised
   by the time a buyer types anything, so `AddToCart` and `InitiateCheckout`
   carry `external_id` on the browser leg and the full identity on the CAPI leg,

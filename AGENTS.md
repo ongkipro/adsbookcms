@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `fc4015f` + alert-webhook working tree
+> Verified against disk: 2026-09-28 @ `a917994` + reserve-native-slugs working tree
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -77,7 +77,7 @@ failure mode this section exists to prevent.
 - The admin session key is read only through `resolveAuthSecret` (`src/lib/auth-secret.ts`): an `AUTH_SECRET` env secret of 32+ characters wins, otherwise the Worker's own key from `install_secrets` (ADR-026). Never read `install_secrets` anywhere else, and never return it.
 - `wrangler.jsonc` here is a deployable template for the Deploy to Cloudflare button: all-zero ids, no `routes`, `INSTALL_TOKEN` the only required secret. Do not add a real id, a domain, or a second required secret — each one breaks the one-click install.
 - Meta CAPI tokens are server-only. Browser and server Purchase share one per-order `event_id`.
-- **One `fbq('init')` per pixel id, and `MetaPixelBase` owns it.** fbevents honours advanced matching exactly once per pixel id and discards every later call in silence — not an error, not a warning. Three files once init'd behind the pixel's bootstrap, so the browser Purchase reached Meta matched on one key while the server leg matched on eight. A page with better matching supplies it through `window.__PS_META_INIT__` and declares `__PS_META_AWAIT_MATCHING__` ahead of the pixel; nothing else calls `fbq('init')`. Tests assert this at both source and runtime (TRACKING_SPECS §4a).
+- **One `fbq('init')` per pixel id, and `MetaPixelBase` owns it.** fbevents honours advanced matching exactly once per pixel id and discards every later call in silence — not an error, not a warning. Three files once init'd behind the pixel's bootstrap, so the browser Purchase reached Meta matched on one key while the server leg matched on eight. A page with better matching supplies it through `window.__PS_META_INIT__` and declares `__PS_META_AWAIT_MATCHING__` ahead of the pixel; nothing else calls `fbq('init')`. Tests assert this at both source and runtime (TRACKING_SPECS §4a), including that the bootstrap still exposes `__PS_META_INIT__` and `__PS_LOAD_META_PIXEL__` — their callers use `?.`, so a bootstrap without them drops matching in silence.
 - **The catalogue identity fails closed for an ads payload and degrades everywhere else.** `catalogProductId` throws on a row that predates the five-digit scheme, which is right for one payload and wrong wherever the throw outlives the row — a feed, a list, a `.find` predicate, a React render. Those read `catalogProductIdOrNull`. An allowlist test in `catalog-identity.test.ts` refuses a new strict call site.
 - Every Headless route is registered in `HEADLESS_OPERATIONS` with one minimum scope. API-key usage quotas and write audit events are D1-backed and part of the request boundary, not UI-only policy.
 
@@ -119,7 +119,7 @@ can reach it.
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **780 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
+Current verified working-tree baseline: **782 passing**, 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 

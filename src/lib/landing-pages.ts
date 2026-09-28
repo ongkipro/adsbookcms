@@ -2,6 +2,10 @@ import { getRuntimeEnv } from "./env.ts";
 import { formatIdr } from "./format-idr.ts";
 import { solutionEntries } from "../data/content.ts";
 import {
+  installRouteSlugs,
+  nativeLandingPages,
+} from "../data/native-landing-pages.ts";
+import {
   activeNativeLandingPages,
   isNativeLandingId,
   nativeLandingIdFor,
@@ -777,6 +781,24 @@ export const RESERVED_LANDING_SLUGS: ReadonlySet<string> = new Set([
   "syarat-ketentuan", "tentang", "testimoni", "thanks",
 ]);
 
+/**
+ * A slug a CMS landing page may not take because a route file already answers
+ * on it: the product's own pages, every registered native landing page (active
+ * or not — the file exists either way), and the install's other route files.
+ * Without the last two a CMS page saved on `/<native-slug>` stays unreachable.
+ */
+export function isReservedLandingSlug(
+  slug: string,
+  natives: readonly NativeLandingPage[] = nativeLandingPages,
+  installRoutes: readonly string[] = installRouteSlugs,
+): boolean {
+  return (
+    RESERVED_LANDING_SLUGS.has(slug) ||
+    natives.some((entry) => entry.slug === slug) ||
+    installRoutes.includes(slug)
+  );
+}
+
 export function validateLandingPageSlug(
   slug: string,
 ): { valid: boolean; error?: string } {
@@ -788,7 +810,7 @@ export function validateLandingPageSlug(
         "Slug must contain only lowercase letters, numbers, and single hyphens",
     };
   }
-  if (RESERVED_LANDING_SLUGS.has(slug)) {
+  if (isReservedLandingSlug(slug)) {
     return { valid: false, error: `Slug /${slug} sudah dipakai halaman bawaan toko.` };
   }
   return { valid: true };

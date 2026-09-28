@@ -6120,3 +6120,16 @@ on the site because of its traffic permission settings, and made no
 healthy, because CAPI is not subject to that list. TRACKING_SPECS §3 now names
 the symptom and the one check that catches it after a domain goes live. The fix
 belongs to Events Manager, not to this repository.
+
+## 2026-09-28 — Native pages reach the sitemap without an operator
+
+The native register reached `landing_pages` only when someone opened the
+landing-page list, so eleven pages deployed to carukesi stayed out of its
+sitemap — and could not take a product page — until an operator happened to.
+The hourly cron now runs the same re-sync. It first had to stop writing when
+nothing changed: every run bumped `updated_at` on every native row, and that
+column is the sitemap's `lastmod`, so crawlers were told each page had changed
+whenever the list was opened. The upsert now writes only a real difference.
+
+**Evidence.** New test: an unchanged re-sync leaves `updated_at` alone and a
+changed description moves it; dropping the upsert's `WHERE` fails it. 783 tests.

@@ -987,7 +987,15 @@ export async function reconcileNativeLandingPages(
              product_id = excluded.product_id,
              meta_title = excluded.meta_title,
              meta_description = excluded.meta_description,
-             updated_at = excluded.updated_at`,
+             updated_at = excluded.updated_at
+           -- Only a real change writes. updated_at is the sitemap's lastmod,
+           -- and a re-sync that bumped it every time told crawlers every
+           -- native page had changed whenever the list was opened.
+           WHERE landing_pages.slug IS NOT excluded.slug
+              OR landing_pages.title IS NOT excluded.title
+              OR landing_pages.product_id IS NOT excluded.product_id
+              OR landing_pages.meta_title IS NOT excluded.meta_title
+              OR landing_pages.meta_description IS NOT excluded.meta_description`,
         )
         .bind(
           nativeLandingIdFor(entry.slug),

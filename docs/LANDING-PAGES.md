@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-09-28 @ `a917994` + reserve-native-slugs working tree
+> Verified against disk: 2026-09-28 @ `0d6ca3f` + native-reconcile-cron working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -218,7 +218,9 @@ that is slightly prettier.
 ## Registering a native page in the CMS
 
 Add an entry to `src/data/native-landing-pages.ts` and deploy. The CMS records
-it on the next landing-page list load — no sync step, no admin action.
+it on the next landing-page list load, or within the hour from the scheduled
+re-sync — no sync step, no admin action. The re-sync writes only a row that
+changed, because `updated_at` is the sitemap's `lastmod`.
 
 ```ts
 export const nativeLandingPages: NativeLandingPage[] = [

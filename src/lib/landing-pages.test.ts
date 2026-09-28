@@ -407,6 +407,23 @@ test("the register is mirrored into the table, and a claim survives a re-sync", 
   assert.equal(stillClaimed?.title, "Judul Baru");
 });
 
+test("a re-sync with nothing changed leaves updated_at, the sitemap lastmod, alone", async () => {
+  const { database, locals } = createLocals();
+  const d1 = database as unknown as D1Database;
+  await reconcileNativeLandingPages(d1, [nativeEntry]);
+  const first = (await getLandingPageById(locals, "native:promo-native"))?.updated_at;
+  assert.ok(first);
+
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  await reconcileNativeLandingPages(d1, [nativeEntry]);
+  assert.equal((await getLandingPageById(locals, "native:promo-native"))?.updated_at, first);
+
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  await reconcileNativeLandingPages(d1, [{ ...nativeEntry, description: "Deskripsi baru." }]);
+  const changed = (await getLandingPageById(locals, "native:promo-native"))?.updated_at;
+  assert.ok(changed && changed > first, "a real change still moves updated_at");
+});
+
 test("removing the register entry removes the row, and with it any claim", async () => {
   const { database, locals } = createLocals();
   const d1 = database as unknown as D1Database;

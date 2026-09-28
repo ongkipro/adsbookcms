@@ -9,6 +9,7 @@ import {
 import { collectOperationalHealth } from "./lib/operational-health.ts";
 import { ensureSchemaUpgraded } from "./lib/schema-version.ts";
 import { purgeExpiredRateLimits } from "./lib/rate-limit.ts";
+import { reconcileNativeLandingPages } from "./lib/landing-pages.ts";
 import { purgeExpiredNotifications } from "./lib/notifications.ts";
 import {
   expirePendingPaymentTransactions,
@@ -72,6 +73,14 @@ async function runScheduledMaintenance(
     "scheduled-google-ads-purge-failed",
     () => purgeExpiredGoogleAdsConversions(env.OMS_DB, new Date(scheduledTime)),
   );
+  // The native register reached the table only when an operator opened the
+  // landing-page list, so a page deployed since stayed out of the sitemap and
+  // could not take a product page until then. The re-sync writes only what
+  // changed, so running it hourly costs nothing when nothing did.
+  await housekeeping("scheduled-native-landing-reconcile-failed", async () => {
+    await reconcileNativeLandingPages(env.OMS_DB);
+    return 0;
+  });
   // Payment truth for QRIS/VA. The retired webhook never answered; the
   // provider's Advice endpoint does, and this is the only clock that asks it.
   // A transaction is marked paid solely when the provider's own response says

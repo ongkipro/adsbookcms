@@ -3,7 +3,7 @@ import GeoIpResolvedForm from '../components/storefront/forms/GeoIpResolvedForm.
 import MetaLandingTracker from '../components/storefront/tracking/MetaLandingTracker.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getStorefrontProduct } from '../lib/catalog';
-import { getLandingPageBySlug, parseShortcodes } from '../lib/landing-pages';
+import { deferOffscreenImages, getLandingPageBySlug, parseShortcodes } from '../lib/landing-pages';
 import { productPageRedirect } from '../lib/native-landing-pages';
 import { getStoreSupportWhatsapp } from '../lib/public-store';
 import { resolveAdminSession } from '../lib/admin-session';
@@ -148,9 +148,14 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
   />
 
   {
-    page.sections.map((section) => {
+    page.sections.map((section, index) => {
       if (section.type === 'html') {
-        const parsedHtml = parseShortcodes(section.content_html ?? '', product, csPhone);
+        // Only the page's first section may hold the LCP image; every image
+        // after it waits for the scroll.
+        const parsedHtml = deferOffscreenImages(
+          parseShortcodes(section.content_html ?? '', product, csPhone),
+          index === 0,
+        );
         return <section class="lp-section" set:html={parsedHtml} />;
       }
       const config = section.content_config;

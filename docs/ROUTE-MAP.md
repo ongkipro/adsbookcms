@@ -242,7 +242,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `install` | 6 | `admin_credentials` `courier_rules` `stores` | ✓ | `/api/install` |
 | `json-ld` | 14 | — | ✓ | — |
 | `json-script` | 1 | — | ✓ | — |
-| `landing-pages` | 32 | `landing_pages` `landing_sections` `products` | ✓ | `/produk/[slug]` `/sitemap` `/[slug]` `/contoh-landing` `/landing-page` `/sitemap.xml` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` |
+| `landing-pages` | 33 | `landing_pages` `landing_sections` `products` | ✓ | `/produk/[slug]` `/sitemap` `/[slug]` `/contoh-landing` `/landing-page` `/sitemap.xml` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` |
 | `location-cache` | 5 | — | ✓ | `/api/locations` |
 | `location-search` | 14 | — | ✓ | `/api/locations` `/api/v1/geo/districts` |
 | `manual-payment-reconciliation` | 6 | `admin_credentials` `orders` `payment_reconciliation_audits` `payment_transactions` `stores` | ✓ | `/api/admin/payment-reconciliation` |

@@ -6183,3 +6183,18 @@ minutes keeps a repeat visit instant and a change in `/admin` effective.
 **Evidence.** New test on the response (status, Location with the ad's query
 string, Cache-Control); the source guard still requires `url.search` at every
 call site. 786 tests.
+
+## 2026-09-29 — CMS landing images wait for the scroll
+
+A CMS landing's HTML is written by hand, and its images arrived eager and
+unsized. On taniniaga's ad landing `/saratoga-tani` four before/after JPEGs
+(1200×800, up to 176 KB, shown 140 px tall) and a 172 KB stock photo far below
+the fold were fetched with the page, competing with the hero on the mobile
+connection LCP is measured on. `deferOffscreenImages` now adds
+`loading="lazy" decoding="async"` at render to every image but the first of the
+first section, one that already sets `loading`, and one carrying
+`onerror`/`onload` — the content runs its scroll-to-form script through a hidden
+`<img src="x" onerror>`, and a lazy hidden image is never fetched.
+
+**Evidence.** New test covers all four cases; removing the `onerror` guard fails
+it. 787 tests.

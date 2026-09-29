@@ -16,6 +16,7 @@ import {
   reconcileNativeLandingPages,
   changesHtmlSections,
   isReservedLandingSlug,
+  deferOffscreenImages,
   setLandingPageAsProductPage,
   updateLandingPage,
   validateLandingPageSlug,
@@ -663,4 +664,24 @@ test("moving a claimed page to another product releases the claim instead of ste
   assert.equal(moved?.is_product_page, 0);
   assert.equal(await getProductPageLanding(locals, "20001"), null);
   assert.equal(await getProductPageLanding(locals, "20002"), null);
+});
+
+test("CMS images below the first are deferred, and script-bearing images are left alone", () => {
+  const html = [
+    '<img src="/hero.webp" alt="hero">',
+    '<img src="/before.jpg" alt="before" style="height:140px">',
+    '<img src="/chosen.jpg" loading="eager">',
+    `<img src="x" style="display:none" onerror="bindCta()">`,
+    '<IMG SRC="/upper.jpg">',
+  ].join("");
+  const out = deferOffscreenImages(html, true);
+  assert.match(out, /^<img src="\/hero\.webp" alt="hero">/, "the first image stays eager for LCP");
+  assert.match(out, /<img loading="lazy" decoding="async" src="\/before\.jpg"/);
+  assert.match(out, /<img src="\/chosen\.jpg" loading="eager">/, "an operator's own choice stands");
+  // A lazy hidden image is never fetched, so its onerror — the only way CMS
+  // content runs script — would never fire.
+  assert.match(out, /<img src="x" style="display:none" onerror="bindCta\(\)">/);
+  assert.match(out, /<img loading="lazy" decoding="async" SRC="\/upper\.jpg">/);
+  // A later section has no LCP candidate: its first image is deferred too.
+  assert.match(deferOffscreenImages('<img src="/a.jpg">', false), /^<img loading="lazy" decoding="async"/);
 });

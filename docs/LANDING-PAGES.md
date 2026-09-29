@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-09-29 @ `4514e71` + product-page-301 working tree
+> Verified against disk: 2026-09-29 @ `dcf0c6a` + cms-images-lazy working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -207,6 +207,13 @@ admin's. Only `owner` and `admin` may add or change one (`403` otherwise); an
 owner already wrote (`changesHtmlSections`). Moving a page that has taken over
 its product's page to a different product releases the takeover instead of
 carrying it to the new product.
+
+An `html` section's images are deferred at render (`deferOffscreenImages`):
+every `<img>` gets `loading="lazy" decoding="async"` except the first image of
+the page's first section (the likely LCP), a tag that already sets `loading`,
+and a tag with `onerror`/`onload` — content runs script through a hidden
+`<img onerror>`, which a lazy hidden image would never fire. Give a hero image a
+`width` and `height` yourself; nothing infers them.
 
 `?preview=1` renders an inactive page for an authenticated admin and sends
 `Cache-Control: no-store`.

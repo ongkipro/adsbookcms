@@ -730,6 +730,32 @@ export type ShortcodeProduct = {
   }>;
 };
 
+/**
+ * Defers the images of a merchant-authored HTML section the browser does not
+ * need for first paint. A CMS landing page is written by hand, and its images
+ * arrive eager and unsized: on a live ad landing every before/after photo and a
+ * 172 KB stock photo far below the fold were fetched up front, competing with
+ * the hero for the mobile connection that LCP is measured on.
+ *
+ * Adds `loading="lazy" decoding="async"` to each `<img>` except:
+ * - the first image of the page (`keepFirstEager`), the likely LCP element;
+ * - a tag that already declares `loading` — the operator chose;
+ * - a tag carrying `onerror`/`onload`: content uses a hidden
+ *   `<img src="x" onerror=…>` to run script, and a lazy hidden image is never
+ *   fetched, so its handler would never fire.
+ */
+export function deferOffscreenImages(html: string, keepFirstEager: boolean): string {
+  let first = keepFirstEager;
+  return html.replace(/<img\b[^>]*>/gi, (tag) => {
+    if (/\sloading\s*=/i.test(tag) || /\son(error|load)\s*=/i.test(tag)) return tag;
+    if (first) {
+      first = false;
+      return tag;
+    }
+    return tag.replace(/^<img\b/i, '<img loading="lazy" decoding="async"');
+  });
+}
+
 export function parseShortcodes(
   html: string,
   product: ShortcodeProduct,

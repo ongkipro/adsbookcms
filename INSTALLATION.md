@@ -1,6 +1,6 @@
 # Installing AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `fc4015f` + alert-webhook working tree
+> Verified against disk: 2026-09-30 @ `0ef2813` + retire-ninja-default-jne-jt working tree
 
 This document describes how an install is actually stood up today, and where that process is still rougher than the product intends to be. It contains no commands that do not exist. Where a step is manual because the tooling has not been built yet, it says so and points at the gap.
 
@@ -238,7 +238,7 @@ Pushing to `main` in **this** repository deploys nothing — CI runs check, test
    - `/admin/settings/store` — store name and support WhatsApp (the support number feeds the public `/kontak` page)
    - `/admin/settings/warehouse` — pickup origin and Mengantar origin ids; shipping quotes fail without this
    - `/admin/profile` — provider API keys and base URLs
-   - `/admin/expeditions` — which couriers and which COD services are offered; a fresh install starts with the neutral nine-courier catalogue (Ninja was retired by Mengantar on 2026-09-01; `0056` disables its rule), and the operator may narrow it here
+   - `/admin/expeditions` — which couriers and which COD services are offered; a fresh install offers JNE and J&T, with the other couriers listed but off for the operator to switch on here
    - `/admin/ads/meta` and `/admin/ads/google` — pixel, CAPI token, GTM, conversion ids
    - `/admin/settings/crm` — WhatsApp follow-up templates
    - `/admin/products` — the real catalog

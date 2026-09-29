@@ -55,7 +55,12 @@ const addSpxMigration = readFileSync(
   new URL("../db/migrations/0059_add_spx_courier.sql", import.meta.url),
   "utf8",
 );
-const migration = [bootstrapMigration, retireNinjaMigration, addSpxMigration].join("\n");
+// 0061 removes the retired Ninja rule 0042 seeded and 0056 disabled.
+const removeNinjaMigration = readFileSync(
+  new URL("../db/migrations/0061_remove_ninja_courier.sql", import.meta.url),
+  "utf8",
+);
+const migration = [bootstrapMigration, retireNinjaMigration, addSpxMigration, removeNinjaMigration].join("\n");
 
 test("courier bootstrap repairs an installed store only when its policy is empty", () => {
   const database = databaseBeforeCourierBootstrap();
@@ -81,22 +86,18 @@ test("courier bootstrap repairs an installed store only when its policy is empty
       enabled: number;
       cod: number;
     }>;
-  // 0042 still seeds Ninja (its own fixed historical SQL); 0056 disables that
-  // row rather than deleting it, so an operator can see it retired instead of
-  // it silently vanishing. It is therefore present, but not in
-  // DEFAULT_COURIER_RULES, which only lists what's currently active.
+  // The migrations are history: 0042 repaired an empty policy with every
+  // courier enabled, and 0061 removed Ninja. A fresh install enables fewer (see
+  // the install bootstrap test below); the repair keeps what it ran.
   assert.deepEqual(
-    repaired.filter((rule) => rule.code !== "Ninja"),
+    repaired,
     DEFAULT_COURIER_RULES.map((rule) => ({
       code: rule.code,
       enabled: 1,
       cod: rule.cod,
     })),
   );
-  assert.deepEqual(
-    repaired.find((rule) => rule.code === "Ninja"),
-    { code: "Ninja", enabled: 0, cod: 1 },
-  );
+  assert.equal(repaired.some((rule) => String(rule.code).toLowerCase() === "ninja"), false);
 
   const configured = database
     .prepare(`
@@ -119,7 +120,7 @@ test("courier bootstrap repairs an installed store only when its policy is empty
     .all()
     .map((row) => ({ ...row }));
   assert.deepEqual(counts, [
-    { store_id: 1, total: DEFAULT_COURIER_RULES.length + 1 },
+    { store_id: 1, total: DEFAULT_COURIER_RULES.length },
     { store_id: 2, total: 2 },
   ]);
 });
@@ -155,15 +156,13 @@ test("the Expeditions API exposes the repaired catalogue after upgrade", async (
 
   assert.equal(response.status, 200);
   assert.equal(payload.success, true);
-  // The admin settings page lists a retired courier disabled rather than
-  // hiding it, so the operator can see Ninja is off, not just missing.
+  // Ninja is gone from the catalogue once 0061 has run.
   const expectedCouriers = [
     ...DEFAULT_COURIER_RULES.map((rule) => ({
       code: rule.code,
       enabled: 1,
       cod: rule.cod,
     })),
-    { code: "Ninja", enabled: 0, cod: 1 },
   // SQLite ORDER BY compares bytes, so "SPX" sorts before "SiCepat".
   ].sort((left, right) => (left.code < right.code ? -1 : left.code > right.code ? 1 : 0));
   assert.deepEqual(
@@ -174,4 +173,14 @@ test("the Expeditions API exposes the repaired catalogue after upgrade", async (
     })),
     expectedCouriers,
   );
+});
+
+test("a fresh install offers JNE and J&T, with every other courier present but off", () => {
+  assert.deepEqual(
+    DEFAULT_COURIER_RULES.filter((rule) => rule.enabled === 1).map((rule) => rule.code),
+    ["JNE", "J&T"],
+  );
+  assert.equal(DEFAULT_COURIER_RULES.some((rule) => rule.code.toLowerCase() === "ninja"), false);
+  // Every other courier keeps a row, so switching one on is a toggle.
+  assert.ok(DEFAULT_COURIER_RULES.length > 2);
 });

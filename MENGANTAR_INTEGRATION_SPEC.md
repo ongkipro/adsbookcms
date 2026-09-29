@@ -1,6 +1,6 @@
 # Mengantar Integration — Technical Contract and Gap Register
 
-> Verified against disk: 2026-09-26 @ `fd18362` + working tree
+> Verified against disk: 2026-09-30 @ `0ef2813` + retire-ninja-default-jne-jt working tree
 
 This document is the technical source of truth for AdsBookCMS behavior at the Mengantar boundary. It separates repository-observed transport code, locally verified application behavior, operator-gated live mutations, and provider contracts that remain unknown.
 
@@ -60,10 +60,14 @@ Status distinguishes three separate things: whether the **transport method** exi
 The local district index improves public search relevance; it is not a replacement for the provider identity required by rates and dispatch.
 
 **Courier catalogue.** Mengantar removed Ninja from its public API on
-2026-09-01; it is no longer in `DEFAULT_COURIER_RULES` and migration `0056`
-disables an existing Ninja rule rather than deleting it. Orders created with
-Ninja before the cutoff stay queryable. Quotes list only what the provider
-returns, so no other code path offers it.
+2026-09-01. Migration `0056` disabled its rule and `0061` removes it; the code
+no longer names it. No install had an order with it; an order that did would
+keep its `courier_code` and show it as written. Quotes are filtered through
+`courier_rules`, so a quote for a courier without a rule is dropped.
+
+A fresh install enables **JNE and J&T** only; every other courier in
+`DEFAULT_COURIER_RULES` gets a row switched off, for the operator to turn on in
+`/admin/expeditions`. Existing stores keep their own policy.
 
 SPX (Shopee Express) is quoted as `spx` in `/order/estimate?courier=all`
 (observed 2026-09-25; not yet in Mengantar's documentation) and is in

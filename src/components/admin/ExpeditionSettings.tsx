@@ -74,7 +74,7 @@ const courierLogos: Record<string, string> = {
   Pos: '/images/couriers/pos.svg',
   SPX: '/images/couriers/spx.svg',
 };
-const courierColors: Record<string, string> = { Paxel: '#42155e', Ninja: '#c2002f' };
+const courierColors: Record<string, string> = { Paxel: '#42155e' };
 
 
 function Toggle({ checked, disabled, pending, label, onChange }: {

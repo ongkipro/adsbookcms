@@ -340,7 +340,8 @@ test("a fresh install carries the default courier catalogue without provider cal
     couriers,
     DEFAULT_COURIER_RULES.map((rule) => ({
       code: rule.code,
-      enabled: 1,
+      // JNE and J&T start on; the rest are present, off (install.ts).
+      enabled: rule.enabled,
       cod: rule.cod,
       excluded: null,
     })),

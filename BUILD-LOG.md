@@ -6250,3 +6250,21 @@ whether COD is accepted.
 **Evidence.** Two tests: a rebuilt request with the forwarded headers resolves
 the original province (and resolves none without them); the product page's
 rewrite spreads them. 796 tests.
+
+## 2026-09-30 — Ninja removed; a new store starts with JNE and J&T
+
+Mengantar retired Ninja on 2026-09-01 and `0056` only disabled its rule. `0061`
+now deletes the rule, and the code stops naming it (display name, admin colour).
+Every live install was checked first: one disabled Ninja rule each, no order
+with it. Orders are untouched; a hypothetical Ninja order would keep its
+`courier_code` and show it as written. No cache holds it: quotes are filtered
+through `courier_rules`, and a courier without a rule is dropped.
+
+A fresh install now enables JNE and J&T only. Every other courier still gets a
+row, switched off, so turning one on in `/admin/expeditions` is a toggle.
+Existing stores keep their own policy. RELEASE §3 also gains the missing
+`0059`–`0061` entries, and §4's `schemaVersion` (it still read 59) is 62.
+
+**Evidence.** Migration test applies `0042`→`0061` and finds no Ninja row; the
+install test and a new default test require exactly JNE and J&T enabled. 797
+tests.

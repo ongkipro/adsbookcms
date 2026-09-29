@@ -16,7 +16,6 @@ const NAMES: Record<string, string> = {
   paxel: "Paxel",
   pos: "Pos Indonesia",
   spx: "SPX Express",
-  ninja: "Ninja Xpress",
   ico: "Kurir menyusul",
 };
 

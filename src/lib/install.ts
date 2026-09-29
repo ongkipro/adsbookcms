@@ -38,10 +38,13 @@ export interface InstallPlan {
  * Paxel COD stays off because that was the existing product policy before the
  * demo seed that carried these rows was removed.
  *
+ * Only JNE and J&T start enabled: the two couriers with the widest COD reach
+ * in the fleet's traffic, so a new store offers a short, reliable choice and
+ * the operator switches the others on in /admin/expeditions. Every courier
+ * still gets a row, so turning one on is a toggle, not a missing entry.
+ *
  * Ninja is not in this list: Mengantar discontinued it from its public API on
- * 2026-09-01 ("no longer available on the Mengantar public API"; do not rely
- * on it). Existing orders created before that cutoff stay queryable, but a
- * default rule for it would offer a courier every quote will fail on.
+ * 2026-09-01, and migration `0061` removes the rule from existing stores.
  *
  * SPX (Shopee Express) appeared in the live `/order/estimate?courier=all`
  * result as `spx` on 2026-09-25, before Mengantar's documentation listed it;
@@ -49,20 +52,20 @@ export interface InstallPlan {
  * existing stores.
  */
 export const DEFAULT_COURIER_RULES = [
-  { code: "JNE", cod: 1 },
-  { code: "SiCepat", cod: 1 },
-  { code: "J&T", cod: 1 },
-  { code: "SAP", cod: 1 },
-  { code: "Anteraja", cod: 1 },
-  { code: "Lion", cod: 1 },
-  { code: "IDexpress", cod: 1 },
-  { code: "Paxel", cod: 0 },
-  { code: "Pos", cod: 1 },
-  { code: "SPX", cod: 1 },
+  { code: "JNE", enabled: 1, cod: 1 },
+  { code: "SiCepat", enabled: 0, cod: 1 },
+  { code: "J&T", enabled: 1, cod: 1 },
+  { code: "SAP", enabled: 0, cod: 1 },
+  { code: "Anteraja", enabled: 0, cod: 1 },
+  { code: "Lion", enabled: 0, cod: 1 },
+  { code: "IDexpress", enabled: 0, cod: 1 },
+  { code: "Paxel", enabled: 0, cod: 0 },
+  { code: "Pos", enabled: 0, cod: 1 },
+  { code: "SPX", enabled: 0, cod: 1 },
 ] as const;
 
 const defaultCourierValues = DEFAULT_COURIER_RULES.map(
-  (rule) => `('${rule.code.replace("'", "''")}', 1, ${rule.cod})`,
+  (rule) => `('${rule.code.replace("'", "''")}', ${rule.enabled}, ${rule.cod})`,
 ).join(",\n");
 
 const LOCALE_PATTERN = /^[a-z]{2}(?:-[A-Z]{2})?$/;

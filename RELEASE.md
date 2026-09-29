@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-09-29 @ `cf665db` + autolaris-recheck-window working tree
+> Verified against disk: 2026-09-30 @ `0ef2813` + retire-ninja-default-jne-jt working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -134,6 +134,14 @@ Migration-specific notes:
 - **`0058`** adds `install_secrets`, where a Worker with no `AUTH_SECRET`
   secret keeps the session key it generates for itself (ADR-026). Additive;
   an install that sets `AUTH_SECRET` never writes a row.
+- **`0059`** adds an `SPX` courier rule to every store that already has a
+  courier policy (Mengantar quotes it as `spx`). Additive.
+- **`0060`** adds `stores.thanks_whatsapp_redirect`, the switch for handing a
+  COD buyer from `/thanks` to WhatsApp support. Default `0`: no behaviour
+  changes until an operator turns it on.
+- **`0061`** deletes the `Ninja` courier rule `0056` disabled. Only
+  `courier_rules` rows; no install had an order with Ninja, and one that did
+  would keep its `courier_code`.
 
 ---
 
@@ -145,7 +153,7 @@ Two registries, currently in step:
 | --- | --- | --- |
 | `src/lib/version.ts` | `version` | `1.4.0` |
 | `src/lib/version.ts` | `releaseTag` | `2026.08-stock-unlimited` |
-| `src/lib/version.ts` | `schemaVersion` | `59` |
+| `src/lib/version.ts` | `schemaVersion` | `62` |
 | `package.json` | `version` | `1.4.0` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users

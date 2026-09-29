@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { DatabaseSync } from "node:sqlite";
 import {
   AUTOLARIS_CHANNEL_OPTIONS,
   parseAutoLarisPaymentResponse,
@@ -12,6 +13,8 @@ import {
   isSyntheticBuyerEmail,
   matchableCustomerEmail,
   reconcileAutoLarisPaymentStatuses,
+  PENDING_AUTOLARIS_INQUIRY_SQL,
+  AUTOLARIS_EXPIRED_RECHECK_HOURS,
 } from "./autolaris-payment.ts";
 
 function createAutoLarisOrderDatabase(autoLarisApiKey: string | null) {
@@ -752,4 +755,35 @@ test("a local store on a dotless host still mints an address the provider accept
   assert.match(minted, /^[^\s@]+@[^\s@]+\.[^\s@]+$/, "AutoLaris' own email rule");
   assert.equal(isSyntheticBuyerEmail(minted, local), true, "never handed to Meta as a match key");
   assert.equal(buyerEmail(null, "081234567890", "https://toko.example"), "081234567890@toko.example");
+});
+
+test("the hourly Advice run reaches new instructions, not the same old expired ones", () => {
+  // The shape a live store reached: dozens of long-dead QRIS instructions nobody
+  // paid, then today's. The old query took the 25 oldest every hour and never
+  // got past them.
+  const db = new DatabaseSync(":memory:");
+  db.exec(`
+    CREATE TABLE orders (id INTEGER PRIMARY KEY, order_number TEXT, customer_name TEXT,
+      payment_status TEXT, shipping_status TEXT, stock_restored_at TEXT);
+    CREATE TABLE payment_transactions (id INTEGER PRIMARY KEY, order_id INTEGER, provider TEXT,
+      provider_transaction_id TEXT, total_amount INTEGER, status TEXT, expires_at TEXT, created_at TEXT);
+  `);
+  const now = new Date("2026-09-29T10:07:00.000Z");
+  const at = (hoursAgo: number) => new Date(now.getTime() - hoursAgo * 3_600_000).toISOString();
+  const addOrder = db.prepare("INSERT INTO orders VALUES (?, ?, 'x', 'pending', 'pending', NULL)");
+  const addTx = db.prepare("INSERT INTO payment_transactions VALUES (?, ?, 'autolaris', ?, 1000, ?, ?, ?)");
+  let id = 0;
+  const add = (status: string, expiresHoursAgo: number, createdHoursAgo: number) => {
+    id += 1;
+    addOrder.run(id, `INV-${id}`);
+    addTx.run(id, id, `P${id}`, status, at(expiresHoursAgo), at(createdHoursAgo));
+    return id;
+  };
+  for (let i = 0; i < 30; i += 1) add("expired", 24 * 10 + i, 24 * 10 + i + 1);
+  const justExpired = add("expired", 2, 3);
+  const stillPending = add("pending", -1, 0.5);
+
+  const cutoff = new Date(now.getTime() - AUTOLARIS_EXPIRED_RECHECK_HOURS * 3_600_000).toISOString();
+  const rows = db.prepare(PENDING_AUTOLARIS_INQUIRY_SQL).all(cutoff, 25) as Array<{ transaction_id: number }>;
+  assert.deepEqual(rows.map((row) => row.transaction_id), [stillPending, justExpired]);
 });

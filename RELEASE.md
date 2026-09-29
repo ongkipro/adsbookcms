@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `fc4015f` + alert-webhook working tree
+> Verified against disk: 2026-09-29 @ `cf665db` + autolaris-recheck-window working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -76,7 +76,8 @@ COD and manual seller-bank transfer can be considered for a controlled canary
 after install-specific configuration, backup/rollback preparation, and provider
 smoke checks. AutoLaris QRIS/VA no longer depends on the retired webhook path:
 since 1.4.x the hourly cron calls the provider's Advice endpoint for every
-pending transaction and marks one paid **only** when the response carries
+pending transaction — and each that expired in the last 24 hours, newest first,
+up to 25 a run (`PENDING_AUTOLARIS_INQUIRY_SQL`) — and marks one paid **only** when the response carries
 `rc: "00"`; `02` stays pending and every other code is unproven and moves
 nothing. The owner/admin manual reconciliation from `/admin/payments` remains
 as the audited fallback, and both paths write `paid_at`. Automatic marking is

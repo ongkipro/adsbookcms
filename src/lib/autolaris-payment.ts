@@ -364,6 +364,39 @@ export type AutoLarisScheduledReconciliation = {
  * moves D1; pending, unknown, and failed reads are observable no-ops. The
  * guarded D1 batch makes concurrent cron executions idempotent.
  */
+/**
+ * How long after its expiry an instruction is still asked about. A QRIS or VA
+ * can be paid in the last minute and settle at the provider after this side
+ * has already marked it expired, so a recent expiry is worth one more look;
+ * an old one is not — no money arrives on an instruction dead for days.
+ */
+export const AUTOLARIS_EXPIRED_RECHECK_HOURS = 24;
+
+/**
+ * The instructions the hourly Advice run asks about: every one still pending,
+ * plus the ones that expired within the recheck window, newest first.
+ *
+ * It used to take the 25 oldest pending-or-expired rows with no age bound. An
+ * instruction nobody paid stays eligible forever, so on a store with 96 of them
+ * the window sat on the same August rows every hour and nothing created after
+ * 11 September was ever asked about — a QRIS paid after the buyer closed the
+ * payment page would never have settled, and its Purchase never reached Meta.
+ * Binds: the recheck cutoff (ISO), then the limit.
+ */
+export const PENDING_AUTOLARIS_INQUIRY_SQL = `SELECT pt.id AS transaction_id, pt.order_id, o.order_number,
+        o.customer_name, pt.provider_transaction_id, pt.total_amount
+      FROM payment_transactions pt
+      INNER JOIN orders o ON o.id = pt.order_id
+      WHERE pt.provider = 'autolaris'
+        AND (pt.status = 'pending' OR (pt.status = 'expired' AND pt.expires_at >= ?))
+        AND o.payment_status IN ('pending', 'unpaid')
+        AND o.shipping_status = 'pending'
+        AND o.stock_restored_at IS NULL
+        AND pt.provider_transaction_id IS NOT NULL
+        AND trim(pt.provider_transaction_id) <> ''
+      ORDER BY (pt.status = 'pending') DESC, pt.created_at DESC, pt.id DESC
+      LIMIT ?`;
+
 export async function reconcileAutoLarisPaymentStatuses(
   database: D1Database,
   locals: App.Locals,
@@ -382,22 +415,11 @@ export async function reconcileAutoLarisPaymentStatuses(
   if (!config.apiKey) return result;
 
   const rows = await database
-    .prepare(
-      `SELECT pt.id AS transaction_id, pt.order_id, o.order_number,
-        o.customer_name, pt.provider_transaction_id, pt.total_amount
-      FROM payment_transactions pt
-      INNER JOIN orders o ON o.id = pt.order_id
-      WHERE pt.provider = 'autolaris'
-        AND pt.status IN ('pending', 'expired')
-        AND o.payment_status IN ('pending', 'unpaid')
-        AND o.shipping_status = 'pending'
-        AND o.stock_restored_at IS NULL
-        AND pt.provider_transaction_id IS NOT NULL
-        AND trim(pt.provider_transaction_id) <> ''
-      ORDER BY pt.created_at, pt.id
-      LIMIT ?`,
+    .prepare(PENDING_AUTOLARIS_INQUIRY_SQL)
+    .bind(
+      new Date(now.getTime() - AUTOLARIS_EXPIRED_RECHECK_HOURS * 3_600_000).toISOString(),
+      Math.max(1, Math.min(100, Math.trunc(limit))),
     )
-    .bind(Math.max(1, Math.min(100, Math.trunc(limit))))
     .all<PendingAutoLarisInquiryRow>();
   const client = new AutoLarisClient(config.apiKey, config.baseUrl);
   const paidAt = now.toISOString();

@@ -24,7 +24,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | `/404` | GET | public | — | `src/pages/404.astro` | `catalog` `image-derivative` | `product_variants` `products` | `catalog.test.ts` `image-derivative.test.ts` |
 | `/payment` | GET | public | — | `src/pages/payment.astro` | `format-idr` `payment-brand` | — | `format-idr.test.ts` `payment-brand.test.ts` |
 | `/produk` | GET | public | — | `src/pages/produk/index.astro` | `catalog` `format-idr` | `product_variants` `products` | `catalog.test.ts` `format-idr.test.ts` |
-| `/produk/[slug]` | GET | public | — | `src/pages/produk/[slug].astro` | `catalog` `catalog-feed` `env` `form-mode` `landing-pages` `social-proof` | `landing_pages` `landing_sections` `orders` `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `form-mode.test.ts` `landing-pages.test.ts` |
+| `/produk/[slug]` | GET | public | — | `src/pages/produk/[slug].astro` | `catalog` `catalog-feed` `env` `form-mode` `geo` `landing-pages` `social-proof` | `landing_pages` `landing_sections` `orders` `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `form-mode.test.ts` `geo.test.ts` `landing-pages.test.ts` |
 | `/thanks` | GET | public | — | `src/pages/thanks.astro` | `catalog` `cn` `public-store` `thanks-whatsapp` `ui-variants` | `product_variants` `products` `stores` | `catalog.test.ts` `cn.test.ts` `public-store.test.ts` `thanks-whatsapp.test.ts` `ui-variants.test.ts` |
 
 ## Content page (9)
@@ -230,7 +230,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `form-config` | 6 | — | ✓ | `/embed/form` `/full-form` `/hybrid-form` `/middle-form` `/api/form-config` |
 | `form-mode` | 8 | `stores` | ✓ | `/produk/[slug]` `/geoipform` `/hybrid-form` `/api/form-config` `/api/geo-province` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/storefront` `/api/admin/abandoned-orders` |
 | `format-idr` | 1 | — | ✓ | `/payment` `/produk` |
-| `geo` | 2 | — | ✓ | `/api/submit-middle-order` |
+| `geo` | 3 | — | ✓ | `/produk/[slug]` `/api/submit-middle-order` |
 | `google-ads-offline` | 15 | `google_ads_conversion_outbox` `order_items` `orders` | ✓ | — |
 | `gtm` | 3 | — | ✓ | — |
 | `headless-api` | 16 | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `stores` | ✓ | `/api/v1/checkout` `/api/v1/geo/districts` `/api/v1/geo/shipping-rates` `/api/v1/openapi.json` `/api/v1/orders/status` `/api/v1/products` `/api/v1/products/[slug]` `/api/v1/storefront` `/api/v1/tracking/events` `/api/admin/settings` |

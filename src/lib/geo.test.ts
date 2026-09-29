@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveGeoLocation } from "./geo.ts";
+import { geoHeadersFromCf, resolveGeoLocation } from "./geo.ts";
 
 function requestWithCf(cf: Record<string, unknown>, headers: Record<string, string> = {}) {
   const request = new Request("https://example.test/", { headers }) as Request & {
@@ -56,4 +56,26 @@ test("an unrecognized cf.regionCode does not block the header fallback from bein
   );
   assert.equal(result.source, "cloudflare");
   assert.equal(result.provinceCode, "JK");
+});
+
+test("a request rebuilt for a rewrite keeps the visitor's province", async () => {
+  // /produk/<slug> hands off to the landing serving as the product page with a
+  // new Request, which has no `cf`. The landing's hybrid form then saw no
+  // province and showed every buyer the full form.
+  const original = requestWithCf({ regionCode: "JT", region: "East Java", city: "Surabaya", country: "ID" });
+  const bare = new Request("https://example.test/landing");
+  assert.equal((await resolveGeoLocation(bare)).provinceCode, "", "a rebuilt request alone has no province");
+
+  const rebuilt = new Request("https://example.test/landing", { headers: geoHeadersFromCf(original) });
+  const geo = await resolveGeoLocation(rebuilt);
+  assert.equal(geo.provinceCode, "JT");
+  assert.equal(geo.city, "Surabaya");
+  // Nothing is invented when Cloudflare supplied nothing.
+  assert.deepEqual(geoHeadersFromCf(new Request("https://example.test/")), {});
+});
+
+test("the product-page rewrite forwards the visitor's location", async () => {
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../pages/produk/[slug].astro", import.meta.url), "utf8");
+  assert.match(page, /Astro\.rewrite\([\s\S]*\.\.\.geoHeadersFromCf\(Astro\.request\)/);
 });

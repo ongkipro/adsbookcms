@@ -1,4 +1,5 @@
 ---
+import { geoHeadersFromCf } from '../../lib/geo';
 import Breadcrumb from '../../components/storefront/shared/Breadcrumb.astro';
 import MetaLandingTracker from '../../components/storefront/tracking/MetaLandingTracker.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
@@ -41,6 +42,9 @@ if (productPageLanding) {
     new Request(new URL(`/${productPageLanding.slug}`, Astro.url), {
       headers: new Headers({
         ...Object.fromEntries(Astro.request.headers),
+        // The rebuilt request loses `request.cf`; without the visitor's
+        // province the landing's hybrid form showed everyone the full form.
+        ...geoHeadersFromCf(Astro.request),
         'x-adsbook-product-page': product.slug,
       }),
     }),

@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-09-30 @ `c8ccd10` + landing-form-dispatch working tree
+> Verified against disk: 2026-09-30 @ `bb4cd6d` + product-page-geo working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -172,6 +172,10 @@ gallery is `scroll-snap`; a countdown is a `<script>` tag.
   Never render `FormHybridContent` (the full form) or `FormMiddleContent`
   yourself: only `GeoIpResolvedForm` applies the province rule, and
   `form-mode.test.ts` fails on a page that bypasses it.
+  Served as a product page, the landing is reached through a rewrite from
+  `/produk/<slug>`; that rebuilt request carries the visitor's Cloudflare
+  location as `x-cf-*` headers (`geoHeadersFromCf`), or the rule would see no
+  province and show everyone the full form.
 
 ### 6. Verify before calling it done
 

@@ -75,3 +75,28 @@ export async function resolveGeoLocation(request: Request): Promise<GeoLocationR
     source: 'fallback',
   };
 }
+
+/**
+ * The visitor's Cloudflare location as request headers, for a request this
+ * Worker builds itself. `new Request(...)` does not carry `request.cf`, so a
+ * route handed a rebuilt request — `/produk/<slug>` rewriting to the landing
+ * page that serves as the product page — saw no province, and the form's
+ * hybrid rule sent every buyer to the full form. `resolveGeoLocation` already
+ * reads these headers as its fallback. Values come from `cf` only; nothing the
+ * client sent is copied. COD eligibility is enforced again when the order is
+ * submitted, so a forged header can change which form is shown, never whether
+ * COD is accepted.
+ */
+export function geoHeadersFromCf(request: Request): Record<string, string> {
+  const cf = (request as CloudflareRequest).cf;
+  const headers: Record<string, string> = {};
+  const set = (name: string, value: unknown) => {
+    const text = String(value ?? '').trim();
+    if (text) headers[name] = text;
+  };
+  set('x-cf-region-code', cf?.regionCode);
+  set('x-cf-region', cf?.region);
+  set('x-cf-city', cf?.city);
+  set('x-cf-country', cf?.country);
+  return headers;
+}

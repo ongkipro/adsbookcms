@@ -28,3 +28,25 @@ export async function getStoreSupportWhatsapp(
     return "";
   }
 }
+
+/**
+ * What /thanks needs for its WhatsApp hand-off: the support number and whether
+ * the operator turned the automatic redirect on (migration 0060). Any failure
+ * reads as "off" — the page then shows its button, as it always has.
+ */
+export async function getThanksWhatsappSettings(
+  locals?: App.Locals,
+): Promise<{ phone: string; autoRedirect: boolean }> {
+  const phone = await getStoreSupportWhatsapp(locals);
+  const database = getRuntimeEnv(locals)?.OMS_DB;
+  if (!phone || !database || typeof database !== "object") return { phone, autoRedirect: false };
+  try {
+    const row = await (database as D1Database)
+      .prepare("SELECT thanks_whatsapp_redirect FROM stores ORDER BY id LIMIT 1")
+      .first<{ thanks_whatsapp_redirect: number | null }>();
+    return { phone, autoRedirect: Number(row?.thanks_whatsapp_redirect) === 1 };
+  } catch (error) {
+    console.error("storefront-thanks-whatsapp-redirect-load", error);
+    return { phone, autoRedirect: false };
+  }
+}

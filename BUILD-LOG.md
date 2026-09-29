@@ -6198,3 +6198,25 @@ first section, one that already sets `loading`, and one carrying
 
 **Evidence.** New test covers all four cases; removing the `onerror` guard fails
 it. 787 tests.
+
+## 2026-09-29 — /thanks can hand a COD buyer to WhatsApp support
+
+Settings → Store gains "Arahkan pembeli COD ke WhatsApp setelah order"
+(`stores.thanks_whatsapp_redirect`, migration `0060`, off by default). When on,
+a COD buyer on `/thanks` sees a short countdown and lands in a chat with the
+store's support number, the message already carrying the invoice number, the
+buyer's name and the product with its variant and quantity. The same message
+now fills the existing "Konfirmasi via WhatsApp" button, which used to name
+neither the invoice nor the variant.
+
+The hand-off waits for the Purchase: the tracker signals `ps:purchase-done`
+when it has handed the event off, the page waits for the Pixel library and
+800 ms more, never under 1.5 s nor much past 5 s, and the CAPI leg now posts
+with `keepalive` so leaving cannot cancel it. QRIS, VA, transfer and lead-only
+records are never redirected. `src/lib/thanks-whatsapp.ts` holds the message,
+the link and the rule.
+
+**Evidence.** Six tests (message, missing fields, link normalisation, the COD
+rule, timing bounds, and the tracker/page contract). 793 tests. The countdown
+and the navigation itself were not exercised in a browser: headless Chrome on
+this machine could not open any page, local or remote.

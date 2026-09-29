@@ -2,7 +2,7 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import MetaThanksTracker from '../components/storefront/tracking/MetaThanksTracker.astro';
 import { getStorefrontProducts } from '../lib/catalog';
-import { getStoreSupportWhatsapp } from '../lib/public-store';
+import { getThanksWhatsappSettings } from '../lib/public-store';
 import { cn } from '../lib/cn';
 import { buttonVariants } from '../lib/ui-variants';
 import Icon from '../components/storefront/shared/Icon.astro';
@@ -15,7 +15,7 @@ if (
 Astro.response.headers.set('Cache-Control', 'no-store');
 
 const products = await getStorefrontProducts(Astro.locals);
-const csPhone = await getStoreSupportWhatsapp(Astro.locals);
+const { phone: csPhone, autoRedirect: thanksWhatsappRedirect } = await getThanksWhatsappSettings(Astro.locals);
 // This store's own logo. It used to be a hardcoded `/images/logo.webp` — the
 // demo store's wordmark — so every install's confirmation page carried another
 // merchant's brand at the moment the customer trusts it most.
@@ -386,11 +386,17 @@ const productCatalog = products.map((item) => ({
         target="_blank"
         rel="nofollow noopener noreferrer"
         title={`Konfirmasi pesanan ${Astro.locals.tenant.name} melalui WhatsApp`}
+        data-auto-redirect={thanksWhatsappRedirect ? '1' : '0'}
+        data-store-name={Astro.locals.tenant.name}
         class={cn('mt-4 flex w-full', buttonVariants({ variant: 'primary', size: 'lg' }))}
       >
         <Icon name="lucide:message-circle" class="size-5" aria-hidden="true" />
         <span id="wa-label">Konfirmasi via WhatsApp</span>
       </a>
+      <p id="wa-redirect-note" hidden role="status" aria-live="polite" class="mt-3 text-[12px] leading-5 text-[#555555]">
+        Mengalihkan ke WhatsApp admin<span id="wa-redirect-count"></span>…
+        <button id="wa-redirect-cancel" type="button" class="ml-1 font-semibold text-[#2c6ecb] underline underline-offset-2">Tetap di halaman ini</button>
+      </p>
     </section>
 
     <footer class="border-t border-[#E5E5E5] px-5 py-5 text-center text-xs text-[#767676]">
@@ -733,13 +739,19 @@ const productCatalog = products.map((item) => ({
       }
     }
 
+    // The module script below builds the WhatsApp message and link from these
+    // (src/lib/thanks-whatsapp.ts) and, when the store enabled it, hands a COD
+    // buyer over once the Purchase has gone out.
     const wa = document.getElementById('wa-confirm');
     if (csPhone) {
-      const cleanPhone = String(csPhone).replace(/\D/g, '').replace(/^0/, '62');
-      const prodName = activeState?.product_name || activeState?.variant_label || 'Produk';
-      const custName = activeState?.name || 'Customer';
-      const msg = `Halo, saya sudah melakukan pemesanan ${prodName}, atas nama ${custName}. Mohon segera diproses ya 🙏🏻`;
-      wa.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+      wa.dataset.phone = String(csPhone);
+      wa.dataset.orderNumber = orderId;
+      wa.dataset.customerName = activeState?.name || '';
+      wa.dataset.productName = productName || '';
+      wa.dataset.variantLabel = variantLabel || '';
+      wa.dataset.quantity = String(quantity);
+      wa.dataset.paymentMethod = paymentMethod;
+      wa.dataset.leadOnly = leadOnly ? '1' : '0';
     } else {
       wa.hidden = true;
     }
@@ -805,6 +817,85 @@ const productCatalog = products.map((item) => ({
           }
         })
         .catch(() => {});
+    }
+  </script>
+
+  <script>
+    import {
+      buildThanksWhatsappMessage,
+      shouldAutoRedirectToWhatsapp,
+      thanksWhatsappUrl,
+      THANKS_WHATSAPP_REDIRECT,
+    } from '../lib/thanks-whatsapp';
+
+    const wa = document.getElementById('wa-confirm') as HTMLAnchorElement | null;
+    if (wa?.dataset.phone) {
+      const d = wa.dataset;
+      const url = thanksWhatsappUrl(
+        d.phone || '',
+        buildThanksWhatsappMessage({
+          storeName: d.storeName || '',
+          orderNumber: d.orderNumber || '',
+          customerName: d.customerName || '',
+          productName: d.productName || '',
+          variantLabel: d.variantLabel || '',
+          quantity: Number(d.quantity) || 1,
+        }),
+      );
+      if (url) wa.href = url;
+      else wa.hidden = true;
+
+      if (
+        shouldAutoRedirectToWhatsapp({
+          enabled: d.autoRedirect === '1',
+          paymentMethod: d.paymentMethod || '',
+          leadOnly: d.leadOnly === '1',
+          url,
+        })
+      ) {
+        // Leave only after the Purchase is out: the tracker signals when it has
+        // handed the event to the Pixel and the CAPI leg, and the Pixel library
+        // must be loaded for its request to leave at all. Bounded both ways.
+        const note = document.getElementById('wa-redirect-note');
+        const count = document.getElementById('wa-redirect-count');
+        const started = performance.now();
+        let cancelled = false;
+        let timer = 0;
+        const go = () => {
+          if (!cancelled) window.location.assign(url as string);
+        };
+        const schedule = (delay: number) => {
+          window.clearTimeout(timer);
+          timer = window.setTimeout(go, Math.max(0, delay));
+          const seconds = Math.max(1, Math.ceil(Math.max(0, delay) / 1000));
+          if (count) count.textContent = ` dalam ${seconds} detik`;
+        };
+        const pixelReady = () => {
+          const fbq = (window as unknown as { fbq?: { instance?: unknown } }).fbq;
+          return !fbq || Boolean(fbq.instance);
+        };
+        const whenReady = () => {
+          const poll = () => {
+            if (cancelled) return;
+            const elapsed = performance.now() - started;
+            if (pixelReady()) {
+              schedule(Math.max(THANKS_WHATSAPP_REDIRECT.minMs - elapsed, THANKS_WHATSAPP_REDIRECT.afterPixelMs));
+            } else if (elapsed < THANKS_WHATSAPP_REDIRECT.maxMs) {
+              window.setTimeout(poll, 200);
+            }
+          };
+          poll();
+        };
+        if (note) note.hidden = false;
+        schedule(THANKS_WHATSAPP_REDIRECT.maxMs);
+        if ((window as unknown as { __PS_PURCHASE_DONE__?: boolean }).__PS_PURCHASE_DONE__) whenReady();
+        else window.addEventListener('ps:purchase-done', whenReady, { once: true });
+        document.getElementById('wa-redirect-cancel')?.addEventListener('click', () => {
+          cancelled = true;
+          window.clearTimeout(timer);
+          if (note) note.hidden = true;
+        });
+      }
     }
   </script>
 

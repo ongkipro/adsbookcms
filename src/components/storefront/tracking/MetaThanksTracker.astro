@@ -94,6 +94,9 @@ const { tenantName } = Astro.props;
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        // /thanks may hand the buyer to WhatsApp moments later; keepalive lets
+        // the request finish after the page is gone.
+        keepalive: true,
       }).catch(() => {});
     };
 
@@ -338,6 +341,14 @@ const { tenantName } = Astro.props;
       });
     };
 
-    void fire();
+    // Tells /thanks the Purchase has been handed to the Pixel and the CAPI leg
+    // (or that there was none to send), so a WhatsApp hand-off can follow
+    // without cutting either request short. Fired on every exit of fire().
+    void fire().finally(() => {
+      window.__PS_PURCHASE_DONE__ = true;
+      if (typeof window.dispatchEvent === 'function' && typeof Event === 'function') {
+        window.dispatchEvent(new Event('ps:purchase-done'));
+      }
+    });
   })();
 </script>

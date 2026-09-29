@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-09-28 @ `2a04340` + working tree (traffic permissions observed live)
+> Verified against disk: 2026-09-29 @ `5c03fce` + thanks-whatsapp-redirect working tree
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -261,6 +261,19 @@ The server gate is unchanged: `/api/meta-event` requires `order_number` plus a v
 Server-side, `capi_event_outbox` is unique on `(event_name, event_id)` (migration `0057`; it was `event_id` alone before) and `enqueueCapiEvent()` uses `INSERT OR IGNORE`, so a replayed request returns `{ deduplicated: true }` instead of producing a second outbound conversion. Combined with the order-number key, that means one CAPI Purchase per order for all time — a durable dedupe layer above Meta's own `event_id` handling. The pair matters: keyed on `event_id` alone, a `PageView` posted to `/api/meta-event` with `event_id: "INV-<next>"` occupied the key first and the real Purchase was then "deduplicated" and never sent.
 
 A local duplicate guard proves only the browser and database paths. CAPI acceptance and Meta deduplication require a separately observed provider response.
+
+### Leaving /thanks for WhatsApp
+
+A store can hand a COD buyer to its support WhatsApp from `/thanks`
+(Settings → Store, `stores.thanks_whatsapp_redirect`, migration `0060`; off by
+default). The page must not leave before the Purchase does:
+`MetaThanksTracker` sets `window.__PS_PURCHASE_DONE__` and dispatches
+`ps:purchase-done` when `fire()` settles, whichever way it exits; the page then
+waits for the Pixel library itself (`fbq.instance`) and gives its request
+`800 ms`, never leaving before `1.5 s` and at most about `5 s` after load
+(`THANKS_WHATSAPP_REDIRECT`). The CAPI leg posts with `keepalive: true` so the
+navigation cannot cancel it. A QRIS, VA or transfer buyer is never redirected —
+they still have to pay from the page. The buyer sees a countdown and can stay.
 
 ## 7. Customer Matching and Click-ID Attribution
 

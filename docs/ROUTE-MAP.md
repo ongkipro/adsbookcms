@@ -25,7 +25,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | `/payment` | GET | public | — | `src/pages/payment.astro` | `format-idr` `payment-brand` | — | `format-idr.test.ts` `payment-brand.test.ts` |
 | `/produk` | GET | public | — | `src/pages/produk/index.astro` | `catalog` `format-idr` | `product_variants` `products` | `catalog.test.ts` `format-idr.test.ts` |
 | `/produk/[slug]` | GET | public | — | `src/pages/produk/[slug].astro` | `catalog` `catalog-feed` `env` `form-mode` `landing-pages` `social-proof` | `landing_pages` `landing_sections` `orders` `product_variants` `products` `stores` | `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `form-mode.test.ts` `landing-pages.test.ts` |
-| `/thanks` | GET | public | — | `src/pages/thanks.astro` | `catalog` `cn` `public-store` `ui-variants` | `product_variants` `products` `stores` | `catalog.test.ts` `cn.test.ts` `public-store.test.ts` `ui-variants.test.ts` |
+| `/thanks` | GET | public | — | `src/pages/thanks.astro` | `catalog` `cn` `public-store` `thanks-whatsapp` `ui-variants` | `product_variants` `products` `stores` | `catalog.test.ts` `cn.test.ts` `public-store.test.ts` `thanks-whatsapp.test.ts` `ui-variants.test.ts` |
 
 ## Content page (9)
 
@@ -189,7 +189,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 ## Modules
 
-104 modules under `src/lib`; 7 without a sibling test.
+105 modules under `src/lib`; 7 without a sibling test.
 `used by` lists routes importing the module directly — a module used by nothing
 is either transitive (imported by another lib) or dead, and only reading tells which.
 
@@ -271,7 +271,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `product-mutation` | 9 | `order_items` `product_variants` `products` `storefront_content` | ✓ | `/api/admin/products` |
 | `provider-config` | 5 | `stores` | ✓ | `/api/locations` `/api/payment-methods` `/api/submit-order` `/api/v1/checkout` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` |
 | `province` | 12 | — | ✓ | `/api/submit-middle-order` `/api/v1/checkout` `/api/admin/expeditions` |
-| `public-store` | 1 | `stores` | ✓ | `/thanks` `/kontak` `/[slug]` |
+| `public-store` | 2 | `stores` | ✓ | `/thanks` `/kontak` `/[slug]` |
 | `rate-check` | 10 | — | ✓ | — |
 | `rate-limit` | 12 | `rate_limits` | ✓ | `/hello` `/api/install` `/api/locations` `/api/meta-event` `/api/order-status` `/api/record-abandoned-order` `/api/shipping-rates` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` `/api/webhooks/autolaris` `/api/admin/upload-r2` |
 | `receiver-performance` | 5 | — | ✓ | `/api/admin/orders/[id]` |
@@ -294,6 +294,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `tenant-content` | 3 | — | ✓ | `/` `/api/v1/storefront` |
 | `tenant-contract` | 3 | — | ✓ | — |
 | `tenant` | 10 | `stores` | ✓ | `/install` `/api/install` `/api/admin/settings` |
+| `thanks-whatsapp` | 5 | — | ✓ | `/thanks` |
 | `traffic-source` | 3 | — | ✓ | — |
 | `ui-variants` | 5 | — | ✓ | `/thanks` |
 | `utils` | 0 | — | **none** | — |

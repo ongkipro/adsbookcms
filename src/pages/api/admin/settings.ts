@@ -65,6 +65,7 @@ type SettingsPayload = {
   theme_color?: string;
   locale?: string;
   admin_name?: string;
+  thanks_whatsapp_redirect?: boolean;
   support_whatsapp?: string;
   embed_allowed_origins?: unknown;
   headless_allowed_origins?: unknown;
@@ -102,6 +103,7 @@ type SettingsRow = {
   theme_color?: string | null;
   locale?: string | null;
   admin_name?: string | null;
+  thanks_whatsapp_redirect?: number | null;
   payment_fee_bearer: string;
   cod_fee_bearer: string;
   is_cod_enabled?: number | null;
@@ -168,6 +170,7 @@ async function getSettingsRow(database: D1Database) {
         s.theme_color,
         s.locale,
         s.admin_name,
+        s.thanks_whatsapp_redirect,
         s.payment_fee_bearer,
         s.cod_fee_bearer,
         s.is_cod_enabled,
@@ -209,6 +212,7 @@ async function getSettingsRow(database: D1Database) {
         s.theme_color,
         s.locale,
         s.admin_name,
+        0 AS thanks_whatsapp_redirect,
         s.payment_fee_bearer,
         s.cod_fee_bearer,
         1 AS is_cod_enabled,
@@ -288,6 +292,7 @@ export const GET: APIRoute = async ({ locals }) => {
           theme_color: row.theme_color ?? "",
           locale: row.locale ?? "",
           admin_name: row.admin_name ?? "",
+          thanks_whatsapp_redirect: Number(row.thanks_whatsapp_redirect) === 1,
           storefront_templates: templateList.templates,
           storefront_templates_available: templateList.state === "ready",
           payment_fee_bearer:
@@ -761,7 +766,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           `UPDATE stores
               SET name = ?, support_whatsapp = ?, site_url = ?, description = ?,
                   tagline = ?, logo = ?, storefront_template = ?,
-                  theme_color = ?, locale = ?, admin_name = ?
+                  theme_color = ?, locale = ?, admin_name = ?,
+                  thanks_whatsapp_redirect = ?
             WHERE id = ?`,
         )
         .bind(
@@ -775,6 +781,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           themeColorValue || null,
           localeValue || null,
           clean(body.admin_name, 120) || null,
+          body.thanks_whatsapp_redirect === true ? 1 : 0,
           current.store_id,
         )
         .run();

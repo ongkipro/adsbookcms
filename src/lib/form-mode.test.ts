@@ -103,3 +103,29 @@ test('a COD order is refused for an excluded or unresolvable province', () => {
   assert.equal(isCodBlockedForProvince('bank_transfer', 'Papua', disabledCodes), false);
   assert.equal(isCodBlockedForProvince('qris', '', disabledCodes), false);
 });
+
+test('a page renders the order form through the hybrid dispatch, never a form component directly', async () => {
+  // GeoIpResolvedForm is the only place the province rule runs: an excluded or
+  // unresolved province gets the full form, any other the middle form. A
+  // landing that renders FormHybridContent (the full form) or FormMiddleContent
+  // itself skips that rule for every visitor — twelve landings on one install
+  // did, showing the full form to buyers the middle form was meant for.
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const pagesDir = new URL('../pages/', import.meta.url).pathname;
+  // hybrid-form.astro is the legacy direct route for the full form, by design.
+  const allowed = new Set(['hybrid-form.astro']);
+  const offenders: string[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (name.endsWith('.astro') && !allowed.has(path.slice(pagesDir.length))) {
+        const source = readFileSync(path, 'utf8');
+        if (/<Form(Hybrid|Middle)Content\b/.test(source)) offenders.push(path.slice(pagesDir.length));
+      }
+    }
+  };
+  walk(pagesDir);
+  assert.deepEqual(offenders, [], `render <GeoIpResolvedForm mode="hybrid" /> instead in: ${offenders.join(', ')}`);
+});

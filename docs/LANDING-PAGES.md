@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-09-29 @ `dcf0c6a` + cms-images-lazy working tree
+> Verified against disk: 2026-09-30 @ `c8ccd10` + landing-form-dispatch working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -169,6 +169,9 @@ gallery is `scroll-snap`; a countdown is a `<script>` tag.
 - The checkout handoff remains canonical:
   `<GeoIpResolvedForm mode="hybrid" productSlug={product.slug} />`. Never pass
   a hard-coded product ID, price, variant, or a made-up form context.
+  Never render `FormHybridContent` (the full form) or `FormMiddleContent`
+  yourself: only `GeoIpResolvedForm` applies the province rule, and
+  `form-mode.test.ts` fails on a page that bypasses it.
 
 ### 6. Verify before calling it done
 

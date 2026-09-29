@@ -79,3 +79,23 @@ export function isRegisteredNativeSlug(
 ) {
   return activeNativeLandingPages(entries).some((entry) => entry.slug === slug);
 }
+
+/**
+ * The redirect from a landing (or a bare product slug) to the product page it
+ * serves as. 301 like the store's other permanent moves, and cacheable for five
+ * minutes only: a permanent redirect with no Cache-Control is kept by browsers
+ * indefinitely, so a visitor would keep bouncing after an operator released the
+ * claim. `location` must already carry the query string — ads land here with
+ * fbclid/gclid and UTM tags.
+ */
+export const PRODUCT_PAGE_REDIRECT_MAX_AGE = 300;
+
+export function productPageRedirect(location: string): Response {
+  return new Response(null, {
+    status: 301,
+    headers: {
+      Location: location,
+      "Cache-Control": `public, max-age=${PRODUCT_PAGE_REDIRECT_MAX_AGE}`,
+    },
+  });
+}

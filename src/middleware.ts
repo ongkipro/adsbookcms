@@ -11,7 +11,7 @@ import { canAccessAdminRoute, getDefaultAdminRoute } from './lib/auth';
 import { resolveAdminSession } from './lib/admin-session';
 import { resolveAuthSecret } from './lib/auth-secret';
 import { getEnvValue, getRuntimeEnv } from './lib/env';
-import { isRegisteredNativeSlug } from './lib/native-landing-pages';
+import { isRegisteredNativeSlug, productPageRedirect } from './lib/native-landing-pages';
 import { readStoreIdentity, resolveTenantConfig } from './lib/tenant';
 import {
   buildEmbedFrameAncestors,
@@ -284,7 +284,7 @@ export function createMiddleware(
     if (claimedProductSlug) {
       return applySecurityHeaders(
         // Keep the query string: ads land here with fbclid/gclid and UTM tags.
-        context.redirect(`/produk/${claimedProductSlug}${url.search}`, 308),
+        productPageRedirect(`/produk/${claimedProductSlug}${url.search}`),
         false,
       );
     }

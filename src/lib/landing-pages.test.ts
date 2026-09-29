@@ -357,7 +357,7 @@ test("a claimed page is excluded from the addresses a sitemap may advertise", as
   });
   await setLandingPageAsProductPage(locals, claimed.id, true);
 
-  // This is the filter both sitemaps apply. A claimed page answers 308 on its
+  // This is the filter both sitemaps apply. A claimed page answers 301 on its
   // own slug and the product URL is listed separately, so advertising it here
   // would hand out exactly the duplicate pair the takeover prevents.
   const advertised = (await listLandingPages(locals))

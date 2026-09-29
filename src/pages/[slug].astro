@@ -4,6 +4,7 @@ import MetaLandingTracker from '../components/storefront/tracking/MetaLandingTra
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getStorefrontProduct } from '../lib/catalog';
 import { getLandingPageBySlug, parseShortcodes } from '../lib/landing-pages';
+import { productPageRedirect } from '../lib/native-landing-pages';
 import { getStoreSupportWhatsapp } from '../lib/public-store';
 import { resolveAdminSession } from '../lib/admin-session';
 import { resolveAuthSecret } from '../lib/auth-secret';
@@ -16,12 +17,16 @@ import { recentOrderCount } from '../lib/social-proof';
 
 export const prerender = false;
 
+// `astro check` does not count a value used only in a frontmatter `return` as
+// read, so the redirect helper is named once here to keep that check clean.
+void productPageRedirect;
+
 const slug = Astro.params.slug || '';
 const page = await getLandingPageBySlug(Astro.locals, slug);
 
 if (!page) {
   const product = await getStorefrontProduct(Astro.locals, slug);
-  if (product) return Astro.redirect(`/produk/${product.slug}${Astro.url.search}`, 308);
+  if (product) return productPageRedirect(`/produk/${product.slug}${Astro.url.search}`);
 
   return Astro.rewrite('/404');
 }
@@ -68,7 +73,7 @@ const servedAsProductPage =
 if (page.is_product_page && !servedAsProductPage && !isPreview) {
   // The query string travels: an ad's fbclid and UTM tags arrive on this URL,
   // and a redirect that drops them loses the click it was paid for.
-  return Astro.redirect(`${productPagePath}${Astro.url.search}`, 308);
+  return productPageRedirect(`${productPagePath}${Astro.url.search}`);
 }
 
 const csPhone = await getStoreSupportWhatsapp(Astro.locals);

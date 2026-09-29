@@ -6168,3 +6168,18 @@ and a source test in `click-ids.test.ts` fails if one is added without it.
 
 **Evidence.** The test fails when the middleware redirect alone is reverted.
 785 tests.
+
+## 2026-09-29 — Product-page redirects are a cacheable 301
+
+A landing made a product page (and a bare product slug) now answers `301`, like
+the store's other permanent moves, instead of `308`; search engines treat the
+two alike, and `301` is what an operator reading the network tab expects. The
+response now carries `Cache-Control: public, max-age=300`. Without it a
+permanent redirect is kept by the browser indefinitely, so a visitor would have
+kept bouncing to the product page after an operator released the claim; five
+minutes keeps a repeat visit instant and a change in `/admin` effective.
+`productPageRedirect` builds all three; the query string still travels.
+
+**Evidence.** New test on the response (status, Location with the ad's query
+string, Cache-Control); the source guard still requires `url.search` at every
+call site. 786 tests.

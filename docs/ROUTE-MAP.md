@@ -45,7 +45,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 | Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `/[slug]` | GET | public | — | `src/pages/[slug].astro` | `admin-session` `auth-secret` `catalog` `catalog-feed` `env` `landing-pages` `public-store` `social-proof` | `admin_credentials` `admin_sessions` `install_secrets` `landing_pages` `landing_sections` `orders` `product_variants` `products` `stores` | `admin-session.test.ts` `auth-secret.test.ts` `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `landing-pages.test.ts` `public-store.test.ts` |
+| `/[slug]` | GET | public | — | `src/pages/[slug].astro` | `admin-session` `auth-secret` `catalog` `catalog-feed` `env` `landing-pages` `native-landing-pages` `public-store` `social-proof` | `admin_credentials` `admin_sessions` `install_secrets` `landing_pages` `landing_sections` `orders` `product_variants` `products` `stores` | `admin-session.test.ts` `auth-secret.test.ts` `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `landing-pages.test.ts` `native-landing-pages.test.ts` `public-store.test.ts` |
 | `/contoh-landing` | GET | public | — | `src/pages/contoh-landing.astro` | `catalog` `catalog-feed` `landing-pages` | `landing_pages` `landing_sections` `product_variants` `products` | `catalog.test.ts` `catalog-feed.test.ts` `landing-pages.test.ts` |
 | `/landing-page` | GET | public | — | `src/pages/landing-page/index.astro` | `landing-pages` | `landing_pages` `landing_sections` `products` | `landing-pages.test.ts` |
 | `/solusi-terbaru` | GET | public | — | `src/pages/solusi-terbaru.astro` | — | — | — |
@@ -254,7 +254,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `meta-identity` | 7 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
 | `meta-order-context` | 4 | — | ✓ | `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` |
 | `meta-purchase-order` | 6 | `order_items` `orders` `product_variants` `products` | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
-| `native-landing-pages` | 7 | — | ✓ | — |
+| `native-landing-pages` | 9 | — | ✓ | `/[slug]` |
 | `notification-chime` | 3 | — | ✓ | — |
 | `notifications` | 15 | `admin_credentials` `notification_reads` `notifications` `orders` | ✓ | `/api/admin/notifications` `/api/admin/orders/[id]` |
 | `operational-alerts` | 10 | — | ✓ | `/api/admin/health` |

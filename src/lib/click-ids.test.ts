@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { productPageRedirect, PRODUCT_PAGE_REDIRECT_MAX_AGE } from "./native-landing-pages.ts";
 import {
   hasAdClickId,
   hasClickId,
@@ -199,19 +200,28 @@ test("an embed carrying only the parent page's _fbp keeps the stored gclid", () 
 });
 
 test("a public redirect to a product page keeps the ad's click ids", () => {
-  // A landing page handed a product page answers 308 to /produk/<slug>. Every
-  // store's ads point at landing URLs, so a redirect without the query string
-  // strips fbclid/gclid and the UTM tags before any script can read them — the
-  // click is paid for and never attributed. Found live: all nine of a store's
-  // landings redirected bare after they were made product pages.
+  // A landing page handed a product page answers a redirect to /produk/<slug>.
+  // Every store's ads point at landing URLs, so a redirect without the query
+  // string strips fbclid/gclid and the UTM tags before any script can read them
+  // — the click is paid for and never attributed. Found live: all nine of a
+  // store's landings redirected bare after they were made product pages.
   const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
   const redirects = [
-    ...source("middleware.ts").matchAll(/context\.redirect\(`\/produk[^`]*`/g),
-    ...source("pages/[slug].astro").matchAll(/Astro\.redirect\(`[^`]*`/g),
+    ...source("middleware.ts").matchAll(/productPageRedirect\(`[^`]*`/g),
+    ...source("pages/[slug].astro").matchAll(/(?:productPageRedirect|Astro\.redirect)\(`[^`]*`/g),
     ...source("pages/solusi-terbaru.astro").matchAll(/Astro\.redirect\(`[^`]*`/g),
   ].map((match) => match[0]);
   assert.equal(redirects.length, 4);
   for (const redirect of redirects) {
     assert.match(redirect, /\$\{(Astro\.)?url\.search\}`$/, redirect);
   }
+});
+
+test("the product-page redirect is a 301 that browsers do not keep forever", () => {
+  const response = productPageRedirect("/produk/pupuk?fbclid=abc&utm_source=fb");
+  assert.equal(response.status, 301);
+  assert.equal(response.headers.get("location"), "/produk/pupuk?fbclid=abc&utm_source=fb");
+  // A permanent redirect without Cache-Control is cached indefinitely, which
+  // would outlive an operator releasing the claim.
+  assert.equal(response.headers.get("cache-control"), `public, max-age=${PRODUCT_PAGE_REDIRECT_MAX_AGE}`);
 });

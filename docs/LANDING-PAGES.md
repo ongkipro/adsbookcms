@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-09-29 @ `660647e` + redirects-keep-click-ids working tree
+> Verified against disk: 2026-09-29 @ `4514e71` + product-page-301 working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -46,7 +46,8 @@ A landing page can take over its product's page (A21). When it does:
 
 - `/produk/<product-slug>` renders the landing page, and that is its canonical
   address;
-- its own `/<landing-slug>` answers `308` to the product URL — query string
+- its own `/<landing-slug>` answers `301` to the product URL (cached five minutes, so releasing
+  the claim takes effect) — query string
   kept, so an ad's `fbclid`/`gclid` and UTM tags survive — so exactly one
   URL is live and the two never compete as duplicate content;
 - unpublishing it, or releasing the claim, hands `/produk/<product-slug>` back
@@ -262,7 +263,7 @@ What follows from that:
 ### A native page as the product page
 
 Same action as a CMS page — **⋯ → Jadikan halaman produk** — and the same
-rules: `/produk/<product-slug>` renders it, its own slug answers `308` there,
+rules: `/produk/<product-slug>` renders it, its own slug answers `301` there,
 and neither sitemap advertises the redirecting address. Only owner and admin
 may set it.
 

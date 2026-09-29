@@ -25,6 +25,26 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     optimizeDeps: {
+      include: [
+        'react',
+        'react/jsx-runtime',
+        'react-dom',
+        'react-dom/client',
+        'recharts',
+        'lucide-react',
+        'class-variance-authority',
+        'clsx',
+        'tailwind-merge',
+        'cmdk',
+        'sonner',
+        'next-themes',
+        'radix-ui',
+        '@base-ui/react',
+        '@base-ui/react/button',
+        '@base-ui/react/collapsible',
+        '@base-ui/react/popover',
+        '@base-ui/react/select',
+      ],
       exclude: [
         'astro',
         '@astrojs/cloudflare',

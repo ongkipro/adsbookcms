@@ -69,6 +69,11 @@ const titleForHead = escapeHtmlText(title);
 
 const publicSiteUrl = Astro.locals.tenant.siteUrl;
 const adsConfig = await getStoreAdsConfig(Astro.locals);
+const hasMetaPixel = Boolean(adsConfig.metaPixelId && /^\d{5,25}$/.test(String(adsConfig.metaPixelId).trim()));
+const hasGoogleTag = Boolean(
+  (adsConfig.googleTagManagerId && /^GTM-[A-Z0-9]{4,20}$/.test(String(adsConfig.googleTagManagerId).trim().toUpperCase())) ||
+  adsConfig.googleAdsConversionId
+);
 const canonical = canonicalProp ?? new URL(Astro.url.pathname, publicSiteUrl).toString();
 const imageUrl = new URL(image, publicSiteUrl).toString();
 const preloadImageUrls =
@@ -84,10 +89,18 @@ const preloadImageUrls =
     <slot name="head" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
-    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
-    <link rel="dns-prefetch" href="https://connect.facebook.net" />
-    <link rel="preconnect" href="https://connect.facebook.net" crossorigin />
-    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+    {hasGoogleTag && (
+      <>
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin />
+      </>
+    )}
+    {hasMetaPixel && (
+      <>
+        <link rel="dns-prefetch" href="https://connect.facebook.net" />
+        <link rel="preconnect" href="https://connect.facebook.net" crossorigin />
+      </>
+    )}
     {
       preloadImageUrls.map((item) =>
         typeof item === 'string' ? (

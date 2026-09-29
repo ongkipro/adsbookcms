@@ -92,7 +92,7 @@ export function AppSidebar({
         )}
         {groups.map((group) => (
           <SidebarGroup key={group.label} className="py-1">
-            <SidebarGroupLabel className="mb-0.5 h-6 px-2 text-xs font-medium uppercase tracking-wider text-slate-400">
+            <SidebarGroupLabel className="mb-0.5 h-6 px-2 text-xs font-semibold uppercase tracking-[0.06em] text-slate-400">
               {group.label}
             </SidebarGroupLabel>
             <SidebarMenu>
@@ -123,6 +123,13 @@ export function AppSidebar({
                         href={item.href}
                         aria-current={overviewActive ? "page" : undefined}
                       >
+                        {active && (
+                          <span
+                            className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full"
+                            style={{ backgroundColor: ADMIN_ACCENT }}
+                            aria-hidden="true"
+                          />
+                        )}
                         <item.icon className="size-[17px]" aria-hidden="true" />
                         <span className="min-w-0 flex-1 truncate">
                           {item.label}

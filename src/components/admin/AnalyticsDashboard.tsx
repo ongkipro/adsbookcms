@@ -343,12 +343,12 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
           />
           <Button
             variant="secondary"
-            size="icon"
+            size="default"
             onClick={() => void loadAnalytics(dateSelection)}
             disabled={refreshing}
             aria-label="Perbarui data dashboard"
             aria-busy={refreshing}
-            className="size-11 shrink-0 border border-slate-200 bg-white"
+            className="w-10 shrink-0 border border-slate-200 bg-white px-0"
           >
             <RefreshCw
               className={`size-4 ${refreshing ? "animate-spin" : ""}`}
@@ -373,7 +373,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
         aria-label="Ringkasan performa toko"
       >
         {metrics.map((metric) => (
-          <Card key={metric.label} className="overflow-hidden border-slate-200 shadow-none">
+          <Card key={metric.label} className="overflow-hidden border-slate-200 shadow-none transition-colors hover:border-slate-300">
             <CardContent className="p-3.5 sm:p-5">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500 sm:text-xs">
@@ -435,7 +435,8 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
                     >
                       <CartesianGrid
                         vertical={false}
-                        stroke="#e8edf3"
+                        stroke="#e2e8f0"
+                        strokeDasharray="3 3"
                       />
                       <XAxis
                         dataKey="date"
@@ -461,7 +462,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
                         tick={{ fontSize: 10, fill: "#64748b" }}
                       />
                       <ChartTooltip
-                        cursor={{ fill: "rgba(148,163,184,0.08)" }}
+                        cursor={{ fill: "rgba(148,163,184,0.06)" }}
                         content={<ChartTooltipContent />}
                       />
                       <Bar
@@ -508,7 +509,7 @@ export function AnalyticsDashboard({ showPaymentsLink = false }: { showPaymentsL
                     {item.count.toLocaleString("id-ID")} pesanan · {percentage(item.percentage)}
                   </span>
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100/90 ring-1 ring-slate-900/5">
                   <div
                     className={`h-full rounded-full ${item.bar}`}
                     style={{

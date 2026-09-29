@@ -7,10 +7,10 @@ import {
   Globe,
   Loader2,
   MoreHorizontal,
-  Package,
   Pencil,
   Plus,
   Search,
+  Star,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -53,7 +53,7 @@ export default function LandingPageCatalog() {
   const [pages, setPages] = useState<LandingPageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft" | "product_page">("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "native" | "static" | "manual" | "ai" | "injected">("all");
   const [pageToDelete, setPageToDelete] = useState<LandingPageRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -257,10 +257,12 @@ export default function LandingPageCatalog() {
       (p.product_title && p.product_title.toLowerCase().includes(search.toLowerCase()));
 
     const isActive = Boolean(p.is_active);
+    const isProductPage = Boolean(Number(p.is_product_page));
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "published" && isActive) ||
-      (statusFilter === "draft" && !isActive);
+      (statusFilter === "draft" && !isActive) ||
+      (statusFilter === "product_page" && isProductPage);
 
     const src = getSourceType(p.id, p.slug, p.title).type;
     const matchesSource = sourceFilter === "all" || sourceFilter === src;
@@ -280,6 +282,7 @@ export default function LandingPageCatalog() {
 
   const publishedCount = pages.filter((p) => Boolean(p.is_active)).length;
   const draftCount = pages.length - publishedCount;
+  const productPageCount = pages.filter((p) => Boolean(Number(p.is_product_page))).length;
 
   return (
     <div className="space-y-4">
@@ -304,12 +307,12 @@ export default function LandingPageCatalog() {
         {/* Filter Sub-bar */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
           {/* Status Tabs Filter */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium">
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 text-xs font-medium">
             <button
               type="button"
               onClick={() => setStatusFilter("all")}
               aria-pressed={statusFilter === "all"}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
+              className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
                 statusFilter === "all"
                   ? "bg-white text-slate-900 shadow-xs font-semibold"
                   : "text-slate-600 hover:text-slate-900"
@@ -324,7 +327,7 @@ export default function LandingPageCatalog() {
               type="button"
               onClick={() => setStatusFilter("published")}
               aria-pressed={statusFilter === "published"}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
+              className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
                 statusFilter === "published"
                   ? "bg-white text-emerald-700 shadow-xs font-semibold"
                   : "text-slate-600 hover:text-slate-900"
@@ -339,7 +342,7 @@ export default function LandingPageCatalog() {
               type="button"
               onClick={() => setStatusFilter("draft")}
               aria-pressed={statusFilter === "draft"}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
+              className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
                 statusFilter === "draft"
                   ? "bg-white text-amber-700 shadow-xs font-semibold"
                   : "text-slate-600 hover:text-slate-900"
@@ -348,6 +351,22 @@ export default function LandingPageCatalog() {
               Draft
               <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs tabular-nums text-amber-800">
                 {draftCount}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("product_page")}
+              aria-pressed={statusFilter === "product_page"}
+              className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-md transition-all ${
+                statusFilter === "product_page"
+                  ? "bg-white text-blue-700 shadow-xs font-semibold"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Star className="size-3.5 fill-amber-400 text-amber-500" />
+              Produk Utama
+              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-xs tabular-nums text-blue-800">
+                {productPageCount}
               </span>
             </button>
           </div>
@@ -409,10 +428,7 @@ export default function LandingPageCatalog() {
                   </div>
                   <a
                     href="/admin/landing-pages/new"
-                    className={cn(
-                      buttonVariants({ variant: "default" }),
-                      "min-h-11 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white mt-1"
-                    )}
+                    className={cn(buttonVariants({ variant: "default" }), "mt-1")}
                   >
                     <Plus className="w-3.5 h-3.5 mr-1.5" />
                     Buat Landing Page Baru
@@ -447,31 +463,54 @@ export default function LandingPageCatalog() {
                     >
                       {/* Title + status — desktop columns 1 and 4 */}
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="min-w-0 flex-1 text-sm font-semibold text-slate-900">
-                          <a
-                            href={isStatic ? `/${page.slug}` : `/admin/landing-pages/${page.id}/edit`}
-                            className="line-clamp-2 break-words hover:text-blue-600 transition-colors"
-                          >
-                            {page.title}
-                          </a>
-                        </h3>
-                        {isActive ? (
-                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Published
-                          </span>
-                        ) : (
-                          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                            Draft
-                          </span>
-                        )}
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm font-semibold text-slate-900">
+                            <a
+                              href={isStatic ? `/${page.slug}` : `/admin/landing-pages/${page.id}/edit`}
+                              className="line-clamp-2 break-words hover:text-blue-600 transition-colors"
+                            >
+                              {page.title}
+                            </a>
+                          </h3>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          {isActive ? (
+                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-200/60 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Published
+                            </span>
+                          ) : (
+                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                              Draft
+                            </span>
+                          )}
+                          {Boolean(Number(page.is_product_page)) && (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                              <Star className="size-3 fill-amber-400 text-amber-500" />
+                              Produk Utama
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Slug + salin link — desktop column 1 */}
                       <div className="mt-2 flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate rounded bg-slate-100 px-1.5 py-1 font-mono text-xs text-slate-500">
+                        <span
+                          className={cn(
+                            "min-w-0 flex-1 truncate rounded px-1.5 py-1 font-mono text-xs",
+                            Number(page.is_product_page)
+                              ? "border border-amber-200/70 bg-amber-50/80 font-medium text-amber-900"
+                              : "bg-slate-100 text-slate-500"
+                          )}
+                          title={
+                            Number(page.is_product_page)
+                              ? `Aktif menggantikan PDP di /produk/${page.product_slug ?? page.slug}`
+                              : `/${page.slug}`
+                          }
+                        >
                           /{page.slug}
+                          {Number(page.is_product_page) && page.product_slug ? ` → /produk/${page.product_slug}` : ""}
                         </span>
                         <button
                           type="button"
@@ -553,7 +592,7 @@ export default function LandingPageCatalog() {
                               <MoreHorizontal className="size-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuContent align="end" className="w-52">
                             <DropdownMenuItem asChild>
                               <a href={`/${page.slug}?preview=1`} target="_blank" rel="noreferrer">
                                 <ExternalLink className="w-3.5 h-3.5 mr-2 text-slate-500" />
@@ -573,10 +612,17 @@ export default function LandingPageCatalog() {
                                 disabled={productPagePageId === page.id}
                                 onClick={() => handleToggleProductPage(page)}
                               >
-                                <Package className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                                <Star
+                                  className={cn(
+                                    "mr-2 size-3.5",
+                                    Number(page.is_product_page)
+                                      ? "fill-amber-400 text-amber-500"
+                                      : "text-slate-400"
+                                  )}
+                                />
                                 {Number(page.is_product_page)
-                                  ? "Lepas dari halaman produk"
-                                  : "Jadikan halaman produk"}
+                                  ? "Lepas status Produk Utama"
+                                  : "Jadikan Landing Page Produk Utama"}
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem onClick={() => handleCopyLink(page)}>
@@ -661,8 +707,21 @@ export default function LandingPageCatalog() {
                                 {page.title}
                               </a>
                               <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                                <span className="min-w-0 truncate rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500">
+                                <span
+                                  className={cn(
+                                    "min-w-0 truncate rounded px-1.5 py-0.5 font-mono text-xs",
+                                    Number(page.is_product_page)
+                                      ? "border border-amber-200/70 bg-amber-50/80 font-medium text-amber-900"
+                                      : "bg-slate-100 text-slate-500"
+                                  )}
+                                  title={
+                                    Number(page.is_product_page)
+                                      ? `Aktif menggantikan PDP di /produk/${page.product_slug ?? page.slug}`
+                                      : `/${page.slug}`
+                                  }
+                                >
                                   /{page.slug}
+                                  {Number(page.is_product_page) && page.product_slug ? ` → /produk/${page.product_slug}` : ""}
                                 </span>
                                 <button
                                   type="button"
@@ -680,6 +739,12 @@ export default function LandingPageCatalog() {
                                 <span className={`shrink-0 whitespace-nowrap rounded border px-1.5 py-px text-xs font-semibold ${srcBadge.color}`}>
                                   {srcBadge.label}
                                 </span>
+                                {Boolean(Number(page.is_product_page)) && (
+                                  <span className="inline-flex shrink-0 items-center gap-1 rounded border border-amber-200 bg-amber-50 px-1.5 py-px text-xs font-semibold text-amber-800">
+                                    <Star className="size-3 fill-amber-400 text-amber-500" />
+                                    Produk Utama
+                                  </span>
+                                )}
                               </div>
                             </TableCell>
 
@@ -765,10 +830,17 @@ export default function LandingPageCatalog() {
                                         disabled={productPagePageId === page.id}
                                         onClick={() => handleToggleProductPage(page)}
                                       >
-                                        <Package className="w-3.5 h-3.5 mr-2 text-slate-500" />
+                                        <Star
+                                          className={cn(
+                                            "mr-2 size-3.5",
+                                            Number(page.is_product_page)
+                                              ? "fill-amber-400 text-amber-500"
+                                              : "text-slate-400"
+                                          )}
+                                        />
                                         {Number(page.is_product_page)
-                                          ? "Lepas dari halaman produk"
-                                          : "Jadikan halaman produk"}
+                                          ? "Lepas status Produk Utama"
+                                          : "Jadikan Landing Page Produk Utama"}
                                       </DropdownMenuItem>
                                     )}
                                     <DropdownMenuItem onClick={() => handleCopyLink(page)}>

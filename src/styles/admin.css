@@ -262,7 +262,25 @@
    sections here do. One 1px frame for both, so every panel reads the same. */
 .admin-shell [data-slot="card"],
 .admin-shell section.bg-white,
-.admin-shell article.bg-white { border: 1px solid rgba(203, 213, 225, 0.72); border-radius: var(--radius-xl); box-shadow: none; }
+.admin-shell article.bg-white {
+  border: 1px solid rgba(203, 213, 225, 0.75);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
+}
+.admin-shell .admin-main *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.admin-shell .admin-main *::-webkit-scrollbar-track {
+  background: transparent;
+}
+.admin-shell .admin-main *::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.8);
+  border-radius: 9999px;
+}
+.admin-shell .admin-main *::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.9);
+}
 .admin-shell [data-slot="card-header"] { border-color: rgba(226, 232, 240, 0.82); }
 .admin-shell section.relative > [aria-hidden="true"].absolute { display: none; }
 .admin-shell .admin-main :where(h2, h3) { letter-spacing: -0.025em; }

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   hasAdClickId,
   hasClickId,
@@ -195,4 +196,22 @@ test("an embed carrying only the parent page's _fbp keeps the stored gclid", () 
   const merged = mergeClickIds(googleClick, embedReload);
   assert.equal(merged.gclid, "Cj0_paid");
   assert.equal(merged._fbp, "fb.1.1700000000000.123", "the fresher browser id still lands");
+});
+
+test("a public redirect to a product page keeps the ad's click ids", () => {
+  // A landing page handed a product page answers 308 to /produk/<slug>. Every
+  // store's ads point at landing URLs, so a redirect without the query string
+  // strips fbclid/gclid and the UTM tags before any script can read them — the
+  // click is paid for and never attributed. Found live: all nine of a store's
+  // landings redirected bare after they were made product pages.
+  const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+  const redirects = [
+    ...source("middleware.ts").matchAll(/context\.redirect\(`\/produk[^`]*`/g),
+    ...source("pages/[slug].astro").matchAll(/Astro\.redirect\(`[^`]*`/g),
+    ...source("pages/solusi-terbaru.astro").matchAll(/Astro\.redirect\(`[^`]*`/g),
+  ].map((match) => match[0]);
+  assert.equal(redirects.length, 4);
+  for (const redirect of redirects) {
+    assert.match(redirect, /\$\{(Astro\.)?url\.search\}`$/, redirect);
+  }
 });

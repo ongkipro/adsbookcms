@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-09-28 @ `0d6ca3f` + native-reconcile-cron working tree
+> Verified against disk: 2026-09-29 @ `660647e` + redirects-keep-click-ids working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -46,7 +46,8 @@ A landing page can take over its product's page (A21). When it does:
 
 - `/produk/<product-slug>` renders the landing page, and that is its canonical
   address;
-- its own `/<landing-slug>` answers `308` to the product URL, so exactly one
+- its own `/<landing-slug>` answers `308` to the product URL — query string
+  kept, so an ad's `fbclid`/`gclid` and UTM tags survive — so exactly one
   URL is live and the two never compete as duplicate content;
 - unpublishing it, or releasing the claim, hands `/produk/<product-slug>` back
   to the normal product template — the product never 404s because a landing

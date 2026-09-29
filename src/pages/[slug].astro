@@ -21,7 +21,7 @@ const page = await getLandingPageBySlug(Astro.locals, slug);
 
 if (!page) {
   const product = await getStorefrontProduct(Astro.locals, slug);
-  if (product) return Astro.redirect(`/produk/${product.slug}`, 308);
+  if (product) return Astro.redirect(`/produk/${product.slug}${Astro.url.search}`, 308);
 
   return Astro.rewrite('/404');
 }
@@ -66,7 +66,9 @@ const productPagePath = `/produk/${product.slug}`;
 const servedAsProductPage =
   Astro.request.headers.get('x-adsbook-product-page') === product.slug;
 if (page.is_product_page && !servedAsProductPage && !isPreview) {
-  return Astro.redirect(productPagePath, 308);
+  // The query string travels: an ad's fbclid and UTM tags arrive on this URL,
+  // and a redirect that drops them loses the click it was paid for.
+  return Astro.redirect(`${productPagePath}${Astro.url.search}`, 308);
 }
 
 const csPhone = await getStoreSupportWhatsapp(Astro.locals);

@@ -6152,3 +6152,19 @@ audited manual reconciliation in `/admin/payments`.
 **Evidence.** New test on a real SQLite: thirty long-expired rows, one expired
 two hours ago, one pending — the run returns the pending and the recent one and
 none of the thirty; restoring the old query fails it. 784 tests.
+
+## 2026-09-29 — A landing made a product page kept its ad's click ids no longer
+
+When an operator makes a landing page the product page, its own URL answers
+`308` to `/produk/<slug>`. The redirect was built from the path alone, so the
+query string was dropped — and ads point at landing URLs. `fbclid`, `gclid` and
+the UTM tags vanished before any script could read them: no `_fbc` cookie, no
+click attribution, a paid click reported as organic. Found live on zvarashop the
+hour its operator made all nine landings product pages.
+
+All four public redirects to a product (native and CMS landing as product page,
+a bare product slug, the retired `/solusi-terbaru`) now carry the query string,
+and a source test in `click-ids.test.ts` fails if one is added without it.
+
+**Evidence.** The test fails when the middleware redirect alone is reverted.
+785 tests.

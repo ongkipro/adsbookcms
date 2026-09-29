@@ -283,7 +283,8 @@ export function createMiddleware(
     );
     if (claimedProductSlug) {
       return applySecurityHeaders(
-        context.redirect(`/produk/${claimedProductSlug}`, 308),
+        // Keep the query string: ads land here with fbclid/gclid and UTM tags.
+        context.redirect(`/produk/${claimedProductSlug}${url.search}`, 308),
         false,
       );
     }

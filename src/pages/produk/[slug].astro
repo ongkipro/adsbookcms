@@ -29,6 +29,10 @@ if (!product) {
 // than growing a second copy here. The URL stays `/produk/<slug>`: that is the
 // product's address, and the landing page's own slug redirects to it, so the
 // two never compete as duplicate content.
+// `astro check` does not count a value used only in a frontmatter `return` as
+// read, so the geo helper is named once here to keep that check clean.
+void geoHeadersFromCf;
+
 const productPageLanding = await getProductPageLanding(
   Astro.locals,
   String(product.productId),

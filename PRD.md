@@ -1,6 +1,44 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
+
+## A28 — Hand a COD buyer to WhatsApp support from the thank-you page
+
+### Goals
+
+- A COD buyer reaches the store's support chat with the order already named,
+  without having to press anything, while the store's conversion signal is not
+  cut short.
+
+### Non-goals
+
+- Redirecting a buyer who still has to pay (QRIS, VA, transfer): their next step
+  is on the page.
+- A message template the operator edits. The fields are fixed; the wording can
+  change in code.
+
+### Requirements
+
+- **REQ-180** — An operator shall be able to switch the hand-off on and off in
+  Settings → Store; it shall be off on every store until switched on.
+- **REQ-181** — When on, `/thanks` shall open the support WhatsApp for a COD
+  order only, and never for a lead-only record or a store without a usable
+  support number.
+- **REQ-182** — The page shall leave only after the Purchase has been handed to
+  the Pixel and the CAPI leg and the Pixel library is loaded, not sooner than
+  1.5 s and not much later than 5 s after load, and the buyer shall be able to
+  stay on the page instead.
+- **REQ-183** — The message, used by the automatic hand-off and the existing
+  button alike, shall name the invoice number, the buyer's name, and the product
+  with its variant and quantity, omitting any field that is unknown.
+
+### Technical decisions
+
+- **A signal, not a timer.** `MetaThanksTracker` dispatches `ps:purchase-done`
+  on every exit of its Purchase routine; the page waits for it and for
+  `fbq.instance`. The server already holds the COD Purchase from checkout, so the
+  upper bound only protects the browser leg.
+- **`keepalive` on the CAPI leg**, so the navigation cannot cancel it.
 
 ## A27 — Bounded landing-page content and images
 
@@ -189,13 +227,15 @@ remediation evidence is in `docs/AUDIT-2026-08-23.md`; open execution is owned b
 
 ### Non-goals
 
-- Listing native Astro landing routes in the CMS. That needs the typed manifest in `REQ-143`/`A-133` and is unbuilt; `docs/LANDING-PAGES.md` states the contract so a page written before then already fits it.
-- Letting a native Astro route claim a product page. The claim is a database fact on `landing_pages`; a file has no row.
+- *(Superseded.)* Native Astro landing routes were first out of scope here. The
+  native register (`src/data/native-landing-pages.ts`) now records them in
+  `landing_pages`, so the CMS lists them and a registered native page can serve
+  its product's page like a CMS page; see `docs/LANDING-PAGES.md`.
 
 ### Requirements
 
 - **REQ-159** — An operator shall be able to make one active CMS landing page serve its product's page, and to release it again.
-- **REQ-160** — Where a landing page serves the product page, `/produk/<product-slug>` shall render it and be its canonical address, and the landing page's own slug shall permanently redirect there, so exactly one URL is live.
+- **REQ-160** — Where a landing page serves the product page, `/produk/<product-slug>` shall render it and be its canonical address, and the landing page's own slug shall permanently redirect there (`301`, cacheable for five minutes, query string kept), so exactly one URL is live.
 - **REQ-161** — At most one landing page may serve a given product's page, enforced by the database rather than by the interface.
 - **REQ-162** — If the claiming landing page becomes inactive or releases the claim, then `/produk/<product-slug>` shall return to the standard product template; a product shall never 404 because a landing page changed.
 - **REQ-163** — Every landing page, CMS or native, shall answer at `domain/<slug>` with no path prefix, except where `REQ-160` moves it to the product URL.
@@ -395,7 +435,7 @@ The storefront sells on demand: a variant shall be purchasable whenever it is ac
 
 | ID | Requirement | Status |
 | --- | --- | --- |
-| REQ-40 | The system shall quote live courier rates for the resolved destination, filtered by courier availability and COD rules. A fresh install shall start with the neutral courier catalogue, while upgrades shall backfill it only for stores whose courier policy is completely empty. | Implemented 2026-08-18 — fresh install and empty-policy repair contracts passed |
+| REQ-40 | The system shall quote live courier rates for the resolved destination, filtered by courier availability and COD rules. A fresh install shall enable JNE and J&T and list every other supported courier switched off, while upgrades shall backfill the catalogue only for stores whose courier policy is completely empty and never change an existing store's policy. | Implemented 2026-08-18 — fresh install and empty-policy repair contracts passed |
 | REQ-41 | Destination resolution shall use a local district index with provider address search as a fallback. | Implemented |
 | REQ-42 | Dispatch shall run sequentially under a single-flight lease and shall return independent per-order results. | Implemented |
 | REQ-43 | Only an accepted provider response shall advance an order to processing; failures shall remain pending and retryable. | Implemented |

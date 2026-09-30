@@ -1,6 +1,46 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `01f87ed` + working tree (tracking fail-soft, responsive sweep)
+> Verified against disk: 2026-09-30 @ `dd83acd` + working tree (fleet rollout, landing/form/courier/signal fixes)
+
+## 2026-09-30 — three installs on the product line; landing, form, courier and signal fixes
+
+- **Fleet.** taniniaga, zvarashop and carukesi run product `dd83acd` from
+  their own checkouts, D1 migrated through `0061`; local, GitHub and Cloudflare
+  agree for all three. zvarashop rejoined the product line after running its
+  own fork since `93c110d` (273 commits behind): its store-authored `0055`–`0057`
+  data migrations left the chain and their ledger rows were deleted right after
+  deploy (ADR-024 pattern), rehearsed first on a local import of the production
+  export. carukesi gained eleven native landings copied from the reference
+  install. permatamall, zanobyshop, skincarebpom and beranda-tani were not
+  updated in this pass.
+- **Shipped to those three.** An optional WhatsApp hand-off from `/thanks` for
+  COD orders (`0060`, off by default); product-page redirects as a cacheable
+  `301` that keeps `fbclid`/UTM; a landing served as a product page keeps the
+  visitor's province, so its hybrid form resolves; pages may not render a form
+  component outside `GeoIpResolvedForm` (twelve taniniaga landings did); CMS
+  landing images deferred below the first; native landings reach the sitemap
+  from the hourly cron without moving `lastmod`; the AutoLaris Advice run checks
+  new and recent instructions instead of the same 25 oldest; alerts name their
+  store; Ninja removed (`0061`) and a fresh install enables JNE and J&T only —
+  existing stores keep their own courier policy.
+- **Verified live.** All landings on the three hosts carry the Pixel bootstrap
+  and a ViewContent id present in the catalog feed (37/37); browser and server
+  `event_id` pair on PageView, ViewContent and AddToCart; inactive products are
+  absent from both feeds and the sitemap; the hourly cron runs on all three.
+- **Open.**
+  - The WhatsApp hand-off, the `_fbc` cookie after a redirect and PageSpeed
+    scores were not exercised in a browser: headless Chrome on the working
+    machine could not load any page, and the anonymous PageSpeed API quota was
+    spent.
+  - One test fails intermittently (once in several full runs, different
+    stores, passes on re-run); not yet identified.
+  - Meta Events Manager: automatic events and a Conversions API Gateway are
+    still on for the taniniaga and zvarashop pixels; carukesi's pixel refuses
+    its own domain (traffic permissions), so only CAPI reaches Meta there.
+  - zvarashop: 0 of 92 QRIS orders ever paid; AutoLaris confirms them unpaid.
+    A business question, not a defect.
+  - Response times rose during Cloudflare's Asia-Pacific incident of the same
+    days (Jakarta under maintenance); Worker CPU stayed 13–75 ms.
 
 ## 2026-09-26 — checkout tracking re-verified, admin type and phone layout
 

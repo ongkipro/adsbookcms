@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -71,7 +71,7 @@ Runs on every request, in order: canonical host redirect (`www` → apex), ad cl
 | --- | --- |
 | Storefront | `/`, `/produk`, `/produk/[slug]`, `/404`, `/thanks`, `/payment` |
 | Content pages | `/tentang`, `/kontak`, `/testimoni`, `/sitemap`, `/disclaimer`, `/kebijakan-privasi`, `/kebijakan-cookie`, `/syarat-ketentuan`, `/pengiriman` |
-| Landing pages | `/[slug]` — catch-all resolved from D1 `landing_pages`; falls back to a 308 to `/produk/<slug>` when the slug is a product, else 404. Supports `?preview=1` behind an admin session |
+| Landing pages | `/[slug]` — catch-all resolved from D1 `landing_pages`; falls back to a `301` to `/produk/<slug>` (query string kept, cached five minutes) when the slug is a product, else 404. Supports `?preview=1` behind an admin session |
 | Checkout forms | `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`. `/form-hybrid`, `/form-middle`, `/form-full` are query-preserving 308 redirects that **do** exist |
 | Feeds | `/sitemap.xml`, `/feed/google-catalog.xml`, `/feed/meta-catalog.xml`, `/robots.txt` (dynamic, `src/pages/robots.txt.ts`) |
 | Media | `/assets/[...key]` (R2 `uploads/` prefix), `/media/[...key]` (R2 `content/` prefix) |

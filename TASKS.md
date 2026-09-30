@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-09-26 @ `01f87ed` + working tree
+> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
 
 ## A21 — A landing page may become the product page
 
@@ -2621,4 +2621,36 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   `COD_EFFECTIVE_RATE_LABEL`, derived from the two rates. The charge itself
   is unchanged: 3% and 11% VAT, each rounded up, never more than Rp2 above a
   flat 3,33% (tested).
+
+## Fleet, landing and signal pass — 2026-09-29/30
+
+- [x] **A-314** — Operational alerts name their store and render in Slack,
+  Google Chat and Discord webhooks (`text`/`content`); OBSERVABILITY §5
+  documents the body actually sent.
+- [x] **A-315** — Native landing slugs and an install's other route files
+  (`installRouteSlugs`) are reserved from CMS slugs; a runtime test requires the
+  Pixel bootstrap hooks `__PS_META_INIT__` and `__PS_LOAD_META_PIXEL__`.
+- [x] **A-316** — The hourly cron re-syncs the native register (sitemap, product
+  page) and the re-sync writes only a real change, so `lastmod` stops moving.
+- [x] **A-317** — The AutoLaris Advice run checks every pending instruction and
+  those expired within 24 h, newest first, instead of the 25 oldest forever.
+- [x] **A-318** — Product-page redirects keep the query string, then became a
+  `301` with `Cache-Control: max-age=300` (`productPageRedirect`).
+- [x] **A-319** — CMS landing images after the first are deferred at render,
+  except script-bearing `onerror`/`onload` images.
+- [x] **A-320** — Optional WhatsApp hand-off from `/thanks` for COD orders
+  after the Purchase is sent (`0060`, Settings → Store; off by default); the
+  message carries invoice, name, product and variant; CAPI leg uses keepalive.
+- [x] **A-321** — Pages render the order form only through
+  `GeoIpResolvedForm`; a landing served as a product page forwards the
+  visitor's Cloudflare location through the rewrite.
+- [x] **A-322** — Ninja courier removed (`0061`); a fresh install enables JNE and
+  J&T only.
+- [x] **A-323** — Fleet rollout: taniniaga, zvarashop (rejoined the product
+  line, ADR-024 ledger repair rehearsed on a production copy) and carukesi at
+  product `dd83acd`.
+- [ ] **A-324** — Identify the test that fails intermittently across full runs.
+- [ ] **A-325** — Browser evidence for the `/thanks` WhatsApp hand-off and the
+  `_fbc` cookie after a product-page redirect, once a working headless browser
+  is available.
 

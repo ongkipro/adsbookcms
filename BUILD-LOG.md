@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
+> Verified against disk: 2026-09-30 @ `f3be2b1` + working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6268,3 +6268,16 @@ Existing stores keep their own policy. RELEASE §3 also gains the missing
 **Evidence.** Migration test applies `0042`→`0061` and finds no Ninja row; the
 install test and a new default test require exactly JNE and J&T enabled. 797
 tests.
+
+## 2026-09-30 — Release notes in the admin, written from the record
+
+The admin gains a "Catatan Rilis" modal (header button and the sidebar version
+badge). Its first draft listed dates and changes that the record contradicts —
+1.4.0 on 29 September, 1.3.3/1.3.4 in September carrying work that shipped this
+week, and an unverifiable 1.2.0. An operator reads this as fact, so the entries
+were rewritten from git and this log: 1.3.0 (22 Aug, `2026.08-landing`), 1.3.1
+(23 Aug), 1.3.2–1.4.0 (27 Aug, `2026.08-stock-unlimited`), and a `1.4.0+` entry
+for the work since, which carries no version number yet.
+
+**Evidence.** 797 tests, `astro check` 0/0/0, build green. The modal itself is
+proven only by opening the page.

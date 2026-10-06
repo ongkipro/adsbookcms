@@ -67,6 +67,9 @@ export const GET: APIRoute = async ({ locals }) => {
       .map((p) => ({
         path: `/${p.slug}`,
       }));
+    // The index of those pages is a real, linked page too — but only worth
+    // advertising when it lists something.
+    if (landingEntries.length > 0) landingEntries.unshift({ path: "/landing-page" });
   } catch (error) {
     console.error("sitemap-landing-pages", error);
   }

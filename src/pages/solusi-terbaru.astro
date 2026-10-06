@@ -1,7 +1,8 @@
 ---
 export const prerender = false;
-// Was a 301 to /landing-page, which has no route and 404s unless a landing
-// page happens to own that exact slug. Point it at the catalog instead so the
-// redirect resolves.
-return Astro.redirect(`/produk${Astro.url.search}`, 301);
+// "Solusi terbaru" is the list of solution (landing) pages, which lives at
+// /landing-page. This pointed at the catalogue while that route did not exist;
+// it does now, and sending a visitor who asked for solutions to the product
+// grid answered a different question.
+return Astro.redirect(`/landing-page${Astro.url.search}`, 301);
 ---

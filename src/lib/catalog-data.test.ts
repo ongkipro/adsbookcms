@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { Product } from "../data/products.ts";
 import { mergeStorefrontCatalog } from "./catalog-data.ts";
+import { generateGoogleCatalogXml } from "./catalog-feed.ts";
 
 function runtimePresentation(productId: string): Product {
   return {
@@ -160,4 +161,28 @@ test("missing D1 product image is never replaced with an AdsBookCMS asset", () =
 
   assert.deepEqual(products, []);
   assert.doesNotMatch(JSON.stringify(products), /adsbook-mark\.webp/);
+});
+
+test("a product's own brand reaches the feed; a product without one falls back to the store", () => {
+  const branded = mergeStorefrontCatalog(
+    [{ ...completeProductRow, brand: "  AUSSIE  " }],
+    completeVariantRows,
+    [runtimePresentation("50001")],
+  );
+  assert.equal(branded[0].brand, "AUSSIE");
+  const xml = generateGoogleCatalogXml(branded, "https://toko.test", "Toko Contoh");
+  assert.match(xml, /<g:brand>AUSSIE<\/g:brand>/);
+  assert.doesNotMatch(xml, /<g:brand>Toko Contoh<\/g:brand>/);
+
+  for (const brand of [null, "", "   "]) {
+    const unbranded = mergeStorefrontCatalog(
+      [{ ...completeProductRow, brand }],
+      completeVariantRows,
+    );
+    assert.equal("brand" in unbranded[0], false, JSON.stringify(brand));
+    assert.match(
+      generateGoogleCatalogXml(unbranded, "https://toko.test", "Toko Contoh"),
+      /<g:brand>Toko Contoh<\/g:brand>/,
+    );
+  }
 });

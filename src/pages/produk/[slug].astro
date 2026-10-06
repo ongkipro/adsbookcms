@@ -91,7 +91,7 @@ const productSchema = {
   sku: product.productId,
   brand: {
     '@type': 'Brand',
-    name: Astro.locals.tenant.name,
+    name: product.brand || Astro.locals.tenant.name,
   },
   offers: {
     '@type': 'AggregateOffer',

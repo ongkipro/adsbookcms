@@ -5,6 +5,7 @@ export interface CatalogProductRow {
   title: string;
   slug: string;
   category?: string | null;
+  brand?: string | null;
   image_url?: string | null;
   is_active?: number | null;
   created_at?: string | null;
@@ -113,6 +114,7 @@ export function mergeStorefrontCatalog(
     const slug = product.slug.trim();
     const image = product.image_url!.trim();
     const categoryLabel = product.category?.trim() || "Produk";
+    const brand = product.brand?.trim();
     const presentation = presentationsByProductId.get(productId);
     const details = {
       subheadline: `Pilih varian ${productName} berdasarkan opsi dan harga yang tersedia.`,
@@ -160,6 +162,9 @@ export function mergeStorefrontCatalog(
         images: [image],
         tag: presentation?.tag || categoryLabel,
         category: categoryLabel,
+        // `products.brand` (0051) is the manufacturer's name. Dropping it here
+        // is how the feeds kept reporting the store as every product's brand.
+        ...(brand ? { brand } : {}),
         relatedCategories:
           presentation?.relatedCategories?.length
             ? presentation.relatedCategories

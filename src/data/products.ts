@@ -35,6 +35,8 @@ export type Product = {
   images?: string[];
   tag?: string;
   category: string;
+  /** The manufacturer's brand from `products.brand`; absent when unset. */
+  brand?: string;
   relatedCategories: string[];
   relatedTags?: string[];
   description: string;

@@ -186,3 +186,14 @@ test("a product's own brand reaches the feed; a product without one falls back t
     );
   }
 });
+
+test("a product's price is its cheapest variant, whatever order D1 returns them in", () => {
+  const [product] = mergeStorefrontCatalog(
+    [completeProductRow],
+    [...completeVariantRows].reverse(),
+  );
+  // The 2 L variant now comes first; the product still lists from the 1 L.
+  assert.equal(product.variants[0].price, 200000);
+  assert.equal(product.price, 120000);
+  assert.equal(product.comparePrice, 150000);
+});

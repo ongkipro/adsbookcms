@@ -139,7 +139,13 @@ export function mergeStorefrontCatalog(
         ...(comparePrice ? { comparePrice } : {}),
       };
     });
-    const firstVariant = variants[0];
+    // The product's own price is its "from" price, the cheapest variant — the
+    // figure the product page already shows. It used to be whichever variant
+    // D1 returned first, so a product whose larger size was entered first
+    // listed that size's price on every card while its page said less.
+    const fromVariant = variants.reduce((low, variant) =>
+      variant.price < low.price ? variant : low,
+    );
 
     catalog.push({
         catalogId: product.id,
@@ -153,9 +159,9 @@ export function mergeStorefrontCatalog(
         seoDescription:
           presentation?.seoDescription ||
           `Lihat pilihan varian, harga, dan ketersediaan ${productName}. Detail mengikuti informasi katalog toko.`,
-        price: firstVariant.price,
-        ...(firstVariant.comparePrice
-          ? { comparePrice: firstVariant.comparePrice }
+        price: fromVariant.price,
+        ...(fromVariant.comparePrice
+          ? { comparePrice: fromVariant.comparePrice }
           : {}),
         image,
         heroImage: image,

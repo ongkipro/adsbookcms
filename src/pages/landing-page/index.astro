@@ -3,6 +3,7 @@ import PageIntro from '../../components/storefront/shared/PageIntro.astro';
 import Icon from '../../components/storefront/shared/Icon.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { listPublicLandingPages } from '../../lib/landing-pages';
+import { cardImageSrc } from '../../lib/image-derivative';
 
 export const prerender = false;
 
@@ -41,7 +42,20 @@ const INITIAL_COUNT = 10;
                   href={page.href}
                   class="flex min-h-14 items-center justify-between gap-3 py-3.5 transition-colors hover:bg-[#F5F5F5]"
                 >
-                  <span class="min-w-0">
+                  {page.image ? (
+                    <img
+                      src={cardImageSrc(page.image)}
+                      alt=""
+                      width="56"
+                      height="56"
+                      loading={index < 6 ? 'eager' : 'lazy'}
+                      decoding="async"
+                      class="size-14 shrink-0 border border-[#E5E5E5] bg-[#F5F5F5] object-cover"
+                    />
+                  ) : (
+                    <span aria-hidden="true" class="size-14 shrink-0 border border-[#E5E5E5] bg-[#F5F5F5]" />
+                  )}
+                  <span class="min-w-0 flex-1">
                     <span class="block truncate text-sm font-semibold text-[#111111]">
                       {page.title}
                     </span>

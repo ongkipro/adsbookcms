@@ -47,7 +47,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `/[slug]` | GET | public | — | `src/pages/[slug].astro` | `admin-session` `auth-secret` `catalog` `catalog-feed` `env` `landing-pages` `native-landing-pages` `public-store` `social-proof` | `admin_credentials` `admin_sessions` `install_secrets` `landing_pages` `landing_sections` `orders` `product_variants` `products` `stores` | `admin-session.test.ts` `auth-secret.test.ts` `catalog.test.ts` `catalog-feed.test.ts` `env.test.ts` `landing-pages.test.ts` `native-landing-pages.test.ts` `public-store.test.ts` |
 | `/contoh-landing` | GET | public | — | `src/pages/contoh-landing.astro` | `catalog` `catalog-feed` `landing-pages` | `landing_pages` `landing_sections` `product_variants` `products` | `catalog.test.ts` `catalog-feed.test.ts` `landing-pages.test.ts` |
-| `/landing-page` | GET | public | — | `src/pages/landing-page/index.astro` | `landing-pages` | `landing_pages` `landing_sections` `products` | `landing-pages.test.ts` |
+| `/landing-page` | GET | public | — | `src/pages/landing-page/index.astro` | `image-derivative` `landing-pages` | `landing_pages` `landing_sections` `products` | `image-derivative.test.ts` `landing-pages.test.ts` |
 | `/solusi-terbaru` | GET | public | — | `src/pages/solusi-terbaru.astro` | — | — | — |
 
 ## Checkout form (8)
@@ -96,7 +96,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | `/api/locations` | GET | public | — | `src/pages/api/locations.ts` | `district-catalog` `env` `location-cache` `location-search` `mengantar-client` `provider-config` `rate-limit` | `rate_limits` `stores` | `district-catalog.test.ts` `env.test.ts` `location-cache.test.ts` `location-search.test.ts` `mengantar-client.test.ts` `provider-config.test.ts` `rate-limit.test.ts` |
 | `/api/meta-event` | POST | public | — | `src/pages/api/meta-event.ts` | `autolaris-payment` `capi-outbox` `click-ids` `env` `meta-capi` `meta-event-contract` `meta-identity` `meta-purchase-order` `rate-limit` `store-ads` | `autolaris_callbacks` `capi_event_outbox` `order_items` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `stores` `warehouses` | `autolaris-payment.test.ts` `capi-outbox.test.ts` `click-ids.test.ts` `env.test.ts` `meta-capi.test.ts` `meta-event-contract.test.ts` `meta-identity.test.ts` `meta-purchase-order.test.ts` `rate-limit.test.ts` `store-ads.test.ts` |
 | `/api/order-status` | POST | public | — | `src/pages/api/order-status.ts` | `autolaris-client` `autolaris-payment` `env` `order-status` `rate-limit` | `autolaris_callbacks` `order_items` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `stores` `warehouses` | `autolaris-client.test.ts` `autolaris-payment.test.ts` `env.test.ts` `order-status.test.ts` `rate-limit.test.ts` |
-| `/api/payment-methods` | GET | public | — | `src/pages/api/payment-methods.ts` | `autolaris-client` `env` `payment-brand` `payment-fee-policy` `provider-config` | `seller_bank_accounts` `stores` | `autolaris-client.test.ts` `env.test.ts` `payment-brand.test.ts` `payment-fee-policy.test.ts` `provider-config.test.ts` |
+| `/api/payment-methods` | GET | public | — | `src/pages/api/payment-methods.ts` | `autolaris-client` `env` `payment-brand` `payment-fee-policy` `provider-config` | `seller_bank_accounts` `stores` `warehouses` | `autolaris-client.test.ts` `env.test.ts` `payment-brand.test.ts` `payment-fee-policy.test.ts` `provider-config.test.ts` |
 | `/api/record-abandoned-order` | POST | public | — | `src/pages/api/record-abandoned-order.ts` | `api` `env` `order-persistence` `rate-limit` `validation` | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `rate_limits` `seller_bank_accounts` `stores` | `api.test.ts` `env.test.ts` `order-persistence.test.ts` `rate-limit.test.ts` `validation.test.ts` |
 | `/api/shipping-options` | GET | public | — | `src/pages/api/shipping-options.ts` | — | — | — |
 | `/api/shipping-rates` | GET | public | — | `src/pages/api/shipping-rates.ts` | `env` `rate-limit` `shipping-quote` | `courier_rules` `product_variants` `products` `rate_limits` `warehouses` | `env.test.ts` `rate-limit.test.ts` `shipping-quote.test.ts` |
@@ -238,11 +238,11 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `headless-client` | 14 | — | ✓ | — |
 | `headless-openapi` | 1 | — | ✓ | `/api/v1/openapi.json` |
 | `html-escape` | 1 | — | ✓ | — |
-| `image-derivative` | 1 | — | ✓ | `/404` |
+| `image-derivative` | 1 | — | ✓ | `/404` `/landing-page` |
 | `install` | 6 | `admin_credentials` `courier_rules` `stores` | ✓ | `/api/install` |
 | `json-ld` | 14 | — | ✓ | — |
 | `json-script` | 1 | — | ✓ | — |
-| `landing-pages` | 33 | `landing_pages` `landing_sections` `products` | ✓ | `/produk/[slug]` `/sitemap` `/[slug]` `/contoh-landing` `/landing-page` `/sitemap.xml` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` |
+| `landing-pages` | 34 | `landing_pages` `landing_sections` `products` | ✓ | `/produk/[slug]` `/sitemap` `/[slug]` `/contoh-landing` `/landing-page` `/sitemap.xml` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` |
 | `location-cache` | 5 | — | ✓ | `/api/locations` |
 | `location-search` | 14 | — | ✓ | `/api/locations` `/api/v1/geo/districts` |
 | `manual-payment-reconciliation` | 6 | `admin_credentials` `orders` `payment_reconciliation_audits` `payment_transactions` `stores` | ✓ | `/api/admin/payment-reconciliation` |
@@ -269,7 +269,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `payment-dispatch-policy` | 5 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `payment-fee-policy` | 11 | — | ✓ | `/api/payment-methods` `/admin/payments` `/api/admin/orders/[id]` |
 | `product-mutation` | 9 | `order_items` `product_variants` `products` `storefront_content` | ✓ | `/api/admin/products` |
-| `provider-config` | 5 | `stores` | ✓ | `/api/locations` `/api/payment-methods` `/api/submit-order` `/api/v1/checkout` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` |
+| `provider-config` | 6 | `stores` | ✓ | `/api/locations` `/api/payment-methods` `/api/submit-order` `/api/v1/checkout` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` |
 | `province` | 12 | — | ✓ | `/api/submit-middle-order` `/api/v1/checkout` `/api/admin/expeditions` |
 | `public-store` | 2 | `stores` | ✓ | `/thanks` `/kontak` `/[slug]` |
 | `rate-check` | 10 | — | ✓ | — |

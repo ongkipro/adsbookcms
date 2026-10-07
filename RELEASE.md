@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-09-30 @ `0ef2813` + retire-ninja-default-jne-jt working tree
+> Verified against disk: 2026-10-07 @ `515e81b` + autolaris-readiness/landing-thumbnail working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -159,9 +159,9 @@ Two registries, currently in step:
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration files, and the tree holds 59 (`0000`–`0058`).
+`schemaVersion` counts migration files, and the tree holds 62 (`0000`–`0061`).
 `releaseTag` still names the 1.4.0 release; the next release bump must move it,
-because the tree now carries `0056`–`0058` that 1.4.0 did not.
+because the tree now carries `0056`–`0061` that 1.4.0 did not.
 `schema-version.test.ts` fails CI on drift; middleware enforces the same chain at
 runtime; `operational-health.ts` and the dashboard expose applied version.
 

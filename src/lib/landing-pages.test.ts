@@ -94,9 +94,10 @@ class SqliteD1Database {
         id INTEGER PRIMARY KEY,
         slug TEXT NOT NULL,
         title TEXT NOT NULL,
-        is_active INTEGER DEFAULT 1
+        is_active INTEGER DEFAULT 1,
+        image_url TEXT
       );
-      INSERT INTO products (id, slug, title) VALUES (20001, 'pupuk-organik', 'Pupuk Organik');
+      INSERT INTO products (id, slug, title, image_url) VALUES (20001, 'pupuk-organik', 'Pupuk Organik', '/assets/uploads/pupuk.webp');
       INSERT INTO products (id, slug, title) VALUES (20002, 'benih-jagung', 'Benih Jagung');
       INSERT INTO products (id, slug, title, is_active) VALUES (20003, 'produk-mati', 'Produk Mati', 0);
     `);
@@ -494,6 +495,9 @@ test("the public listing links a claimed page to the product URL it answers on",
   assert.equal(bySlug.get(claimed.slug)?.href, "/produk/benih-jagung");
   assert.equal(bySlug.get(claimed.slug)?.isProductPage, true);
   assert.equal(bySlug.has(draft.slug), false);
+  // Without imagery of its own a page is listed with its product's photo.
+  assert.equal(bySlug.get(standalone.slug)?.image, "/assets/uploads/pupuk.webp");
+  assert.equal(bySlug.get(claimed.slug)?.image, null);
 
   // A page whose product is off answers 404; home and sitemap must not link it.
   const orphan = await createLandingPage(locals, {
@@ -684,4 +688,19 @@ test("CMS images below the first are deferred, and script-bearing images are lef
   assert.match(out, /<img loading="lazy" decoding="async" SRC="\/upper\.jpg">/);
   // A later section has no LCP candidate: its first image is deferred too.
   assert.match(deferOffscreenImages('<img src="/a.jpg">', false), /^<img loading="lazy" decoding="async"/);
+});
+
+test("a landing page is listed with its own first image, else its product's photo", async () => {
+  const { landingThumbnail } = await import("./landing-pages.ts");
+  const image = (src: string) => ({ type: "image" as const, content_html: null, content_config: { src, alt: "" } });
+  const html = (markup: string) => ({ type: "html" as const, content_html: markup, content_config: null });
+  // An image section beats everything, even when an HTML image comes first.
+  assert.equal(
+    landingThumbnail({ sections: [html('<img src="/a.webp">'), image("/hero.webp")], nativeImage: "/n.webp", productImage: "/p.webp" }),
+    "/hero.webp",
+  );
+  assert.equal(landingThumbnail({ sections: [html('<p>x</p><img alt="" src="/legacy.webp">')], productImage: "/p.webp" }), "/legacy.webp");
+  assert.equal(landingThumbnail({ sections: [], nativeImage: "/n.webp", productImage: "/p.webp" }), "/n.webp");
+  assert.equal(landingThumbnail({ sections: [image("  ")], productImage: "/p.webp" }), "/p.webp");
+  assert.equal(landingThumbnail({}), null);
 });

@@ -44,3 +44,10 @@ test("getStoreSupportWhatsapp returns empty rather than throwing when the query 
   };
   assert.equal(await getStoreSupportWhatsapp(locals(database)), "");
 });
+
+test("a number saved as 08… comes back in the international form wa.me needs", async () => {
+  const database = {
+    prepare: () => ({ first: async () => ({ support_whatsapp: "0812-3456-7890" }) }),
+  } as unknown as D1Database;
+  assert.equal(await getStoreSupportWhatsapp(locals(database)), "6281234567890");
+});

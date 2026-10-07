@@ -251,13 +251,22 @@ const BUYERS = [
   { name: "Hendra Wijaya", phone: "081234500006", area: "Medan Baru Medan", address: "Jl. Sei Batang Hari No. 21" },
 ];
 
+// The store's own address must be https, or plain http on this machine only
+// (isAcceptedSiteProtocol) — so a store seeded over a tailnet or LAN address
+// (`dev:local --ip=…`) installs as http://localhost:<port>, the one http
+// address it accepts. Browsing it over the tailnet still works; only absolute
+// links (feeds, canonical) name localhost.
+const installSiteUrl = /^(localhost|127\.)/.test(host) || host === "[::1]"
+  ? base
+  : `http://localhost:${new URL(base).port || 80}`;
+
 async function install() {
   const result = await call("/api/install", {
     method: "POST",
     json: {
       install_token: INSTALL_TOKEN,
       store_name: "Toko Dummy Lokal",
-      site_url: base,
+      site_url: installSiteUrl,
       admin_username: DEV_ADMIN.username,
       admin_password: DEV_ADMIN.password,
       admin_password_confirm: DEV_ADMIN.password,

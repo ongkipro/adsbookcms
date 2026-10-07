@@ -53,6 +53,9 @@ export function validateNativeLandingPages(
     if (!String(entry.description || "").trim()) {
       errors.push({ slug, reason: "description wajib diisi." });
     }
+    if (entry.image !== undefined && !/^(\/(?![/\\])|https:\/\/)\S+$/.test(String(entry.image))) {
+      errors.push({ slug, reason: "image harus path (/...) atau URL https." });
+    }
   }
 
   return errors;

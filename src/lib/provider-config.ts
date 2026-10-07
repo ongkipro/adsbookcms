@@ -90,3 +90,28 @@ export async function getProviderConfig(
     },
   };
 }
+
+/**
+ * What AutoLaris Create Order (`/submit`, the QRIS/VA rail) still lacks, or
+ * null when it has everything it validates: the API key, the account's
+ * `courir_id: 1` origin/destination area pair (positive integers), and a
+ * warehouse address for the shipper.
+ *
+ * Readiness used to be the key alone, so a store with a key but no area pair
+ * or warehouse offered QRIS/VA to every buyer and failed each one inside
+ * `/submit` after the order already existed.
+ */
+export function autoLarisOrderRailGap(input: {
+  apiKey: string;
+  originId: string;
+  destinationId: string;
+  warehouseAddress: string | null | undefined;
+}): string | null {
+  const areaId = (value: string) => /^\d{1,20}$/.test(value.trim()) && Number(value) > 0;
+  if (!input.apiKey.trim()) return "AutoLaris belum dikonfigurasi.";
+  if (!areaId(input.originId) || !areaId(input.destinationId)) {
+    return "Area origin/destination AutoLaris belum diatur.";
+  }
+  if (!input.warehouseAddress?.trim()) return "Alamat gudang belum diatur.";
+  return null;
+}

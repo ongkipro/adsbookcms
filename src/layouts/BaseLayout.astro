@@ -232,43 +232,5 @@ const preloadImageUrls =
       </div>
     </div>
 
-    <script is:inline>
-      const menu = document.getElementById('mobile-menu');
-      const backdrop = document.getElementById('menu-backdrop');
-      const toggle = document.getElementById('menu-toggle');
-      const close = document.getElementById('menu-close');
-      const menuLinks = menu?.querySelectorAll('a') ?? [];
-
-      const openMenu = () => {
-        menu?.classList.remove('invisible');
-        requestAnimationFrame(() => {
-          menu?.classList.remove('translate-x-full');
-        });
-        backdrop?.classList.remove('pointer-events-none', 'opacity-0');
-        backdrop?.classList.add('opacity-100');
-        toggle?.setAttribute('aria-expanded', 'true');
-        menu?.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
-      };
-
-      const closeMenu = () => {
-        menu?.classList.add('translate-x-full');
-        backdrop?.classList.add('pointer-events-none', 'opacity-0');
-        backdrop?.classList.remove('opacity-100');
-        toggle?.setAttribute('aria-expanded', 'false');
-        menu?.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
-        setTimeout(() => {
-          if (menu?.classList.contains('translate-x-full')) {
-            menu?.classList.add('invisible');
-          }
-        }, 200);
-      };
-
-      toggle?.addEventListener('click', openMenu);
-      close?.addEventListener('click', closeMenu);
-      backdrop?.addEventListener('click', closeMenu);
-      menuLinks.forEach((link) => link.addEventListener('click', closeMenu));
-    </script>
   </body>
 </html>

@@ -67,6 +67,8 @@ export type LandingPage = {
   created_at: string;
   updated_at: string;
   sections: LandingSection[];
+  /** List thumbnail: the page's own first image, else its product's photo. */
+  thumbnail?: string | null;
 };
 
 const staticLandingPages: LandingPage[] = solutionEntries.map((entry) => ({
@@ -443,17 +445,21 @@ export async function listLandingPages(
   // The slug is what a claimed page's real URL is built from, so the admin can
   // show and copy `/produk/<slug>` rather than an address that only redirects.
   const productSlugMap = new Map<string, string>();
+  const productImageMap = new Map<string, string>();
 
   try {
     const productResult = await database
-      .prepare(`SELECT id, title, slug FROM products`)
-      .all<{ id: number | string; title: string; slug: string }>();
+      .prepare(`SELECT id, title, slug, image_url FROM products`)
+      .all<{ id: number | string; title: string; slug: string; image_url?: string | null }>();
     for (const prod of productResult.results ?? []) {
       if (prod?.id && prod?.title) {
         productMap.set(String(prod.id), prod.title);
       }
       if (prod?.id && prod?.slug) {
         productSlugMap.set(String(prod.id), prod.slug);
+      }
+      if (prod?.id && prod?.image_url) {
+        productImageMap.set(String(prod.id), prod.image_url);
       }
     }
   } catch {
@@ -470,6 +476,14 @@ export async function listLandingPages(
       ...page,
       product_title: productMap.get(String(page.product_id)) || null,
       product_slug: productSlugMap.get(String(page.product_id)) || null,
+      thumbnail: landingThumbnail({
+        sections: page.sections,
+        nativeImage:
+          page.source === "native"
+            ? nativeLandingPages.find((entry) => entry.slug === page.slug)?.image
+            : null,
+        productImage: productImageMap.get(String(page.product_id)),
+      }),
     })),
     ...staticLandingPages.map((page) => ({ ...page, sections: [] })),
   ];
@@ -1104,6 +1118,8 @@ export type PublicLandingPage = {
   href: string;
   /** True when `href` is the product URL, not the page's own slug. */
   isProductPage: boolean;
+  /** List thumbnail: the page's own first image, else its product's photo. */
+  image: string | null;
 };
 
 /**
@@ -1117,13 +1133,40 @@ export type PublicLandingPage = {
  * `href` follows the takeover rather than the slug, so a claimed page links to
  * the product URL it actually answers on instead of one that redirects.
  */
+/**
+ * The picture a landing page is listed with. A page's own imagery wins — the
+ * first `image` section, then the first `<img>` of a legacy HTML section, or
+ * a native page's register `image` — and the product it sells is the
+ * fallback, so a list never shows an empty tile for a page that has none.
+ */
+export function landingThumbnail(input: {
+  sections?: readonly Pick<LandingSection, "type" | "content_html" | "content_config">[];
+  nativeImage?: string | null;
+  productImage?: string | null;
+}): string | null {
+  for (const section of input.sections ?? []) {
+    const config = section.content_config as { src?: unknown } | null;
+    if (section.type === "image" && typeof config?.src === "string" && config.src.trim()) {
+      return config.src.trim();
+    }
+  }
+  for (const section of input.sections ?? []) {
+    const match = section.type === "html" ? /<img\b[^>]*\bsrc=["']([^"']+)["']/i.exec(section.content_html || "") : null;
+    if (match?.[1]?.trim()) return match[1].trim();
+  }
+  return input.nativeImage?.trim() || input.productImage?.trim() || null;
+}
+
 export async function listPublicLandingPages(
   locals: App.Locals,
 ): Promise<PublicLandingPage[]> {
   const result = await getDatabase(locals)
     .prepare(
       `SELECT lp.slug, lp.title, lp.meta_description, lp.is_product_page,
-              p.slug AS product_slug
+              p.slug AS product_slug, p.image_url AS product_image,
+              (SELECT ls.content_config FROM landing_sections ls
+                WHERE ls.landing_page_id = lp.id AND ls.type = 'image'
+                ORDER BY ls.sort_order LIMIT 1) AS first_image_config
          FROM landing_pages lp
          JOIN products p ON CAST(p.id AS TEXT) = lp.product_id
         -- A page whose product is off answers 404, so it is not advertised.
@@ -1136,6 +1179,8 @@ export async function listPublicLandingPages(
       meta_description: string | null;
       is_product_page: number;
       product_slug: string | null;
+      product_image: string | null;
+      first_image_config: string | null;
     }>();
 
   return (result.results ?? []).map((row) => ({
@@ -1147,5 +1192,12 @@ export async function listPublicLandingPages(
         ? `/produk/${row.product_slug}`
         : `/${row.slug}`,
     isProductPage: Boolean(row.is_product_page && row.product_slug),
+    image: landingThumbnail({
+      sections: row.first_image_config
+        ? [{ type: "image", content_html: null, content_config: parseContentConfig(row.first_image_config) }]
+        : [],
+      nativeImage: nativeLandingPages.find((entry) => entry.slug === row.slug)?.image,
+      productImage: row.product_image,
+    }),
   }));
 }

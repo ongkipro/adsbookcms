@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { cardImageSrc } from "../../lib/image-derivative";
 import {
   Check,
   Layers,
@@ -45,9 +46,30 @@ type LandingPageRow = {
   /** 1 when this page serves `/produk/<product-slug>` instead of its own slug. */
   is_product_page?: number | boolean;
   product_slug?: string | null;
+  /** The page's own first image, else its product's photo (landingThumbnail). */
+  thumbnail?: string | null;
   created_at: string;
   updated_at?: string;
 };
+
+/** A 40px tile: big enough to tell pages apart, small enough not to crowd. */
+function LandingThumb({ src, title }: { src?: string | null; title: string }) {
+  if (!src) {
+    return <span aria-hidden="true" className="size-10 shrink-0 rounded-md border border-slate-200 bg-slate-100" />;
+  }
+  return (
+    <img
+      src={cardImageSrc(src)}
+      alt=""
+      title={title}
+      width={40}
+      height={40}
+      loading="lazy"
+      decoding="async"
+      className="size-10 shrink-0 rounded-md border border-slate-200 bg-slate-50 object-cover"
+    />
+  );
+}
 
 export default function LandingPageCatalog() {
   const [pages, setPages] = useState<LandingPageRow[]>([]);
@@ -463,6 +485,7 @@ export default function LandingPageCatalog() {
                     >
                       {/* Title + status — desktop columns 1 and 4 */}
                       <div className="flex items-start justify-between gap-2">
+                        <LandingThumb src={page.thumbnail} title={page.title} />
                         <div className="min-w-0 flex-1">
                           <h3 className="text-sm font-semibold text-slate-900">
                             <a
@@ -699,6 +722,9 @@ export default function LandingPageCatalog() {
                           <TableRow key={page.id} className="hover:bg-slate-50/60 transition-colors">
                             {/* Title, slug and source */}
                             <TableCell className="py-3 pl-4 whitespace-normal">
+                              <div className="flex items-start gap-3">
+                                <LandingThumb src={page.thumbnail} title={page.title} />
+                                <div className="min-w-0 flex-1">
                               <a
                                 href={isStatic ? `/${page.slug}` : `/admin/landing-pages/${page.id}/edit`}
                                 title={page.title}
@@ -745,6 +771,8 @@ export default function LandingPageCatalog() {
                                     Produk Utama
                                   </span>
                                 )}
+                              </div>
+                                </div>
                               </div>
                             </TableCell>
 

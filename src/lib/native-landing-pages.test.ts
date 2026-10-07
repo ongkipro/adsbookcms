@@ -66,3 +66,13 @@ test("native ids are distinguishable from CMS ids, which is what gates editing",
   assert.equal(isNativeLandingId("native:promo-lebaran"), true);
   assert.equal(isNativeLandingId("01J8ZQ0000000000000000"), false);
 });
+
+test("a register image must be a site path or an https URL", async () => {
+  const { validateNativeLandingPages } = await import("./native-landing-pages.ts");
+  const base = { slug: "promo", title: "Promo", productSlug: "pupuk", description: "Landing promo." };
+  assert.deepEqual(validateNativeLandingPages([{ ...base, image: "/images/landing/promo.webp" }]), []);
+  assert.deepEqual(validateNativeLandingPages([{ ...base, image: "https://cdn.test/promo.webp" }]), []);
+  for (const image of ["javascript:alert(1)", "//evil.test/x.webp", "http://insecure.test/x.webp", "promo.webp"]) {
+    assert.equal(validateNativeLandingPages([{ ...base, image }]).length, 1, image);
+  }
+});

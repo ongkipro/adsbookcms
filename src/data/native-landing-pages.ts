@@ -31,6 +31,9 @@ export type NativeLandingPage = {
   productSlug: string;
   /** Shown in the CMS list beneath the title. */
   description: string;
+  /** Optional list thumbnail (root-relative or https). Without it the lists
+   *  show the product's photo. */
+  image?: string;
   /** A page can be registered before it is ready to be linked. */
   isActive?: boolean;
 };

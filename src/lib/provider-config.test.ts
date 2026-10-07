@@ -23,3 +23,16 @@ test("a submitted credential is trimmed, and a non-string never clears", () => {
   assert.deepEqual(resolveCredentialUpdate(42), { clear: false, value: "" });
   assert.deepEqual(resolveCredentialUpdate({}), { clear: false, value: "" });
 });
+
+test("AutoLaris is ready only with key, a valid area pair and a warehouse address", async () => {
+  const { autoLarisOrderRailGap } = await import("./provider-config.ts");
+  const ready = { apiKey: "k", originId: "3517100", destinationId: "3518010", warehouseAddress: "Jl. Kapitan 1" };
+  assert.equal(autoLarisOrderRailGap(ready), null);
+  assert.match(autoLarisOrderRailGap({ ...ready, apiKey: " " }) ?? "", /belum dikonfigurasi/);
+  for (const bad of ["", "abc", "0", "-5", "35.17"]) {
+    assert.match(autoLarisOrderRailGap({ ...ready, originId: bad }) ?? "", /origin\/destination/, bad);
+    assert.match(autoLarisOrderRailGap({ ...ready, destinationId: bad }) ?? "", /origin\/destination/, bad);
+  }
+  assert.match(autoLarisOrderRailGap({ ...ready, warehouseAddress: null }) ?? "", /gudang/);
+  assert.match(autoLarisOrderRailGap({ ...ready, warehouseAddress: "  " }) ?? "", /gudang/);
+});

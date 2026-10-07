@@ -1,6 +1,6 @@
 # Building a landing page
 
-> Verified against disk: 2026-09-30 @ `bb4cd6d` + product-page-geo working tree
+> Verified against disk: 2026-10-07 @ `515e81b` + autolaris-readiness/landing-thumbnail working tree
 
 There are two kinds of landing page in this CMS and they are not
 interchangeable. Pick the right one before writing anything.
@@ -245,10 +245,18 @@ export const nativeLandingPages: NativeLandingPage[] = [
     title: 'Promo Lebaran',       // shown in the CMS list
     productSlug: 'pupuk-organik', // the product this page sells
     description: 'Landing khusus kampanye Lebaran.',
+    // image: '/images/landing/promo-lebaran/hero.webp', // list thumbnail
     // isActive: false,           // registered, not yet linked
   },
 ];
 ```
+
+**List thumbnails.** The admin list and `/landing-page` show each page with
+a picture chosen by `landingThumbnail` (`src/lib/landing-pages.ts`): a CMS
+page's first `image` section, then the first `<img>` of a legacy HTML
+section, then a native page's register `image` (a site path or an https URL,
+checked by `validateNativeLandingPages`), and otherwise the photo of the
+product the page sells — so no listed page is a blank tile.
 
 **The file owns the page; the database owns only the operational state.** The
 manifest decides that the page exists and what it says. `landing_pages` holds

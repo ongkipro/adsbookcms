@@ -22,7 +22,9 @@ export async function getStoreSupportWhatsapp(
       console.error("storefront-support-whatsapp-no-store-row");
       return "";
     }
-    return store.support_whatsapp?.replace(/\D/g, "") || "";
+    // Stored as typed in the admin, often `08…`; every consumer builds a
+    // `wa.me/<number>` link, which only resolves in international form.
+    return (store.support_whatsapp?.replace(/\D/g, "") || "").replace(/^0/, "62");
   } catch (error) {
     console.error("storefront-support-whatsapp-load", error);
     return "";

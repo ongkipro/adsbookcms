@@ -6314,3 +6314,13 @@ Found while bringing an install (beranda-tani) live; each fix is product-wide.
   Tailscale address.
 - **Docs.** INSTALLATION and RELEASE said 59 migrations (`0000`–`0058`); the
   tree has 62 (`0000`–`0061`), matching `schemaVersion`.
+
+### 2026-10-07 — Home CMS landing cards carry their thumbnail
+
+`getTenantHomeContent` built every CMS landing card with the AdsBook mark
+hard-coded, though `listPublicLandingPages` already returns each page's
+`landingThumbnail`. The product's home section renders these cards as text,
+so nothing here changes on screen; an install theme that renders the card's
+picture (beranda-tani) showed the mark on every card, and its `/landing-page`,
+which reads the home card's image first, did too. The card now carries the
+page's thumbnail, the mark only when a page has no picture.

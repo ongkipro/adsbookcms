@@ -84,7 +84,7 @@ export async function getTenantHomeContent(
       .map((page) => ({
         title: page.title,
         excerpt: page.excerpt || `Informasi ${page.title}`,
-        image: "/images/adsbook-mark.webp",
+        image: page.image || "/images/adsbook-mark.webp",
         href: page.href,
         crop: "CMS Landing Page",
       }));

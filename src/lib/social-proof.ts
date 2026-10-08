@@ -24,8 +24,10 @@ export function socialProofMessage(count: number): string | null {
 /**
  * The store's orders placed in the last 24 hours (one install is one store),
  * excluding void ones (`stock_restored_at`, the order-lifecycle marker),
- * cancelled and returned. Any failure reads as 0, so the notice is omitted
- * rather than guessed.
+ * cancelled, returned and abandoned. An abandoned lead is a form someone
+ * started and did not submit; counting it told visitors that people ordered
+ * who had not. Any failure reads as 0, so the notice is omitted rather than
+ * guessed.
  */
 export async function recentOrderCount(database: D1Database | undefined): Promise<number> {
   if (!database?.prepare) return 0;
@@ -35,7 +37,7 @@ export async function recentOrderCount(database: D1Database | undefined): Promis
         `SELECT COUNT(*) AS n
            FROM orders
           WHERE stock_restored_at IS NULL
-            AND shipping_status NOT IN ('cancelled', 'returned')
+            AND shipping_status NOT IN ('cancelled', 'returned', 'abandoned')
             AND unixepoch(created_at) >= unixepoch('now', '-24 hours')`,
       )
       .first<{ n: number }>();

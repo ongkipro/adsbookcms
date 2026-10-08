@@ -154,7 +154,7 @@ test("the notice states a real count only at or above the threshold", () => {
   assert.doesNotMatch(socialProofMessage(9) ?? "", /produk/);
 });
 
-test("the count is store-wide, excludes void, cancelled and returned orders, and fails to zero", async () => {
+test("the count is store-wide, excludes void, cancelled, returned and abandoned orders, and fails to zero", async () => {
   let sql = "";
   const database = {
     prepare(text: string) {
@@ -166,7 +166,8 @@ test("the count is store-wide, excludes void, cancelled and returned orders, and
   assert.match(sql, /FROM orders/);
   assert.doesNotMatch(sql, /product_id/, "one number per store, true on every landing page");
   assert.match(sql, /stock_restored_at IS NULL/);
-  assert.match(sql, /NOT IN \('cancelled', 'returned'\)/);
+  // An abandoned lead never became an order; counting it overstated real buyers.
+  assert.match(sql, /NOT IN \('cancelled', 'returned', 'abandoned'\)/);
   assert.match(sql, /'-24 hours'/);
 
   const failing = { prepare() { throw new Error("D1 down"); } } as unknown as D1Database;

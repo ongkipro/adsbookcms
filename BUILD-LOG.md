@@ -6359,3 +6359,11 @@ an unsupported format.
   install without JPEG copies is no worse off. Reven Leather's 79 hero images
   have JPEG copies.
 - Test pins the rewrite and the feed output. 806 passing.
+
+### 2026-10-08 — Purchase notice no longer counts abandoned leads
+
+`recentOrderCount` excluded void, cancelled and returned orders but not
+`shipping_status = 'abandoned'` — a checkout form started and never submitted.
+On Reven Leather the notice read "4 orang memesan dalam 24 jam terakhir" while
+one of the four was an abandoned lead. Abandoned rows are now excluded; the test
+pins the status list. 806 passing.

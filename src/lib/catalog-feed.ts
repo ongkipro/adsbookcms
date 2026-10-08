@@ -106,6 +106,20 @@ export function defaultCatalogContentId(product: {
 }
 
 /**
+ * Meta's catalog accepts only JPEG or PNG for `image_link` ("Images must be in
+ * JPEG or PNG format", Marketing API catalog reference), and every admin
+ * upload is stored as WebP. A feed therefore names the `.jpg` sibling of an
+ * uploaded WebP; the asset route serves that sibling when it exists and the
+ * WebP otherwise, so a store with no JPEG copies is served exactly what it was
+ * before. Google accepts either.
+ */
+const UPLOADED_WEBP = /^(\/assets\/uploads\/\d{4}-\d{2}-\d{2}\/[0-9a-f-]+)\.webp$/i;
+
+export function feedImagePath(path: string): string {
+  return path.replace(UPLOADED_WEBP, "$1.jpg");
+}
+
+/**
  * The two feeds, which are one feed.
  *
  * Google and Meta differ in exactly three places — the channel title, whether
@@ -146,7 +160,8 @@ function buildCatalogXml(
 
     const taxonomy = getAdTaxonomy(product.category, product.productName, product.description || product.headline);
     const productLink = `${origin}/produk/${product.slug}`;
-    const imageLink = product.heroImage.startsWith("http") ? product.heroImage : `${origin}${product.heroImage}`;
+    const heroImage = feedImagePath(product.heroImage);
+    const imageLink = heroImage.startsWith("http") ? heroImage : `${origin}${heroImage}`;
 
     const variant = product.variants[0];
     // One row that predates the five-digit scheme must not take the catalog

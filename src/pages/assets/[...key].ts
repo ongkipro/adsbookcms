@@ -8,6 +8,7 @@ const SAFE_KEY =
 
 /** A card-sized derivative sits beside its original as `<name>-sm.<ext>`. */
 const DERIVATIVE_SUFFIX = /-sm(\.[a-z0-9]+)$/i;
+const FEED_JPEG = /\.jpg$/i;
 
 export const GET: APIRoute = async ({ params, locals }) => {
   const key = String(params.key || '');
@@ -23,6 +24,12 @@ export const GET: APIRoute = async ({ params, locals }) => {
   // rendering a broken tile.
   if (!object && DERIVATIVE_SUFFIX.test(key)) {
     object = await bucket.get(key.replace(DERIVATIVE_SUFFIX, '$1'));
+  }
+  // Catalog feeds ask for a `.jpg` sibling of each WebP upload (Meta takes
+  // JPEG or PNG only - see feedImagePath). Until one is stored, the WebP is
+  // served, which is what the feed linked before.
+  if (!object && FEED_JPEG.test(key)) {
+    object = await bucket.get(key.replace(FEED_JPEG, '.webp'));
   }
   if (!object) return new Response('Not found', { status: 404 });
 

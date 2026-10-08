@@ -7,6 +7,7 @@ import {
   generateMetaCatalogXml,
   type CatalogProduct,
   clampFeedText,
+  feedImagePath,
 } from "./catalog-feed.ts";
 
 test("catalog identity is the numeric Product ID with a five-digit minimum", () => {
@@ -193,4 +194,23 @@ test("the Meta feed carries no identifier claim either", () => {
   const xml = generateMetaCatalogXml([product], "https://toko-uji.example");
   assert.ok(!xml.includes("<g:mpn>"));
   assert.ok(!xml.includes("SKU-LAIN"));
+});
+
+test("feeds link the JPEG sibling of an uploaded WebP, since Meta takes JPEG or PNG only", () => {
+  const upload = "/assets/uploads/2026-10-08/bd4cac38-d36e-4285-9811-532ebecdb3de.webp";
+  assert.equal(feedImagePath(upload), upload.replace(/\.webp$/, ".jpg"));
+  // Anything that is not an asset-route upload is left as the merchant set it.
+  for (const other of ["/images/adsbook-mark.webp", "https://r2.example.com/pompa.webp", "/assets/uploads/2026-10-08/x.png"]) {
+    assert.equal(feedImagePath(other), other);
+  }
+  const product: CatalogProduct = {
+    productId: 10004,
+    slug: "dompet",
+    productName: "Dompet Kulit",
+    heroImage: upload,
+    variants: [{ id: 1, label: "Hitam", price: 200000 }],
+  };
+  const jpg = `<g:image_link>https://toko-uji.example${upload.replace(/\.webp$/, ".jpg")}</g:image_link>`;
+  assert.ok(generateMetaCatalogXml([product], "https://toko-uji.example").includes(jpg));
+  assert.ok(generateGoogleCatalogXml([product], "https://toko-uji.example").includes(jpg));
 });

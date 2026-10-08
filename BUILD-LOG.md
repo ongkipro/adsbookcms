@@ -6344,3 +6344,18 @@ sent Google's paths as `fb_product_category`.
 - `/admin/ads/google` renders its table from `TAXONOMY_RULES`;
   `docs/GOOGLE_ADS_SETUP.md` no longer copies it.
 - Tests pin the corrected pairs and the Reven catalogue's cases. 805 passing.
+
+### 2026-10-08 — Catalog feeds link JPEG images
+
+Meta's catalog reference accepts only JPEG or PNG for `image_link` ("Images
+must be in JPEG or PNG format, at least 500 x 500 pixels"), and every admin
+upload is stored as WebP, so each item in every install's Meta feed pointed at
+an unsupported format.
+
+- `feedImagePath` turns an asset-route upload `…/<key>.webp` into `…/<key>.jpg`
+  in both feeds; other paths are untouched.
+- `/assets/*` serves a stored `.jpg` sibling, or falls back to the `.webp`
+  original when none exists — the same bytes the feed linked before, so an
+  install without JPEG copies is no worse off. Reven Leather's 79 hero images
+  have JPEG copies.
+- Test pins the rewrite and the feed output. 806 passing.

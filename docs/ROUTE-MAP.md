@@ -129,7 +129,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `/admin` | GET | admin session | owner, admin, advertiser, customer_service | `src/pages/admin/index.astro` | — | — | — |
 | `/admin/ads` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads.astro` | — | — | — |
-| `/admin/ads/google` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads/google.astro` | — | — | — |
+| `/admin/ads/google` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads/google.astro` | `ad-taxonomy` | — | `ad-taxonomy.test.ts` |
 | `/admin/ads/meta` | GET | admin session | owner, admin, advertiser | `src/pages/admin/ads/meta.astro` | `meta-capi` | — | `meta-capi.test.ts` |
 | `/admin/balance` | GET | admin session | owner, admin | `src/pages/admin/balance.astro` | — | — | — |
 | `/admin/check` | GET | admin session | owner, admin, customer_service | `src/pages/admin/check.astro` | `env` | `warehouses` | `env.test.ts` |
@@ -197,7 +197,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | --- | --- | --- | --- | --- |
 | `abandoned-lead-session` | 6 | — | ✓ | — |
 | `abandoned-lead` | 8 | `order_items` `orders` `product_variants` `products` `stores` | ✓ | `/api/admin/abandoned-orders` |
-| `ad-taxonomy` | 2 | — | ✓ | — |
+| `ad-taxonomy` | 4 | — | ✓ | `/admin/ads/google` |
 | `admin-credentials` | 12 | `admin_credentials` | ✓ | `/hello` `/api/admin/access` `/api/admin/profile` |
 | `admin-date-filter` | 25 | — | ✓ | `/api/admin/orders` `/api/admin/shipping` |
 | `admin-session` | 6 | `admin_credentials` `admin_sessions` | ✓ | `/[slug]` `/hello` `/api/admin/access` `/api/admin/logout` `/api/admin/profile` |

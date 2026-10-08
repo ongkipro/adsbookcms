@@ -1,6 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
+import { TAXONOMY_RULES } from '../../../lib/ad-taxonomy';
 
 export const prerender = false;
 
@@ -391,30 +392,17 @@ const feedUrl = `${Astro.locals.tenant.siteUrl.replace(/\/$/, '')}/feed/google-c
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 text-slate-800">
+                {TAXONOMY_RULES.map((rule) => (
+                  <tr>
+                    <td class="p-3 font-semibold text-slate-900">{rule.productType}</td>
+                    <td class="p-3 font-mono font-semibold text-blue-600">{rule.google?.id ?? "—"}</td>
+                    <td class="p-3 text-slate-600">{rule.google?.path ?? "Tidak dikirim (tidak ada kategori Google yang tepat)"}</td>
+                  </tr>
+                ))}
                 <tr>
-                  <td class="p-3 font-semibold text-slate-900">Pertanian / Sawit / Pupuk</td>
-                  <td class="p-3 font-mono font-semibold text-blue-600">2863</td>
-                  <td class="p-3 text-slate-600">Business & Industrial > Agriculture > Lawn & Garden > Gardening > Fertilizer</td>
-                </tr>
-                <tr>
-                  <td class="p-3 font-semibold text-slate-900">Skincare / Kecantikan</td>
-                  <td class="p-3 font-mono font-semibold text-blue-600">2547</td>
-                  <td class="p-3 text-slate-600">Health & Beauty > Personal Care > Cosmetics > Skincare</td>
-                </tr>
-                <tr>
-                  <td class="p-3 font-semibold text-slate-900">Herbal / Kesehatan / Vitalitas</td>
-                  <td class="p-3 font-mono font-semibold text-blue-600">642</td>
-                  <td class="p-3 text-slate-600">Health & Beauty > Health Care > Fitness & Nutrition > Herbal Supplements</td>
-                </tr>
-                <tr>
-                  <td class="p-3 font-semibold text-slate-900">Perkakas / Dapur / Asahan</td>
-                  <td class="p-3 font-mono font-semibold text-blue-600">645</td>
-                  <td class="p-3 text-slate-600">Home & Garden > Kitchen & Dining > Kitchen Knives > Knife Sharpeners</td>
-                </tr>
-                <tr>
-                  <td class="p-3 font-semibold text-slate-900">Kategori Lainnya (Fallback)</td>
-                  <td class="p-3 font-mono font-semibold text-slate-600">Default</td>
-                  <td class="p-3 text-slate-600">Otomatis ter-resolve berdasarkan analisis keyword nama produk</td>
+                  <td class="p-3 font-semibold text-slate-900">Kategori Lainnya</td>
+                  <td class="p-3 font-mono font-semibold text-slate-600">—</td>
+                  <td class="p-3 text-slate-600">Tidak dikirim. Google mengklasifikasikan sendiri produk tanpa kategori.</td>
                 </tr>
               </tbody>
             </table>

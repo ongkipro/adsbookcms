@@ -68,7 +68,7 @@ test("generateGoogleCatalogXml emits g:sale_price when comparePrice is greater t
   const xml = generateGoogleCatalogXml(mockProducts, "https://toko-uji.example");
   assert.ok(xml.includes("<g:price>300000 IDR</g:price>"));
   assert.ok(xml.includes("<g:sale_price>128500 IDR</g:sale_price>"));
-  assert.ok(xml.includes("<g:google_product_category>6551</g:google_product_category>"));
+  assert.ok(xml.includes("<g:google_product_category>3032</g:google_product_category>"));
 });
 
 test("generateMetaCatalogXml emits valid fb_product_category and matching content_id g:id", () => {

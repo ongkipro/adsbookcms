@@ -2,40 +2,74 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getAdTaxonomy } from "./ad-taxonomy.ts";
 
-test("automatically classifies agricultural/fertilizer products to Google Category ID 2863", () => {
+// Every id/path pair here was checked against the official files named at the
+// top of ad-taxonomy.ts. The previous assertions pinned ids that named other
+// products (2547 is Placemats, 642 Bread Pans), so a green suite proved nothing.
+test("fertilizer maps to Google 113 Fertilizers and Meta's fertilizers", () => {
   const result = getAdTaxonomy("Pertanian", "Pupuk Sawit Ganoderma", "Pupuk pelindung akar kelapa sawit");
-  assert.equal(result.googleCategoryId, 2863);
-  assert.equal(result.googleCategoryName, "Home & Garden > Lawn & Garden > Gardening > Fertilizer");
-  assert.equal(result.metaCategoryName, "Home & Garden > Lawn & Garden > Gardening > Fertilizer");
+  assert.equal(result.googleCategoryId, 113);
+  assert.equal(result.googleCategoryName, "Home & Garden > Lawn & Garden > Gardening > Fertilizers");
+  assert.equal(result.metaCategoryName, "patio & garden > plant care, soil & accessories > fertilizers");
   assert.equal(result.productType, "Pertanian > Pupuk & Nutrisi");
 });
 
-test("automatically classifies skincare/kojic products to Google Category ID 2547", () => {
+test("skincare maps to Google 567 Skin Care and Meta's skin care", () => {
   const result = getAdTaxonomy("Kecantikan", "Kojic Soap Soap Bar Glowing", "Sabun pemutih wajah dan badan");
-  assert.equal(result.googleCategoryId, 2547);
+  assert.equal(result.googleCategoryId, 567);
   assert.equal(result.googleCategoryName, "Health & Beauty > Personal Care > Cosmetics > Skin Care");
-  assert.equal(result.metaCategoryName, "Health & Beauty > Personal Care > Cosmetics > Skin Care");
+  assert.equal(result.metaCategoryName, "health & beauty > beauty > skin care");
   assert.equal(result.productType, "Kecantikan & Perawatan > Skincare");
 });
 
-test("automatically classifies herbal stamina products to Google Category ID 642", () => {
+test("herbal supplements map to Google 525 and send no Meta category", () => {
   const result = getAdTaxonomy("Kesehatan", "Madu Pinang Muda Stamina Pria", "Herbal alami penambah vitalitas");
-  assert.equal(result.googleCategoryId, 642);
-  assert.equal(result.googleCategoryName, "Health & Beauty > Health Care > Biotherapy & Alternative Medicine > Herbal Supplements");
-  assert.equal(result.metaCategoryName, "Health & Beauty > Health Care > Fitness & Nutrition > Vitamins & Supplements");
+  assert.equal(result.googleCategoryId, 525);
+  assert.equal(result.googleCategoryName, "Health & Beauty > Health Care > Fitness & Nutrition > Vitamins & Supplements");
+  // Meta's taxonomy has no supplements category; a near miss would be wrong.
+  assert.equal(result.metaCategoryName, undefined);
   assert.equal(result.productType, "Kesehatan > Suplemen Herbal");
 });
 
-test("automatically classifies kitchen sharpening tools to Google Category ID 1630", () => {
+test("kitchen tools map to Google 668 Kitchen Tools & Utensils", () => {
   const result = getAdTaxonomy("Perkakas", "Pengasah Pisau Portable", "Alat asahan pisau dapur serbaguna");
-  assert.equal(result.googleCategoryId, 1630);
+  assert.equal(result.googleCategoryId, 668);
   assert.equal(result.googleCategoryName, "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils");
-  assert.equal(result.metaCategoryName, "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils");
+  assert.equal(result.metaCategoryName, "home > home goods > kitchen & dining > kitchen tools & utensils");
   assert.equal(result.productType, "Perkakas & Rumah Tangga > Alat Dapur");
 });
 
+test("leather goods land in their own category, not the handbag parent", () => {
+  // A leather-goods catalogue (Reven Leather) filed 66 products as women's
+  // handbags, four card holders as Skin Care and every belt as nothing.
+  const cases: Array<[string, string, number | undefined, string | undefined]> = [
+    ["Dompet & Wallet", "Reven Apollo Long Wallet", 2668, "travel & luggage > handbags & wallets > wallets"],
+    ["Aksesoris Kulit", "Reven Saka Card Holder", 2668, "travel & luggage > handbags & wallets > wallets"],
+    ["Aksesoris Kulit", "Reven Arca ID Card Holder", 6170, undefined],
+    ["Ikat Pinggang / Belt", "Reven Torino Reversible Leather Belt", 169, "clothing & accessories > clothing accessories"],
+    ["Sling Bag", "Reven Yunus Sling Bag", 106, "travel & luggage > handbags & wallets > crossbody bags"],
+    ["Waist Bag", "Reven Hazar Waist Bag", 104, "travel & luggage > handbags & wallets > belt bags & waist packs"],
+    ["Backpack / Tas Ransel", "Reven Osiris Backpack", 100, "travel & luggage > backpacks"],
+    ["Handbag & Clutch", "Reven Dewa Exclusive Handbag", 3032, "travel & luggage > handbags & wallets"],
+    ["Totebag", "Reven Arcen Multi-Pocket Totebag", 3032, "travel & luggage > handbags & wallets > totes"],
+    ["Laptop Sleeve", "Reven Amba Sleeve L", undefined, "travel & luggage > briefcases & laptop bags"],
+    ["Aksesoris Kulit", "Reven Premium Leather Balm Care", 628, "home > cleaning supplies > shoe care"],
+    ["Aksesoris Kulit", "Reven Pentador Phone Bag", 6551, "travel & luggage > handbags & wallets"],
+  ];
+  for (const [category, title, googleId, metaPath] of cases) {
+    const result = getAdTaxonomy(category, title, "100% kulit sapi asli, garansi 1 tahun");
+    assert.equal(result.googleCategoryId, googleId, title);
+    assert.equal(result.metaCategoryName, metaPath, title);
+  }
+});
+
+test("'kulit' alone no longer reads as skin care", () => {
+  const result = getAdTaxonomy("Aksesoris Kulit", "Gantungan Kunci Kulit", "Kulit sapi asli");
+  assert.equal(result.googleCategoryId, undefined);
+  assert.equal(result.productType, "Umum > Aksesoris Kulit");
+});
+
 test("an unclassifiable product is submitted with no category at all", () => {
-  // The fallback used to be Handbags (6551), justified by a bundled handbag
+  // The fallback used to be the handbag parent (6551), justified by a bundled handbag
   // catalogue that no longer exists — an install starts empty and sells whatever
   // its merchant sells. Asserting a category the product cannot know is grounds
   // for a Merchant Center misrepresentation suspension; both platforms treat the
@@ -56,10 +90,10 @@ test("a description full of foreign keywords cannot outvote the product name", (
     "Tas Selempang Kulit Sintetis",
     "Kulit sintetis, cocok untuk buah tangan; ringan seperti daun kering dan awet dipakai di antara tanaman hias",
   );
-  assert.equal(result.googleCategoryId, 6551);
-  // Proves the handbag rule won on merit rather than the request falling through
+  assert.equal(result.googleCategoryId, 106);
+  // Proves the bag rule won on merit rather than the request falling through
   // to the default, which would have produced "Umum > Tas Wanita".
-  assert.equal(result.productType, "Fashion Wanita > Tas & Aksesori");
+  assert.equal(result.productType, "Tas & Dompet > Sling Bag");
 });
 
 test("a skincare product is not reclassified as soap by its own usage notes", () => {
@@ -68,7 +102,7 @@ test("a skincare product is not reclassified as soap by its own usage notes", ()
     "Serum Wajah Glowing",
     "Aman untuk kulit sensitif; pakai setelah mandi dengan sabun cleanser atau body wash, bukan soap batangan",
   );
-  assert.equal(result.googleCategoryId, 2547);
+  assert.equal(result.googleCategoryId, 567);
   assert.equal(result.productType, "Kecantikan & Perawatan > Skincare");
 });
 

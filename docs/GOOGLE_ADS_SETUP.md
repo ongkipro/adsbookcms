@@ -1,6 +1,6 @@
 # Google Ads Conversion Signal & Merchant Center Setup Guide
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-10-08 @ `db0f5c6` + taxonomy working tree
 
 > **Product:** AdsBookCMS (single) — one installer, one Worker, one store.
 > **Repository role:** product. Examples below name `permatamall.shop`, the first install, which lives in its own repository (`ongkipro/permatamall`); substitute your own install's domain.
@@ -117,45 +117,22 @@ The storefront pushes `page_view`, `view_item`, `add_to_cart`, `begin_checkout`,
 
 #### Automatic taxonomy engine
 
-`src/lib/ad-taxonomy.ts` derives the Google Product Category (GPC) ID, the GPC path, the Meta commerce category path, and an internal product-type path from the product's category, title, and description — no manual mapping by the merchant.
+`src/lib/ad-taxonomy.ts` derives the Google Product Category (GPC) id and path, the Meta product category path, and an internal product-type path from the product's category, title, and description — no manual mapping by the merchant.
 
-Matching is confidence-gated and deterministic. Keywords match whole words. A hit in category/title is weighted three times above a description hit; description contribution is capped; a rule must reach `MIN_SCORE`; and a tie or under-confidence result emits no category rather than guessing.
+Matching is confidence-gated and deterministic. Keywords match whole words. A hit in category/title is weighted three times above a description hit; description contribution is capped; a rule must reach `MIN_SCORE` and be the sole top scorer. A tie or under-confidence emits no category rather than guessing. The generic bag rule (`6551`) is a fallback: it is scored only when no specific rule matches, so "waist bag" is not tied by its own "bag".
 
-The nine rules as they ship, in source order:
+**`TAXONOMY_RULES` is the table.** It is not repeated here, because the previous copy carried ids that named other products: skin care was `2547` (Placemats), herbal supplements `642` (Bread Pans), gardening `2849` (a laundry combo unit), and `2863` and `1630` do not exist. `/admin/ads/google` renders the live table from the same constant. Every id and path is copied from the official files:
 
-| GPC ID | Google / Meta category path | Internal product type | Sample keywords |
-| --- | --- | --- | --- |
-| `6551` | `Apparel & Accessories > Handbags, Wallets & Cases > Handbags` | `Fashion Wanita > Tas & Aksesori` | tas, tote, bag, dompet, selempang, handbag, clutch, ransel, sling |
-| `2863` | `Home & Garden > Lawn & Garden > Gardening > Fertilizer` | `Pertanian > Pupuk & Nutrisi` | pupuk, fertilizer, sawit, padi, cabai, jagung, ganoderma |
-| `2849` | `Home & Garden > Lawn & Garden > Gardening` | `Pertanian > Perkebunan & Benih` | benih, biji, bibit, kebun, media tanam, pot |
-| `2547` | `Health & Beauty > Personal Care > Cosmetics > Skin Care` | `Kecantikan & Perawatan > Skincare` | skincare, serum, lotion, krim, toner, sunscreen |
-| `567` | `Health & Beauty > Personal Care > Soap` | `Kecantikan & Perawatan > Sabun & Mandi` | sabun, soap, body wash, cleanser |
-| `642` | `Health & Beauty > Health Care > Biotherapy & Alternative Medicine > Herbal Supplements` | `Kesehatan > Suplemen Herbal` | herbal, madu, stamina, jamu, suplemen, kapsul |
-| `1604` | `Apparel & Accessories > Clothing` | `Fashion & Pakaian > Pakaian` | baju, kaos, celana, jaket, dress, gamis |
-| `1630` | `Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils` | `Perkakas & Rumah Tangga > Alat Dapur` | pisau, asahan, alat dapur, pengasah, perkakas |
-| `222` | `Electronics` | `Elektronik & Gadget` | elektronik, gadget, charger, kabel, headset, lampu |
+- Google: `https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt` (version 2021-09-21);
+- Meta: `https://www.facebook.com/products/categories/en_US.txt` — Meta's own taxonomy, sent as `fb_product_category`. It used to receive Google's paths, which Meta does not recognise.
 
-When nothing matches confidently, the feed omits the optional platform category fields. When a category name is present but no rule matched, the product type becomes `Umum > <category>`.
+A side with no faithful match is omitted (laptop bags have no Google category; supplements and badge holders have no Meta one). Both fields are optional and the platforms classify what is missing.
 
-#### Known gap — the taxonomy carries rules for merchants this install does not serve
+When nothing matches confidently, the feed omits both category fields and the product type becomes `Umum > <category>`.
 
-**The fallback default is gone, and that was the point.** Rule `6551` (handbags)
-used to be both the first rule and the catch-all, justified by a bundled handbag
-catalogue. No dataset ships now (ADR-016), so an install sells whatever its
-merchant sells and that default would have submitted every unclassified product
-in every store to Merchant Center as a handbag — grounds for a misrepresentation
-suspension. `getAdTaxonomy` returns no category when no rule is confident, and
-the feeds omit `google_product_category` and `fb_product_category` rather than
-assert one. Both fields are optional and Google auto-classifies what is missing.
-The handbag rule itself remains, and still wins on merit for a handbag.
+#### Known gap — the rule set is compiled in
 
-What is stale is the **rest** of the table. Rules `2863`, `2849`, `2547`, `567`, `642`, and `1630` were calibrated for earlier merchants selling agricultural inputs, skincare, herbal supplements, and knives/sharpeners. They are inherited from earlier merchants and match no particular install. The misclassification risk they once carried is reduced but not removed: matching is a weighted keyword count over category, title and description, a rule must reach a minimum score and be the sole top scorer, and anything short of that now emits no category at all. What is still missing is per-store configuration — a merchant cannot tell the engine what they actually sell.
-
-Treat this as a known gap, not as a finished taxonomy engine:
-
-- audit the GPC ID actually emitted for each live SKU in the feed before submitting it to Merchant Center;
-- when adding a product, avoid description wording that collides with the legacy keyword sets;
-- the durable fix is to make the rule set store-configurable rather than compiled in. It is not implemented.
+Rules cover leather goods and bags (wallets, card and ID holders, belts, sling, waist, backpack, tote, laptop, leather care), agriculture, skincare, soap, supplements, clothing, kitchen tools and electronics. A merchant outside those still gets no category, and cannot tell the engine what they sell. Before submitting a feed to Merchant Center, audit the id emitted for each live SKU. The durable fix — a store-configurable rule set — is not implemented.
 
 ### Step 5 — Verify live signals
 

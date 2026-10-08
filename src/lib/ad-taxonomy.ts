@@ -1,13 +1,23 @@
 /**
  * Automatic Google & Meta Product Taxonomy Engine
  *
- * Automatically maps product category, title, and description to official:
- * 1. Google Product Category (GPC) Numeric ID (e.g. 2863)
- * 2. Google Product Category Full Path String (e.g. "Home & Garden > Lawn & Garden > Gardening > Fertilizer")
- * 3. Meta Commerce Product Category Path (e.g. "Home & Garden > Lawn & Garden > Gardening > Fertilizer")
- * 4. Structured Product Type Path (e.g. "Pertanian > Pupuk & Nutrisi")
+ * Maps a product's category, title and description to:
+ * 1. a Google Product Category id + path (`google_product_category`);
+ * 2. a Meta product category path (`fb_product_category`) — Meta's own
+ *    taxonomy, which is not Google's;
+ * 3. a structured product type (`product_type`, merchant-facing, free text).
  *
- * Zero manual effort required by merchant — fully derived from catalog metadata.
+ * Every id and path below was copied from the official files, not recalled:
+ * - Google: https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt
+ *   (version 2021-09-21);
+ * - Meta: https://www.facebook.com/products/categories/en_US.txt (2026-10-08).
+ * The previous table carried ids that named other products entirely — skin care
+ * was Placemats (2547), herbal supplements Bread Pans (642), gardening a Laundry
+ * Combo Unit (2849) — and 2863/1630 do not exist. Check a new rule against the
+ * same files; `ad-taxonomy.test.ts` pins every pair.
+ *
+ * A side with no faithful match is left out: both fields are optional, and
+ * saying nothing is safer than a wrong category (see DEFAULT_TAXONOMY).
  */
 
 export interface AdTaxonomy {
@@ -21,29 +31,93 @@ export interface AdTaxonomy {
   productType: string;
 }
 
-interface TaxonomyRule {
-  id: number;
-  googlePath: string;
-  metaPath: string;
+export interface TaxonomyRule {
+  google?: { id: number; path: string };
+  metaPath?: string;
   productType: string;
   keywords: string[];
+  /**
+   * Considered only when no specific rule reaches MIN_SCORE. "Waist bag" also
+   * contains "bag", so without this the parent tied every specific bag rule
+   * and the product went out with no category at all.
+   */
+  fallback?: boolean;
 }
 
-const TAXONOMY_RULES: TaxonomyRule[] = [
+export const TAXONOMY_RULES: readonly TaxonomyRule[] = [
+  // Bags and leather goods. Specific rules first in spirit; the scorer, not the
+  // order, decides — a specific rule wins by matching more of the name.
   {
-    id: 6551,
-    googlePath: "Apparel & Accessories > Handbags, Wallets & Cases > Handbags",
-    metaPath: "Apparel & Accessories > Handbags, Wallets & Cases > Handbags",
-    productType: "Fashion Wanita > Tas & Aksesori",
-    keywords: [
-      "tas", "tote", "bag", "dompet", "selempang", "shoulder", "handbag",
-      "clutch", "ransel", "pouch", "sling", "canvas", "tote bag", "sling bag"
-    ],
+    google: { id: 6551, path: "Apparel & Accessories > Handbags, Wallets & Cases" },
+    metaPath: "travel & luggage > handbags & wallets",
+    productType: "Tas & Dompet",
+    keywords: ["tas", "bag"],
+    fallback: true,
   },
   {
-    id: 2863,
-    googlePath: "Home & Garden > Lawn & Garden > Gardening > Fertilizer",
-    metaPath: "Home & Garden > Lawn & Garden > Gardening > Fertilizer",
+    google: { id: 3032, path: "Apparel & Accessories > Handbags, Wallets & Cases > Handbags" },
+    metaPath: "travel & luggage > handbags & wallets",
+    productType: "Tas & Dompet > Handbag & Clutch",
+    keywords: ["handbag", "hand bag", "tas tangan", "clutch", "pouch"],
+  },
+  {
+    google: { id: 3032, path: "Apparel & Accessories > Handbags, Wallets & Cases > Handbags" },
+    metaPath: "travel & luggage > handbags & wallets > totes",
+    productType: "Tas & Dompet > Totebag",
+    keywords: ["tote", "tote bag", "totebag"],
+  },
+  {
+    google: { id: 106, path: "Luggage & Bags > Messenger Bags" },
+    metaPath: "travel & luggage > handbags & wallets > crossbody bags",
+    productType: "Tas & Dompet > Sling Bag",
+    keywords: ["sling", "sling bag", "slingbag", "selempang", "tas selempang", "messenger", "crossbody", "shoulder bag"],
+  },
+  {
+    google: { id: 104, path: "Luggage & Bags > Fanny Packs" },
+    metaPath: "travel & luggage > handbags & wallets > belt bags & waist packs",
+    productType: "Tas & Dompet > Waist Bag",
+    keywords: ["waist bag", "waistbag", "fanny pack", "tas pinggang", "belt bag", "chest bag"],
+  },
+  {
+    google: { id: 100, path: "Luggage & Bags > Backpacks" },
+    metaPath: "travel & luggage > backpacks",
+    productType: "Tas & Dompet > Backpack",
+    keywords: ["backpack", "ransel", "tas ransel", "daypack"],
+  },
+  {
+    // Google has no laptop-bag category; Meta does.
+    metaPath: "travel & luggage > briefcases & laptop bags",
+    productType: "Tas & Dompet > Tas Laptop",
+    keywords: ["laptop", "laptop sleeve", "laptop bag", "tas laptop", "briefcase", "macbook"],
+  },
+  {
+    google: { id: 2668, path: "Apparel & Accessories > Handbags, Wallets & Cases > Wallets & Money Clips" },
+    metaPath: "travel & luggage > handbags & wallets > wallets",
+    productType: "Tas & Dompet > Dompet",
+    keywords: ["dompet", "wallet", "long wallet", "bifold", "bilfold", "money clip", "card holder", "cardholder", "card case"],
+  },
+  {
+    // Meta has no badge-holder category.
+    google: { id: 6170, path: "Apparel & Accessories > Handbags, Wallets & Cases > Badge & Pass Holders" },
+    productType: "Tas & Dompet > ID Card Holder",
+    keywords: ["id card", "id card holder", "name tag", "lanyard", "badge holder"],
+  },
+  {
+    // Meta's belts are split by gender; the ungendered parent is the honest fit.
+    google: { id: 169, path: "Apparel & Accessories > Clothing Accessories > Belts" },
+    metaPath: "clothing & accessories > clothing accessories",
+    productType: "Fashion & Pakaian > Ikat Pinggang",
+    keywords: ["belt", "ikat pinggang", "sabuk", "gesper"],
+  },
+  {
+    google: { id: 628, path: "Home & Garden > Household Supplies > Shoe Care & Tools" },
+    metaPath: "home > cleaning supplies > shoe care",
+    productType: "Perawatan > Perawatan Kulit Asli",
+    keywords: ["leather balm", "leather care", "leather conditioner", "balm kulit", "semir", "shoe polish"],
+  },
+  {
+    google: { id: 113, path: "Home & Garden > Lawn & Garden > Gardening > Fertilizers" },
+    metaPath: "patio & garden > plant care, soil & accessories > fertilizers",
     productType: "Pertanian > Pupuk & Nutrisi",
     keywords: [
       "pupuk", "fertilizer", "sawit", "padi", "cabai", "jagung", "tanaman", "ganoderma",
@@ -51,33 +125,31 @@ const TAXONOMY_RULES: TaxonomyRule[] = [
     ],
   },
   {
-    id: 2849,
-    googlePath: "Home & Garden > Lawn & Garden > Gardening",
-    metaPath: "Home & Garden > Lawn & Garden > Gardening",
+    google: { id: 2962, path: "Home & Garden > Lawn & Garden > Gardening" },
+    metaPath: "patio & garden > gardening supplies",
     productType: "Pertanian > Perkebunan & Benih",
     keywords: ["benih", "biji", "bibit", "kebun", "taman", "media tanam", "pot"],
   },
   {
-    id: 2547,
-    googlePath: "Health & Beauty > Personal Care > Cosmetics > Skin Care",
-    metaPath: "Health & Beauty > Personal Care > Cosmetics > Skin Care",
+    google: { id: 567, path: "Health & Beauty > Personal Care > Cosmetics > Skin Care" },
+    metaPath: "health & beauty > beauty > skin care",
     productType: "Kecantikan & Perawatan > Skincare",
+    // Not "kulit": it means leather as often as skin, and filed every leather
+    // card holder in a leather-goods store under Skin Care.
     keywords: [
       "skincare", "skin care", "serum", "lotion", "cream", "krim", "pemutih", "kojic",
-      "kojien", "wajah", "kulit", "glowing", "acne", "jerawat", "toner", "sunscreen"
+      "kojien", "wajah", "glowing", "acne", "jerawat", "toner", "sunscreen"
     ],
   },
   {
-    id: 567,
-    googlePath: "Health & Beauty > Personal Care > Soap",
-    metaPath: "Health & Beauty > Personal Care > Soap",
+    google: { id: 474, path: "Health & Beauty > Personal Care > Cosmetics > Bath & Body" },
+    metaPath: "health & beauty > beauty > bath & body > body washes & soaps",
     productType: "Kecantikan & Perawatan > Sabun & Mandi",
     keywords: ["sabun", "soap", "body wash", "mandi", "cleanser"],
   },
   {
-    id: 642,
-    googlePath: "Health & Beauty > Health Care > Biotherapy & Alternative Medicine > Herbal Supplements",
-    metaPath: "Health & Beauty > Health Care > Fitness & Nutrition > Vitamins & Supplements",
+    // Meta has no supplements category.
+    google: { id: 525, path: "Health & Beauty > Health Care > Fitness & Nutrition > Vitamins & Supplements" },
     productType: "Kesehatan > Suplemen Herbal",
     keywords: [
       "herbal", "madu", "stamina", "vitalitas", "jamu", "pinang", "teh herbal",
@@ -85,23 +157,20 @@ const TAXONOMY_RULES: TaxonomyRule[] = [
     ],
   },
   {
-    id: 1604,
-    googlePath: "Apparel & Accessories > Clothing",
-    metaPath: "Apparel & Accessories > Clothing",
+    google: { id: 1604, path: "Apparel & Accessories > Clothing" },
+    metaPath: "clothing & accessories > clothing",
     productType: "Fashion & Pakaian > Pakaian",
     keywords: ["baju", "kaos", "shirt", "celana", "jaket", "hoodie", "pakaian", "dress", "gamis", "fashion"],
   },
   {
-    id: 1630,
-    googlePath: "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils",
-    metaPath: "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils",
+    google: { id: 668, path: "Home & Garden > Kitchen & Dining > Kitchen Tools & Utensils" },
+    metaPath: "home > home goods > kitchen & dining > kitchen tools & utensils",
     productType: "Perkakas & Rumah Tangga > Alat Dapur",
     keywords: ["pisau", "asahan", "alat dapur", "dapur", "pengasah", "potong", "perkakas", "rumah tangga"],
   },
   {
-    id: 222,
-    googlePath: "Electronics",
-    metaPath: "Electronics",
+    google: { id: 222, path: "Electronics" },
+    metaPath: "electronics",
     productType: "Elektronik & Gadget",
     keywords: ["elektronik", "gadget", "hp", "charger", "kabel", "headset", "lampu", "led"],
   },
@@ -110,7 +179,7 @@ const TAXONOMY_RULES: TaxonomyRule[] = [
 /**
  * No category at all, deliberately.
  *
- * This used to default to Handbags (`6551`), justified in the note below as "at
+ * This used to default to the handbag parent (`6551`), justified in the note below as "at
  * least a category this catalog sells" — true while the product shipped a
  * bundled handbag catalogue. That catalogue is gone: an install starts empty and
  * sells whatever its merchant sells. Keeping the default would have submitted
@@ -185,26 +254,31 @@ export function getAdTaxonomy(
   }
 
   let bestRule: TaxonomyRule | null = null;
-  let bestScore = 0;
   let tied = false;
-
-  for (const rule of TAXONOMY_RULES) {
-    const score = scoreRule(rule, name, body);
-    if (score < MIN_SCORE) continue;
-    if (score > bestScore) {
-      bestScore = score;
-      bestRule = rule;
-      tied = false;
-    } else if (score === bestScore) {
-      tied = true;
+  for (const pool of [TAXONOMY_RULES.filter((r) => !r.fallback), TAXONOMY_RULES.filter((r) => r.fallback)]) {
+    let bestScore = 0;
+    for (const rule of pool) {
+      const score = scoreRule(rule, name, body);
+      if (score < MIN_SCORE) continue;
+      if (score > bestScore) {
+        bestScore = score;
+        bestRule = rule;
+        tied = false;
+      } else if (score === bestScore) {
+        tied = true;
+      }
     }
+    // A confident specific match, or a tie among specific rules, ends the
+    // search: a tie must not be resolved by the vaguer parent.
+    if (bestRule) break;
   }
 
   if (bestRule && !tied) {
     return {
-      googleCategoryId: bestRule.id,
-      googleCategoryName: bestRule.googlePath,
-      metaCategoryName: bestRule.metaPath,
+      ...(bestRule.google
+        ? { googleCategoryId: bestRule.google.id, googleCategoryName: bestRule.google.path }
+        : {}),
+      ...(bestRule.metaPath ? { metaCategoryName: bestRule.metaPath } : {}),
       productType: bestRule.productType,
     };
   }

@@ -91,3 +91,33 @@ test("a buyer arriving on the locator alone is shown the real figures", () => {
   assert.match(thanks, /if \(!Number\(totalPayment\) && serverTotal > 0\)/);
   assert.match(thanks, /if \(!Number\(productPrice\) && serverProduct > 0\)/);
 });
+
+test("an incomplete form never natively disables the submit button", () => {
+  // A real `disabled` swallowed the tap whenever mobile autofill filled a field
+  // without an `input` event: the form looked complete and the button was dead
+  // until the buyer tapped elsewhere. Only an order in flight disables it; an
+  // incomplete form is aria-disabled and the submit handler names the field.
+  for (const [name, path] of FORMS) {
+    const source = read(path);
+    const assignments = [...source.matchAll(/submitButton\.disabled\s*=\s*([^;]+);/g)].map((m) => m[1].trim());
+    assert.ok(assignments.length > 0, `${name}: submit button state not found`);
+    for (const value of assignments) {
+      assert.match(value, /^(state\.)?submitting$/, `${name} disables the submit button on ${value}`);
+    }
+    assert.match(source, /setAttribute\("aria-disabled"/, `${name} no longer marks an incomplete form aria-disabled`);
+    assert.match(source, /form\.addEventListener\("change", syncSubmit(State|Button)\)/, `${name} ignores autofill that fires only change`);
+
+    // An autofilled 08… number never passed through the input handler that
+    // rewrites it to 62…, so field validation refused a correct number.
+    const submit = source.slice(source.indexOf('form.addEventListener("submit"'));
+    const normalised = submit.indexOf("phoneInput.value = normalizePhone(phoneInput.value)");
+    const validated = submit.indexOf("validateField(field)");
+    assert.ok(normalised > 0 && normalised < validated, `${name} validates the phone before normalising it`);
+  }
+
+  // A tappable button means the submit handler is the only gate. The full form
+  // also waits on its payment choices; without a guard an order could leave on
+  // the default "cod" before they loaded.
+  const hybridSubmit = read("../scripts/form-hybrid.ts").split('form.addEventListener("submit"')[1];
+  assert.match(hybridSubmit, /if \(!state\.visiblePaymentOptions\?\.length\)/, "form-hybrid submits before its payment choices load");
+});

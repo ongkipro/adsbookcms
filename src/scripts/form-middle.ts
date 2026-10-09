@@ -492,7 +492,13 @@ function initMiddleOrderFormInstance(
 
   const syncSubmitState = () => {
     const next = getSubmitState();
-    submitButton.disabled = next.disabled;
+    // Natively disabled only while an order is in flight. An incomplete form
+    // keeps the button tappable (aria-disabled + the grey data-state): the
+    // submit handler then names the missing field. A real `disabled` swallowed
+    // the tap whenever autofill filled a field without an `input` event, so a
+    // complete-looking form had a dead button until the buyer tapped elsewhere.
+    submitButton.disabled = submitting;
+    submitButton.setAttribute("aria-disabled", String(next.disabled));
     submitButton.dataset.state = submitting
       ? "loading"
       : next.disabled
@@ -673,6 +679,8 @@ function initMiddleOrderFormInstance(
     });
 
   let sessionGuardToken = createId(`tg_${productSlug}`);
+  // Autofill can set a value and fire only `change`.
+  form.addEventListener("change", syncSubmitState);
   syncSubmitState();
   submitButton.addEventListener("click", () => {
     maybeTrackAddToCart();
@@ -682,6 +690,9 @@ function initMiddleOrderFormInstance(
     e.preventDefault();
     errorEl.hidden = true;
     setSubmitting(true, "Memvalidasi Data...");
+    // Autofill stores numbers as 08…; normalise before validating, since the
+    // `input`/`blur` handlers that usually do it may never have run.
+    if (phoneInput.value) phoneInput.value = normalizePhone(phoneInput.value);
 
     const fd = new FormData(form);
     const customerName = String(fd.get("customer_name") || "").trim();

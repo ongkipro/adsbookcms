@@ -720,7 +720,10 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
 
   const syncSubmitButton = () => {
     const next = getSubmitState();
-    submitButton.disabled = next.disabled;
+    // See form-middle.ts: natively disabled only while submitting, so a tap on
+    // an incomplete form always reaches the handler that names what is missing.
+    submitButton.disabled = state.submitting;
+    submitButton.setAttribute("aria-disabled", String(next.disabled));
     submitButton.dataset.state = state.submitting
       ? "loading"
       : next.disabled
@@ -1824,10 +1827,16 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
       syncSubmitButton();
     });
 
+  // Autofill can set a value and fire only `change`.
+  form.addEventListener("change", syncSubmitButton);
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     errorEl.hidden = true;
     setSubmitting(true, "Memvalidasi Data...");
+    // Autofill stores numbers as 08…; normalise before validating, since the
+    // `input`/`blur` handlers that usually do it may never have run.
+    if (phoneInput.value) phoneInput.value = normalizePhone(phoneInput.value);
 
     const fd = new FormData(form);
     const customerName = String(fd.get("customer_name") || "").trim();
@@ -1881,6 +1890,15 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
     }
     if (!state.shipping || !state.courierServiceId) {
       errorEl.textContent = "Silakan pilih opsi pengiriman terlebih dahulu.";
+      errorEl.hidden = false;
+      setSubmitting(false);
+      return;
+    }
+    // The button is tappable while incomplete, so every gate in
+    // getSubmitState needs its guard here; without this one an order could
+    // leave on the default "cod" before the payment choices loaded.
+    if (!state.visiblePaymentOptions?.length) {
+      errorEl.textContent = "Tunggu sebentar, metode pembayaran sedang disiapkan.";
       errorEl.hidden = false;
       setSubmitting(false);
       return;

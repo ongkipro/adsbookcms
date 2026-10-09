@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-09 @ `1917f57` + variant-id-over-sku working tree
+> Verified against disk: 2026-10-09 @ `81d5dd5` + mobile-submit-tap working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6402,4 +6402,29 @@ AddToCart all carried Saratoga; only the persisted order did not.
   old WHERE fails them. 814 passing.
 - Orders already saved under the wrong variant are not rewritten here; that is
   install data.
+
+### 2026-10-09 — Mobile: the order button always answers a tap
+
+Buyers reported the order button "sometimes" not responding on phones. Two
+causes, both reproduced at 390 px with touch emulation:
+
+- The submit button was natively `disabled` until the form was complete, and
+  its state was recomputed only on `input`/`blur`. Autofill that sets a value
+  and fires only `change` left a complete-looking form behind a dead button,
+  and a tap on a disabled button does not even move focus. The button is now
+  natively disabled only while an order is in flight; an incomplete form is
+  `aria-disabled` with the same grey `data-state`, so the tap reaches the
+  submit handler, which names and focuses the missing field. A form-level
+  `change` listener resyncs the label.
+- An autofilled `08…` number skipped the `input` handler that rewrites it to
+  `62…`, and submit validated the raw field first, so a correct number was
+  refused. Submit now normalises the phone before validating.
+
+Both apply to `form-middle.ts` and `form-hybrid.ts`; a source test pins them.
+With the button tappable, the submit handler is the only gate, so the full
+form's last unguarded state got its check: no submit before the payment
+choices load (it would otherwise have left on the default `cod`).
+Breadcrumb and footer links grow from 15–17 px to a 24 px target (WCAG 2.5.8)
+with the surrounding spacing reduced to match, so the layout does not move.
+Hit-testing at 390 px found no control covered by an overlay. 815 passing.
 

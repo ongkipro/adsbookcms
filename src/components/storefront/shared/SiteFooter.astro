@@ -20,13 +20,13 @@ const footerLegal = [
     <!-- Policy Links -->
     <nav
       aria-label="Tautan footer"
-      class="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[10px] font-semibold uppercase tracking-widest text-[#555555]"
+      class="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[10px] font-semibold uppercase tracking-widest text-[#555555]"
     >
       {
         footerLegal.map((item) => (
           <a
             href={item.href}
-            class="underline-offset-4 transition-colors hover:text-[#111111] hover:underline focus-visible:text-[#111111] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111111] focus-visible:ring-offset-2"
+            class="inline-flex min-h-6 items-center underline-offset-4 transition-colors hover:text-[#111111] hover:underline focus-visible:text-[#111111] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111111] focus-visible:ring-offset-2"
           >
             {item.label}
           </a>

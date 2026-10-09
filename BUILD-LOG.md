@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-09 @ `159ff01` + gtm-ecommerce-payload working tree
+> Verified against disk: 2026-10-09 @ `1917f57` + variant-id-over-sku working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6385,4 +6385,21 @@ also carried an `ecommerce` object with the path as `item_id` and a placeholder
 - Proven on `npm run dev:local`: page_view, view_item, add_to_cart,
   begin_checkout and purchase in the browser, and no second purchase on a
   thanks reload. 811 passing.
+
+### 2026-10-09 — An order's variant id always wins over a SKU
+
+`persistOrder` resolved the submitted key with `CAST(pv.id AS TEXT) = ? OR
+pv.sku = ?` and `LIMIT 1`. On taniniaga a later product was given the SKUs `1`
+and `2` — the ids of Saratoga's variants — so every Saratoga order from
+2026-09-30 on was stored as that product, at its price (130,000 / 215,000
+instead of 135,000 / 268,000). The browser, the abandoned lead and the Meta
+AddToCart all carried Saratoga; only the persisted order did not.
+
+- `findOrderVariant` matches the id first and reads the SKU only when no
+  variant has that id at all, so an inactive product's id cannot fall through
+  to another product's SKU either.
+- Tests run the real SQL on `node:sqlite` with taniniaga's rows; restoring the
+  old WHERE fails them. 814 passing.
+- Orders already saved under the wrong variant are not rewritten here; that is
+  install data.
 

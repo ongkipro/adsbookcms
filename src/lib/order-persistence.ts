@@ -420,23 +420,43 @@ export async function recordAbandonedOrder(
 }
 
 
-export async function persistOrder(
-  database: D1Database,
-  input: PersistOrderInput,
-): Promise<PersistedOrder> {
-  const variant = await database
+/**
+ * The variant an order key names: its numeric id, or its SKU for a caller
+ * that only knows the SKU. An id always wins. A merchant can type any SKU, and
+ * one store gave a product the SKUs "1" and "2" — the ids of another product's
+ * variants — so `id = ? OR sku = ?` matched both and every order for the
+ * first product was saved as the second, at the second's price. The SKU is
+ * consulted only when no variant has that id at all, so an inactive product's
+ * id cannot fall through to a different product's SKU either.
+ */
+export async function findOrderVariant(database: D1Database, variantKey: string) {
+  return database
     .prepare(
       `
       SELECT pv.id, pv.price
       FROM product_variants pv
       INNER JOIN products p ON p.id = pv.product_id
-      WHERE (CAST(pv.id AS TEXT) = ? OR pv.sku = ?)
-        AND p.is_active = 1
+      WHERE p.is_active = 1
+        AND (
+          CAST(pv.id AS TEXT) = ?
+          OR (
+            pv.sku = ?
+            AND NOT EXISTS (SELECT 1 FROM product_variants byId WHERE CAST(byId.id AS TEXT) = ?)
+          )
+        )
+      ORDER BY pv.id
       LIMIT 1
     `,
     )
-    .bind(input.variantKey, input.variantKey)
+    .bind(variantKey, variantKey, variantKey)
     .first<{ id: number; price: number }>();
+}
+
+export async function persistOrder(
+  database: D1Database,
+  input: PersistOrderInput,
+): Promise<PersistedOrder> {
+  const variant = await findOrderVariant(database, input.variantKey);
   if (!variant) throw new OrderInputError("Varian produk tidak ditemukan.");
   // No stock gate. This store sells on demand rather than from a counted
   // shelf, so an order is never refused for a stock figure and the figure is

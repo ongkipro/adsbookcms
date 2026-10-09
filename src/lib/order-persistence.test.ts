@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
+  findOrderVariant,
   OrderInputError,
   persistOrder,
   recordAbandonedOrder,
@@ -397,4 +399,59 @@ test("an identical checkout inside the window reuses the order instead of creati
   assert.equal(result.id, 42, "the buyer must be sent back to the order that already exists");
   assert.equal(result.orderNumber, "INV-10042");
   assert.equal(inserted, false, "no second row may be written for the same checkout");
+});
+
+/** The variant lookup runs real SQL: the defect was in the WHERE clause itself. */
+function variantDatabase(rows: Array<[id: number, productId: number, sku: string, price: number]>, inactive: number[] = []) {
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(`
+    CREATE TABLE products (id INTEGER PRIMARY KEY, is_active INTEGER NOT NULL DEFAULT 1);
+    CREATE TABLE product_variants (id INTEGER PRIMARY KEY, product_id INTEGER NOT NULL, sku TEXT, price INTEGER NOT NULL);
+    CREATE INDEX idx_variants_sku ON product_variants (sku);
+  `);
+  for (const productId of new Set(rows.map((row) => row[1]))) {
+    sqlite.prepare("INSERT INTO products (id, is_active) VALUES (?, ?)").run(productId, inactive.includes(productId) ? 0 : 1);
+  }
+  for (const row of rows) {
+    sqlite.prepare("INSERT INTO product_variants (id, product_id, sku, price) VALUES (?, ?, ?, ?)").run(...row);
+  }
+  return {
+    prepare(sql: string) {
+      const statement = (values: unknown[]) => ({
+        bind: (...next: unknown[]) => statement(next),
+        first: async () => {
+          // node:sqlite rows have a null prototype; D1's are plain objects.
+          const row = sqlite.prepare(sql).get(...(values as never[]));
+          return row ? { ...row } : null;
+        },
+      });
+      return statement([]);
+    },
+  } as unknown as D1Database;
+}
+
+// Taniniaga, 2026-10: Saratoga is variants 1/2; Kojien was given the SKUs "1"/"2".
+const SARATOGA_AND_KOJIEN: Array<[number, number, string, number]> = [
+  [1, 50510, "SARATOGA-500ML", 135000],
+  [2, 50510, "SARATOGA-1L", 268000],
+  [7, 99118, "1", 130000],
+  [8, 99118, "2", 215000],
+];
+
+test("a variant id wins over another variant whose SKU is that same number", async () => {
+  const database = variantDatabase(SARATOGA_AND_KOJIEN);
+  assert.deepEqual(await findOrderVariant(database, "1"), { id: 1, price: 135000 });
+  assert.deepEqual(await findOrderVariant(database, "2"), { id: 2, price: 268000 });
+  assert.deepEqual(await findOrderVariant(database, "7"), { id: 7, price: 130000 });
+});
+
+test("a SKU still resolves when no variant has it as an id", async () => {
+  const database = variantDatabase(SARATOGA_AND_KOJIEN);
+  assert.deepEqual(await findOrderVariant(database, "SARATOGA-1L"), { id: 2, price: 268000 });
+  assert.equal(await findOrderVariant(database, "NOPE"), null);
+});
+
+test("an inactive product's variant id never falls through to another product's SKU", async () => {
+  const database = variantDatabase(SARATOGA_AND_KOJIEN, [50510]);
+  assert.equal(await findOrderVariant(database, "1"), null);
 });

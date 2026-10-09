@@ -17,31 +17,8 @@ const { tenantName } = Astro.props;
   (() => {
     if (typeof window === 'undefined') return;
 
-    const pushGtmEcomEvent =
-      window.__PS_PUSH_GTM_ECOM__ ||
-      ((event, payload) => {
-        window.dataLayer = window.dataLayer || [];
-        window.dataLayer.push({ ecommerce: null });
-        window.dataLayer.push({
-          event,
-          tracking_owner: 'app',
-          meta_managed_by_app: true,
-          meta_event_id: payload.event_id,
-          ecommerce: {
-            currency: payload.currency || 'IDR',
-            value: Number(payload.value || 0),
-            transaction_id: payload.transaction_id,
-            items: [
-              {
-                item_id: payload.item_id || '',
-                item_name: payload.item_name || '',
-                item_variant: payload.item_variant,
-                quantity: 1,
-              },
-            ],
-          },
-        });
-      });
+    // GtmBase.astro (BaseLayout <head>) owns the ecommerce shape; see src/lib/gtm.ts.
+    const pushGtmEcomEvent = (event, payload) => window.__PS_PUSH_GTM_ECOM__?.(event, payload);
 
     const hashSha256Hex = async (input) => {
       const normalized = String(input || '')
@@ -258,6 +235,8 @@ const { tenantName } = Astro.props;
         pushGtmEcomEvent('purchase', {
           currency: 'IDR',
           value: Number(conversionValue || 1),
+          // The unit price is derived from the server's value, never from browser state.
+          quantity,
           item_id: productId,
           item_name: productName,
           item_variant: pick('variant_unique_id', '') || undefined,

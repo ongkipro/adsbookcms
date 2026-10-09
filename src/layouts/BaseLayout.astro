@@ -212,6 +212,7 @@ const preloadImageUrls =
     <MetaDebugTracker />
   </head>
   <body>
+    <GtmBase gtmId={adsConfig.googleTagManagerId} noscript />
     <!-- Ink, not emerald. This is the first focusable element on six of the seven
          checkout routes, so tabbing into a page the design system requires to carry
          no green painted a solid emerald block across it. Square, like everything

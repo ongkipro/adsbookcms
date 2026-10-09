@@ -14,31 +14,8 @@ const { slug, contentId, contentName, price } = Astro.props;
     if (typeof window === 'undefined') return;
 
     const createEventId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const pushGtmEcomEvent =
-      window.__PS_PUSH_GTM_ECOM__ ||
-      ((event, payload) => {
-        window.dataLayer = window.dataLayer || [];
-        window.dataLayer.push({ ecommerce: null });
-        window.dataLayer.push({
-          event,
-          tracking_owner: 'app',
-          meta_managed_by_app: true,
-          meta_event_id: payload.event_id,
-          ecommerce: {
-            currency: payload.currency || 'IDR',
-            value: Number(payload.value || 0),
-            transaction_id: payload.transaction_id,
-            items: [
-              {
-                item_id: payload.item_id || '',
-                item_name: payload.item_name || '',
-                item_variant: payload.item_variant,
-                quantity: 1,
-              },
-            ],
-          },
-        });
-      });
+    // GtmBase.astro (BaseLayout <head>) owns the ecommerce shape; see src/lib/gtm.ts.
+    const pushGtmEcomEvent = (event, payload) => window.__PS_PUSH_GTM_ECOM__?.(event, payload);
     const postMeta = (payload) => {
       fetch('/api/meta-event', {
         method: 'POST',

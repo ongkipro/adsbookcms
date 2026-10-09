@@ -3,9 +3,14 @@ import { getStoreAdsConfig } from '../../../lib/store-ads';
 
 interface Props {
   gtmId?: string;
+  /**
+   * Render only the `<noscript>` fallback. Google places it immediately after
+   * `<body>`; an `<iframe>` inside a `<noscript>` in `<head>` is invalid HTML.
+   */
+  noscript?: boolean;
 }
 
-const { gtmId: gtmIdProp } = Astro.props;
+const { gtmId: gtmIdProp, noscript = false } = Astro.props;
 
 let gtmId = gtmIdProp;
 if (gtmId === undefined) {
@@ -16,54 +21,64 @@ gtmId = String(gtmId || '').trim().toUpperCase();
 const shouldRenderGtm = /^GTM-[A-Z0-9]{4,20}$/.test(gtmId);
 ---
 
-<script is:inline>
-  window.__PS_PUSH_GTM_ECOM__ = window.__PS_PUSH_GTM_ECOM__ || function (event, payload) {
-    window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push({ ecommerce: null });
-    window.dataLayer.push({
-      event,
-      tracking_owner: 'app',
-      meta_managed_by_app: true,
-      meta_event_id: payload?.event_id,
-      ecommerce: {
-        currency: payload?.currency || 'IDR',
-        value: Number(payload?.value || 0),
-        transaction_id: payload?.transaction_id,
-        items: [
-          {
-            item_id: payload?.item_id || '',
-            item_name: payload?.item_name || '',
-            item_variant: payload?.item_variant,
-            quantity: 1,
-          },
-        ],
-      },
-    });
-  };
-</script>
+{!noscript && (
+  <script is:inline>
+    // Mirrors `buildGtmEcomEvent` in `src/lib/gtm.ts`. `is:inline` cannot
+    // import it, so `gtm.test.ts` runs this script and fails if the two drift.
+    window.__PS_PUSH_GTM_ECOM__ = window.__PS_PUSH_GTM_ECOM__ || function (event, payload) {
+      payload = payload || {};
+      var quantity = Math.max(1, Math.floor(Number(payload.quantity) || 1));
+      var value = Number(payload.value || 0);
+      var price = payload.price === undefined ? value / quantity : Number(payload.price || 0);
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ ecommerce: null });
+      window.dataLayer.push({
+        event: event,
+        tracking_owner: 'app',
+        meta_managed_by_app: true,
+        meta_event_id: payload.event_id,
+        ecommerce: {
+          currency: payload.currency || 'IDR',
+          value: value,
+          transaction_id: payload.transaction_id,
+          items: [
+            {
+              item_id: payload.item_id || '',
+              item_name: payload.item_name || '',
+              item_variant: payload.item_variant || undefined,
+              price: price,
+              quantity: quantity,
+            },
+          ],
+        },
+      });
+    };
+  </script>
+)}
 
-{shouldRenderGtm && (
-  <>
-    <script is:inline define:vars={{ gtmId }}>
-      (function (w, d, s, l, i) {
-        w[l] = w[l] || [];
-        w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
-        var f = d.getElementsByTagName(s)[0],
-          j = d.createElement(s),
-          dl = l != 'dataLayer' ? '&l=' + l : '';
-        j.async = true;
-        j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
-        f.parentNode.insertBefore(j, f);
-      })(window, document, 'script', 'dataLayer', gtmId);
-    </script>
-    <noscript>
-      <iframe
-        src={`https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(gtmId)}`}
-        height="0"
-        width="0"
-        style="display:none;visibility:hidden"
-        title="gtm"
-      ></iframe>
-    </noscript>
-  </>
+{shouldRenderGtm && !noscript && (
+  <script is:inline define:vars={{ gtmId }}>
+    (function (w, d, s, l, i) {
+      w[l] = w[l] || [];
+      w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+      var f = d.getElementsByTagName(s)[0],
+        j = d.createElement(s),
+        dl = l != 'dataLayer' ? '&l=' + l : '';
+      j.async = true;
+      j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
+      f.parentNode.insertBefore(j, f);
+    })(window, document, 'script', 'dataLayer', gtmId);
+  </script>
+)}
+
+{shouldRenderGtm && noscript && (
+  <noscript>
+    <iframe
+      src={`https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(gtmId)}`}
+      height="0"
+      width="0"
+      style="display:none;visibility:hidden"
+      title="gtm"
+    ></iframe>
+  </noscript>
 )}

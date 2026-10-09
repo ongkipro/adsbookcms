@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-09-30 @ `f3be2b1` + working tree
+> Verified against disk: 2026-10-09 @ `159ff01` + gtm-ecommerce-payload working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6367,3 +6367,22 @@ an unsupported format.
 On Reven Leather the notice read "4 orang memesan dalam 24 jam terakhir" while
 one of the four was an abandoned lead. Abandoned rows are now excluded; the test
 pins the status list. 806 passing.
+
+### 2026-10-09 — GTM ecommerce payload: unit price, quantity, one owner
+
+The dataLayer item carried `quantity: 1` and no `price` on every event, so a
+multi-unit `purchase` described one unit against the whole order's `value`, and
+GA4 or Google Ads dynamic remarketing had no item price to read. `page_view`
+also carried an `ecommerce` object with the path as `item_id` and a placeholder
+`value: 1`. The same push function existed in five copies.
+
+- `buildGtmEcomEvent` in `src/lib/gtm.ts` owns the shape; items carry a unit
+  `price` and the order `quantity` (`price` defaults to `value / quantity`).
+- `GtmBase.astro` keeps the one inline copy; `gtm.test.ts` runs it in a VM and
+  fails if it drifts. The three trackers' private copies are gone.
+- `page_view` is a plain event. `purchase` passes the order quantity.
+- The `<noscript>` iframe moved from `<head>` to right after `<body>`.
+- Proven on `npm run dev:local`: page_view, view_item, add_to_cart,
+  begin_checkout and purchase in the browser, and no second purchase on a
+  thanks reload. 811 passing.
+

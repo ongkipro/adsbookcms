@@ -232,7 +232,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `format-idr` | 1 | — | ✓ | `/payment` `/produk` |
 | `geo` | 3 | — | ✓ | `/produk/[slug]` `/api/submit-middle-order` |
 | `google-ads-offline` | 15 | `google_ads_conversion_outbox` `order_items` `orders` | ✓ | — |
-| `gtm` | 3 | — | ✓ | — |
+| `gtm` | 4 | — | ✓ | — |
 | `headless-api` | 16 | `developer_api_key_usage` `developer_api_keys` `headless_api_audit_events` `stores` | ✓ | `/api/v1/checkout` `/api/v1/geo/districts` `/api/v1/geo/shipping-rates` `/api/v1/openapi.json` `/api/v1/orders/status` `/api/v1/products` `/api/v1/products/[slug]` `/api/v1/storefront` `/api/v1/tracking/events` `/api/admin/settings` |
 | `headless-checkout` | 4 | — | ✓ | `/api/v1/checkout` |
 | `headless-client` | 14 | — | ✓ | — |

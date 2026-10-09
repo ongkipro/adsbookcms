@@ -3,31 +3,6 @@
     if (typeof window === 'undefined') return;
 
     const createEventId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const pushGtmEcomEvent =
-      window.__PS_PUSH_GTM_ECOM__ ||
-      ((event, payload) => {
-        window.dataLayer = window.dataLayer || [];
-        window.dataLayer.push({ ecommerce: null });
-        window.dataLayer.push({
-          event,
-          tracking_owner: 'app',
-          meta_managed_by_app: true,
-          meta_event_id: payload.event_id,
-          ecommerce: {
-            currency: payload.currency || 'IDR',
-            value: Number(payload.value || 0),
-            transaction_id: payload.transaction_id,
-            items: [
-              {
-                item_id: payload.item_id || '',
-                item_name: payload.item_name || '',
-                item_variant: payload.item_variant,
-                quantity: 1,
-              },
-            ],
-          },
-        });
-      });
     const postMeta = (payload) => {
       fetch('/api/meta-event', {
         method: 'POST',
@@ -49,12 +24,14 @@
       content_type: 'page',
       event_source_url: window.location.href,
     });
-    pushGtmEcomEvent('page_view', {
-      currency: 'IDR',
-      value: 1,
-      item_id: pathname,
-      item_name: contentName,
-      event_id: eventId,
+    // A page view is not an ecommerce event: no `ecommerce` object, so a GA4
+    // tag cannot read the path as an item or the placeholder 1 as revenue.
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      event: 'page_view',
+      tracking_owner: 'app',
+      meta_managed_by_app: true,
+      meta_event_id: eventId,
     });
   })();
 </script>

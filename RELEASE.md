@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-10-07 @ `515e81b` + autolaris-readiness/landing-thumbnail working tree
+> Verified against disk: 2026-10-09 @ `8213409` + deploy-builds-first working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -31,8 +31,13 @@ lines are the whole trigger block in `ci.yml`.
 
 ### Manual deploy
 
-`npx wrangler deploy` (or `npm run deploy`) deploys the working tree to whatever
-Worker `wrangler.jsonc` names. In **this** repository that file is the one-click
+`npm run deploy` runs the deploy preflight, then `astro build`, then
+`wrangler deploy` to whatever Worker `wrangler.jsonc` names. Bare
+`npx wrangler deploy` skips both: it uploads whatever `dist/` already holds,
+so after a merge it ships the *previous* build while every check passes. On
+2026-10-09 that put two installs live on yesterday's bundle; the live
+`_astro/*.js` hash matching a stale local `dist/` was the tell. Use the npm
+script. In **this** repository that file is the one-click
 template (all-zero ids, which the deploy preflight refuses), so there is no
 production Worker to reach; the command belongs in an install, run against that
 install's own resources.

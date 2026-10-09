@@ -215,7 +215,11 @@ test("npm run deploy cannot skip the preflight", () => {
   const pkg = JSON.parse(readFileSync("package.json", "utf8")) as {
     scripts: Record<string, string>;
   };
-  assert.equal(pkg.scripts.predeploy, "npm run preflight:deploy");
-  assert.equal(pkg.scripts["precf:deploy"], "npm run preflight:deploy");
+  // ...and then builds: `wrangler deploy` uploads whatever dist/ holds, so a
+  // deploy after a merge without a build shipped the previous bundle while
+  // every check passed (two installs, 2026-10-09).
+  assert.equal(pkg.scripts.predeploy, "npm run preflight:deploy && npm run build");
+  assert.equal(pkg.scripts["precf:deploy"], "npm run preflight:deploy && npm run build");
   assert.match(pkg.scripts["preflight:deploy"], /scripts\/preflight-deploy\.ts/);
 });
+

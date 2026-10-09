@@ -1,6 +1,6 @@
 # Google Ads Conversion Signal & Merchant Center Setup Guide
 
-> Verified against disk: 2026-10-08 @ `db0f5c6` + taxonomy working tree
+> Verified against disk: 2026-10-09 @ `bf63396` + google-ads-owner working tree
 
 > **Product:** AdsBookCMS (single) — one installer, one Worker, one store.
 > **Repository role:** product. Examples below name `permatamall.shop`, the first install, which lives in its own repository (`ongkipro/permatamall`); substitute your own install's domain.
@@ -57,9 +57,10 @@ $$\text{Ad click (gclid, gbraid, wbraid)} \longrightarrow \text{Consent Mode v2 
 
 1. On the conversion action detail page, expand *UI label* **Enhanced conversions**.
 2. Check *UI label* **Turn on enhanced conversions**.
-3. Choose the implementation owner for this conversion action:
-   - **Google tag** — enter the conversion ID and label in Ads & Tracking →
-     Google. AdsBookCMS emits the direct `gtag('event', 'conversion', …)`.
+3. Choose the implementation owner for this conversion action. **Use the
+   Google tag unless a reason below rules it out**:
+   - **Google tag (recommended)** — enter the conversion ID and label in Ads &
+     Tracking → Google. AdsBookCMS emits the direct `gtag('event', 'conversion', …)`.
    - **Google Tag Manager** — configure the conversion tag in GTM from the
      `purchase` dataLayer event, and leave the direct conversion ID/label empty.
      GTM may still run GA4 alongside the direct Google tag, but the same Google
@@ -77,14 +78,29 @@ $$\text{Ad click (gclid, gbraid, wbraid)} \longrightarrow \text{Consent Mode v2 
 
 If using Google Tag Manager (`GTM-XXXXXXX`), configure it in the store admin under Ads & Tracking → Google. GTM is validated and loaded independently of the direct Google Ads conversion pair.
 
-Choose one conversion owner:
+Choose one conversion owner. The direct Google tag is the default because the
+store already does what a GTM conversion tag would have to rebuild:
 
-- **Direct Google Tag configured:** use GTM for GA4/analytics and do **not**
-  create a Google Ads Conversion Tracking tag for that same purchase action.
+- the conversion fires only after `/api/order-status` confirms the order (COD
+  persisted, prepaid paid), never for an abandoned lead;
+- `transaction_id` is the order number, and a thanks-page reload never fires a
+  second conversion;
+- Enhanced Conversions `user_data` is set ahead of the conversion. The store's
+  dataLayer events carry no customer data (TRACKING_SPECS §14), so a GTM-owned
+  conversion has **no** enhanced-conversion match keys;
+- Consent Mode v2 defaults and the forced library load on the thanks page.
+
+Pick GTM as the owner only when the account requires every tag in one container.
+
+- **Direct Google Tag configured (recommended):** use GTM for GA4, audiences
+  and other platforms only. Do **not** add a Google Tag or a Google Ads
+  Conversion Tracking tag for the same `AW-` ID — the store already loads it,
+  and a second copy double-counts the conversion. Do not add a Meta Pixel tag
+  either; the store owns Pixel and CAPI.
 - **GTM conversion owner:** leave the direct Google Ads conversion ID and label
   empty, then configure the following GTM tags.
 
-In the GTM workspace:
+In the GTM workspace (GTM conversion owner only):
 
 - **Tag 1 — Conversion Linker**
   - Tag type: *UI label* **Conversion Linker**
@@ -92,18 +108,25 @@ In the GTM workspace:
 - **Tag 2 — Google Tag**
   - Tag type: *UI label* **Google Tag**
   - Tag ID: your `AW-` conversion ID
-  - Trigger: *UI label* **All Pages**
-- **Tag 3 — Google Ads Conversion Tracking** *(only when GTM owns it)*
+  - Trigger: *UI label* **Initialization - All Pages**
+- **Tag 3 — Google Ads Conversion Tracking**
   - Conversion ID: your `AW-` ID, or a variable such as `{{Google Ads ID}}`
   - Conversion label: your label, or a variable such as `{{Google Ads Label}}`
-  - Value: `{{dlv - total_price}}`
-  - Currency code: `IDR`
-  - Transaction ID: `{{dlv - order_id}}`
-  - Enable enhanced conversions only after its Google-account method and
-    customer-data terms are configured
+  - Value: Data Layer Variable `ecommerce.value`
+  - Currency code: Data Layer Variable `ecommerce.currency` (always `IDR`)
+  - Transaction ID: Data Layer Variable `ecommerce.transaction_id`
   - Trigger: custom event `purchase`
 
-The storefront pushes `page_view`, `view_item`, `add_to_cart`, `begin_checkout`, and `purchase` to `window.dataLayer` using the GA4/GTM ecommerce schema.
+The storefront pushes `page_view`, `view_item`, `add_to_cart`,
+`begin_checkout`, and `purchase` to `window.dataLayer`. Every event except
+`page_view` carries the GA4 ecommerce object: `ecommerce.value`,
+`ecommerce.currency`, `ecommerce.transaction_id` (on `purchase`) and one item
+with the catalogue `item_id`, `item_variant`, a unit `price` and `quantity`
+(TRACKING_SPECS owns the shape). `page_view` carries no `ecommerce` object, so
+a GA4 tag must not map it as an ecommerce event. `meta_event_id` is the same id
+the Meta legs deduplicate on. For GA4, trigger the Google tag on
+*Initialization - All Pages* and one GA4 event tag per custom event with
+*UI label* **Send Ecommerce data** from the Data Layer.
 
 ### Step 4 — Submit the Merchant Center catalog feed
 

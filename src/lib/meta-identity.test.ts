@@ -182,9 +182,13 @@ test("the Pixel bootstrap exposes the hooks /thanks and the forms call, and init
 
   assert.equal(windowStub.__PS_META_INIT__({ ph: "hashed-phone" }), true);
   assert.equal(windowStub.__PS_META_INIT__({ fn: "late" }), false, "a second init is refused");
-  // The init itself lands once the external-ID digest resolves.
-  for (let i = 0; i < 50 && !calls.some((args) => args[0] === "init"); i += 1) {
-    await new Promise((resolve) => setImmediate(resolve));
+  // The init itself lands once the external-ID digest resolves. WebCrypto runs
+  // the digest on the libuv pool, so a tick count is not a bound - 50
+  // setImmediates passed locally and failed on a loaded CI runner. Wait on
+  // time instead, still bounded.
+  const deadline = Date.now() + 2000;
+  while (!calls.some((args) => args[0] === "init") && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
   }
   const inits = calls.filter((args) => args[0] === "init");
   assert.equal(inits.length, 1);

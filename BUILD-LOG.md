@@ -6494,3 +6494,8 @@ ph/fn/ln/country/external_id ahead of the Purchase. 817 passing.
   `ENOENT`, and a full-suite run under load showed the
   "SyntaxError: Invalid or unexpected token" an install had reported as a
   flake. Each process now uses its own subdirectory; six concurrent runs pass.
+- **Follow-up, same day.** 1.5.1's `meta-identity.test.ts` waited for the
+  digest-gated init with 50 `setImmediate` ticks. WebCrypto runs the digest on
+  the libuv pool, so a tick count is no bound: it passed locally and failed
+  once on a permatamall CI runner (`0 !== 1` inits). It waits on a 2 s
+  deadline now; eight concurrent runs pass. Test-only, no runtime change.

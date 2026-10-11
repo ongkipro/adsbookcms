@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-09 @ `81d5dd5` + mobile-submit-tap working tree
+> Verified against disk: 2026-10-11 @ `37386f3` + 1.5.0 release working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6428,3 +6428,20 @@ Breadcrumb and footer links grow from 15–17 px to a 24 px target (WCAG 2.5.8)
 with the surrounding spacing reduced to match, so the layout does not move.
 Hit-testing at 390 px found no control covered by an overlay. 815 passing.
 
+### 2026-10-09 — `npm run deploy` builds before it uploads
+
+`predeploy` ran only the preflight, so `wrangler deploy` uploaded whatever
+`dist/` was on disk. Three install deploys that day shipped a stale bundle;
+the live asset hash matching the old local `dist/` gave it away, and each was
+rebuilt and redeployed. `predeploy` and `precf:deploy` are now
+`npm run preflight:deploy && npm run build`, pinned by `deploy-preflight.test.ts`.
+
+### 2026-10-11 — Release 1.5.0 / `2026.10-checkout-tracking`
+
+1.4.0 (2026-08-27) was the last bump; since then the tree gained migrations
+`0056`–`0061` and the fixes above. 1.5.0 names that line: GA4 ecommerce items
+with unit price and quantity plus the GTM noscript, the variant id winning over
+an equal SKU, the mobile order button, and deploy building before upload.
+`schemaVersion` stays 62 — no migration since. `version.ts`, `package.json`,
+`RELEASE.md` §4 and `STATUS.md` moved together; the `STATUS.md` schema row,
+still at 59, now reads 62.

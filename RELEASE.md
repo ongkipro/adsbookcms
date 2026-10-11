@@ -156,17 +156,16 @@ Two registries, currently in step:
 
 | Source | Field | Value |
 | --- | --- | --- |
-| `src/lib/version.ts` | `version` | `1.4.0` |
-| `src/lib/version.ts` | `releaseTag` | `2026.08-stock-unlimited` |
+| `src/lib/version.ts` | `version` | `1.5.0` |
+| `src/lib/version.ts` | `releaseTag` | `2026.10-checkout-tracking` |
 | `src/lib/version.ts` | `schemaVersion` | `62` |
-| `package.json` | `version` | `1.4.0` |
+| `package.json` | `version` | `1.5.0` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
 `schemaVersion` counts migration files, and the tree holds 62 (`0000`–`0061`).
-`releaseTag` still names the 1.4.0 release; the next release bump must move it,
-because the tree now carries `0056`–`0061` that 1.4.0 did not.
+`1.5.0` (2026-10-11) is the first release that carries `0056`–`0061`.
 `schema-version.test.ts` fails CI on drift; middleware enforces the same chain at
 runtime; `operational-health.ts` and the dashboard expose applied version.
 

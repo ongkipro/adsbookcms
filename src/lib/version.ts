@@ -8,12 +8,12 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.4.0",
+  version: "1.5.0",
   channel: "production",
-  // 1.4.0: stock stops gating a sale (ADR-023). The working tree has since added
-  // 0056-0059; bump releaseTag with the next release (RELEASE.md §4).
-  releaseTag: "2026.08-stock-unlimited",
+  // 1.5.0: migrations 0056-0061, GA4 ecommerce payload, variant id over SKU,
+  // mobile order button, deploy builds before upload (BUILD-LOG 2026-10-11).
+  releaseTag: "2026.10-checkout-tracking",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
   schemaVersion: 62,
-  lastUpdated: "2026-09-25",
+  lastUpdated: "2026-10-11",
 };

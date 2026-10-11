@@ -1,6 +1,6 @@
 # AdsBookCMS Meta Pixel, CAPI, GTM, and Google Ads Specification
 
-> Verified against disk: 2026-10-09 @ `159ff01` + gtm-ecommerce-payload working tree
+> Verified against disk: 2026-10-12 @ `4f7d723` + meta-track-order working tree
 
 This document owns the technical tracking contract for AdsBookCMS-rendered and headless storefronts. It covers event semantics, identity, browser/server boundaries, deduplication, durable delivery, store configuration, and verification. It does not claim attribution certainty, legal compliance, consent applicability, or live provider acceptance.
 
@@ -159,6 +159,19 @@ The contract that replaces it:
   bootstrap and fails unless both hooks exist, an awaiting page is not init'd
   early, and a second `__PS_META_INIT__` is refused. Loading sooner is a change
   to the deferral inside this contract, never a replacement of it.
+- **Every `track` goes through `window.__PS_META_TRACK__`, never `fbq`.** The
+  init waits on the external-ID digest, so it is issued a tick after
+  `__PS_META_INIT__` returns, and fbevents replays its queue in arrival order:
+  a `track` queued ahead of the `init` is discarded (live library, isolated
+  frame: track-then-init sent zero beacons, init-then-track one). The hook
+  holds each call until the init is out. The bootstrap is synchronous — the
+  digest is a promise, not an `await` — so the stub and all three hooks exist
+  before any body script runs; an `await` ahead of them once let
+  `MetaLandingTracker` find no `fbq` and skip its browser ViewContent.
+  `meta-pixel-ordering.test.ts` runs the bootstrap and the landing tracker in
+  one tick and fails unless `init` precedes `ViewContent`, and fails if the
+  landing, thanks or form scripts call `fbq('track')` themselves. Ported from
+  the permatamall install (`d56115d`), which found it.
 - **A form page cannot upgrade its matching.** The pixel has already initialised
   by the time a buyer types anything, so `AddToCart` and `InitiateCheckout`
   carry `external_id` on the browser leg and the full identity on the CAPI leg,

@@ -25,7 +25,7 @@ const shouldRenderPixel = /^\d{5,25}$/.test(String(pixelId || '').trim());
     <link rel="preconnect" href="https://connect.facebook.net" crossorigin />
     <link rel="dns-prefetch" href="https://connect.facebook.net" />
     <script is:inline define:vars={{ pixelId, metaExternalIdCookie: META_EXTERNAL_ID_COOKIE }}>
-      void (async () => {
+      (() => {
         if (typeof window === 'undefined') return;
 
         const createEventId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -56,20 +56,27 @@ const shouldRenderPixel = /^\d{5,25}$/.test(String(pixelId || '').trim());
           }
         }
 
-        let externalIdHash;
-        if (externalId) {
+        // A promise, never an `await` here: everything below must run in this
+        // tick. `MetaLandingTracker` fires during body parse, and
+        // `build.inlineStylesheets: 'always'` leaves no render-blocking
+        // stylesheet between it and this script, so an await before the stub
+        // and the track hook exist lets the tracker find no `fbq` and drop its
+        // browser ViewContent without a word.
+        const externalIdHashReady = (async () => {
+          if (!externalId) return undefined;
           try {
             const digest = await crypto.subtle.digest(
               'SHA-256',
               new TextEncoder().encode(externalId),
             );
-            externalIdHash = Array.from(new Uint8Array(digest))
+            return Array.from(new Uint8Array(digest))
               .map((byte) => byte.toString(16).padStart(2, '0'))
               .join('');
           } catch {
             // Pixel and CAPI still carry fbp/fbc when Web Crypto is unavailable.
+            return undefined;
           }
-        }
+        })();
 
         // Meta's own stub queues every fbq() call until the script arrives, so
         // the queue is created now and the 105 KB download is deferred. The
@@ -134,20 +141,44 @@ const shouldRenderPixel = /^\d{5,25}$/.test(String(pixelId || '').trim());
         // component now owns the single init, and a page with better matching
         // supplies it through `__PS_META_INIT__` instead of calling `fbq`.
         let initialised = false;
+        // Resolves when the single init has been *issued*, which is a digest
+        // later than `runInit` returning. fbq's stub queues by arrival order
+        // and fbevents replays it in that order, discarding a `track` that
+        // precedes the `init`: measured on the live library, track-then-init
+        // sent zero beacons to facebook.com/tr and init-then-track sent one.
+        let releaseInit;
+        const pixelInitialised = new Promise((resolve) => {
+          releaseInit = resolve;
+        });
         const runInit = (advancedMatching) => {
           if (initialised) return false;
           initialised = true;
-          const matching = Object.assign({}, advancedMatching || {});
-          if (externalIdHash && !matching.external_id) matching.external_id = externalIdHash;
-          for (const key of Object.keys(matching)) {
-            if (matching[key] === undefined || matching[key] === '') delete matching[key];
-          }
-          if (Object.keys(matching).length) window.fbq('init', pixelId, matching);
-          else window.fbq('init', pixelId);
-          window.fbq('track', 'PageView', {}, { eventID: eventId });
+          void externalIdHashReady.then((externalIdHash) => {
+            const matching = Object.assign({}, advancedMatching || {});
+            if (externalIdHash && !matching.external_id) matching.external_id = externalIdHash;
+            for (const key of Object.keys(matching)) {
+              if (matching[key] === undefined || matching[key] === '') delete matching[key];
+            }
+            if (Object.keys(matching).length) window.fbq('init', pixelId, matching);
+            else window.fbq('init', pixelId);
+            window.fbq('track', 'PageView', {}, { eventID: eventId });
+            releaseInit();
+          });
           return true;
         };
         window.__PS_META_INIT__ = runInit;
+
+        // The only way any other file reaches `fbq('track')`, so no caller can
+        // overtake the init whatever order the document parses in.
+        window.__PS_META_TRACK__ = (eventName, data, options) => {
+          void pixelInitialised.then(() => {
+            try {
+              window.fbq('track', eventName, data, options);
+            } catch (error) {
+              console.error('meta-pixel-track', error);
+            }
+          });
+        };
 
         if (window.__PS_META_AWAIT_MATCHING__ === true) {
           // The page declared it will supply matching (see `/thanks`, whose

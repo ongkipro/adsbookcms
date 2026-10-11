@@ -102,6 +102,11 @@ async function runTracker(
     __PS_LOAD_META_PIXEL__: () => {
       run.pixelLoadPulled += 1;
     },
+    // The other half of the contract: no tracker calls `fbq('track')` itself.
+    // The real hook waits for the init to be issued; here it already is.
+    __PS_META_TRACK__: (eventName: string, data?: unknown, options?: { eventID?: string }) => {
+      (windowStub.fbq as (...args: unknown[]) => unknown)("track", eventName, data, options);
+    },
     location: {
       search: "",
       href: "https://permatamall.shop/thanks",
@@ -142,8 +147,13 @@ async function runTracker(
     fetchStub,
   );
 
-  // The script fires asynchronously (status fetch + SHA-256 hashing).
-  for (let i = 0; i < 20 && run.postedPayloads.length === 0; i += 1) {
+  // The script fires asynchronously (status fetch + SHA-256 hashing); wait
+  // for both legs, still bounded, since neither is guaranteed to land first.
+  for (
+    let i = 0;
+    i < 40 && (run.postedPayloads.length === 0 || run.pixelEventIds.length === 0);
+    i += 1
+  ) {
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
   return run;

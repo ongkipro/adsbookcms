@@ -173,15 +173,19 @@ test("the Pixel bootstrap exposes the hooks /thanks and the forms call, and init
     match[1],
   )("1234567890", "adsbook_meta_external_id", windowStub, documentStub, globalThis.crypto, TextEncoder, Uint8Array);
 
-  for (let i = 0; i < 50 && typeof windowStub.__PS_META_INIT__ !== "function"; i += 1) {
-    await new Promise((resolve) => setImmediate(resolve));
-  }
+  // Synchronously, with no tick in between: a body tracker can run before
+  // the bootstrap yields, and a hook that appears later is one it never sees.
   assert.equal(typeof windowStub.__PS_META_INIT__, "function", "__PS_META_INIT__ must be exposed");
   assert.equal(typeof windowStub.__PS_LOAD_META_PIXEL__, "function", "__PS_LOAD_META_PIXEL__ must be exposed");
+  assert.equal(typeof windowStub.__PS_META_TRACK__, "function", "__PS_META_TRACK__ must be exposed");
   assert.equal(calls.filter((args) => args[0] === "init").length, 0, "an awaiting page is not init'd early");
 
   assert.equal(windowStub.__PS_META_INIT__({ ph: "hashed-phone" }), true);
   assert.equal(windowStub.__PS_META_INIT__({ fn: "late" }), false, "a second init is refused");
+  // The init itself lands once the external-ID digest resolves.
+  for (let i = 0; i < 50 && !calls.some((args) => args[0] === "init"); i += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
   const inits = calls.filter((args) => args[0] === "init");
   assert.equal(inits.length, 1);
   assert.equal((inits[0][2] as Record<string, unknown>).ph, "hashed-phone");

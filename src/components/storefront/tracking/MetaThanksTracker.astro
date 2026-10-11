@@ -191,7 +191,7 @@ const { tenantName } = Astro.props;
       const metaZip = normalizeMetaText(postalCode);
       const metaCountry = normalizeMetaText('id');
       try {
-        if (window.fbq) {
+        if (typeof window.__PS_META_TRACK__ === 'function') {
           // Handed to the ONE init `MetaPixelBase` owns, never to a second
           // `fbq('init')` of our own: fbevents honours advanced matching once
           // per pixel id and silently discards every later call, so this
@@ -225,7 +225,9 @@ const { tenantName } = Astro.props;
           if (typeof window.__PS_LOAD_META_PIXEL__ === 'function') {
             window.__PS_LOAD_META_PIXEL__();
           }
-          window.fbq('track', eventName, data, { eventID: finalEventId });
+          // Through the ordered hook: the init above is issued a digest later,
+          // and a Purchase replayed ahead of it is discarded without a word.
+          window.__PS_META_TRACK__?.(eventName, data, { eventID: finalEventId });
         }
       } catch (error) {
         console.error('meta-browser-purchase', error);

@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-11 @ `37386f3` + 1.5.0 release working tree
+> Verified against disk: 2026-10-12 @ `4f7d723` + meta-track-order working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6445,3 +6445,29 @@ an equal SKU, the mobile order button, and deploy building before upload.
 `schemaVersion` stays 62 — no migration since. `version.ts`, `package.json`,
 `RELEASE.md` §4 and `STATUS.md` moved together; the `STATUS.md` schema row,
 still at 59, now reads 62.
+
+### 2026-10-12 — Release 1.5.1: browser Meta events wait for the pixel init
+
+Found on the permatamall install, which had fixed it on 2026-09-08 (`d56115d`)
+and lost the fix when it adopted 1.5.0 wholesale. Two defects, one cause each:
+
+- `MetaPixelBase` awaited the external-ID digest before creating the `fbq`
+  stub. A body script that runs in that gap — `MetaLandingTracker` fires during
+  parse, and `inlineStylesheets: 'always'` puts no stylesheet in between — finds
+  no `fbq` and skips its browser ViewContent; CAPI still sends, so nothing looks
+  wrong. The bootstrap is now synchronous: the digest is a promise and the
+  stub, `__PS_META_INIT__`, `__PS_META_TRACK__` and `__PS_LOAD_META_PIXEL__`
+  exist before it returns.
+- With the init behind that promise, a `track` could reach the stub before the
+  `init`, and fbevents discards a track it replays ahead of the init. Every
+  browser track — landing, `/thanks`, form-middle, form-hybrid — now goes
+  through `__PS_META_TRACK__`, which waits for the init to be issued.
+
+`meta-pixel-ordering.test.ts` (ported, extended to both form scripts) failed on
+the old bootstrap with no stub after the synchronous run, and passes now;
+`meta-identity.test.ts` asserts the hooks exist synchronously. In Chrome the old
+bootstrap did not drop ViewContent on a product page even at 20x CPU throttling,
+so this closes an ordering that held by timing rather than one observed losing
+events here. Locally with a test pixel: init → PageView → ViewContent →
+AddToCart on the product page, and on `/thanks` one init carrying
+ph/fn/ln/country/external_id ahead of the Purchase. 817 passing.

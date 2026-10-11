@@ -157,10 +157,11 @@ function initMiddleOrderFormInstance(
     const contentId = String(productId || '');
     const variantUniqueId = String(selected?.value || "");
     const value = Number(selected?.dataset.price || 1);
-    if ((window as any).fbq) {
+    const metaTrack = (window as any).__PS_META_TRACK__;
+    if (typeof metaTrack === "function") {
       await ensureMetaAdvancedMatching(extraUserData);
-      (window as any).fbq(
-        "track",
+      // Ordered behind MetaPixelBase's single init (meta-pixel-ordering.test.ts).
+      metaTrack(
         eventName,
         {
           content_name: contentName,

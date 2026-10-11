@@ -156,8 +156,8 @@ Two registries, currently in step:
 
 | Source | Field | Value |
 | --- | --- | --- |
-| `src/lib/version.ts` | `version` | `1.5.1` |
-| `src/lib/version.ts` | `releaseTag` | `2026.10-meta-track-order` |
+| `src/lib/version.ts` | `version` | `1.5.2` |
+| `src/lib/version.ts` | `releaseTag` | `2026.10-fleet-status` |
 | `src/lib/version.ts` | `schemaVersion` | `62` |
 | `package.json` | `version` | `1.5.1` |
 
@@ -241,6 +241,17 @@ git check-attr merge -- wrangler.jsonc     # expect: merge: keepours
 ```
 
 The merge driver is what stops the product's placeholder `wrangler.jsonc` from replacing the install's real one. Git cannot ship a driver inside a repository, so this configuration lives in each clone and must be repeated on every machine. If it is missing, those files conflict instead — noisy, but safe.
+
+### Where every install stands
+
+```bash
+npm run fleet:status -- ~/Projects/toko-a ~/Projects/toko-b   # add --offline for git only
+```
+
+Read-only: per install checkout it prints the `CMS_VERSION`, HEAD, sync with
+its own `origin`, uncommitted files, commits behind `product/main`, the last
+Worker deployment and applied/expected D1 migrations. The product keeps no list
+of installs (ADR-012), so the checkouts are passed in.
 
 ### The procedure, in this order
 

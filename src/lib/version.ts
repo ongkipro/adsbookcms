@@ -8,12 +8,13 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.5.1",
+  version: "1.5.2",
   channel: "production",
+  // 1.5.2: social-proof toast redesign, fleet:status (A-51), island-test race.
   // 1.5.1: browser Meta events ordered behind the single pixel init.
   // 1.5.0: migrations 0056-0061, GA4 ecommerce payload, variant id over SKU,
   // mobile order button, deploy builds before upload (BUILD-LOG 2026-10-11).
-  releaseTag: "2026.10-meta-track-order",
+  releaseTag: "2026.10-fleet-status",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
   schemaVersion: 62,
   lastUpdated: "2026-10-12",

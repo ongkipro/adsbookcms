@@ -1250,9 +1250,10 @@ A-50 install topology (blocked until A-10 removes the build-time constraint)
   copy (`RELEASE.md` §7). The shared-repository options (`--config` per store,
   `env.<slug>` blocks) were the upstream multi-store shape and are removed from
   `INSTALLATION.md` §10 rather than kept as live alternatives.
-- [~] **A-51** — Define how an install receives product updates. Procedure in
-  `RELEASE.md` §7. Still open: nothing reports which product version an install
-  is on without opening its repository (`CMS_VERSION` is visible in `/admin`).
+- [x] **A-51** — Define how an install receives product updates. Procedure in
+  `RELEASE.md` §7; `npm run fleet:status -- <install-dir>...` reports each
+  install's version, sync state, distance behind the product, last deploy and
+  applied schema. **Done 2026-10-12 (1.5.2).**
 - [x] **A-52** — Decide whether the product ships as a package. **Rejected by
   ADR-020** (a package registry is a non-goal until manual copy stops scaling).
 

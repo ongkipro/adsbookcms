@@ -23,7 +23,16 @@ import { renderToString } from "react-dom/server";
  */
 
 const require = createRequire(import.meta.url);
-const TMP_DIR = path.join(process.cwd(), "node_modules", ".admin-islands-render-test");
+// Inside node_modules so the bundle's `require("react")` resolves, and one
+// directory per process: a shared one let a concurrent `npm test` in the same
+// checkout overwrite a bundle mid-require or `rm` it in its `after`, which
+// surfaced as "SyntaxError: Invalid or unexpected token" in a random island.
+const TMP_DIR = path.join(
+  process.cwd(),
+  "node_modules",
+  ".admin-islands-render-test",
+  `${process.pid}-${Date.now()}`,
+);
 
 async function renderIsland(
   fileName: string,

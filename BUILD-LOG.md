@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-12 @ `4f7d723` + meta-track-order working tree
+> Verified against disk: 2026-10-12 @ `88f0b78` + 1.5.2 working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6471,3 +6471,26 @@ so this closes an ordering that held by timing rather than one observed losing
 events here. Locally with a test pixel: init → PageView → ViewContent →
 AddToCart on the product page, and on `/thanks` one init carrying
 ph/fn/ln/country/external_id ahead of the Purchase. 817 passing.
+
+### 2026-10-12 — Release 1.5.2: toast, fleet status, a test race
+
+- **Social-proof toast.** Same rules — hidden while the hero or the order form
+  is on screen or a form field has focus, once per page view, real orders only
+  — in a clearer card: a solid surface with a lifted shadow instead of a
+  translucent pill that blurred into the copy behind it, the count set bold on
+  the first line and "dalam 24 jam terakhir" beneath it, and the bag icon in
+  the accent with a small live marker that stops pulsing under
+  `prefers-reduced-motion`. Checked at 390 px on a native landing page:
+  hidden over the hero, shown after it, hidden over the form, shown again
+  between the two — the same rhythm as the sticky order bar.
+- **`npm run fleet:status`** (A-51). One table per run over the install
+  checkouts passed in: version, HEAD, origin sync, dirty files, commits behind
+  `product/main`, last Worker deployment, applied/expected migrations.
+  Read-only; `--offline` skips Cloudflare.
+- **`admin-islands-render.test.ts` race.** Every run bundled into one shared
+  `node_modules/.admin-islands-render-test/` and removed it in `after`, so two
+  `npm test` runs in one checkout could delete or overwrite a bundle another
+  was requiring: six concurrent runs of the old file failed three with
+  `ENOENT`, and a full-suite run under load showed the
+  "SyntaxError: Invalid or unexpected token" an install had reported as a
+  flake. Each process now uses its own subdirectory; six concurrent runs pass.

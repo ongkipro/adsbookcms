@@ -8,8 +8,9 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.5.2",
+  version: "1.5.3",
   channel: "production",
+  // 1.5.3: the toast stays off a CMS landing page's first section (its hero).
   // 1.5.2: social-proof toast redesign, fleet:status (A-51), island-test race.
   // 1.5.1: browser Meta events ordered behind the single pixel init.
   // 1.5.0: migrations 0056-0061, GA4 ecommerce payload, variant id over SKU,

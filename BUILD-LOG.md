@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-12 @ `88f0b78` + 1.5.2 working tree
+> Verified against disk: 2026-10-12 @ `ad87497` + 1.5.3 working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6499,3 +6499,15 @@ ph/fn/ln/country/external_id ahead of the Purchase. 817 passing.
   the libuv pool, so a tick count is no bound: it passed locally and failed
   once on a permatamall CI runner (`0 !== 1` inits). It waits on a 2 s
   deadline now; eight concurrent runs pass. Test-only, no runtime change.
+
+### 2026-10-12 — Release 1.5.3: the toast stays off a landing page's hero
+
+1.5.2 kept the social-proof toast off the hero on native landing pages and the
+product page, but a CMS landing page (`src/pages/[slug].astro`) passed
+`heroSelector=""`, so the toast could appear over the first screen of an ad
+destination. The page now marks whichever section the merchant put first with
+`data-landing-hero` (every section kind spreads the mark; a page that opens on
+its form has no hero, and the form blocker covers it) and the toast watches
+`[data-landing-hero]`. The toast's own logic is unchanged.
+`social-proof-toast.test.ts` asserts the selector and that no landing section
+renders without the mark.

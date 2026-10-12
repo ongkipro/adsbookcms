@@ -1,6 +1,6 @@
 {
   "name": "adsbookcms",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "AdsBookCMS — single-install direct-response commerce CMS for Cloudflare Workers",
   "engines": {
     "node": ">=22",

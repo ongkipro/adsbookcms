@@ -187,15 +187,12 @@ test("both public product surfaces mount the toast against anchors they render",
   // The landing page's checkout anchor differs from the product page's, and a
   // wrong selector fails silently — the toast simply never hides over the form.
   assert.match(LANDING_PAGE, /formSelector="#checkout-form"/);
-  // The toast stays off the hero like the sticky bar; the landing page marks
-  // its first section, and every section kind must carry the mark.
+  // The toast stays off the first screen like the sticky bar. The hero is a
+  // viewport-tall marker at the top of the page, not the first section: a
+  // merchant section can be a whole page tall, which hid the toast everywhere.
   assert.match(LANDING_PAGE, /heroSelector="\[data-landing-hero\]"/);
-  assert.match(LANDING_PAGE, /index === 0 \? \{ 'data-landing-hero': '' \}/);
-  assert.equal(
-    (LANDING_PAGE.match(/<section class=/g) ?? []).length,
-    0,
-    "a landing section rendered without {...heroMark} could never be the hero",
-  );
+  assert.match(LANDING_PAGE, /<div data-landing-hero aria-hidden="true" class="[^"]*\babsolute\b[^"]*\btop-0\b[^"]*\bh-screen\b/);
+  assert.doesNotMatch(LANDING_PAGE, /heroMark/);
   assert.ok(
     LANDING_PAGE.includes('id="checkout-form"'),
     "the landing page must still render the #checkout-form anchor the toast watches",

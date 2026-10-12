@@ -138,10 +138,11 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
   />
 
   {/* A landing page is an ad destination, so it wants the proof more than the
-      catalogue page does. Its hero is whatever section the merchant put first,
-      marked `data-landing-hero` below; the toast stays off it and off the
-      checkout form, like the sticky bar. A page that opens on its form has no
-      hero to mark, and the form blocker covers it. */}
+      catalogue page does. It stays off the first screen and off the checkout
+      form, like the sticky bar. The hero is the first screen rather than the
+      first section: merchants often paste a whole page into one HTML section,
+      and treating that as the hero kept the toast hidden everywhere. */}
+  <div data-landing-hero aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-screen"></div>
   <SocialProofToast
     orderCount={socialProofOrders}
     heroSelector="[data-landing-hero]"
@@ -150,7 +151,6 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
 
   {
     page.sections.map((section, index) => {
-      const heroMark = index === 0 ? { 'data-landing-hero': '' } : {};
       if (section.type === 'html') {
         // Only the page's first section may hold the LCP image; every image
         // after it waits for the scroll.
@@ -158,15 +158,15 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
           parseShortcodes(section.content_html ?? '', product, csPhone),
           index === 0,
         );
-        return <section {...heroMark} class="lp-section" set:html={parsedHtml} />;
+        return <section class="lp-section" set:html={parsedHtml} />;
       }
       const config = section.content_config;
-      if (section.type === 'headline' && config && 'text' in config) return <section {...heroMark} class={`lp-section lp-align-${config.align ?? 'left'}`}><h2 class={`lp-headline-${config.size ?? 'medium'}`}>{config.text}</h2></section>;
-      if (section.type === 'paragraph' && config && 'text' in config) return <section {...heroMark} class={`lp-section lp-align-${config.align ?? 'left'}`}><p class="lp-body">{config.text}</p></section>;
+      if (section.type === 'headline' && config && 'text' in config) return <section class={`lp-section lp-align-${config.align ?? 'left'}`}><h2 class={`lp-headline-${config.size ?? 'medium'}`}>{config.text}</h2></section>;
+      if (section.type === 'paragraph' && config && 'text' in config) return <section class={`lp-section lp-align-${config.align ?? 'left'}`}><p class="lp-body">{config.text}</p></section>;
       if ((section.type === 'numbered_list' || section.type === 'bullet_list') && config && 'items' in config) {
-        return <section {...heroMark} class="lp-section">{section.type === 'numbered_list' ? <ol>{config.items.map((item) => <li>{item}</li>)}</ol> : <ul>{config.items.map((item) => <li>{item}</li>)}</ul>}</section>;
+        return <section class="lp-section">{section.type === 'numbered_list' ? <ol>{config.items.map((item) => <li>{item}</li>)}</ol> : <ul>{config.items.map((item) => <li>{item}</li>)}</ul>}</section>;
       }
-      if (section.type === 'image' && config && 'src' in config) return <section {...heroMark} class="lp-section"><img src={config.src} alt={config.alt} loading="lazy" decoding="async" /></section>;
+      if (section.type === 'image' && config && 'src' in config) return <section class="lp-section"><img src={config.src} alt={config.alt} loading="lazy" decoding="async" /></section>;
       // Only a form section renders a form. While `type` was `'html' | 'form'`
       // the final `return` was a safe else; with seven kinds it is a trap —
       // any typed section whose stored config failed to parse would fall

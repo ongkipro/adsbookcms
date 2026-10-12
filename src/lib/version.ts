@@ -8,8 +8,9 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.5.3",
+  version: "1.5.4",
   channel: "production",
+  // 1.5.4: a landing page's hero is its first screen, not its first section.
   // 1.5.3: the toast stays off a CMS landing page's first section (its hero).
   // 1.5.2: social-proof toast redesign, fleet:status (A-51), island-test race.
   // 1.5.1: browser Meta events ordered behind the single pixel init.

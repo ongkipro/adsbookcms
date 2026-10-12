@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-12 @ `ad87497` + 1.5.3 working tree
+> Verified against disk: 2026-10-12 @ `b827004` + 1.5.4 working tree
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6511,3 +6511,18 @@ its form has no hero, and the form blocker covers it) and the toast watches
 `[data-landing-hero]`. The toast's own logic is unchanged.
 `social-proof-toast.test.ts` asserts the selector and that no landing section
 renders without the mark.
+
+### 2026-10-12 — Release 1.5.4: a landing page's hero is its first screen
+
+1.5.3 treated a CMS landing page's first section as its hero. On live
+taniniaga.shop `/aussie-sawit` the merchant had pasted the whole page into one
+HTML section 3387 px tall with the form directly after it, so the hero and the
+form between them covered every scroll position and the toast never showed
+(390 px, Chrome: opacity 0 at the top, after the section and at the form).
+The page now renders a viewport-tall `data-landing-hero` marker at the top of
+the page (`absolute top-0 h-screen`, no positioned ancestor in `BaseLayout`)
+and the toast watches it, so it stays off the first screen whatever the
+merchant's sections look like. Checked on the same live page with the marker
+injected: at the top, 844 px tall, intersecting at scroll 0 and clear by
+scroll 900, well before the form at 3387. `social-proof-toast.test.ts`
+asserts the marker and that no per-section mark remains.

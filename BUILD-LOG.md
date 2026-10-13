@@ -6526,3 +6526,16 @@ merchant's sections look like. Checked on the same live page with the marker
 injected: at the top, 844 px tall, intersecting at scroll 0 and clear by
 scroll 900, well before the form at 3387. `social-proof-toast.test.ts`
 asserts the marker and that no per-section mark remains.
+
+### 2026-10-13 — Admin changelog caught up to 1.5.4
+
+The admin "What's new" modal (`ChangelogModal.tsx`) still led with an
+unnumbered "1.4.0+" entry through 1.5.0–1.5.4, because nothing tied it to
+`version.ts`. It now carries 1.5.0 (the post-1.4.0 fixes it used to list, plus
+the mobile order button, variant id over SKU, GA4 item price and quantity, the
+SPX courier and the generated session key), 1.5.1 (browser Meta events wait for
+the pixel init), 1.5.2 (toast card), 1.5.3 and 1.5.4 (toast off the landing
+hero, then off the first screen). New `changelog.test.ts` fails when the first
+entry is not `CMS_VERSION.version` with its `releaseTag`, when a version is
+listed twice, or when more than one entry is marked latest. No version bump:
+the running code is unchanged. 818 passing.

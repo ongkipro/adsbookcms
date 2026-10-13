@@ -24,17 +24,99 @@ interface ChangelogRelease {
   changes: ChangelogItem[];
 }
 
-// Written from the repository's own record (git history, RELEASE.md, STATUS.md
-// rollouts) — an operator reads this as fact. Every 1.3.x release after 1.3.1
-// and 1.4.0 shipped to the fleet on 27 August; nothing has been numbered since,
-// so later work is listed as what it is: running, not yet versioned.
+// Written from the repository's own record (git history, RELEASE.md, BUILD-LOG)
+// — an operator reads this as fact. The first entry is the running version:
+// changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.4.0+",
-    date: "Sampai 30 September 2026",
+    version: "1.5.4",
+    date: "12 Oktober 2026",
+    releaseTag: "2026.10-fleet-status",
     isLatest: true,
-    highlight: "Perbaikan sesudah 1.4.0 yang sudah berjalan di toko, belum diberi nomor versi.",
+    highlight: "Notifikasi bukti sosial tidak menutupi layar pertama landing.",
     changes: [
+      {
+        title: "Layar pertama, bukan section pertama",
+        description:
+          "Di landing CMS, notifikasi menunggu sampai pembeli menggulir melewati layar pertama, apa pun isi section pertamanya. Landing yang seluruh isinya ditaruh dalam satu section kini juga menampilkan notifikasi.",
+      },
+    ],
+  },
+  {
+    version: "1.5.3",
+    date: "12 Oktober 2026",
+    releaseTag: "2026.10-fleet-status",
+    highlight: "Notifikasi bukti sosial di landing CMS ikut menghindari hero.",
+    changes: [
+      {
+        title: "Seperti tombol sticky",
+        description:
+          "Landing CMS menyembunyikan notifikasi di atas hero dan di atas form, sama seperti landing native dan halaman produk.",
+      },
+    ],
+  },
+  {
+    version: "1.5.2",
+    date: "12 Oktober 2026",
+    releaseTag: "2026.10-fleet-status",
+    highlight: "Tampilan baru notifikasi bukti sosial.",
+    changes: [
+      {
+        title: "Kartu yang lebih jelas",
+        description:
+          "Latar putih solid, jumlah pemesan ditebalkan dengan \"dalam 24 jam terakhir\" di baris kedua, dan ikon dengan penanda live yang berhenti berdenyut bila perangkat meminta gerak dikurangi.",
+      },
+      {
+        title: "Aturan tetap",
+        description:
+          "Hanya order nyata, sekali per kunjungan, tersembunyi di hero, di form, dan saat pembeli mengisi form.",
+      },
+    ],
+  },
+  {
+    version: "1.5.1",
+    date: "12 Oktober 2026",
+    releaseTag: "2026.10-checkout-tracking",
+    highlight: "Event Meta dari browser tidak lagi hilang sebelum pixel siap.",
+    changes: [
+      {
+        title: "Urutan pixel Meta",
+        description:
+          "ViewContent, AddToCart, InitiateCheckout dan Purchase dari browser menunggu inisialisasi pixel (dengan advanced matching), sehingga tidak ada event yang terbuang dan pasangan browser–server tetap cocok.",
+      },
+    ],
+  },
+  {
+    version: "1.5.0",
+    date: "11 Oktober 2026",
+    releaseTag: "2026.10-checkout-tracking",
+    highlight: "Semua perbaikan sejak 1.4.0 diberi nomor versi, ditambah pelacakan checkout dan tombol order mobile.",
+    changes: [
+      {
+        title: "Tombol order di HP",
+        description:
+          "Tombol \"Buat Order\" selalu merespons ketukan: form kosong langsung memfokuskan field yang belum diisi, dan isian autofill langsung mengaktifkan tombol.",
+      },
+      {
+        title: "Varian yang benar di order",
+        description:
+          "Bila SKU sebuah varian sama dengan id varian lain, id varian yang menang, sehingga order masuk dengan varian yang dipilih pembeli.",
+      },
+      {
+        title: "Data ecommerce GA4/GTM",
+        description:
+          "Item di dataLayer membawa harga satuan dan jumlah, dan GTM noscript ikut terpasang.",
+      },
+      {
+        title: "Kurir SPX",
+        description:
+          "SPX (Shopee Express) dari Mengantar tersedia di pengaturan ekspedisi.",
+      },
+      {
+        title: "Kunci sesi otomatis",
+        description:
+          "Toko baru tidak perlu membuat AUTH_SECRET sendiri; Worker membuat kunci sesi admin pada pemakaian pertama.",
+      },
       {
         title: "Redirect 301 landing ke halaman produk",
         description:

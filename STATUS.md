@@ -1,6 +1,58 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-09-30 @ `dd83acd` + working tree (fleet rollout, landing/form/courier/signal fixes)
+> Verified against disk: 2026-10-16 @ `fd652b4` (1.5.9 on ten installs; zvarashop held)
+
+## 2026-10-16 — 1.5.9 on ten installs; zvarashop still held
+
+- **Fleet.** The ten installs below run 1.5.9 (`fd652b4`): 0 behind, schema
+  62/62, `/` and `/produk` answer 200. Each passed `check` (0 errors) and
+  `test` (0 failing) before deploy; permatamall and zanobyshop deployed
+  through Actions (success).
+- **One h1.** A live scan after deploy counted one `<h1>` on taniniaga
+  `/saratoga` and `/aussie-sawit`, zanobyshop `/bibit` and `/lem-jaysuing`,
+  and agritani `/perisai-anti-bulai`.
+- **agritani.shop configured.** Four products imported from taniniaga, plus
+  Mengantar key, warehouse, couriers, support WhatsApp, fee bearers and the
+  BCA account set to match taniniaga. Pixel/CAPI and logo are still empty,
+  and no end-to-end order has been placed yet.
+- **zvarashop** is unchanged from the entry below: repo at 1.5.5, production
+  on its 2026-10-14 version with `0069`–`0073` applied. Those migrations are
+  data-only, and production carries 55 native landing rows that are absent
+  from the repo's register. Deploying the repo as it stands would let the
+  hourly reconcile delete them. It waits on the device that deployed it
+  pushing its code and migrations.
+
+## 2026-10-15 — 1.5.5 and 1.5.6 on ten installs; zvarashop held
+
+- **Fleet.** agritani-shop, beranda-tani, carukesi, klikinaja,
+  numaskin-adbook, permatamall, revenleather, skincarebpom, taniniaga and
+  zanobyshop run 1.5.6 (`f3770e7`): 0 behind the product, schema 62/62, `/`
+  and `/produk` answer 200 on every host, and each passed `check` (0 errors)
+  and `test` (0 failing) before deploy. `fleet:status` agrees.
+- **New on the line.** `agritani.shop` (`ongkipro/agritani-shop`, branch
+  `install/agritani-shop`, Worker `agritani-shop`) was installed today; the
+  owner ran `/install` (store "Agritani Store"). Support WhatsApp, warehouse,
+  Mengantar/AutoLaris keys, couriers, Pixel/Ads and products are not set yet.
+  `page.numaskin.id` (`ongkipro/numaskin-adbook`, `main`, manual deploy) was
+  set up by another session the same day and moved 1.5.4 → 1.5.6 here.
+- **zvarashop held.** Its production D1 has `0069`–`0073` applied from another
+  device; those files are in no repository. The 1.5.5 deploy answered 503 and
+  was rolled back with `wrangler rollback`; it runs its 2026-10-14 version.
+  `origin/install/zvarashop` carries the 1.5.5 merge (`6006be7`), undeployed.
+  The 1.5.6 preflight refuses that deploy by name. Unblocked only when the
+  five files are committed from the source device.
+- **RTS risk.** Mengantar's Receiver Score is whitelist-only; every store key
+  gets `403 Not allowed`. Since 1.5.5 the order detail and the
+  `receiver-score` health signal say so, and the hourly backfill catches up
+  once an account is whitelisted. Taniniaga and carukesi each recorded one
+  refusal in production after deploy, as designed.
+- **Open.**
+  - Ask Mengantar CS to whitelist Receiver Score for each store account.
+  - permatamall and zanobyshop deploy from GitHub Actions with a bare
+    `wrangler deploy`, so the ledger preflight does not run there; their
+    ledgers were checked by hand this time.
+  - The 1.5.6 order-detail change (no "Skor Mengantar -") was not seen in a
+    browser.
 
 ## 2026-09-30 — three installs on the product line; landing, form, courier and signal fixes
 
@@ -430,14 +482,19 @@ is deliberately per store: `zanobyshop` carries a navy accent, `zvarashop` an
 orange one, and `zanobyshop` also owns its `landing.css`. `landing-safelist.html`
 is generated per store from that store's own D1.
 
-| Install | Repository | Adopts the product by | State |
+| Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh` — **no shared history**, the sync replaces the tree and re-applies a store palette | on `46c6fea` (product `7b0a1ab`, manually deployed after Actions billing failure, 2026-08-25) |
-| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on branch `install/carukesi` | on `47a4ca6` (product `7b0a1ab`, merged/manually deployed 2026-08-25) |
-| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on branch `install/skincarebpom` | on `77d672d` (product `7b0a1ab`, merged/manually deployed 2026-08-25) |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` | on `d813270` (product `7b0a1ab`, merged/manually deployed 2026-08-25) |
-| `zvara.shop` | `ongkipro/zvarashop` | `scripts/sync-from-product.sh` — its history diverged from the product, so it syncs rather than merges | on `21102d3` (product `7b0a1ab`, merchant native landing preserved, manually deployed 2026-08-25) |
-| `permatamall.shop` | `ongkipro/permatamall` | `scripts/sync-from-product.sh` — shares no history with the product (it is the codebase the product was extracted from) | on `a8b80d2` (product `7b0a1ab`, manually deployed after Actions billing failure, 2026-08-25) |
+| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.9 on `621d14d`, installed 2026-10-15 |
+| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.9 on `e0e6a35` |
+| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.9 on `9c6fb46` |
+| `klikinaja.ongki.workers.dev` | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.9 on `b2b8f92` |
+| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.9 on `9b3d4cd` |
+| `permatamall.shop` | `ongkipro/permatamall` | `git merge product/main` on `main`; GitHub Actions deploys on push | 1.5.9 on `2592e9b` |
+| `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.9 on `545d946` |
+| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.9 on `722c711` |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.5.9 on `0de1f23` |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.5.9 on `1e6c89b` |
+| `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | **held**: repo at 1.5.5 (`6006be7`), live on its 2026-10-14 version, D1 ledger 74 vs 69 files — see the 2026-10-15 entry |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more
 (ADR-016). Older installs keep legacy `cmsads-*` names on their Cloudflare
@@ -451,9 +508,9 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **769 / 769 passing** (2026-09-26) |
+| `npm test` | **835 / 835 passing** (2026-10-16, `fd652b4`) |
 | `npm run check` | 0 errors · 0 warnings · 0 hints |
-| `npm run build` | Cloudflare server bundle complete; 60 bundled migrations |
+| `npm run build` | Cloudflare server bundle complete; 62 bundled migrations |
 | PageSpeed Insights, mobile, official API (2026-08-24) | taniniaga 96 · carukesi 95 · permatamall 94 · zanobyshop 92 · skincarebpom 89 · zvara 85 — CLS 0.00 on every store |
 | Lighthouse accessibility, `/payment` & `/thanks` (2026-08-24) | 100, zero failed audits, on both pages on every install |
 | Browser smoke | A fresh isolated install exposed all ten default couriers through `/api/admin/expeditions`. `/admin/orders/abandoned` rendered its shadcn Card/Badge/Button/Dialog composition at 390, 768, and 1280 CSS px with zero overflow, no stuck busy state, no failed request, and no console error. A populated lead opened the conversion Dialog, focused the invalid address, and returned focus after `Escape`. A separate isolated owner session on `/admin/balance` rendered pending and locked AutoLaris rows, blocked blank manual-confirmation submission with focused inline errors, and an already-confirmed payment redirected `/payment` to `/thanks` with zero console errors. No live provider request, deployment, or remote D1 mutation occurred. |

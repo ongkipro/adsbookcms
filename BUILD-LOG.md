@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-12 @ `b827004` + 1.5.4 working tree
+> Verified against disk: 2026-10-16 @ `fd652b4`
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6601,6 +6601,37 @@ files are committed.
   - Order detail no longer prints "Skor Mengantar -".
 
 Verified: `astro check` 0 errors; 833 passing; build.
+
+## 2026-10-15 — 1.5.5 and 1.5.6 rolled out; two installs join the line
+
+- **Rollout.** Ten installs merged the product, passed `check` (0 errors) and
+  `test` (0 failing; 833–836 by install), deployed and answered 200 on `/` and
+  `/produk`: agritani-shop, beranda-tani, carukesi, klikinaja,
+  numaskin-adbook, permatamall, revenleather, skincarebpom, taniniaga,
+  zanobyshop. `fleet:status`: 1.5.6, 0 behind, schema 62/62 on each. The 1.5.6
+  preflight reported "62 applied, all in this tree" on the eight installs
+  deployed by hand.
+- **Actions installs.** permatamall and zanobyshop deploy on push to `main`
+  with a bare `wrangler deploy`, which skips the preflight; their production
+  ledgers were compared by hand first (nothing missing). Moving those workflows
+  onto `npm run deploy` is open.
+- **Merges.** Generated route-map files were regenerated rather than resolved
+  by hand. Install-owned `RELEASE.md` kept its install side on zvarashop and
+  permatamall; zvarashop's `version.ts` keeps `schemaVersion: 69`.
+- **zvarashop held** (see the 1.5.6 entry): `6006be7` is pushed but not
+  deployed; the preflight names `0069`–`0073` and refuses.
+- **agritani.shop installed.** New Worker `agritani-shop` with its own D1
+  (`agritani-shop-d1`), KV (`agritani-shop-session`) and R2
+  (`agritani-shop-assets`); `agritani.shop` and `www` as custom domains,
+  `workers_dev` off; install token held in the owner's secrets store. The
+  owner completed `/install` ("Agritani Store"). Store configuration and
+  catalogue are still empty. Unrelated to the separate `agritani.com` site and
+  its resources, which were not touched.
+- **numaskin-adbook** (`page.numaskin.id`), set up by another session the same
+  day, taken from 1.5.4 to 1.5.6 with the rest.
+- **In production.** After deploy the hourly backfill on taniniaga and carukesi
+  recorded one Receiver Score refusal each and stopped, as designed. Scores
+  return only once Mengantar CS whitelists each account.
 
 ## 2026-10-15 — 1.5.7: a CMS landing page opens with an eager hero and its own h1
 

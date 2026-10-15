@@ -709,6 +709,10 @@ test("a CMS landing page opens with an eager hero image and its own h1", () => {
   const route = readFileSync("src/pages/[slug].astro", "utf8");
   // The layout renders no <h1> on a landing page; the first headline section is it.
   assert.match(route, /section\.id === firstHeadlineSectionId \? 'h1' : 'h2'/);
+  // Never a second h1 beside one an html section already wrote, and never the
+  // id of a headline whose config does not render.
+  assert.match(route, /const firstHeadlineSectionId = htmlCarriesH1\s*\?\s*undefined/);
+  assert.match(route, /section\.type === 'headline' &&\s*section\.content_config !== null &&\s*'text' in section\.content_config/);
   // An image section that opens the page is the LCP and must not wait for the scroll.
   assert.match(route, /index === 0\s*\?\s*<section class="lp-section"><img[^>]*loading="eager" fetchpriority="high"/);
 });

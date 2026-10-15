@@ -80,8 +80,20 @@ const csPhone = await getStoreSupportWhatsapp(Astro.locals);
 const formSections = page.sections.filter((section) => section.type === 'form');
 const firstFormSectionId = formSections[0]?.id;
 // The page's own title. The layout renders no <h1> on a landing page, so the
-// first headline section is the one; every later headline stays an <h2>.
-const firstHeadlineSectionId = page.sections.find((section) => section.type === 'headline')?.id;
+// first headline section that will actually render is the one; every later
+// headline stays an <h2>. An html section that already carries an <h1> keeps
+// it, and no typed headline is promoted beside it.
+const htmlCarriesH1 = page.sections.some(
+  (section) => section.type === 'html' && /<h1[\s>]/i.test(section.content_html ?? ''),
+);
+const firstHeadlineSectionId = htmlCarriesH1
+  ? undefined
+  : page.sections.find(
+      (section) =>
+        section.type === 'headline' &&
+        section.content_config !== null &&
+        'text' in section.content_config,
+    )?.id;
 
 // Clean title and description: focus strictly on product name without redundant "landing page" text
 const rawTitle = page.meta_title || page.title || product.seoTitle || product.productName;

@@ -29,10 +29,23 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.5.7",
+    version: "1.5.8",
     date: "15 Oktober 2026",
     releaseTag: "2026.10-landing-hero-h1",
     isLatest: true,
+    highlight: "Judul utama landing page tidak pernah dobel.",
+    changes: [
+      {
+        title: "Satu H1 per landing page",
+        description:
+          "Bila section HTML sudah memuat judul H1, section headline tidak lagi ikut menjadi H1. Headline yang datanya rusak dan tidak tampil juga tidak dipilih sebagai judul utama.",
+      },
+    ],
+  },
+  {
+    version: "1.5.7",
+    date: "15 Oktober 2026",
+    releaseTag: "2026.10-landing-hero-h1",
     highlight: "Gambar pembuka landing page tampil lebih cepat, dan judul pertamanya menjadi judul utama halaman.",
     changes: [
       {

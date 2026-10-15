@@ -8,8 +8,9 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.5.7",
+  version: "1.5.8",
   channel: "production",
+  // 1.5.8: the landing h1 is never a second one, nor a headline that does not render.
   // 1.5.7: a CMS landing page opens with an eager hero image and its own h1.
   // 1.5.6: deploy preflight compares the D1 ledger; receiver-score review fixes.
   // 1.5.5: Receiver Score whitelist surfaced, provider summary, hourly backfill.

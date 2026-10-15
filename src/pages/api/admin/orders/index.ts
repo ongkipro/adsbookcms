@@ -15,7 +15,7 @@ import {
   updateAdminOrderShippingStatuses,
 } from '../../../../lib/order-lifecycle.ts';
 import type { AdminShippingStatus } from '../../../../lib/order-lifecycle.ts';
-import { scheduleReceiverPerformanceRefresh } from '../../../../lib/rts-scoring.ts';
+import { isRecentReceiverRefusal, scheduleReceiverPerformanceRefresh } from '../../../../lib/rts-scoring.ts';
 import {
   ADMIN_CUSTOM_DATE_FILTER,
   isAdminDateFilter,
@@ -60,6 +60,7 @@ type OrderRow = {
   pickup_address_id: string | null;
   receiver_delivery_rate: number | null;
   receiver_risk_label: string | null;
+  receiver_refused_at: string | null;
   ad_click_ids: string | null;
   created_at: string;
 };
@@ -274,6 +275,8 @@ export const GET: APIRoute = async ({ url, locals }) => {
           ) AS pickup_address_id,
           receiver_rts_score AS receiver_delivery_rate,
           rts_risk_label AS receiver_risk_label,
+          CASE WHEN json_valid(receiver_performance_json)
+            THEN json_extract(receiver_performance_json, '$.at') END AS receiver_refused_at,
           ad_click_ids,
           created_at
         FROM orders
@@ -323,7 +326,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
     const rows = (rowResult.results ?? []) as OrderRow[];
     for (const row of rows.slice(0, 10)) {
-      if (row.receiver_risk_label === null && row.customer_phone) {
+      if (row.receiver_risk_label === null && row.customer_phone && !isRecentReceiverRefusal(row.receiver_refused_at)) {
         scheduleReceiverPerformanceRefresh(db, row.order_number, row.customer_phone, locals);
       }
     }

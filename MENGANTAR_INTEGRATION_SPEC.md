@@ -130,7 +130,9 @@ Behavior:
 - classify operational risk on the same 40/70 thresholds, as locally derived guidance;
 - a receiver with no history is checked and `UNKNOWN`, not a parse failure;
 - a `403 Not allowed` is `MengantarNotWhitelistedError`: the order keeps no label and stores `{"unavailable":"not-whitelisted","at":…}` so the order detail and the `receiver-score` health signal say why, and the manual refresh answers with the same message;
-- the hourly cron backfills up to 20 unscored, non-abandoned orders from the last 30 days, stopping at the first refusal (one call an hour for an account without access);
+- the hourly cron backfills up to 20 unscored orders (not abandoned or cancelled) from the last 30 days, stopping at the first refusal (one call an hour for an account without access), after two other failures in a row, or after 30 seconds;
+- an admin page view does not re-ask for an order refused within the last hour; the backfill is the retry path;
+- a `summary.average_number` that is not a number in 0–10 is ignored and the rate comes from the counts, so a malformed summary never reads as 0 (HIGH);
 - refresh checkout snapshots through Cloudflare `waitUntil()` so customer persistence does not wait on the read-only provider lookup;
 - avoid fabricated fallback scores when the provider is unavailable.
 

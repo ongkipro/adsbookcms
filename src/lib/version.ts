@@ -8,8 +8,9 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.5.5",
+  version: "1.5.6",
   channel: "production",
+  // 1.5.6: deploy preflight compares the D1 ledger; receiver-score review fixes.
   // 1.5.5: Receiver Score whitelist surfaced, provider summary, hourly backfill.
   // 1.5.4: a landing page's hero is its first screen, not its first section.
   // 1.5.3: the toast stays off a CMS landing page's first section (its hero).

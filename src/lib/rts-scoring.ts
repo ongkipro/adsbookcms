@@ -42,10 +42,23 @@ export async function recordReceiverScoreUnavailable(
     .run();
 }
 
+/**
+ * A refusal this recent is not retried from an admin page view: the list
+ * would otherwise re-ask Mengantar for ten rows on every load and get ten
+ * 403s. The hourly backfill is the retry path.
+ */
+export const RECEIVER_REFUSAL_RETRY_MS = 60 * 60 * 1000;
+
+export function isRecentReceiverRefusal(refusedAt: string | null | undefined, now = Date.now()): boolean {
+  const at = refusedAt ? Date.parse(refusedAt) : NaN;
+  return Number.isFinite(at) && now - at < RECEIVER_REFUSAL_RETRY_MS;
+}
+
 /** Splits the stored column into a score or the reason there is none. */
 export function readStoredReceiverPerformance(json: string | null): {
   receiver_performance: unknown;
   receiver_performance_unavailable: string | null;
+  receiver_performance_refused_at: string | null;
 } {
   let parsed: unknown = null;
   try { parsed = json ? JSON.parse(json) : null; } catch { parsed = null; }
@@ -55,6 +68,9 @@ export function readStoredReceiverPerformance(json: string | null): {
   return {
     receiver_performance: unavailable ? null : parsed,
     receiver_performance_unavailable: unavailable,
+    receiver_performance_refused_at: unavailable
+      ? String((parsed as { at?: unknown }).at ?? '') || null
+      : null,
   };
 }
 
@@ -101,23 +117,28 @@ export const RECEIVER_SCORE_BACKFILL_LIMIT = 20;
  * Hourly catch-up for orders that never got a score: a refusal before the
  * account was whitelisted, a timeout, or an order nobody opened in /admin.
  * Stops at the first refusal, so an account without access costs one call an
- * hour, not twenty.
+ * hour, not twenty; and after two failures in a row or 30 seconds, so a slow
+ * Mengantar cannot hold the health check and alerts behind it for minutes.
  *
  * lazy: an order whose lookup keeps failing for another reason is retried
  * every hour until it leaves the 30-day window. Upgrade path: an attempt
  * counter column if that ever crowds out new orders.
  */
+export const RECEIVER_SCORE_BACKFILL_BUDGET_MS = 30_000;
+
 export async function backfillReceiverScores(
   database: D1Database,
   locals: App.Locals,
   limit = RECEIVER_SCORE_BACKFILL_LIMIT,
+  budgetMs = RECEIVER_SCORE_BACKFILL_BUDGET_MS,
 ): Promise<number> {
+  const deadline = Date.now() + budgetMs;
   if (!(await getProviderConfig(database, locals)).mengantar.apiKey) return 0;
   const { results } = await database
     .prepare(
       `SELECT order_number, customer_phone FROM orders
        WHERE receiver_performance_checked_at IS NULL
-         AND shipping_status <> 'abandoned'
+         AND COALESCE(shipping_status, '') NOT IN ('abandoned', 'cancelled')
          AND length(customer_phone) >= 9
          AND date(created_at) >= date('now', '-30 days')
        ORDER BY id DESC LIMIT ?`,
@@ -126,13 +147,18 @@ export async function backfillReceiverScores(
     .all<{ order_number: string; customer_phone: string }>();
 
   let scored = 0;
+  let failedInARow = 0;
   for (const row of results ?? []) {
+    if (Date.now() >= deadline) break;
     try {
       await refreshOrderReceiverPerformance(database, row.order_number, row.customer_phone, locals);
       scored += 1;
+      failedInARow = 0;
     } catch (error) {
       if (error instanceof MengantarNotWhitelistedError) break;
       console.error('receiver-score-backfill-failed', { orderNumber: row.order_number, error });
+      failedInARow += 1;
+      if (failedInARow >= 2) break;
     }
   }
   return scored;

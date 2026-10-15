@@ -90,3 +90,17 @@ test('an approximate grade keeps its prefix and still classifies', () => {
   assert.equal(result.grade, '≈E-');
   assert.equal(result.riskLevel, 'HIGH');
 });
+
+test('a summary average that is not a 0-10 number falls back to the counts, never to 0', () => {
+  for (const average_number of ['', false, 85, '7,4', {}]) {
+    const result = parseReceiverPerformance({
+      JNE: { total: 10, delivered: 8, rts: 2, undelivered: 0 },
+      summary: { average_number, average_score: 'B' },
+    }, '08123456789');
+    assert.equal(result.deliveryRate, 80, String(average_number));
+  }
+  const empty = parseReceiverPerformance({ JNE: {}, summary: { average_number: '', average_score: '-' } }, '08123456789');
+  assert.equal(empty.deliveryRate, null);
+  assert.equal(empty.riskLevel, 'UNKNOWN');
+  assert.equal(parseReceiverPerformance({ JNE: {}, summary: { average_number: '6.5' } }, '0812').deliveryRate, 65);
+});

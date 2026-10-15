@@ -6574,3 +6574,30 @@ summary ("Skor Mengantar A", 100%, at 390px); an order set to the refused state
 showed the whitelist notice in its detail and the `receiver-score` signal read
 "Bermasalah" with one refused order. Not observed: a whitelisted account's
 live response.
+
+## 2026-10-15 — 1.5.6: deploy preflight reads the D1 ledger; receiver-score review fixes
+
+Rolling 1.5.5 out took zvara.shop down for about two minutes: its production
+D1 had `0069`–`0073` applied and deployed on 2026-10-13/14 from another
+device, never pushed, so the bundle from the pushed branch met an ahead
+history and answered 503 on every database route. Rolled back with
+`wrangler rollback`; zvarashop stays on its 2026-10-14 version until those
+files are committed.
+
+- **Preflight, third refusal.** `findUnbundledMigrations` (tested) compares
+  production `d1_migrations` (read with `wrangler d1 execute --remote`) with
+  `src/db/migrations`. Not overridable. Run against the real zvarashop config
+  it named all five files and refused; against taniniaga it passed with
+  "62 applied, all in this tree".
+- **Review of 1.5.5** (independent subagent, read-only):
+  - `summary.average_number` that is not a 0–10 number (`""`, `false`, `85`)
+    falls back to the counts; `Number("")` had made a no-history receiver
+    HIGH and stamped it checked.
+  - Admin list and detail views skip an order refused within the last hour
+    (`isRecentReceiverRefusal`); the list re-asked for ten rows per load.
+  - Backfill stops after two non-refusal failures in a row or 30 seconds, so
+    a slow Mengantar cannot delay the health check and alerts by minutes; it
+    also skips cancelled orders and NULL statuses no longer drop out.
+  - Order detail no longer prints "Skor Mengantar -".
+
+Verified: `astro check` 0 errors; 833 passing; build.

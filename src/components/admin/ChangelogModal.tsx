@@ -29,10 +29,28 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.5.5",
+    version: "1.5.6",
     date: "15 Oktober 2026",
     releaseTag: "2026.10-fleet-status",
     isLatest: true,
+    highlight: "Deploy menolak bila database produksi punya migrasi yang tidak ada di kode.",
+    changes: [
+      {
+        title: "Deploy tidak lagi bisa mematikan toko",
+        description:
+          "Sebelum upload, pemeriksaan deploy membandingkan migrasi yang sudah dijalankan di database produksi dengan file di kode. Bila ada yang hilang, deploy dihentikan dan nama migrasinya disebutkan.",
+      },
+      {
+        title: "Skor penerima lebih hemat dan tahan salah",
+        description:
+          "Order yang baru ditolak Mengantar tidak dicek ulang setiap kali halaman dibuka, pengecekan per jam berhenti saat Mengantar lambat, dan ringkasan skor yang tidak wajar tidak lagi terbaca sebagai risiko tinggi.",
+      },
+    ],
+  },
+  {
+    version: "1.5.5",
+    date: "15 Oktober 2026",
+    releaseTag: "2026.10-fleet-status",
     highlight: "Risiko RTS memberi tahu saat Mengantar menolak akses, dan menyusul sendiri setelah dibuka.",
     changes: [
       {

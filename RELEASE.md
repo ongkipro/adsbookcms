@@ -156,10 +156,10 @@ Two registries, currently in step:
 
 | Source | Field | Value |
 | --- | --- | --- |
-| `src/lib/version.ts` | `version` | `1.5.5` |
+| `src/lib/version.ts` | `version` | `1.5.6` |
 | `src/lib/version.ts` | `releaseTag` | `2026.10-fleet-status` |
 | `src/lib/version.ts` | `schemaVersion` | `62` |
-| `package.json` | `version` | `1.5.5` |
+| `package.json` | `version` | `1.5.6` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
@@ -283,7 +283,7 @@ anyway, because they are what an install shows before the wizard runs.
 **Confirm the target before deploying.** `npx wrangler deploy --dry-run` prints the resolved Worker name, bindings and routes. If it prints a database or KV id of all zeros, the merge overwrote the install's configuration — stop and restore it. (Since ADR-026 the template's *names* — `adsbookcms`, `adsbookcms-d1` — are real defaults a one-click install may keep, so only the ids are a signal.)
 
 **Both checks are mechanical.** `npm run deploy` and `npm run cf:deploy`
-run `preflight:deploy` first (npm's `pre*` hook), and it refuses twice over:
+run `preflight:deploy` first (npm's `pre*` hook), and it refuses three times over:
 
 - **the config** — when the Worker name, a D1 database name or id, or an R2
   bucket name is still the product's placeholder. Not overridable; in **this**
@@ -297,6 +297,12 @@ run `preflight:deploy` first (npm's `pre*` hook), and it refuses twice over:
   live landing page removed by a stale clone. Nothing failed either time.
   `ALLOW_STALE_DEPLOY=1` overrides this half only, and prints in full what it
   is overriding.
+- **the D1 ledger** — when production `d1_migrations` holds a migration this
+  tree does not have (read with `wrangler d1 execute --remote`). The new
+  Worker would answer 503 on every database route: zvarashop on 2026-10-15,
+  whose `0069`–`0073` were applied and deployed from another device and never
+  pushed. Not overridable. A fresh database (no ledger table) passes; a ledger
+  that cannot be read is reported and not compared.
 
 It adds no deploy step and holds no credentials. It cannot cover a bare
 `npx wrangler deploy` — wrangler has no pre-deploy hook — so `npm run deploy`

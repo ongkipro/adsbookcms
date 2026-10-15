@@ -1556,7 +1556,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                {order.receiver_performance?.grade
+                {order.receiver_performance?.grade && order.receiver_performance.grade !== "-"
                   ? `Skor Mengantar ${order.receiver_performance.grade} dari seluruh riwayat nomor ini.`
                   : "Paket terkirim dari seluruh riwayat nomor ini."}
               </p>

@@ -1,11 +1,13 @@
 /**
  * Runs before `npm run deploy` / `npm run cf:deploy` (npm `predeploy`).
  *
- * Two refusals, both decided in `src/lib/deploy-preflight.ts` where they are
+ * Three refusals, all decided in `src/lib/deploy-preflight.ts` where they are
  * unit-tested: the config must carry real resource ids, not the product
- * template's all-zero ones (RELEASE.md §7); and the tree must be the branch — not behind
+ * template's all-zero ones (RELEASE.md §7); the tree must be the branch — not behind
  * its upstream, not carrying uncommitted tracked changes — because `wrangler
- * deploy` uploads whatever is on disk and has reverted production twice.
+ * deploy` uploads whatever is on disk and has reverted production twice; and
+ * every migration production D1 has applied must be in this tree, or the new
+ * Worker answers 503 on every database route.
  *
  * It cannot cover a bare `npx wrangler deploy`: wrangler has no pre-deploy
  * hook, so RELEASE.md names `npm run deploy` as the deploy command. Anyone
@@ -13,10 +15,11 @@
  * whole job — it never deploys, and it holds no credentials.
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import {
   checkDeployTarget,
   evaluateDeployPreflight,
+  findUnbundledMigrations,
   parseWranglerConfig,
 } from "../src/lib/deploy-preflight.ts";
 
@@ -48,6 +51,42 @@ if (!targetResult.ok) {
     ].join("\n"),
   );
   process.exit(1);
+}
+
+// The production ledger. A fresh database has no d1_migrations table yet, which
+// is fine; any other failure (no network, no D1 permission) is reported, not
+// guessed at.
+const databaseName = String(target.d1Databases?.[0]?.database_name ?? "");
+if (databaseName) {
+  let ledger: string[] | null = null;
+  try {
+    const raw = execFileSync(
+      "npx",
+      ["wrangler", "d1", "execute", databaseName, "--remote", "--json", "--command", "SELECT name FROM d1_migrations ORDER BY id"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    );
+    const parsed = JSON.parse(raw) as { results?: { name?: unknown }[] }[];
+    ledger = (parsed[0]?.results ?? []).map((row) => String(row.name));
+  } catch (error) {
+    const detail = String((error as { stdout?: unknown }).stdout ?? "") + String((error as { stderr?: unknown }).stderr ?? "");
+    if (/no such table: d1_migrations/.test(detail)) ledger = [];
+    else console.warn("[preflight] could not read the production migration ledger; it was not compared.");
+  }
+  if (ledger) {
+    const bundled = readdirSync(new URL("../src/db/migrations/", import.meta.url)).filter((file) => file.endsWith(".sql"));
+    const missing = findUnbundledMigrations(ledger, bundled);
+    if (missing.length) {
+      console.error("\n[preflight] Refusing to deploy:\n");
+      console.error(`  ✖ Production D1 (${databaseName}) has applied ${missing.length} migration(s) this tree does not have:`);
+      for (const name of missing) console.error(`      ${name}`);
+      console.error(
+        "\n  The Worker would answer 503 on every database route. Bring those files into this\n" +
+          "  checkout from wherever they were applied, commit them, then deploy.\n",
+      );
+      process.exit(1);
+    }
+    console.log(`[preflight] production D1 ledger: ${ledger.length} applied, all in this tree.`);
+  }
 }
 
 // Workers Builds (the Deploy button's pipeline) deploys the pushed commit.

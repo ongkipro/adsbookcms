@@ -11,6 +11,7 @@ import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch';
 import { buildPaymentNotification, recordNotification } from '../../../../lib/notifications';
 import {
   getReceiverPerformance,
+  isRecentReceiverRefusal,
   readStoredReceiverPerformance,
   recordReceiverScoreUnavailable,
   scheduleReceiverPerformanceRefresh,
@@ -248,7 +249,13 @@ export const GET: APIRoute = async ({ params, locals }) => {
         String(getRuntimeEnv(locals)?.MENGANTAR_PICKUP_ADDRESS_ID || '').trim(),
     });
 
-    if (!order.receiver_performance_checked_at && order.customer_phone) {
+    if (
+      !order.receiver_performance_checked_at &&
+      order.customer_phone &&
+      !isRecentReceiverRefusal(
+        readStoredReceiverPerformance(order.receiver_performance_json).receiver_performance_refused_at,
+      )
+    ) {
       scheduleReceiverPerformanceRefresh(db, order.order_number, order.customer_phone, locals);
     }
 

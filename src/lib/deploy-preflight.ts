@@ -200,3 +200,16 @@ export function evaluateDeployPreflight(
 
   return { ok: failures.length === 0, failures, notes };
 }
+
+/*
+ * The third check: the production D1 ledger against the migrations this tree
+ * would bundle. The Worker refuses an applied history it does not know with a
+ * labelled 503 on every database route, so a deploy from a checkout missing a
+ * store migration applied from elsewhere takes the store down. That happened
+ * on 2026-10-15 (zvarashop: 0069–0073 applied and deployed from another
+ * device, never pushed). Not overridable: the outcome is certain.
+ */
+export function findUnbundledMigrations(applied: string[], bundled: string[]): string[] {
+  const onDisk = new Set(bundled);
+  return applied.filter((name) => !onDisk.has(name));
+}

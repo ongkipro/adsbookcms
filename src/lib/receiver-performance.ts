@@ -113,12 +113,17 @@ export function parseReceiverPerformance(
   const denominator = totals.total > 0
     ? totals.total
     : totals.delivered + totals.rts + totals.undelivered;
-  const averageNumber = Number(summary?.average_number);
-  const deliveryRate = !summary
-    ? percent(totals.delivered, denominator)
-    : summary.average_number == null || !Number.isFinite(averageNumber)
-      ? null
-      : Math.round(Math.min(10, Math.max(0, averageNumber)) * 100) / 10;
+  // Only a real 0–10 number is the provider's score. Anything else ("", false,
+  // a percent-scale 85) falls back to the counts: Number("") is 0, which would
+  // brand a receiver with no history HIGH risk for good.
+  const rawAverage = summary?.average_number;
+  const averageNumber = typeof rawAverage === 'number'
+    ? rawAverage
+    : typeof rawAverage === 'string' && rawAverage.trim() ? Number(rawAverage) : NaN;
+  const summaryRate = Number.isFinite(averageNumber) && averageNumber >= 0 && averageNumber <= 10
+    ? Math.round(averageNumber * 100) / 10
+    : null;
+  const deliveryRate = summaryRate ?? percent(totals.delivered, denominator);
   const grade = typeof summary?.average_score === 'string' && summary.average_score.trim()
     ? summary.average_score.trim()
     : null;

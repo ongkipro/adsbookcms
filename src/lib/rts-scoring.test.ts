@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   backfillReceiverScores,
   getReceiverPerformance,
+  isRecentReceiverRefusal,
   readStoredReceiverPerformance,
   scheduleReceiverPerformanceRefresh,
 } from "./rts-scoring.ts";
@@ -234,4 +235,33 @@ test("a store without a Mengantar key makes no call at all", async (context) => 
 
   assert.equal(await backfillReceiverScores(UNCONFIGURED_STORE, { runtimeEnv: {} } as never), 0);
   assert.equal(calls(), 0);
+});
+
+test("a failing Mengantar stops the backfill after two misses in a row", async (context) => {
+  const originalError = console.error;
+  console.error = () => {};
+  context.after(() => {
+    console.error = originalError;
+  });
+  const calls = mockMengantar(context, () => Response.json({ success: false, message: "Server error" }, { status: 500 }));
+  const { database } = backfillDatabase();
+
+  assert.equal(await backfillReceiverScores(database, { runtimeEnv: {} } as never), 0);
+  assert.equal(calls(), 2);
+});
+
+test("an exhausted time budget makes no provider call", async (context) => {
+  const calls = mockMengantar(context, () => Response.json({}));
+  const { database } = backfillDatabase();
+
+  assert.equal(await backfillReceiverScores(database, { runtimeEnv: {} } as never, 20, 0), 0);
+  assert.equal(calls(), 0);
+});
+
+test("a refusal younger than the retry window is not retried from a page view", () => {
+  const now = Date.parse("2026-10-15T12:00:00.000Z");
+  assert.equal(isRecentReceiverRefusal("2026-10-15T11:30:00.000Z", now), true);
+  assert.equal(isRecentReceiverRefusal("2026-10-15T10:59:00.000Z", now), false);
+  assert.equal(isRecentReceiverRefusal(null, now), false);
+  assert.equal(isRecentReceiverRefusal("not a date", now), false);
 });

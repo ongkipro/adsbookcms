@@ -6635,3 +6635,25 @@ Review of 1.5.7 found two edges in promoting the first headline section to
   chosen, leaving the page with no `<h1>`. Only a headline with text is chosen.
 
 Checked: `npm test` (834), `npm run check`.
+
+## 2026-10-16 — 1.5.9: one h1 per landing page, including merchant html
+
+A scan of every active CMS landing page across the fleet after 1.5.8 found two
+cases its rule did not reach: taniniaga `/saratoga` rendered two `<h1>`, both
+inside one merchant-authored html section, and five zanobyshop landings
+(`/bibit`, `/lem-jaysuing`, …), built only from html sections with no `<h1>`
+and no headline section, rendered none.
+
+- **`demoteExtraH1`** (tested): within and across html sections, every `<h1>`
+  after the page's first becomes an `<h2>` with its attributes, so inline
+  styling carries over. One that relied on the stylesheet instead drops from
+  the landing `h1` size (24px) to the `h2` size (20px).
+- **Hidden title.** A page with no `<h1>` in its html and no headline section
+  renders its title as an `sr-only` `<h1>`.
+
+Verified on `dev:local` with two seeded landings: a page whose html wrote three
+`<h1>` across two sections rendered one `<h1>` and two `<h2>` (inline styles
+kept); an html-only page rendered `<h1 class="sr-only">` with its title.
+
+Revenleather's landings that answered 0 in the same scan are product-page
+hand-offs (`301` to `/produk/<slug>`, one `<h1>` there), not a defect.

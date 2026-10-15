@@ -3,7 +3,7 @@ import GeoIpResolvedForm from '../components/storefront/forms/GeoIpResolvedForm.
 import MetaLandingTracker from '../components/storefront/tracking/MetaLandingTracker.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { getStorefrontProduct } from '../lib/catalog';
-import { deferOffscreenImages, getLandingPageBySlug, parseShortcodes } from '../lib/landing-pages';
+import { deferOffscreenImages, demoteExtraH1, getLandingPageBySlug, parseShortcodes } from '../lib/landing-pages';
 import { productPageRedirect } from '../lib/native-landing-pages';
 import { getStoreSupportWhatsapp } from '../lib/public-store';
 import { resolveAdminSession } from '../lib/admin-session';
@@ -95,6 +95,12 @@ const firstHeadlineSectionId = htmlCarriesH1
         'text' in section.content_config,
     )?.id;
 
+// A page built only from html sections that never write an <h1> would have
+// none at all; it gets its title as a visually hidden one. Html sections that
+// do write one keep only the first (`demoteExtraH1`), threaded across them.
+const needsHiddenH1 = !htmlCarriesH1 && firstHeadlineSectionId === undefined;
+let htmlH1Written = false;
+
 // Clean title and description: focus strictly on product name without redundant "landing page" text
 const rawTitle = page.meta_title || page.title || product.seoTitle || product.productName;
 const metaTitle = rawTitle.replace(/\s*\(?\s*landing\s*page\s*\)?/gi, '').trim();
@@ -164,15 +170,19 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     formSelector="#checkout-form"
   />
 
+  {needsHiddenH1 && <h1 class="sr-only">{metaTitle}</h1>}
+
   {
     page.sections.map((section, index) => {
       if (section.type === 'html') {
         // Only the page's first section may hold the LCP image; every image
         // after it waits for the scroll.
-        const parsedHtml = deferOffscreenImages(
+        const single = demoteExtraH1(
           parseShortcodes(section.content_html ?? '', product, csPhone),
-          index === 0,
+          htmlH1Written,
         );
+        htmlH1Written = single.pageHasH1;
+        const parsedHtml = deferOffscreenImages(single.html, index === 0);
         return <section class="lp-section" set:html={parsedHtml} />;
       }
       const config = section.content_config;

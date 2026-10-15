@@ -8,8 +8,9 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.5.8",
+  version: "1.5.9",
   channel: "production",
+  // 1.5.9: merchant html keeps one h1; an html-only page without one gets a hidden h1.
   // 1.5.8: the landing h1 is never a second one, nor a headline that does not render.
   // 1.5.7: a CMS landing page opens with an eager hero image and its own h1.
   // 1.5.6: deploy preflight compares the D1 ledger; receiver-score review fixes.
@@ -23,5 +24,5 @@ export const CMS_VERSION: CmsVersionInfo = {
   releaseTag: "2026.10-landing-hero-h1",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
   schemaVersion: 62,
-  lastUpdated: "2026-10-15",
+  lastUpdated: "2026-10-16",
 };

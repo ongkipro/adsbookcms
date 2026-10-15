@@ -770,6 +770,26 @@ export function deferOffscreenImages(html: string, keepFirstEager: boolean): str
   });
 }
 
+/**
+ * A page has one <h1>. Merchant HTML often carries two — a pasted page with a
+ * hero title and a second one over the offer — so every <h1> after the first
+ * the page keeps becomes an <h2>, its attributes (and so its look, which such
+ * content sets inline) untouched. `pageHasH1` says an earlier section already
+ * holds the page's <h1>; the result says whether the page has one after this.
+ */
+export function demoteExtraH1(html: string, pageHasH1: boolean): { html: string; pageHasH1: boolean } {
+  let hasH1 = pageHasH1;
+  const kept: boolean[] = [];
+  const out = html.replace(/<(\/?)h1(?=[\s>])([^>]*)>/gi, (_tag, close: string, rest: string) => {
+    if (close) return kept.pop() ? '</h1>' : '</h2>';
+    const keep = !hasH1;
+    hasH1 = true;
+    kept.push(keep);
+    return keep ? `<h1${rest}>` : `<h2${rest}>`;
+  });
+  return { html: out, pageHasH1: hasH1 };
+}
+
 export function parseShortcodes(
   html: string,
   product: ShortcodeProduct,

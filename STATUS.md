@@ -325,7 +325,7 @@ The previous version of this file described a different repository — it opened
 | Product | AdsBookCMS (single) |
 | Repository role | **Product.** Deploys nothing; CI runs check, test and build only |
 | Install model | 1 installer = 1 Worker = 1 store (ADR-001) |
-| Version | `1.5.8` / `2026.10-landing-hero-h1` (`src/lib/version.ts`) |
+| Version | `1.5.9` / `2026.10-landing-hero-h1` (`src/lib/version.ts`) |
 | Schema | 62 migration files, `0000`-`0061` |
 | Bindings | `OMS_DB` (D1), `SESSION` (KV, caches only since ADR-021), `ASSET_BUCKET` (R2), `AI`, `ASSETS` — names fixed across installs |
 | `wrangler.jsonc` | template of placeholders; each install supplies its own resources |

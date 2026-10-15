@@ -17,6 +17,7 @@ import {
   changesHtmlSections,
   isReservedLandingSlug,
   deferOffscreenImages,
+  demoteExtraH1,
   setLandingPageAsProductPage,
   updateLandingPage,
   validateLandingPageSlug,
@@ -688,6 +689,19 @@ test("CMS images below the first are deferred, and script-bearing images are lef
   assert.match(out, /<img loading="lazy" decoding="async" SRC="\/upper\.jpg">/);
   // A later section has no LCP candidate: its first image is deferred too.
   assert.match(deferOffscreenImages('<img src="/a.jpg">', false), /^<img loading="lazy" decoding="async"/);
+});
+
+test("merchant html keeps one <h1>: later ones become <h2> with their attributes", () => {
+  const html = '<h1 style="color:#fff">Hero</h1><p>x</p><H1 class="offer">Offer <b>now</b></H1><h1x>not a heading</h1x>';
+  const first = demoteExtraH1(html, false);
+  assert.equal(
+    first.html,
+    '<h1 style="color:#fff">Hero</h1><p>x</p><h2 class="offer">Offer <b>now</b></h2><h1x>not a heading</h1x>',
+  );
+  assert.equal(first.pageHasH1, true);
+  // A later section never adds a second one.
+  assert.deepEqual(demoteExtraH1("<h1>Again</h1>", true), { html: "<h2>Again</h2>", pageHasH1: true });
+  assert.deepEqual(demoteExtraH1("<h2>None</h2>", false), { html: "<h2>None</h2>", pageHasH1: false });
 });
 
 test("a landing page is listed with its own first image, else its product's photo", async () => {

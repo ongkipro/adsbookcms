@@ -20,6 +20,7 @@ const SIGNAL_TITLES: Record<HealthSignal["id"], string> = {
   "capi-outbox": "Antrean Meta CAPI",
   "meta-capi": "Pengiriman Meta CAPI terakhir",
   mengantar: "Kontak Mengantar terakhir",
+  "receiver-score": "Skor penerima (RTS) Mengantar",
   autolaris: "AutoLaris Create Order & verifikasi",
   "google-ads-outbox": "Antrean Google Ads offline",
   alerting: "Saluran peringatan",
@@ -46,6 +47,11 @@ const REASONS: Record<string, string> = {
   "never-dispatched": "Belum ada order yang dikirim ke Mengantar.",
   "all-attempts-failed": "Semua percobaan dispatch pada jendela ini gagal.",
   dispatched: "Mengantar menerima dispatch terakhir.",
+  // receiver-score
+  "not-whitelisted":
+    "Mengantar menolak cek skor penerima (403 Not allowed): akun belum di-whitelist. Minta akses Receiver Score ke CS Mengantar.",
+  "never-scored": "Belum ada order yang sudah dinilai risikonya.",
+  scored: "Skor penerima terakhir berhasil diambil dari Mengantar.",
   // autolaris
   "never-used": "Belum pernah ada transaksi payment gateway.",
   "no-accepted-request": "Belum ada request pembayaran yang diterima AutoLaris.",
@@ -95,6 +101,10 @@ function describeMetrics(signal: HealthSignal) {
   if (signal.id === "capi-outbox" || signal.id === "google-ads-outbox") {
     const { pending = 0, failed = 0, overdue = 0 } = signal.metrics;
     return `${pending} menunggu · ${overdue} lewat jadwal · ${failed} gagal permanen`;
+  }
+  if (signal.id === "receiver-score") {
+    const refused = signal.metrics.refusedInWindow ?? 0;
+    return refused > 0 ? `${refused} order belum dinilai karena akses ditolak, pada 200 baris terakhir` : null;
   }
   const failed = signal.metrics.failedInWindow;
   return typeof failed === "number" && failed > 0

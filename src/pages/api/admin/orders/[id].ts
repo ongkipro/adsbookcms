@@ -9,7 +9,13 @@ import { getMengantarDispatchEligibility } from '../../../../lib/payment-dispatc
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from '../../../../lib/payment-fee-policy';
 import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch';
 import { buildPaymentNotification, recordNotification } from '../../../../lib/notifications';
-import { getReceiverPerformance, scheduleReceiverPerformanceRefresh } from '../../../../lib/rts-scoring';
+import {
+  getReceiverPerformance,
+  readStoredReceiverPerformance,
+  recordReceiverScoreUnavailable,
+  scheduleReceiverPerformanceRefresh,
+} from '../../../../lib/rts-scoring';
+import { MengantarNotWhitelistedError } from '../../../../lib/mengantar-client';
 import type { ReceiverPerformance } from '../../../../lib/receiver-performance';
 import {
   applyOrderLifecycleMutation,
@@ -282,10 +288,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
         dispatchReason: dispatch.reason,
         receiver_delivery_rate: order.receiver_delivery_rate,
         receiver_risk_label: order.receiver_risk_label,
-        receiver_performance: (() => {
-          if (!order.receiver_performance_json) return null;
-          try { return JSON.parse(order.receiver_performance_json) as unknown; } catch { return null; }
-        })(),
+        ...readStoredReceiverPerformance(order.receiver_performance_json),
         receiver_performance_checked_at: order.receiver_performance_checked_at,
         ad_click_ids: order.ad_click_ids,
         created_at: order.created_at,
@@ -338,7 +341,14 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     const action = body.action;
     if (action === 'refresh-scoring') {
       const phone = (typeof body.customer_phone === 'string' ? normalizePhoneNumber(body.customer_phone).slice(0, 40) : undefined) ?? current.customer_phone;
-      const performance: ReceiverPerformance = await getReceiverPerformance(db, phone, locals);
+      let performance: ReceiverPerformance;
+      try {
+        performance = await getReceiverPerformance(db, phone, locals);
+      } catch (error) {
+        if (!(error instanceof MengantarNotWhitelistedError)) throw error;
+        await recordReceiverScoreUnavailable(db, String(current.id));
+        return jsonError(error.message, 502);
+      }
       await db
         .prepare(
           `UPDATE orders
@@ -380,10 +390,7 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
           customer_phone: updated.customer_phone,
           receiver_delivery_rate: updated.receiver_delivery_rate,
           receiver_risk_label: updated.receiver_risk_label,
-          receiver_performance: (() => {
-            if (!updated.receiver_performance_json) return null;
-            try { return JSON.parse(updated.receiver_performance_json) as unknown; } catch { return null; }
-          })(),
+          ...readStoredReceiverPerformance(updated.receiver_performance_json),
           receiver_performance_checked_at: updated.receiver_performance_checked_at,
           dispatchEligible: updatedDispatch.eligible,
           dispatchReason: updatedDispatch.reason,
@@ -749,10 +756,7 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
         provider_dispatch_error: updated.provider_dispatch_error,
         receiver_delivery_rate: updated.receiver_delivery_rate,
         receiver_risk_label: updated.receiver_risk_label,
-        receiver_performance: (() => {
-          if (!updated.receiver_performance_json) return null;
-          try { return JSON.parse(updated.receiver_performance_json) as unknown; } catch { return null; }
-        })(),
+        ...readStoredReceiverPerformance(updated.receiver_performance_json),
         receiver_performance_checked_at: updated.receiver_performance_checked_at,
       },
     });

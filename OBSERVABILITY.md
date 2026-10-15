@@ -92,7 +92,8 @@ Ordered by value per unit of effort.
 
 **Done since this list was written:** provider health in `/admin` and scheduled
 schema, CAPI outbox and Google Ads outbox alerting. `operational-health.ts`
-classifies Mengantar, AutoLaris, both conversion outboxes and whether alerting
+classifies Mengantar dispatch, Mengantar Receiver Score access, AutoLaris, both
+conversion outboxes and whether alerting
 is configured; `operational-alerts.ts` owns transition state and
 notification delivery.
 

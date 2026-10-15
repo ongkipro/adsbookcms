@@ -365,6 +365,20 @@ function posCodIneligibility(httpStatus: number, payload: Record<string, unknown
   );
 }
 
+/**
+ * 403 "Not allowed": the endpoint is limited to accounts Mengantar has
+ * whitelisted (Receiver Score and Courier Performance, per the provider docs).
+ * Access is granted by Mengantar CS, never by a retry or a new key.
+ */
+export class MengantarNotWhitelistedError extends Error {
+  constructor() {
+    super(
+      'Akses Mengantar untuk fitur ini belum aktif: akun belum di-whitelist. Minta akses ke CS Mengantar.',
+    );
+    this.name = 'MengantarNotWhitelistedError';
+  }
+}
+
 export class MengantarClient {
   private baseUrl: string;
   private apiKey: string;
@@ -410,6 +424,7 @@ export class MengantarClient {
       if (!res.ok) {
         const posCod = posCodIneligibility(res.status, payload as Record<string, unknown>);
         if (posCod) throw posCod;
+        if (res.status === 403 && message === 'Not allowed') throw new MengantarNotWhitelistedError();
         throw new Error(message || `Mengantar API gagal (${res.status}).`);
       }
       if (payload.success === false) {
@@ -420,6 +435,7 @@ export class MengantarClient {
     } catch (error) {
       // Built only from provider fields we allowlist, never from the URL.
       if (error instanceof MengantarPosCodIneligibleError) throw error;
+      if (error instanceof MengantarNotWhitelistedError) throw error;
       if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('Mengantar API timeout.');
       }

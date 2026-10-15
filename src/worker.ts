@@ -7,6 +7,7 @@ import {
   evaluateOperationalAlerts,
 } from "./lib/operational-alerts.ts";
 import { collectOperationalHealth } from "./lib/operational-health.ts";
+import { backfillReceiverScores } from "./lib/rts-scoring.ts";
 import { ensureSchemaUpgraded } from "./lib/schema-version.ts";
 import { purgeExpiredRateLimits } from "./lib/rate-limit.ts";
 import { reconcileNativeLandingPages } from "./lib/landing-pages.ts";
@@ -142,6 +143,12 @@ async function runScheduledMaintenance(
       )
     : 0;
 
+  // Receiver Score is whitelisted per Mengantar account; orders taken while it
+  // was refused (or never opened in /admin) score themselves here.
+  const backfilledReceiverScores = await housekeeping("scheduled-receiver-score-backfill-failed", () =>
+    backfillReceiverScores(env.OMS_DB, scheduledLocals),
+  );
+
   const health = await collectOperationalHealth(env.OMS_DB);
   const alerts = await evaluateOperationalAlerts(
     alertsFromOperationalHealth(health),
@@ -165,6 +172,7 @@ async function runScheduledMaintenance(
     purgedNotifications,
     purgedCapiOutboxEvents,
     purgedGoogleAdsConversions,
+    backfilledReceiverScores,
     autoLarisReconciliation: {
       checked: autoLarisReconciliation.checked,
       paid: autoLarisReconciliation.paidOrderIds.length,

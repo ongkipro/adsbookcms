@@ -6539,3 +6539,38 @@ hero, then off the first screen). New `changelog.test.ts` fails when the first
 entry is not `CMS_VERSION.version` with its `releaseTag`, when a version is
 listed twice, or when more than one entry is marked latest. No version bump:
 the running code is unchanged. 818 passing.
+
+## 2026-10-15 — 1.5.5: Receiver Score is whitelisted per Mengantar account; say so, and catch up
+
+RTS risk stopped appearing on every install around 2026-10-06 (zvarashop,
+taniniaga and carukesi: 0 orders scored since). Mengantar's docs now limit
+`getReceiverScoreByNumberUser` to whitelisted accounts and answer others
+`403 Not allowed`; a live zvarashop key got exactly that while `/address`
+returned 200. The fix for the refusal is with Mengantar CS; the product
+changes make it visible and recoverable.
+
+- **Typed refusal.** `MengantarNotWhitelistedError` for a 403 `Not allowed`
+  from any endpoint. A background or manual refresh stores
+  `{"unavailable":"not-whitelisted"}` on the order (label and `checked_at`
+  stay null, so it is retried); the order detail shows the reason, and the
+  manual refresh returns it instead of "Gagal memperbarui order."
+- **`receiver-score` health signal.** Degraded when the newest refusal is
+  newer than the newest score in the last 200 orders. Not an alert: the
+  webhook signal list is unchanged.
+- **Provider `summary`.** Rate is `average_number × 10` and the grade
+  (`A`…`E-`, `≈` on thin history) is kept, so the risk matches Mengantar's
+  own score; same 40/70 thresholds. A receiver with no history is a checked
+  `UNKNOWN` rather than a parse failure that left the order unscored forever.
+- **Hourly backfill.** Up to 20 unscored, non-abandoned orders from the last
+  30 days per run, stopping at the first refusal.
+
+- **Dev stand-in** answers with the documented shape (`summary`, empty
+  couriers for no history), so `dev:local` exercises the new parser.
+
+Verified: `astro check` 0 errors; 828 passing; build; the two new SQL
+statements run against SQLite (invalid JSON rows do not throw). On `dev:local`
+after `dev:seed`: orders scored at checkout from the stand-in's
+summary ("Skor Mengantar A", 100%, at 390px); an order set to the refused state
+showed the whitelist notice in its detail and the `receiver-score` signal read
+"Bermasalah" with one refused order. Not observed: a whitelisted account's
+live response.

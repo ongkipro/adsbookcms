@@ -6,6 +6,7 @@ import {
   classifyCapiDelivery,
   classifyCapiOutbox,
   classifyMengantar,
+  classifyReceiverScore,
   summarizeHealth,
   type HealthSignal,
   classifyAlerting,
@@ -351,4 +352,45 @@ test("a failure older than the alert window no longer holds the alert open (A-28
     classifyGoogleAdsOutbox({ pending: 0, failed: 2, recentFailed: 0, overdue: 0, oldestCreatedAt: minutesAgo(60 * 30) }, NOW).state,
     "healthy",
   );
+});
+
+const RECEIVER_NOW = Date.parse("2026-10-15T12:00:00.000Z");
+
+test("receiver lookups refused after the last score are degraded: the account lost its whitelist", () => {
+  const health = classifyReceiverScore(
+    {
+      rowsScanned: 200,
+      lastScoredAt: "2026-10-06T10:00:00.000Z",
+      lastRefusedAt: "2026-10-15T11:00:00.000Z",
+      refusedInWindow: 150,
+    },
+    RECEIVER_NOW,
+  );
+  assert.equal(health.state, "degraded");
+  assert.equal(health.reason, "not-whitelisted");
+  assert.equal(health.metrics.refusedInWindow, 150);
+});
+
+test("a score newer than the last refusal is healthy again", () => {
+  const health = classifyReceiverScore(
+    {
+      rowsScanned: 200,
+      lastScoredAt: "2026-10-15T11:30:00.000Z",
+      lastRefusedAt: "2026-10-15T11:00:00.000Z",
+      refusedInWindow: 150,
+    },
+    RECEIVER_NOW,
+  );
+  assert.equal(health.state, "healthy");
+  assert.equal(health.ageMinutes, 30);
+});
+
+test("orders that were never scored nor refused say nothing about Mengantar access", () => {
+  const health = classifyReceiverScore(
+    { rowsScanned: 3, lastScoredAt: null, lastRefusedAt: null, refusedInWindow: 0 },
+    RECEIVER_NOW,
+  );
+  assert.equal(health.state, "unknown");
+  assert.equal(health.reason, "never-scored");
+  assert.equal(classifyReceiverScore(null, RECEIVER_NOW).reason, "unreadable");
 });

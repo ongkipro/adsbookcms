@@ -38,6 +38,7 @@ type ReceiverPerformance = {
   checkedAt: string;
   deliveryRate: number | null;
   riskLevel: RiskLevel;
+  grade?: string | null;
   totals: { total: number; delivered: number; rts: number; inProgress: number };
   couriers: CourierPerformance[];
 };
@@ -165,7 +166,7 @@ function ReceiverCheck({ initialPhone }: { initialPhone: string }) {
                   <span className="text-base text-muted-foreground">%</span>
                 </p>
                 <p className="font-mono text-xs text-muted-foreground">
-                  {result.phone} · diperiksa {new Date(result.checkedAt).toLocaleString("id-ID")}
+                  {result.phone}{result.grade && result.grade !== "-" ? ` · skor Mengantar ${result.grade}` : ""} · diperiksa {new Date(result.checkedAt).toLocaleString("id-ID")}
                 </p>
               </div>
               <div className="space-y-2 sm:max-w-sm sm:text-right">

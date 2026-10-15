@@ -63,15 +63,21 @@ export function searchDevAreas(keyword: string, limit = 20) {
 export function devReceiverScore(phone: string) {
   const digits = phone.replace(/\D/g, "");
   const last = Number(digits.at(-1) ?? 0);
-  if (!digits || last === 0) return { JNE: { total: 0, delivered: 0, rts: 0, undelivered: 0, inProgress: 0, value: 0 } };
+  // No history: empty couriers and a null summary, as the provider documents.
+  if (!digits || last === 0) return { JNE: {}, SiCepat: {}, summary: { average_number: null, average_score: "-" } };
   const share = [0, 0.95, 0.9, 0.8, 0.72, 0.6, 0.5, 0.42, 0.3, 0.15][last];
-  return Object.fromEntries(
-    ["JNE", "SiCepat", "J&T"].map((courier, index) => {
-      const total = 4 + ((last + index * 3) % 7);
-      const delivered = Math.round(total * share);
-      return [courier, { total, delivered, rts: total - delivered, undelivered: 0, inProgress: index === 0 ? 1 : 0, value: total * 100_000 }];
-    }),
-  );
+  const couriers = ["JNE", "SiCepat", "J&T"].map((courier, index) => {
+    const total = 4 + ((last + index * 3) % 7);
+    const delivered = Math.round(total * share);
+    const rate = Math.round((delivered / total) * 100) / 10;
+    return [courier, { total, delivered, rts: total - delivered, undelivered: 0, inProgress: index === 0 ? 1 : 0, value: total * 100_000, rate }] as const;
+  });
+  // `summary` mirrors the provider: unweighted mean of courier rates (0–10)
+  // and its letter grade.
+  const average = Math.round((couriers.reduce((sum, [, row]) => sum + row.rate, 0) / couriers.length) * 10) / 10;
+  const grades = ["E-", "E", "D-", "D", "C-", "C", "B-", "B", "A-", "A"];
+  const grade = grades[Math.min(9, Math.floor(average))];
+  return { ...Object.fromEntries(couriers), summary: { average_number: average, average_score: grade } };
 }
 
 function areaNumber(id: string) {

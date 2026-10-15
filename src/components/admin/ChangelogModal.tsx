@@ -29,10 +29,33 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: "1.5.5",
+    date: "15 Oktober 2026",
+    releaseTag: "2026.10-fleet-status",
+    isLatest: true,
+    highlight: "Risiko RTS memberi tahu saat Mengantar menolak akses, dan menyusul sendiri setelah dibuka.",
+    changes: [
+      {
+        title: "Akses skor penerima terlihat",
+        description:
+          "Mengantar kini membatasi cek skor penerima ke akun yang di-whitelist. Bila ditolak, detail order dan panel kesehatan dashboard menyebutkannya, dengan langkah meminta akses ke CS Mengantar.",
+      },
+      {
+        title: "Skor resmi Mengantar",
+        description:
+          "Persentase dan nilai huruf (A sampai E-) diambil dari ringkasan skor Mengantar. Nomor tanpa riwayat tercatat sudah dicek, bukan lagi \"Belum dinilai\" selamanya.",
+      },
+      {
+        title: "Menyusul otomatis",
+        description:
+          "Setiap jam, order 30 hari terakhir yang belum dinilai dicek ulang, sampai 20 per jam.",
+      },
+    ],
+  },
+  {
     version: "1.5.4",
     date: "12 Oktober 2026",
     releaseTag: "2026.10-fleet-status",
-    isLatest: true,
     highlight: "Notifikasi bukti sosial tidak menutupi layar pertama landing.",
     changes: [
       {

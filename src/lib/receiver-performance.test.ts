@@ -53,3 +53,40 @@ test('receiver risk thresholds follow the documented AdsBookCMS operational poli
   assert.equal(classifyReceiverRisk(69.9), 'MEDIUM');
   assert.equal(classifyReceiverRisk(70), 'LOW');
 });
+
+test('a documented summary decides the rate and grade, matching what Mengantar shows', () => {
+  const result = parseReceiverPerformance({
+    JNE: { total: 36, value: 10542000, inProgress: 3652, delivered: 35, rts: 1, undelivered: 0, rate: 9.7 },
+    JT: { total: 4, value: 450000, inProgress: 2970, delivered: 2, rts: 1, undelivered: 1, rate: 5 },
+    summary: { average_number: 7.4, average_score: 'B' },
+  }, '08123456789');
+
+  // Unweighted courier mean (7.4/10), not the 92.5% pooled across couriers.
+  assert.equal(result.deliveryRate, 74);
+  assert.equal(result.riskLevel, 'LOW');
+  assert.equal(result.grade, 'B');
+  assert.equal(result.couriers.length, 2);
+});
+
+test('a receiver with no history is a checked UNKNOWN, not a parse failure', () => {
+  const result = parseReceiverPerformance({
+    JNE: {},
+    SiCepat: {},
+    summary: { average_number: null, average_score: '-' },
+  }, '08123456789');
+
+  assert.equal(result.deliveryRate, null);
+  assert.equal(result.riskLevel, 'UNKNOWN');
+  assert.equal(result.grade, '-');
+  assert.equal(result.couriers.length, 0);
+});
+
+test('an approximate grade keeps its prefix and still classifies', () => {
+  const result = parseReceiverPerformance({
+    JT: { total: 2, delivered: 0, rts: 2, undelivered: 0, rate: 0 },
+    summary: { average_number: 0, average_score: '≈E-' },
+  }, '08123456789');
+
+  assert.equal(result.grade, '≈E-');
+  assert.equal(result.riskLevel, 'HIGH');
+});

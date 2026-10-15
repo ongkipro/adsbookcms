@@ -5,6 +5,7 @@ import {
   getActualMengantarRatePrice,
   mapMengantarStatusEvidence,
   MengantarClient,
+  MengantarNotWhitelistedError,
   redactMengantarApiKey,
   selectMengantarPickupAddress,
   selectProviderShippingAdvance,
@@ -289,4 +290,24 @@ test("selects only monotonic provider lifecycle advances", () => {
   assert.equal(selectProviderShippingAdvance("delivered", "returned"), null);
   assert.equal(selectProviderShippingAdvance("returned", "delivered"), null);
   assert.equal(selectProviderShippingAdvance("cancelled", "delivered"), null);
+});
+
+test("a 403 Not allowed is the account whitelist, not a generic provider failure", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ success: false, message: "Not allowed" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    })) as typeof fetch;
+
+  try {
+    const client = new MengantarClient("test-key", "https://provider.invalid");
+    await assert.rejects(
+      client.getReceiverPerformance("081234567890"),
+      (error: unknown) =>
+        error instanceof MengantarNotWhitelistedError && /CS Mengantar/.test(error.message),
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

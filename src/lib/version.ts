@@ -8,8 +8,9 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.5.4",
+  version: "1.5.5",
   channel: "production",
+  // 1.5.5: Receiver Score whitelist surfaced, provider summary, hourly backfill.
   // 1.5.4: a landing page's hero is its first screen, not its first section.
   // 1.5.3: the toast stays off a CMS landing page's first section (its hero).
   // 1.5.2: social-proof toast redesign, fleet:status (A-51), island-test race.
@@ -19,5 +20,5 @@ export const CMS_VERSION: CmsVersionInfo = {
   releaseTag: "2026.10-fleet-status",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
   schemaVersion: 62,
-  lastUpdated: "2026-10-12",
+  lastUpdated: "2026-10-15",
 };

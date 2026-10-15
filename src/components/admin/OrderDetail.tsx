@@ -51,6 +51,7 @@ type OrderItem = {
 
 type ReceiverPerformance = {
   checkedAt?: string;
+  grade?: string | null;
   totals?: {
     total?: number;
     delivered?: number;
@@ -113,6 +114,8 @@ type Order = {
   receiver_delivery_rate: number | null;
   receiver_risk_label: string | null;
   receiver_performance: ReceiverPerformance | null;
+  /** "not-whitelisted" when Mengantar refused the lookup for this account. */
+  receiver_performance_unavailable?: string | null;
   receiver_performance_checked_at: string | null;
   ad_click_ids?: string | null;
   created_at: string;
@@ -1552,7 +1555,18 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                   {risk.label}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">Paket terkirim dari seluruh riwayat nomor ini.</p>
+              <p className="text-xs text-slate-500">
+                {order.receiver_performance?.grade
+                  ? `Skor Mengantar ${order.receiver_performance.grade} dari seluruh riwayat nomor ini.`
+                  : "Paket terkirim dari seluruh riwayat nomor ini."}
+              </p>
+
+              {order.receiver_performance_unavailable === "not-whitelisted" && !order.receiver_risk_label && (
+                <p role="status" className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                  Akses skor penerima Mengantar belum aktif untuk akun ini. Minta whitelist
+                  Receiver Score ke CS Mengantar; order akan dinilai otomatis setelah akses dibuka.
+                </p>
+              )}
 
               {deliveryTotals && typeof deliveryTotals === "object" && (
                 <dl className="grid grid-cols-3 gap-2 border-y py-2 text-center">

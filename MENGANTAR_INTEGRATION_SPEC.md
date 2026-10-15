@@ -41,7 +41,7 @@ Status distinguishes three separate things: whether the **transport method** exi
 | `/time?address=` | `GET` | List pickup times | Transport implemented | `getPickupTimes()` exists; no complete synchronized admin lifecycle is claimed. |
 | `/order/estimate` | `GET` | Quote retail courier services | Implemented and locally verified | Read-only quote used by checkout, order editing, and admin tariff checks; a quote is never a shipment. |
 | `/order/allEstimate3PL` | `GET` | Quote base 3PL pricing | Not implemented | No transport method, application path, or UI. |
-| `/getReceiverScoreByNumberUser` | `GET` | Return receiver history per courier | Implemented and locally verified | AdsBookCMS derives transparent delivery rate/risk from provider counts; it does not fabricate a provider score. |
+| `/getReceiverScoreByNumberUser` | `GET` | Return receiver history per courier and a `summary` score | Implemented; **whitelisted per account** | Mengantar answers `403 Not allowed` to accounts it has not whitelisted (provider docs, observed 2026-10-15 on a live key). Access is requested from Mengantar CS. See §4. |
 | `/order` | `POST` | Create provider order/draft and optional waybill | Implemented; live mutation gated | Only explicit eligible Push actions in Order Management may invoke it. Bulk calls run sequentially with per-order outcomes. |
 | `/order/pay-unpaid` | `POST` | Recover accepted non-COD unpaid draft | **Transport implemented and unit-tested; no operator UI** | `payUnpaidOrder(batchId, courierCode)` exists in `src/lib/mengantar-client.ts` and is covered by `src/lib/mengantar-client.test.ts`. It is called by no route and no admin component, so the recovery workflow cannot be triggered in production. See §5F. |
 | Wallet balance | Unknown | Read active Mengantar wallet | Blocked | No canonical endpoint or response schema is verified; do not assume `/user/balance`. |
@@ -118,14 +118,19 @@ cannot reroute a paid online order, so it could never have shipped.
 
 ## 4. Receiver Performance
 
-`GET /getReceiverScoreByNumberUser` returns courier-specific history rather than one canonical 0–100 score. AdsBookCMS parses provider buckets such as total, delivered, RTS, undelivered, and in-progress counts.
+`GET /getReceiverScoreByNumberUser` returns courier-specific history (total, delivered, RTS, undelivered, in-progress counts and a 0–10 `rate` per courier) plus `data.summary`: `average_number`, the unweighted mean of the courier rates on a 0–10 scale (null without history), and `average_score`, a letter grade `A`…`E-`, prefixed `≈` when the counted couriers have fewer than four transactions, `-` when none. A receiver with no history returns empty courier objects and a null summary.
+
+**Access is whitelisted per Mengantar account.** A key whose account is not whitelisted gets `403 {"success":false,"message":"Not allowed"}` while every other endpoint keeps working. From about 2026-10-06 every install's lookups were refused this way and orders silently stayed "Belum dinilai" (observed 2026-10-15: zvarashop `/address` 200, this endpoint 403; taniniaga and carukesi stopped scoring the same days).
 
 Behavior:
 
 - normalize the customer phone before the request;
 - preserve the full courier breakdown and observation timestamp;
-- derive delivery rate from completed outcomes using the documented local policy;
-- classify operational risk as locally derived guidance, not a provider-issued score;
+- with a `summary`, the delivery rate is `average_number × 10` and the grade is stored, so the risk matches what Mengantar shows; without one (older responses), delivered over completed outcomes across couriers;
+- classify operational risk on the same 40/70 thresholds, as locally derived guidance;
+- a receiver with no history is checked and `UNKNOWN`, not a parse failure;
+- a `403 Not allowed` is `MengantarNotWhitelistedError`: the order keeps no label and stores `{"unavailable":"not-whitelisted","at":…}` so the order detail and the `receiver-score` health signal say why, and the manual refresh answers with the same message;
+- the hourly cron backfills up to 20 unscored, non-abandoned orders from the last 30 days, stopping at the first refusal (one call an hour for an account without access);
 - refresh checkout snapshots through Cloudflare `waitUntil()` so customer persistence does not wait on the read-only provider lookup;
 - avoid fabricated fallback scores when the provider is unavailable.
 

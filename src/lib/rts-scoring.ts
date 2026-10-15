@@ -1,4 +1,4 @@
-import { MengantarClient } from './mengantar-client.ts';
+import { MengantarClient, MengantarNotWhitelistedError } from './mengantar-client.ts';
 import { getProviderConfig } from './provider-config.ts';
 import { parseReceiverPerformance, type ReceiverPerformance } from './receiver-performance.ts';
 
@@ -19,13 +19,60 @@ export async function getReceiverPerformance(
   return parseReceiverPerformance(payload, cleanPhone);
 }
 
+/**
+ * Stored in `receiver_performance_json` when Mengantar refuses the lookup for
+ * the account (403 Not allowed). `rts_risk_label` and `checked_at` stay null, so
+ * the order keeps being retried and scores itself once access is granted.
+ */
+export const RECEIVER_SCORE_NOT_WHITELISTED = 'not-whitelisted';
+
+export async function recordReceiverScoreUnavailable(
+  database: D1Database,
+  orderKey: string,
+  at = new Date().toISOString(),
+): Promise<void> {
+  await database
+    .prepare(
+      `UPDATE orders
+       SET receiver_performance_json = ?
+       WHERE (order_number = ? OR CAST(id AS TEXT) = ?)
+         AND receiver_performance_checked_at IS NULL`,
+    )
+    .bind(JSON.stringify({ unavailable: RECEIVER_SCORE_NOT_WHITELISTED, at }), orderKey, orderKey)
+    .run();
+}
+
+/** Splits the stored column into a score or the reason there is none. */
+export function readStoredReceiverPerformance(json: string | null): {
+  receiver_performance: unknown;
+  receiver_performance_unavailable: string | null;
+} {
+  let parsed: unknown = null;
+  try { parsed = json ? JSON.parse(json) : null; } catch { parsed = null; }
+  const unavailable = parsed && typeof parsed === 'object' && 'unavailable' in parsed
+    ? String((parsed as { unavailable: unknown }).unavailable)
+    : null;
+  return {
+    receiver_performance: unavailable ? null : parsed,
+    receiver_performance_unavailable: unavailable,
+  };
+}
+
 async function refreshOrderReceiverPerformance(
   database: D1Database,
   orderNumber: string,
   customerPhone: string,
   locals?: App.Locals,
 ): Promise<void> {
-  const performance = await getReceiverPerformance(database, customerPhone, locals);
+  let performance: ReceiverPerformance;
+  try {
+    performance = await getReceiverPerformance(database, customerPhone, locals);
+  } catch (error) {
+    if (error instanceof MengantarNotWhitelistedError) {
+      await recordReceiverScoreUnavailable(database, orderNumber);
+    }
+    throw error;
+  }
 
   await database
     .prepare(
@@ -45,6 +92,50 @@ async function refreshOrderReceiverPerformance(
       orderNumber,
     )
     .run();
+}
+
+/** Orders the hourly backfill scores per run; sequential, one provider call each. */
+export const RECEIVER_SCORE_BACKFILL_LIMIT = 20;
+
+/**
+ * Hourly catch-up for orders that never got a score: a refusal before the
+ * account was whitelisted, a timeout, or an order nobody opened in /admin.
+ * Stops at the first refusal, so an account without access costs one call an
+ * hour, not twenty.
+ *
+ * lazy: an order whose lookup keeps failing for another reason is retried
+ * every hour until it leaves the 30-day window. Upgrade path: an attempt
+ * counter column if that ever crowds out new orders.
+ */
+export async function backfillReceiverScores(
+  database: D1Database,
+  locals: App.Locals,
+  limit = RECEIVER_SCORE_BACKFILL_LIMIT,
+): Promise<number> {
+  if (!(await getProviderConfig(database, locals)).mengantar.apiKey) return 0;
+  const { results } = await database
+    .prepare(
+      `SELECT order_number, customer_phone FROM orders
+       WHERE receiver_performance_checked_at IS NULL
+         AND shipping_status <> 'abandoned'
+         AND length(customer_phone) >= 9
+         AND date(created_at) >= date('now', '-30 days')
+       ORDER BY id DESC LIMIT ?`,
+    )
+    .bind(limit)
+    .all<{ order_number: string; customer_phone: string }>();
+
+  let scored = 0;
+  for (const row of results ?? []) {
+    try {
+      await refreshOrderReceiverPerformance(database, row.order_number, row.customer_phone, locals);
+      scored += 1;
+    } catch (error) {
+      if (error instanceof MengantarNotWhitelistedError) break;
+      console.error('receiver-score-backfill-failed', { orderNumber: row.order_number, error });
+    }
+  }
+  return scored;
 }
 
 export function scheduleReceiverPerformanceRefresh(

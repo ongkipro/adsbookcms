@@ -18,7 +18,7 @@ import { CMS_VERSION } from "./version.ts";
  * Operational health for `/admin`.
  *
  * `OBSERVABILITY.md` §4 item 4: the data already exists in D1 and nothing reads
- * it as a health signal. Four signals, one query each, every query bounded so
+ * it as a health signal. One bounded query per signal, every query bounded so
  * an operator refreshing the dashboard cannot make the store slower.
  *
  * Three states, deliberately:
@@ -41,6 +41,7 @@ export type HealthSignalId =
   | "capi-outbox"
   | "meta-capi"
   | "mengantar"
+  | "receiver-score"
   | "autolaris"
   | "google-ads-outbox"
   | "alerting";
@@ -80,6 +81,13 @@ export type MengantarWindow = {
   rowsScanned: number;
   lastDispatchedAt: string | null;
   failedInWindow: number;
+};
+
+export type ReceiverScoreWindow = {
+  rowsScanned: number;
+  lastScoredAt: string | null;
+  lastRefusedAt: string | null;
+  refusedInWindow: number;
 };
 
 export type AutoLarisWindow = {
@@ -289,6 +297,34 @@ export function classifyMengantar(
 }
 
 /**
+ * Receiver Score is whitelisted per Mengantar account; a refused lookup leaves
+ * `{"unavailable":"not-whitelisted"}` on the order and no label. Every order
+ * would otherwise just show "Belum dinilai", which is how a fleet-wide refusal
+ * went unnoticed for a week (2026-10). A refusal newer than the last score is
+ * degraded; a later success makes it healthy again.
+ */
+export function classifyReceiverScore(
+  window: ReceiverScoreWindow | null,
+  now: number,
+): HealthSignal {
+  if (!window) return signal("receiver-score", "unknown", "unreadable", null, now);
+  const metrics = { rowsScanned: window.rowsScanned, refusedInWindow: window.refusedInWindow };
+  if (window.rowsScanned === 0) {
+    return signal("receiver-score", "unknown", "no-orders", null, now, metrics);
+  }
+  if (
+    window.lastRefusedAt &&
+    (!window.lastScoredAt || window.lastRefusedAt > window.lastScoredAt)
+  ) {
+    return signal("receiver-score", "degraded", "not-whitelisted", window.lastScoredAt, now, metrics);
+  }
+  if (!window.lastScoredAt) {
+    return signal("receiver-score", "unknown", "never-scored", null, now, metrics);
+  }
+  return signal("receiver-score", "healthy", "scored", window.lastScoredAt, now, metrics);
+}
+
+/**
  * When AutoLaris was last reached and when an operator last verified payment.
  *
  * Outbound: a `payment_transactions` row that received a
@@ -387,6 +423,46 @@ async function readMengantarWindow(
   }
 }
 
+/** lazy: the same bounded newest-200 window as `readMengantarWindow`, for the same reason. */
+async function readReceiverScoreWindow(
+  database: D1Database,
+): Promise<ReceiverScoreWindow | null> {
+  try {
+    const row = await database
+      .prepare(
+        `SELECT
+           COUNT(*) AS rows_scanned,
+           MAX(receiver_performance_checked_at) AS last_scored_at,
+           MAX(refused_at) AS last_refused_at,
+           COUNT(refused_at) AS refused_in_window
+         FROM (
+           SELECT receiver_performance_checked_at,
+             CASE WHEN receiver_performance_checked_at IS NULL
+                   AND json_valid(receiver_performance_json)
+                   AND json_extract(receiver_performance_json, '$.unavailable') = 'not-whitelisted'
+               THEN json_extract(receiver_performance_json, '$.at') END AS refused_at
+           FROM orders ORDER BY id DESC LIMIT ?
+         )`,
+      )
+      .bind(PROVIDER_WINDOW)
+      .first<{
+        rows_scanned: number | null;
+        last_scored_at: string | null;
+        last_refused_at: string | null;
+        refused_in_window: number | null;
+      }>();
+    return {
+      rowsScanned: Number(row?.rows_scanned ?? 0),
+      lastScoredAt: row?.last_scored_at ?? null,
+      lastRefusedAt: row?.last_refused_at ?? null,
+      refusedInWindow: Number(row?.refused_in_window ?? 0),
+    };
+  } catch (error) {
+    console.error("operational-health-receiver-score-unreadable", error);
+    return null;
+  }
+}
+
 /**
  * lazy: same bounded window, same reason — neither transaction `created_at` nor
  * `paid_at` is indexed for this exact query. `created_at` rather
@@ -437,10 +513,11 @@ export async function collectOperationalHealth(
   database: D1Database,
   locals?: App.Locals,
 ): Promise<OperationalHealth> {
-  const [depth, delivery, mengantar, autolaris, googleAdsDepth, schema] = await Promise.all([
+  const [depth, delivery, mengantar, receiverScore, autolaris, googleAdsDepth, schema] = await Promise.all([
     readCapiOutboxDepth(database),
     readCapiDeliveryWindow(database),
     readMengantarWindow(database),
+    readReceiverScoreWindow(database),
     readAutoLarisWindow(database),
     readGoogleAdsOutboxDepth(database),
     getSchemaVersionStatus(locals),
@@ -451,6 +528,7 @@ export async function collectOperationalHealth(
     classifyCapiOutbox(depth, now),
     classifyCapiDelivery(delivery, now),
     classifyMengantar(mengantar, now),
+    classifyReceiverScore(receiverScore, now),
     classifyAutoLaris(autolaris, now),
     classifyGoogleAdsOutbox(googleAdsDepth, now),
     classifyAlerting(

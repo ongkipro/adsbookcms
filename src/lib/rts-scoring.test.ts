@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  backfillReceiverScores,
   getReceiverPerformance,
+  readStoredReceiverPerformance,
   scheduleReceiverPerformanceRefresh,
 } from "./rts-scoring.ts";
 
@@ -142,4 +144,94 @@ test("without a Cloudflare context the refresh still swallows its own failure", 
   // Let the detached task settle inside the test, so a regression surfaces here
   // rather than as an unhandled rejection in an unrelated file.
   await new Promise((resolve) => setTimeout(resolve, 10));
+});
+
+/** A store with a Mengantar key, three unscored orders, and a log of writes. */
+function backfillDatabase() {
+  const writes: unknown[][] = [];
+  const database = {
+    prepare(sql: string) {
+      let bound: unknown[] = [];
+      const statement = {
+        bind(...values: unknown[]) {
+          bound = values;
+          return statement;
+        },
+        async first() {
+          return { mengantar_api_key: "test-key", mengantar_base_url: "https://provider.invalid" };
+        },
+        async all() {
+          return {
+            results: [
+              { order_number: "INV-3", customer_phone: "081300000003" },
+              { order_number: "INV-2", customer_phone: "081300000002" },
+              { order_number: "INV-1", customer_phone: "081300000001" },
+            ],
+          };
+        },
+        async run() {
+          writes.push([sql.replace(/\s+/g, " ").trim(), ...bound]);
+          return { success: true };
+        },
+      };
+      return statement;
+    },
+  } as unknown as D1Database;
+  return { database, writes };
+}
+
+function mockMengantar(context: { after: (fn: () => void) => void }, respond: () => Response) {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return respond();
+  }) as typeof fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  return () => calls;
+}
+
+test("an account Mengantar has not whitelisted costs the backfill one call and marks the order", async (context) => {
+  const calls = mockMengantar(context, () =>
+    Response.json({ success: false, message: "Not allowed" }, { status: 403 }),
+  );
+  const { database, writes } = backfillDatabase();
+
+  assert.equal(await backfillReceiverScores(database, { runtimeEnv: {} } as never), 0);
+  assert.equal(calls(), 1);
+  assert.equal(writes.length, 1);
+  const [sql, json, orderKey] = writes[0] as [string, string, string];
+  assert.match(sql, /SET receiver_performance_json = \?/);
+  assert.match(sql, /receiver_performance_checked_at IS NULL/);
+  assert.equal(orderKey, "INV-3");
+  assert.equal(readStoredReceiverPerformance(json).receiver_performance_unavailable, "not-whitelisted");
+  assert.equal(readStoredReceiverPerformance(json).receiver_performance, null);
+});
+
+test("once access is granted the backfill scores every waiting order", async (context) => {
+  const calls = mockMengantar(context, () =>
+    Response.json({
+      success: true,
+      data: {
+        JNE: { total: 4, delivered: 4, rts: 0, undelivered: 0, rate: 10 },
+        summary: { average_number: 10, average_score: "≈A" },
+      },
+    }),
+  );
+  const { database, writes } = backfillDatabase();
+
+  assert.equal(await backfillReceiverScores(database, { runtimeEnv: {} } as never), 3);
+  assert.equal(calls(), 3);
+  assert.deepEqual(writes.map((write) => write[2]), ["LOW", "LOW", "LOW"]);
+  assert.equal(readStoredReceiverPerformance(String(writes[0]?.[3])).receiver_performance_unavailable, null);
+});
+
+test("a store without a Mengantar key makes no call at all", async (context) => {
+  withoutMengantarSecret(context);
+  const calls = mockMengantar(context, () => Response.json({}));
+
+  assert.equal(await backfillReceiverScores(UNCONFIGURED_STORE, { runtimeEnv: {} } as never), 0);
+  assert.equal(calls(), 0);
 });

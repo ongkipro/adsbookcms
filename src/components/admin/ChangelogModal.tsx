@@ -29,10 +29,23 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.5.9",
+    version: "1.5.10",
     date: "16 Oktober 2026",
     releaseTag: "2026.10-landing-hero-h1",
     isLatest: true,
+    highlight: "Deploy ditolak bila akan menghapus landing page native yang sedang tayang.",
+    changes: [
+      {
+        title: "Landing native dijaga saat deploy",
+        description:
+          "Sebelum deploy, preflight membandingkan landing page native di database produksi dengan daftar di kode. Bila ada yang tidak terdaftar, deploy ditolak karena sinkronisasi per jam akan menghapusnya.",
+      },
+    ],
+  },
+  {
+    version: "1.5.9",
+    date: "16 Oktober 2026",
+    releaseTag: "2026.10-landing-hero-h1",
     highlight: "Setiap landing page punya tepat satu judul utama.",
     changes: [
       {

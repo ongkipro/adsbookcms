@@ -156,10 +156,10 @@ Two registries, currently in step:
 
 | Source | Field | Value |
 | --- | --- | --- |
-| `src/lib/version.ts` | `version` | `1.5.9` |
+| `src/lib/version.ts` | `version` | `1.5.10` |
 | `src/lib/version.ts` | `releaseTag` | `2026.10-landing-hero-h1` |
 | `src/lib/version.ts` | `schemaVersion` | `62` |
-| `package.json` | `version` | `1.5.9` |
+| `package.json` | `version` | `1.5.10` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
@@ -283,7 +283,7 @@ anyway, because they are what an install shows before the wizard runs.
 **Confirm the target before deploying.** `npx wrangler deploy --dry-run` prints the resolved Worker name, bindings and routes. If it prints a database or KV id of all zeros, the merge overwrote the install's configuration — stop and restore it. (Since ADR-026 the template's *names* — `adsbookcms`, `adsbookcms-d1` — are real defaults a one-click install may keep, so only the ids are a signal.)
 
 **Both checks are mechanical.** `npm run deploy` and `npm run cf:deploy`
-run `preflight:deploy` first (npm's `pre*` hook), and it refuses three times over:
+run `preflight:deploy` first (npm's `pre*` hook), and it refuses four times over:
 
 - **the config** — when the Worker name, a D1 database name or id, or an R2
   bucket name is still the product's placeholder. Not overridable; in **this**
@@ -303,6 +303,12 @@ run `preflight:deploy` first (npm's `pre*` hook), and it refuses three times ove
   whose `0069`–`0073` were applied and deployed from another device and never
   pushed. Not overridable. A fresh database (no ledger table) passes; a ledger
   that cannot be read is reported and not compared.
+- **native landing pages** — when production `landing_pages` holds a
+  `source = 'native'` row whose slug this tree's register
+  (`src/data/native-landing-pages.ts`) does not list. The hourly reconcile
+  deletes such rows, and any product page they claim, within the hour:
+  zvarashop on 2026-10-16 carried 55. `ALLOW_NATIVE_LANDING_REMOVAL=1`
+  overrides it, for a removal that is intended.
 
 It adds no deploy step and holds no credentials. It cannot cover a bare
 `npx wrangler deploy` — wrangler has no pre-deploy hook — so `npm run deploy`

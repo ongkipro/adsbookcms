@@ -271,7 +271,11 @@ What follows from that:
 - **Removing the entry removes the row, and any product page it held.** A
   register entry without a file is a listing that 404s, so the reconcile drops
   it — and `/produk/<slug>` returns to the normal product template rather than
-  pointing at nothing. Delete the entry and the file together.
+  pointing at nothing. Delete the entry and the file together. Because a
+  checkout missing entries added elsewhere would do the same thing by
+  accident, `npm run deploy` refuses when production lists a native page that
+  the register does not. `ALLOW_NATIVE_LANDING_REMOVAL=1` allows the removal
+  when it is intended (RELEASE.md, preflight).
 - **An entry naming a product this store does not carry is skipped**, not
   inserted against an empty product, which would make the takeover unresolvable
   later.

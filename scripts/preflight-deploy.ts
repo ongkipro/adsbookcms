@@ -1,13 +1,15 @@
 /**
  * Runs before `npm run deploy` / `npm run cf:deploy` (npm `predeploy`).
  *
- * Three refusals, all decided in `src/lib/deploy-preflight.ts` where they are
+ * Four refusals, all decided in `src/lib/deploy-preflight.ts` where they are
  * unit-tested: the config must carry real resource ids, not the product
  * template's all-zero ones (RELEASE.md §7); the tree must be the branch — not behind
  * its upstream, not carrying uncommitted tracked changes — because `wrangler
  * deploy` uploads whatever is on disk and has reverted production twice; and
  * every migration production D1 has applied must be in this tree, or the new
- * Worker answers 503 on every database route.
+ * Worker answers 503 on every database route; and every native landing page
+ * production D1 lists must be in this tree's register, or the hourly reconcile
+ * deletes it (overridable with ALLOW_NATIVE_LANDING_REMOVAL=1).
  *
  * It cannot cover a bare `npx wrangler deploy`: wrangler has no pre-deploy
  * hook, so RELEASE.md names `npm run deploy` as the deploy command. Anyone
@@ -20,8 +22,10 @@ import {
   checkDeployTarget,
   evaluateDeployPreflight,
   findUnbundledMigrations,
+  findUnregisteredNativeLandings,
   parseWranglerConfig,
 } from "../src/lib/deploy-preflight.ts";
+import { activeNativeLandingPages } from "../src/lib/native-landing-pages.ts";
 
 function git(args: string[]): string {
   try {
@@ -86,6 +90,38 @@ if (databaseName) {
       process.exit(1);
     }
     console.log(`[preflight] production D1 ledger: ${ledger.length} applied, all in this tree.`);
+  }
+
+  // Same database, same reasoning: a fresh store has no landing_pages yet.
+  let live: string[] | null = null;
+  try {
+    const raw = execFileSync(
+      "npx",
+      ["wrangler", "d1", "execute", databaseName, "--remote", "--json", "--command", "SELECT slug FROM landing_pages WHERE source = 'native' ORDER BY slug"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    );
+    const parsed = JSON.parse(raw) as { results?: { slug?: unknown }[] }[];
+    live = (parsed[0]?.results ?? []).map((row) => String(row.slug));
+  } catch (error) {
+    const detail = String((error as { stdout?: unknown }).stdout ?? "") + String((error as { stderr?: unknown }).stderr ?? "");
+    if (/no such (table|column)/.test(detail)) live = [];
+    else console.warn("[preflight] could not read production native landing pages; they were not compared.");
+  }
+  if (live) {
+    const unregistered = findUnregisteredNativeLandings(live, activeNativeLandingPages().map((entry) => entry.slug));
+    if (unregistered.length && process.env.ALLOW_NATIVE_LANDING_REMOVAL !== "1") {
+      console.error("\n[preflight] Refusing to deploy:\n");
+      console.error(`  ✖ Production D1 (${databaseName}) lists ${unregistered.length} native landing page(s) this tree's register does not:`);
+      for (const slug of unregistered) console.error(`      /${slug}`);
+      console.error(
+        "\n  Within the hour the reconcile would delete those rows and any product page they claim.\n" +
+          "  Bring their route files and register entries (src/data/native-landing-pages.ts) into this\n" +
+          "  checkout. If removing them is intended, set ALLOW_NATIVE_LANDING_REMOVAL=1.\n",
+      );
+      process.exit(1);
+    }
+    if (unregistered.length) console.warn(`[preflight] ALLOW_NATIVE_LANDING_REMOVAL=1: ${unregistered.length} native landing page(s) will be removed.`);
+    else console.log(`[preflight] production native landing pages: ${live.length}, all registered.`);
   }
 }
 

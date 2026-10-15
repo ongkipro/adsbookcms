@@ -2655,3 +2655,16 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   `_fbc` cookie after a product-page redirect, once a working headless browser
   is available.
 
+- [x] **A-326** — The deploy preflight refuses when production lists native
+  landing pages that the tree's register does not. **Done 2026-10-16
+  (1.5.10).** `findUnregisteredNativeLandings` in `deploy-preflight.ts`
+  (tested) compares the production `landing_pages` rows that have
+  `source = 'native'` against `activeNativeLandingPages()`. The hourly
+  reconcile would otherwise delete those rows and their product-page claims.
+  `ALLOW_NATIVE_LANDING_REMOVAL=1` allows an intended removal. Verified
+  read-only on production: taniniaga passed (14 registered), and zvarashop
+  refused with 55 slugs.
+- [ ] **A-327** — permatamall and zanobyshop deploy from GitHub Actions with a
+  bare `wrangler deploy`, which skips `preflight:deploy` and all four of its
+  refusals. Move both workflows onto `npm run deploy`, with D1 read access
+  for the token.

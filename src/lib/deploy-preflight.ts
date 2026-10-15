@@ -213,3 +213,16 @@ export function findUnbundledMigrations(applied: string[], bundled: string[]): s
   const onDisk = new Set(bundled);
   return applied.filter((name) => !onDisk.has(name));
 }
+
+/*
+ * The fourth check: native landing rows in production D1 against this tree's
+ * register. The hourly reconcile deletes every `source = 'native'` row whose
+ * slug the deployed register does not list, together with any product page it
+ * had claimed. A checkout missing pages added and deployed from elsewhere would
+ * erase them within the hour (zvarashop, 2026-10-16: 55 such rows). Removing a
+ * page on purpose is legitimate, so this one can be overridden.
+ */
+export function findUnregisteredNativeLandings(live: string[], registered: string[]): string[] {
+  const listed = new Set(registered);
+  return live.filter((slug) => !listed.has(slug));
+}

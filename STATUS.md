@@ -1,6 +1,6 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-16 @ `fd652b4` (1.5.9 on ten installs; zvarashop held)
+> Verified against disk: 2026-10-16 (1.5.10 on the product; 1.5.9 on ten installs; zvarashop held)
 
 ## 2026-10-16 — 1.5.9 on ten installs; zvarashop still held
 
@@ -15,6 +15,10 @@
   Mengantar key, warehouse, couriers, support WhatsApp, fee bearers and the
   BCA account set to match taniniaga. Pixel/CAPI and logo are still empty,
   and no end-to-end order has been placed yet.
+- **1.5.10** (product only, not yet on installs): `npm run deploy` refuses
+  when production lists native landing pages that the register does not, so
+  the zvarashop loss can no longer happen through the preflight path (A-326).
+  The Actions installs still skip the preflight (A-327).
 - **zvarashop** is unchanged from the entry below: repo at 1.5.5, production
   on its 2026-10-14 version with `0069`–`0073` applied. Those migrations are
   data-only, and production carries 55 native landing rows that are absent
@@ -377,7 +381,7 @@ The previous version of this file described a different repository — it opened
 | Product | AdsBookCMS (single) |
 | Repository role | **Product.** Deploys nothing; CI runs check, test and build only |
 | Install model | 1 installer = 1 Worker = 1 store (ADR-001) |
-| Version | `1.5.9` / `2026.10-landing-hero-h1` (`src/lib/version.ts`) |
+| Version | `1.5.10` / `2026.10-landing-hero-h1` (`src/lib/version.ts`) |
 | Schema | 62 migration files, `0000`-`0061` |
 | Bindings | `OMS_DB` (D1), `SESSION` (KV, caches only since ADR-021), `ASSET_BUCKET` (R2), `AI`, `ASSETS` — names fixed across installs |
 | `wrangler.jsonc` | template of placeholders; each install supplies its own resources |
@@ -508,7 +512,7 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **835 / 835 passing** (2026-10-16, `fd652b4`) |
+| `npm test` | **836 / 836 passing** (2026-10-16, 1.5.10) |
 | `npm run check` | 0 errors · 0 warnings · 0 hints |
 | `npm run build` | Cloudflare server bundle complete; 62 bundled migrations |
 | PageSpeed Insights, mobile, official API (2026-08-24) | taniniaga 96 · carukesi 95 · permatamall 94 · zanobyshop 92 · skincarebpom 89 · zvara 85 — CLS 0.00 on every store |

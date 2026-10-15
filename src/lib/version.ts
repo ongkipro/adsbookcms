@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.5.9",
+  version: "1.5.10",
+  // 1.5.10: deploy preflight refuses when production lists native landings the register does not.
   channel: "production",
   // 1.5.9: merchant html keeps one h1; an html-only page without one gets a hidden h1.
   // 1.5.8: the landing h1 is never a second one, nor a headline that does not render.

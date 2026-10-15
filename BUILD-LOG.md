@@ -6688,3 +6688,25 @@ kept); an html-only page rendered `<h1 class="sr-only">` with its title.
 
 Revenleather's landings that answered 0 in the same scan are product-page
 hand-offs (`301` to `/produk/<slug>`, one `<h1>` there), not a defect.
+
+## 2026-10-16 — 1.5.10: the deploy preflight guards native landing pages
+
+zvarashop's production D1 lists 55 native landing pages that its repository's
+register does not. They were added and deployed from another device. A deploy
+from the repository would pass every existing preflight check once the
+missing migrations were restored, and then the hourly
+`reconcileNativeLandingPages` would delete those rows and any product page
+they had claimed.
+
+- **Fourth refusal.** `preflight:deploy` reads
+  `SELECT slug FROM landing_pages WHERE source = 'native'` from production and
+  refuses when any slug is missing from the active register
+  (`findUnregisteredNativeLandings`, tested). A fresh database passes. If the
+  rows cannot be read, the preflight says so and skips the comparison.
+  `ALLOW_NATIVE_LANDING_REMOVAL=1` allows an intended removal.
+- Verified read-only against production. A copy of taniniaga passed ("14,
+  all registered"). A copy of zvarashop, given placeholder `0069`–`0073` files
+  so it got past the ledger check, refused with 55 slugs and exit 1. Nothing
+  was deployed.
+
+Checked: `npm test` (836), `npm run check`.

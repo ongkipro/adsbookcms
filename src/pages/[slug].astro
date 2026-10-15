@@ -79,6 +79,9 @@ if (page.is_product_page && !servedAsProductPage && !isPreview) {
 const csPhone = await getStoreSupportWhatsapp(Astro.locals);
 const formSections = page.sections.filter((section) => section.type === 'form');
 const firstFormSectionId = formSections[0]?.id;
+// The page's own title. The layout renders no <h1> on a landing page, so the
+// first headline section is the one; every later headline stays an <h2>.
+const firstHeadlineSectionId = page.sections.find((section) => section.type === 'headline')?.id;
 
 // Clean title and description: focus strictly on product name without redundant "landing page" text
 const rawTitle = page.meta_title || page.title || product.seoTitle || product.productName;
@@ -161,12 +164,21 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
         return <section class="lp-section" set:html={parsedHtml} />;
       }
       const config = section.content_config;
-      if (section.type === 'headline' && config && 'text' in config) return <section class={`lp-section lp-align-${config.align ?? 'left'}`}><h2 class={`lp-headline-${config.size ?? 'medium'}`}>{config.text}</h2></section>;
+      if (section.type === 'headline' && config && 'text' in config) {
+        const Heading = section.id === firstHeadlineSectionId ? 'h1' : 'h2';
+        return <section class={`lp-section lp-align-${config.align ?? 'left'}`}><Heading class={`lp-headline-${config.size ?? 'medium'}`}>{config.text}</Heading></section>;
+      }
       if (section.type === 'paragraph' && config && 'text' in config) return <section class={`lp-section lp-align-${config.align ?? 'left'}`}><p class="lp-body">{config.text}</p></section>;
       if ((section.type === 'numbered_list' || section.type === 'bullet_list') && config && 'items' in config) {
         return <section class="lp-section">{section.type === 'numbered_list' ? <ol>{config.items.map((item) => <li>{item}</li>)}</ol> : <ul>{config.items.map((item) => <li>{item}</li>)}</ul>}</section>;
       }
-      if (section.type === 'image' && config && 'src' in config) return <section class="lp-section"><img src={config.src} alt={config.alt} loading="lazy" decoding="async" /></section>;
+      // Same rule as an html section: an image opening the page is the likely
+      // LCP and loads at once; every later image waits for the scroll.
+      if (section.type === 'image' && config && 'src' in config) {
+        return index === 0
+          ? <section class="lp-section"><img src={config.src} alt={config.alt} loading="eager" fetchpriority="high" decoding="async" /></section>
+          : <section class="lp-section"><img src={config.src} alt={config.alt} loading="lazy" decoding="async" /></section>;
+      }
       // Only a form section renders a form. While `type` was `'html' | 'form'`
       // the final `return` was a safe else; with seven kinds it is a trap —
       // any typed section whose stored config failed to parse would fall

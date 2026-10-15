@@ -29,10 +29,28 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: "1.5.7",
+    date: "15 Oktober 2026",
+    releaseTag: "2026.10-landing-hero-h1",
+    isLatest: true,
+    highlight: "Gambar pembuka landing page tampil lebih cepat, dan judul pertamanya menjadi judul utama halaman.",
+    changes: [
+      {
+        title: "Gambar pertama tidak lagi menunggu scroll",
+        description:
+          "Bila section pertama landing page adalah gambar, gambar itu dimuat langsung dengan prioritas tinggi. Gambar berikutnya tetap dimuat saat discroll.",
+      },
+      {
+        title: "Landing page punya judul utama (H1)",
+        description:
+          "Section headline pertama kini dirender sebagai H1, jadi halaman — termasuk landing yang menjadi halaman produk — punya satu judul utama untuk mesin pencari. Tampilannya tidak berubah.",
+      },
+    ],
+  },
+  {
     version: "1.5.6",
     date: "15 Oktober 2026",
     releaseTag: "2026.10-fleet-status",
-    isLatest: true,
     highlight: "Deploy menolak bila database produksi punya migrasi yang tidak ada di kode.",
     changes: [
       {

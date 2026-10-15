@@ -6601,3 +6601,24 @@ files are committed.
   - Order detail no longer prints "Skor Mengantar -".
 
 Verified: `astro check` 0 errors; 833 passing; build.
+
+## 2026-10-15 — 1.5.7: a CMS landing page opens with an eager hero and its own h1
+
+Found building the first numaskin-adbook landing page (`/treatment-lotion`,
+since claimed as `/produk/deep-sea-water-treatment-lotion`), whose first section
+is an `image` and whose first headline was its title.
+
+- **Hero image.** `[slug].astro` rendered every typed `image` section
+  `loading="lazy"`, so the page's opening image — its LCP on a paid click —
+  waited for layout. The first section now loads `eager` with
+  `fetchpriority="high"`, the same rule `deferOffscreenImages` already applies to
+  an `html` section; later images stay lazy.
+- **h1.** Every `headline` section rendered as `<h2>` and the layout renders no
+  `<h1>` on a landing page, so the page had none — including when it takes over
+  a product page, whose own template has one. The first headline section now
+  renders as `<h1>`; `landing.css` already styles `.lp-section h1`, and the
+  measured size, weight and alignment did not change (24px / 700 / center).
+- Checked: `npm test` (834, one new in `landing-pages.test.ts`), `npm run check`;
+  rendered locally against a copy of the numaskin D1 at 390px — one `h1`, hero
+  `eager`/`fetchpriority=high`, the next image `lazy`, no horizontal scroll, no
+  console errors.

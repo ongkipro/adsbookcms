@@ -118,6 +118,7 @@ type Order = {
   receiver_performance_unavailable?: string | null;
   receiver_performance_checked_at: string | null;
   ad_click_ids?: string | null;
+  source_page_path?: string | null;
   created_at: string;
   payment: PaymentDetails | null;
   items: OrderItem[];
@@ -1197,6 +1198,12 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 {risk.label}
               </Badge>
               <TrafficSourceBadge adClickIds={order.ad_click_ids} />
+              {order.source_page_path && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full border bg-violet-50 text-violet-700 border-violet-200">
+                  <span className="size-1.5 rounded-full bg-current opacity-80 shrink-0" />
+                  {order.source_page_path}
+                </span>
+              )}
             </div>
 
             <div className="mt-2 flex items-center gap-3">

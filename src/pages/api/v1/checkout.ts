@@ -111,6 +111,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       courierService: shipping.courierService,
       adClickIds: storedClickIds,
       metaRequestContext,
+      sourcePagePath: String(body.source_page_path || "").slice(0, 500) || undefined,
     });
 
     // Same contract as storefront checkout: a provider failure leaves the

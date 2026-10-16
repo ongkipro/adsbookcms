@@ -756,6 +756,7 @@ function initMiddleOrderFormInstance(
           variant_unique_id: String(checked.value || ""),
           variant_id: String(checked.value || ""),
           shipping_cost: 0,
+          source_page_path: window.location.pathname,
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as any;

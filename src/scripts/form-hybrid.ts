@@ -1988,6 +1988,7 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
           shipping_cost: shippingCost,
           province:
             state.selectedProvince || state.location.province || undefined,
+          source_page_path: window.location.pathname,
         }),
       });
       const data = (await resp.json().catch(() => ({}))) as SubmitOrderResponse;

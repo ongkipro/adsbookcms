@@ -157,6 +157,7 @@ class SqliteD1Database {
         courier_code TEXT,
         courier_service TEXT,
         ad_click_ids TEXT,
+        source_page_path TEXT,
         seller_bank_account_id INTEGER,
         seller_bank_code TEXT,
         seller_bank_name TEXT,

@@ -29,6 +29,7 @@ export type PersistOrderInput = {
   courierService?: string;
   adClickIds?: string;
   metaRequestContext?: string;
+  sourcePagePath?: string;
 };
 
 export type PersistedOrder = {
@@ -571,6 +572,7 @@ export async function persistOrder(
                  courier_service = ?,
                  ad_click_ids = COALESCE(?, ad_click_ids),
                  meta_request_context = COALESCE(?, meta_request_context),
+                 source_page_path = COALESCE(?, source_page_path),
                  seller_bank_account_id = ?,
                  seller_bank_code = ?,
                  seller_bank_name = ?,
@@ -609,6 +611,7 @@ export async function persistOrder(
             input.courierService || null,
             input.adClickIds || null,
             input.metaRequestContext || null,
+            input.sourcePagePath || null,
             sellerBankAccount?.id || null,
             sellerBankAccount?.bank_code || null,
             sellerBankAccount
@@ -629,13 +632,13 @@ export async function persistOrder(
               total_amount, shipping_cost, cod_service_fee, cod_service_fee_vat,
               cod_fee_bearer, payment_method, payment_status, shipping_status,
               destination_area_id, courier_code, courier_service, ad_click_ids,
-              meta_request_context,
+              meta_request_context, source_page_path,
               seller_bank_account_id, seller_bank_code, seller_bank_name,
               seller_account_holder, seller_account_number, created_at,
               checkout_fingerprint, checkout_dedupe_expires_at
             ) VALUES (
               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending',
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )`,
           )
           .bind(
@@ -664,6 +667,7 @@ export async function persistOrder(
             input.courierService || null,
             input.adClickIds || null,
             input.metaRequestContext || null,
+            input.sourcePagePath || null,
             sellerBankAccount?.id || null,
             sellerBankAccount?.bank_code || null,
             sellerBankAccount

@@ -27,6 +27,9 @@ interface SharedEnvVars {
   INSTALL_TOKEN?: string;
   /** Optional per-install HTTPS endpoint for redacted operational alerts. */
   OPS_ALERT_WEBHOOK_URL?: string;
+  /** Optional Kelola toko webhook pair; both set = every new order is pushed. */
+  KELOLA_ORDER_WEBHOOK_URL?: string;
+  KELOLA_ORDER_WEBHOOK_SECRET?: string;
   BOOTSTRAP_ADMIN_PASSWORD?: string;
   MENGANTAR_ORIGIN_AREA_ID?: string;
   MENGANTAR_PICKUP_ADDRESS_ID?: string;

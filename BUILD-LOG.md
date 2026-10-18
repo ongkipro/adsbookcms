@@ -6710,3 +6710,21 @@ they had claimed.
   was deployed.
 
 Checked: `npm test` (836), `npm run check`.
+
+## 2026-10-18 — beranda-tani on 1.5.10; every selling page audited
+
+- **Deploy.** `ac887b0`, deployed with `npm run deploy`, which ran the 1.5.10
+  preflight on a real install for the first time: ledger 62 applied, 6
+  native landings, all registered. `check` 0 errors, `test` 0 failing.
+- **Audit, live, 390 px headless Chromium.** The six native landings and the
+  four `/produk/<slug>` pages each rendered one `<h1>` and one form, with no
+  horizontal overflow and no console errors. Each form's variant ids, labels,
+  prices and compare prices match the store's D1 `product_variants` exactly.
+  Every landing resolves its product by slug and passes `product.slug` to
+  the form and the sticky CTA, so no price is hard-coded in a route file.
+- **Checkout path.** `/api/locations` and `/api/shipping-rates` answered live
+  for COD and prepaid (SAP Rp6.300 for 500 ml, Rp7.000 for 1 L to Bekasi
+  Barat). The Mengantar key is a Worker secret, not the `stores` column.
+  Payment methods offered: COD, QRIS and five VAs through AutoLaris.
+  `seller_bank_accounts` is empty, so manual transfer is not offered. No order
+  was placed.

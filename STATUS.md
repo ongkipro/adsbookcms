@@ -489,7 +489,7 @@ is generated per store from that store's own D1.
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
 | `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.9 on `621d14d`, installed 2026-10-15 |
-| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.9 on `e0e6a35` |
+| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.10 on `ac887b0` |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.9 on `9c6fb46` |
 | `klikinaja.ongki.workers.dev` | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.9 on `b2b8f92` |
 | `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.9 on `9b3d4cd` |

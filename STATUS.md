@@ -19,8 +19,6 @@
   `0deb08bb` (rollback point `b0a2cb2f`). After deploy, all 69 live pages and
   home, catalogue, legal, thanks and payment still match the pre-deploy
   capture; 69 native rows and 69 product-page claims intact.
-- **Found, not fixed:** `thanks.astro` references `/images/logo.webp`, which
-  no longer exists (404 live too).
 
 ## 2026-10-16 — 1.5.9 on ten installs; zvarashop still held
 
@@ -511,7 +509,7 @@ is generated per store from that store's own D1.
 | `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.10 on `844c6a8`, installed 2026-10-15 |
 | `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.10 on `ac887b0` |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.10 on `b94e33a` |
-| `klikinaja.ongki.workers.dev` | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.10 on `a9e7044` |
+| `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.10 on `a9e7044` |
 | `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.10 on `37a0778` |
 | `permatamall.shop` | `ongkipro/permatamall` | `git merge product/main` on `main`; GitHub Actions deploys on push | 1.5.10 on `439aa3b` |
 | `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.10 on `c606a7c` |

@@ -757,10 +757,15 @@ export type ShortcodeProduct = {
  * - a tag carrying `onerror`/`onload`: content uses a hidden
  *   `<img src="x" onerror=…>` to run script, and a lazy hidden image is never
  *   fetched, so its handler would never fire.
+ *
+ * Such a script carrier's placeholder `src` ("x", "#") becomes `data:,`. It
+ * fails just the same, so `onerror` still fires, but without a request: "x"
+ * cost every page view a Worker 404 render on `/x`, and "#" refetched the page.
  */
 export function deferOffscreenImages(html: string, keepFirstEager: boolean): string {
   let first = keepFirstEager;
   return html.replace(/<img\b[^>]*>/gi, (tag) => {
+    if (/\sonerror\s*=/i.test(tag)) tag = tag.replace(/(\ssrc\s*=\s*)(["']?)(?:x|#)\2(?=[\s>/])/i, '$1"data:,"');
     if (/\sloading\s*=/i.test(tag) || /\son(error|load)\s*=/i.test(tag)) return tag;
     if (first) {
       first = false;

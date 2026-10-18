@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.5.10",
+  version: "1.5.11",
+  // 1.5.11: a script-carrier image in merchant html fails without a request.
   // 1.5.10: deploy preflight refuses when production lists native landings the register does not.
   channel: "production",
   // 1.5.9: merchant html keeps one h1; an html-only page without one gets a hidden h1.
@@ -25,5 +26,5 @@ export const CMS_VERSION: CmsVersionInfo = {
   releaseTag: "2026.10-landing-hero-h1",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
   schemaVersion: 62,
-  lastUpdated: "2026-10-16",
+  lastUpdated: "2026-10-19",
 };

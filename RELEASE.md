@@ -156,10 +156,10 @@ Two registries, currently in step:
 
 | Source | Field | Value |
 | --- | --- | --- |
-| `src/lib/version.ts` | `version` | `1.5.10` |
+| `src/lib/version.ts` | `version` | `1.5.11` |
 | `src/lib/version.ts` | `releaseTag` | `2026.10-landing-hero-h1` |
 | `src/lib/version.ts` | `schemaVersion` | `62` |
-| `package.json` | `version` | `1.5.10` |
+| `package.json` | `version` | `1.5.11` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.

@@ -685,10 +685,20 @@ test("CMS images below the first are deferred, and script-bearing images are lef
   assert.match(out, /<img src="\/chosen\.jpg" loading="eager">/, "an operator's own choice stands");
   // A lazy hidden image is never fetched, so its onerror — the only way CMS
   // content runs script — would never fire.
-  assert.match(out, /<img src="x" style="display:none" onerror="bindCta\(\)">/);
+  assert.match(out, /<img src="data:," style="display:none" onerror="bindCta\(\)">/);
   assert.match(out, /<img loading="lazy" decoding="async" SRC="\/upper\.jpg">/);
   // A later section has no LCP candidate: its first image is deferred too.
   assert.match(deferOffscreenImages('<img src="/a.jpg">', false), /^<img loading="lazy" decoding="async"/);
+});
+
+test("a script-carrier image fails without a request; real images keep their src", () => {
+  const carriers = ['<img src="x" onerror="go()">', "<img src='x' onerror='go()'>", '<img src=x onerror=go()>', '<img style="display:none" src="#" onerror="go()">'];
+  for (const tag of carriers) assert.match(deferOffscreenImages(tag, false), /src="data:,"/, tag);
+  // Without onerror nothing would notice the failure, so the tag is left as written.
+  assert.equal(deferOffscreenImages('<img src="x" loading="eager">', false), '<img src="x" loading="eager">');
+  // A real file named x.png, or one whose name only starts with x, is untouched.
+  assert.match(deferOffscreenImages('<img src="x.png" onerror="go()">', false), /src="x\.png"/);
+  assert.match(deferOffscreenImages('<img src="xmas.jpg" onerror="go()">', false), /src="xmas\.jpg"/);
 });
 
 test("merchant html keeps one <h1>: later ones become <h2> with their attributes", () => {

@@ -6728,3 +6728,33 @@ Checked: `npm test` (836), `npm run check`.
   Payment methods offered: COD, QRIS and five VAs through AutoLaris.
   `seller_bank_accounts` is empty, so manual transfer is not offered. No order
   was placed.
+
+## 2026-10-19 — zvarashop: rebuilding source that only production held
+
+zvarashop's production ran a build that was never pushed. Its D1 ledger listed
+`0069`–`0073`, and its register held 55 native landing pages that no
+repository had. No branch, clone or device copy was found, so the source was
+rebuilt from production.
+
+- **Migrations.** Each one was matched to the rows it introduced by comparing
+  `d1_migrations.applied_at` with `created_at`. The result is idempotent:
+  `INSERT OR IGNORE` for new products and variants, `UPDATE` for existing
+  products, and an upsert for landing rows. Production never re-runs them.
+  On a fresh local database all 74 apply in order.
+- **Route files.** Each was converted from its live render. The tracker, the
+  order form (the element holding `*-embedded-config`) and the toast become
+  their components again, and the cheapest variant price becomes
+  `{rupiah(price)}`. Page CSS is the set of unlayered, unscoped rules that not
+  every page shares; Tailwind regenerates the rest from the classes.
+- **Two traps, both caught only by comparing renders.** Astro's HTML
+  compression drops whitespace containing a newline at a text/tag boundary.
+  When prettier moved a space onto a new line, the space disappeared and the
+  text wrapped differently, so edge spaces are now written as `{' '}`. The
+  second trap: 52 images had the same path in the repo and in production but
+  different bytes, because production had replaced them. Images are now
+  compared by content, not by existence.
+- **Register.** Titles and descriptions are taken from what D1 holds, which
+  is what the hourly reconcile wrote from production's register, so the
+  first reconcile after deploy writes nothing.
+
+Evidence lives in the STATUS 2026-10-19 entry.

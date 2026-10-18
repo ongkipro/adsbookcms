@@ -1,6 +1,26 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-16 (1.5.10 on the product; 1.5.9 on ten installs; zvarashop held)
+> Verified against disk: 2026-10-19 (1.5.10 on all eleven installs; zvarashop recovered and redeployed)
+
+## 2026-10-19 — 1.5.10 on all eleven installs; zvarashop recovered
+
+- **Fleet.** All eleven installs run 1.5.10 and answer 200 on `/`. The seven
+  manual installs deployed with `npm run deploy`, and the new native-landing
+  preflight passed on each. permatamall (`439aa3b`) and zanobyshop
+  (`cc533db`) deployed through Actions with success.
+- **zvarashop unblocked.** Production's missing source was rebuilt from
+  production itself: migrations `0069`–`0073` from the D1 rows each one
+  introduced, 55 landing route files from their live renders, plus the 14
+  already in the repo (production had redesigned them), 258 missing images
+  and 52 stale ones. `install/zvarashop` `5028026` (merge `0c65489` + restore).
+  Before deploy, a local Worker on a copy of the catalogue matched all 69
+  pages token for token, whitespace included; 390 px screenshots differed only
+  in countdown, random stock bar and the order-count toast. Deployed version
+  `0deb08bb` (rollback point `b0a2cb2f`). After deploy, all 69 live pages and
+  home, catalogue, legal, thanks and payment still match the pre-deploy
+  capture; 69 native rows and 69 product-page claims intact.
+- **Found, not fixed:** `thanks.astro` references `/images/logo.webp`, which
+  no longer exists (404 live too).
 
 ## 2026-10-16 — 1.5.9 on ten installs; zvarashop still held
 
@@ -488,17 +508,17 @@ is generated per store from that store's own D1.
 
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
-| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.9 on `621d14d`, installed 2026-10-15 |
+| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.10 on `844c6a8`, installed 2026-10-15 |
 | `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.10 on `ac887b0` |
-| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.9 on `9c6fb46` |
-| `klikinaja.ongki.workers.dev` | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.9 on `b2b8f92` |
-| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.9 on `9b3d4cd` |
-| `permatamall.shop` | `ongkipro/permatamall` | `git merge product/main` on `main`; GitHub Actions deploys on push | 1.5.9 on `2592e9b` |
-| `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.9 on `545d946` |
-| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.9 on `722c711` |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.5.9 on `0de1f23` |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.5.9 on `1e6c89b` |
-| `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | **held**: repo at 1.5.5 (`6006be7`), live on its 2026-10-14 version, D1 ledger 74 vs 69 files — see the 2026-10-15 entry |
+| `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.10 on `b94e33a` |
+| `klikinaja.ongki.workers.dev` | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.10 on `a9e7044` |
+| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.10 on `37a0778` |
+| `permatamall.shop` | `ongkipro/permatamall` | `git merge product/main` on `main`; GitHub Actions deploys on push | 1.5.10 on `439aa3b` |
+| `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.10 on `c606a7c` |
+| `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.10 on `21127b1` |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.5.10 on `d9fa0bb` |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.5.10 on `cc533db` |
+| `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | 1.5.10 on `5028026`, schema 74 (`0069`–`0073` recovered 2026-10-18) |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more
 (ADR-016). Older installs keep legacy `cmsads-*` names on their Cloudflare

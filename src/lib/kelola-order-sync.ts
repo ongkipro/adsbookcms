@@ -1,17 +1,16 @@
 /**
  * Every new order pushed to the Kelola CRM (Penjualan) of one toko.
  *
- * Off unless both `KELOLA_ORDER_WEBHOOK_URL` and `KELOLA_ORDER_WEBHOOK_SECRET`
- * are set — Kelola's toko settings issue the pair. The request is signed like
+ * Off until a URL + secret pair is configured — Kelola's toko settings issue
+ * it. The pair saved at /admin/profile (`stores.kelola_webhook_*`) wins over the
+ * `KELOLA_ORDER_WEBHOOK_URL` / `_SECRET` env fallback. The request is signed like
  * Kelola's Mengantar webhook: HMAC-SHA256 hex over `{x-timestamp}.{raw body}`.
  *
  * Kelola keys the order on `code` = our order number, so a resend is answered
  * as a duplicate rather than a second sale. That makes the delivery here
  * at-least-once on purpose: a push right after checkout (`waitUntil`), then
- * the hourly cron retries whatever Kelola has not accepted yet.
- *
- * lazy: env-only config (one Kelola toko per install). Move it to D1 + the
- * admin profile page if a store ever needs to change it without a deploy.
+ * the hourly cron retries whatever Kelola has not accepted yet, and an operator
+ * can resend one order from its detail page.
  */
 import { getEnvValue, getRuntimeEnv } from "./env.ts";
 
@@ -39,12 +38,110 @@ type OrderRow = {
 };
 type ItemRow = { sku: string; name: string; quantity: number; unit_price: number; weight_grams: number };
 
-type KelolaConfig = { url: string; secret: string };
+type KelolaConfig = { url: string; secret: string; source?: "dashboard" | "server" };
 
 export function readKelolaConfig(env: Parameters<typeof getEnvValue>[1]): KelolaConfig | null {
   const url = getEnvValue("KELOLA_ORDER_WEBHOOK_URL", env);
   const secret = getEnvValue("KELOLA_ORDER_WEBHOOK_SECRET", env);
-  return url && secret ? { url, secret } : null;
+  return url && secret ? { url, secret, source: "server" } : null;
+}
+
+/** Dashboard pair first, env pair as the fallback; null = the push is off. */
+export async function getKelolaConfig(
+  database: D1Database,
+  env: Parameters<typeof getEnvValue>[1],
+): Promise<KelolaConfig | null> {
+  const row = await database
+    .prepare("SELECT kelola_webhook_url, kelola_webhook_secret FROM stores ORDER BY id LIMIT 1")
+    .first<{ kelola_webhook_url: string | null; kelola_webhook_secret: string | null }>()
+    // A Worker serving before migration 0064 lands still has its env pair.
+    .catch(() => null);
+  const url = row?.kelola_webhook_url?.trim();
+  const secret = row?.kelola_webhook_secret?.trim();
+  return url && secret ? { url, secret, source: "dashboard" } : readKelolaConfig(env);
+}
+
+/**
+ * A pasted webhook URL, or null when it cannot be one Kelola issued. HTTPS
+ * only: the body carries buyer names, phones and addresses.
+ */
+export function normalizeKelolaWebhookUrl(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  try {
+    const url = new URL(raw.trim());
+    return url.protocol === "https:" && /^\/api\/public\/toko\/order\/[^/]+$/.test(url.pathname) && !url.search
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The URL with its token hidden — the token alone routes to the toko. */
+export function maskKelolaWebhookUrl(url: string) {
+  const token = url.split("/").pop() ?? "";
+  return `${url.slice(0, url.length - token.length)}${token.slice(0, 4)}…${token.slice(-4)}`;
+}
+
+/**
+ * Prove URL + secret without creating an order: a correctly signed empty body
+ * passes Kelola's token and signature checks and stops at validation (400).
+ */
+export async function testKelolaConnection(
+  config: KelolaConfig,
+  fetcher: typeof fetch = fetch,
+): Promise<{ ok: boolean; message: string }> {
+  const body = "{}";
+  const timestamp = String(Date.now());
+  try {
+    const response = await fetcher(config.url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-timestamp": timestamp,
+        "x-signature": await signKelolaBody(config.secret, timestamp, body),
+      },
+      body,
+      signal: AbortSignal.timeout(PUSH_TIMEOUT_MS),
+    });
+    if (response.status === 400) return { ok: true, message: "Terhubung: URL dan secret diterima Kelola." };
+    if (response.status === 404) return { ok: false, message: "Kelola tidak mengenal URL ini. Sambungkan ulang toko di Kelola lalu tempel URL barunya." };
+    if (response.status === 401) return { ok: false, message: "Secret tidak cocok dengan URL ini, atau jam server berselisih lebih dari 5 menit." };
+    return { ok: false, message: `Kelola membalas HTTP ${response.status}.` };
+  } catch (error) {
+    return { ok: false, message: `Kelola tidak terjangkau: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
+/** What /admin/profile shows: is the push keeping up, and what broke last. */
+export async function kelolaSyncStatus(database: D1Database, now = new Date()) {
+  const since = new Date(now.getTime() - KELOLA_RETRY_WINDOW_HOURS * 3_600_000).toISOString();
+  const counts = await database
+    .prepare(
+      `SELECT MAX(kelola_synced_at) AS last_synced_at,
+              SUM(CASE WHEN kelola_synced_at IS NOT NULL AND created_at >= ?1 THEN 1 ELSE 0 END) AS synced_24h,
+              SUM(CASE WHEN kelola_synced_at IS NULL AND kelola_attempts > 0 AND created_at >= ?1 THEN 1 ELSE 0 END) AS failing_24h
+       FROM orders
+       WHERE shipping_status != 'abandoned' AND stock_restored_at IS NULL`,
+    )
+    .bind(since)
+    .first<{ last_synced_at: string | null; synced_24h: number | null; failing_24h: number | null }>();
+  const lastError = await database
+    .prepare(
+      `SELECT order_number, kelola_attempts AS attempts, kelola_last_error AS message
+       FROM orders
+       WHERE kelola_synced_at IS NULL AND kelola_last_error IS NOT NULL
+         AND shipping_status != 'abandoned' AND stock_restored_at IS NULL AND created_at >= ?
+       ORDER BY id DESC LIMIT 1`,
+    )
+    .bind(since)
+    .first<{ order_number: string; attempts: number; message: string }>();
+  return {
+    last_synced_at: counts?.last_synced_at ?? null,
+    synced_24h: Number(counts?.synced_24h ?? 0),
+    failing_24h: Number(counts?.failing_24h ?? 0),
+    last_error: lastError ?? null,
+  };
 }
 
 /** The body Kelola's `/api/public/toko/order/:token` validates. */
@@ -159,6 +256,38 @@ function recordFailure(database: D1Database, orderId: number, message: string) {
     .run();
 }
 
+/** One order's push as its detail page shows it. */
+export async function kelolaOrderState(database: D1Database, env: Parameters<typeof getEnvValue>[1], orderId: number) {
+  const row = await database
+    .prepare("SELECT kelola_synced_at, kelola_attempts, kelola_last_error, stock_restored_at FROM orders WHERE id = ?")
+    .bind(orderId)
+    .first<{ kelola_synced_at: string | null; kelola_attempts: number; kelola_last_error: string | null; stock_restored_at: string | null }>();
+  return {
+    configured: Boolean(await getKelolaConfig(database, env)),
+    synced_at: row?.kelola_synced_at ?? null,
+    attempts: Number(row?.kelola_attempts ?? 0),
+    last_error: row?.kelola_last_error ?? null,
+    voided: Boolean(row?.stock_restored_at),
+  };
+}
+
+/**
+ * The detail page's "send again". Not bound by the cron's 24h window — an
+ * operator asked for this order. An order Kelola already holds is not re-sent.
+ */
+export async function resendOrderToKelola(database: D1Database, env: Parameters<typeof getEnvValue>[1], orderId: number) {
+  const config = await getKelolaConfig(database, env);
+  const before = await kelolaOrderState(database, env, orderId);
+  if (!config) return { ok: false, error: "Kelola CRM belum dihubungkan di Profil & Integrasi.", state: before };
+  if (before.voided) return { ok: false, error: "Order yang dibatalkan tidak dikirim ke Kelola.", state: before };
+  if (before.synced_at) return { ok: true, state: before };
+  await pushOrderToKelola(database, config, orderId);
+  const state = await kelolaOrderState(database, env, orderId);
+  return state.synced_at
+    ? { ok: true, state }
+    : { ok: false, error: `Kelola belum menerima order ini: ${state.last_error ?? "order tanpa item"}`, state };
+}
+
 /** Cron leg: retry every order Kelola has not accepted inside the window. */
 export async function drainKelolaOrders(
   database: D1Database,
@@ -185,9 +314,9 @@ export async function drainKelolaOrders(
 
 /** Checkout leg: push right after the order is stored, without delaying the buyer. */
 export function scheduleKelolaOrderPush(database: D1Database, orderId: number, locals?: App.Locals) {
-  const config = readKelolaConfig(getRuntimeEnv(locals));
-  if (!config) return;
-  const task = pushOrderToKelola(database, config, orderId);
+  const task = getKelolaConfig(database, getRuntimeEnv(locals))
+    .then((config) => (config ? pushOrderToKelola(database, config, orderId) : false))
+    .catch((error) => console.error("kelola-order-push-failed", { orderId, error }));
   if (locals?.cfContext) locals.cfContext.waitUntil(task);
   else void task;
 }

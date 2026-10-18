@@ -37,6 +37,7 @@ import {
   Edit3,
   Loader2,
   Lock as LockIcon,
+  Send,
 } from "lucide-react";
 
 type OrderItem = {
@@ -120,8 +121,17 @@ type Order = {
   ad_click_ids?: string | null;
   source_page_path?: string | null;
   created_at: string;
+  kelola?: KelolaSync;
   payment: PaymentDetails | null;
   items: OrderItem[];
+};
+
+type KelolaSync = {
+  configured: boolean;
+  synced_at: string | null;
+  attempts: number;
+  last_error: string | null;
+  voided: boolean;
 };
 
 type LocationOption = {
@@ -1049,6 +1059,35 @@ export function OrderDetail({ invoice }: { invoice: string }) {
     }
   };
 
+  const [kelolaPending, setKelolaPending] = useState(false);
+  const pushToKelola = async () => {
+    if (!order) return;
+    setKelolaPending(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${encodeURIComponent(String(order.id))}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "push-kelola" }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        message?: string;
+        data?: { kelola?: KelolaSync };
+      };
+      if (payload.data?.kelola) {
+        const kelola = payload.data.kelola;
+        setOrder((prev) => (prev ? { ...prev, kelola } : prev));
+      }
+      if (!response.ok || !payload.success) throw new Error(payload.error || "Gagal mengirim order ke Kelola.");
+      toast.success(payload.message || "Order terkirim ke Kelola.");
+    } catch (reason) {
+      toast.error(reason instanceof Error ? reason.message : "Gagal mengirim order ke Kelola.");
+    } finally {
+      setKelolaPending(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -1595,6 +1634,48 @@ export function OrderDetail({ invoice }: { invoice: string }) {
               </Button>
             </CardContent>
           </Card>
+
+          {order.kelola?.configured && (
+            <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <CardHeader className="border-b border-slate-100 bg-slate-50/50 p-4 sm:px-6">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Send className="size-4 text-slate-600" />
+                  <span>Kelola CRM</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 sm:p-6 space-y-3 text-xs">
+                {order.kelola.synced_at ? (
+                  <p className="flex items-center gap-2 font-medium text-emerald-700">
+                    <Check className="size-4" aria-hidden="true" />
+                    Terkirim {formatDate(order.kelola.synced_at)}
+                  </p>
+                ) : order.kelola.voided ? (
+                  <p className="text-slate-500">Order dibatalkan, tidak dikirim ke Kelola.</p>
+                ) : (
+                  <>
+                    <p className={cn("font-medium", order.kelola.attempts > 0 ? "text-rose-700" : "text-slate-600")}>
+                      {order.kelola.attempts > 0
+                        ? `Belum diterima Kelola (${order.kelola.attempts}× dicoba)`
+                        : "Belum terkirim ke Kelola"}
+                    </p>
+                    {order.kelola.last_error && (
+                      <p className="break-words rounded-lg bg-rose-50 px-3 py-2 font-mono text-rose-800">{order.kelola.last_error}</p>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void pushToKelola()}
+                      disabled={kelolaPending}
+                      className="w-full"
+                    >
+                      <RefreshCw className={cn(kelolaPending && "animate-spin")} aria-hidden="true" />
+                      {kelolaPending ? "Mengirim…" : order.kelola.attempts > 0 ? "Kirim ulang ke Kelola" : "Kirim ke Kelola"}
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* CRM WhatsApp Quick Actions */}
           <Card className="rounded-xl border border-slate-200 shadow-xs overflow-hidden">

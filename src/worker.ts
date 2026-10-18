@@ -21,7 +21,7 @@ import { enqueuePurchaseForPaidOrder } from "./lib/paid-order-purchase.ts";
 import { envTenantConfig } from "./lib/tenant.ts";
 import { drainCapiOutbox, purgeExpiredCapiOutboxEvents } from "./lib/capi-outbox.ts";
 import { getStoreAdsConfig } from "./lib/store-ads.ts";
-import { drainKelolaOrders, readKelolaConfig } from "./lib/kelola-order-sync.ts";
+import { drainKelolaOrders, getKelolaConfig } from "./lib/kelola-order-sync.ts";
 import {
   drainGoogleAdsConversionOutbox,
   purgeExpiredGoogleAdsConversions,
@@ -144,12 +144,10 @@ async function runScheduledMaintenance(
       )
     : 0;
   // Retry leg for the Kelola CRM push; checkout already tried once.
-  const kelola = readKelolaConfig(env);
-  const syncedKelolaOrders = kelola
-    ? await housekeeping("scheduled-kelola-order-sync-failed", () =>
-        drainKelolaOrders(env.OMS_DB, kelola, new Date(scheduledTime)),
-      )
-    : 0;
+  const syncedKelolaOrders = await housekeeping("scheduled-kelola-order-sync-failed", async () => {
+    const kelola = await getKelolaConfig(env.OMS_DB, env);
+    return kelola ? drainKelolaOrders(env.OMS_DB, kelola, new Date(scheduledTime)) : 0;
+  });
 
   // Receiver Score is whitelisted per Mengantar account; orders taken while it
   // was refused (or never opened in /admin) score themselves here.

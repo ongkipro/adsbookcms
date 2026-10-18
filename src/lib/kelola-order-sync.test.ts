@@ -5,11 +5,19 @@ import { readdirSync, readFileSync } from "node:fs";
 import { splitMigrationStatements } from "./schema-version.ts";
 import {
   drainKelolaOrders,
+  getKelolaConfig,
   kelolaOrderPayload,
+  kelolaOrderState,
+  resendOrderToKelola,
+  kelolaSyncStatus,
+  maskKelolaWebhookUrl,
+  normalizeKelolaWebhookUrl,
   pushOrderToKelola,
   readKelolaConfig,
   signKelolaBody,
+  testKelolaConnection,
 } from "./kelola-order-sync.ts";
+import { PUT as updateSettings, GET as readSettings } from "../pages/api/admin/settings.ts";
 
 const config = { url: "https://kelola.test/api/public/toko/order/twh_x", secret: "testsecret" };
 
@@ -25,8 +33,131 @@ test("config needs both URL and secret", () => {
   assert.equal(readKelolaConfig({ KELOLA_ORDER_WEBHOOK_URL: config.url }), null);
   assert.deepEqual(
     readKelolaConfig({ KELOLA_ORDER_WEBHOOK_URL: config.url, KELOLA_ORDER_WEBHOOK_SECRET: "s" }),
-    { url: config.url, secret: "s" },
+    { url: config.url, secret: "s", source: "server" },
   );
+});
+
+test("the dashboard pair wins over the env pair; env stays the fallback", async () => {
+  const { sqlite, database } = migratedStore();
+  const env = { KELOLA_ORDER_WEBHOOK_URL: "https://env.test/api/public/toko/order/twh_env", KELOLA_ORDER_WEBHOOK_SECRET: "envsecret" };
+  assert.deepEqual(await getKelolaConfig(database, env), { url: env.KELOLA_ORDER_WEBHOOK_URL, secret: "envsecret", source: "server" });
+  assert.equal(await getKelolaConfig(database, {}), null);
+  sqlite.exec(`UPDATE stores SET kelola_webhook_url = '${config.url}', kelola_webhook_secret = 'dbsecret'`);
+  assert.deepEqual(await getKelolaConfig(database, env), { url: config.url, secret: "dbsecret", source: "dashboard" });
+});
+
+test("only an HTTPS Kelola order-webhook URL is accepted, and its token is masked", () => {
+  assert.equal(normalizeKelolaWebhookUrl(" https://kelolatim.com/api/public/toko/order/twh_abcdef123456 "), "https://kelolatim.com/api/public/toko/order/twh_abcdef123456");
+  for (const bad of [
+    "http://kelolatim.com/api/public/toko/order/twh_x",
+    "https://kelolatim.com/api/public/toko/order/",
+    "https://kelolatim.com/api/public/toko/order/twh_x?debug=1",
+    "https://kelolatim.com/somewhere/else",
+    "not a url",
+    42,
+  ]) assert.equal(normalizeKelolaWebhookUrl(bad), null, String(bad));
+  assert.equal(maskKelolaWebhookUrl("https://kelolatim.com/api/public/toko/order/twh_abcdef123456"), "https://kelolatim.com/api/public/toko/order/twh_…3456");
+});
+
+test("connection test signs an empty body and reads Kelola's answer", async () => {
+  const answer = (status: number) => (async (_url: string, init: RequestInit) => {
+    const headers = new Headers(init.headers);
+    assert.equal(init.body, "{}");
+    assert.equal(headers.get("x-signature"), await signKelolaBody(config.secret, headers.get("x-timestamp")!, "{}"));
+    return new Response("{}", { status });
+  }) as unknown as typeof fetch;
+  assert.equal((await testKelolaConnection(config, answer(400))).ok, true);
+  assert.match((await testKelolaConnection(config, answer(401))).message, /Secret tidak cocok/);
+  assert.match((await testKelolaConnection(config, answer(404))).message, /tidak mengenal URL/);
+  const down = (async () => { throw new Error("connect ECONNREFUSED"); }) as unknown as typeof fetch;
+  assert.match((await testKelolaConnection(config, down)).message, /ECONNREFUSED/);
+});
+
+test("settings: the owner saves the pair, the secret never comes back, an admin cannot", async (context) => {
+  const { sqlite, database } = migratedStore();
+  const realFetch = globalThis.fetch;
+  context.after(() => { globalThis.fetch = realFetch; });
+  globalThis.fetch = (async () => new Response("{}", { status: 400 })) as typeof fetch;
+  const call = (role: string, body: unknown) => updateSettings({
+    request: new Request("https://store.test/api/admin/settings", { method: "PUT", body: JSON.stringify(body) }),
+    locals: { admin: { username: "u", role, mustChangePassword: false }, runtimeEnv: { OMS_DB: database } },
+  } as never);
+  const secret = "kelola-secret-must-not-leak-0123456789";
+
+  assert.equal((await call("admin", { action: "save-kelola", kelola: { webhook_url: config.url, webhook_secret: secret } })).status, 403);
+  assert.equal((await call("owner", { action: "save-kelola", kelola: { webhook_url: "http://x.test/a", webhook_secret: secret } })).status, 400);
+  assert.equal((await call("owner", { action: "save-kelola", kelola: { webhook_url: "https://kelola.test/api/public/toko/order/twh_x" } })).status, 400, "no secret yet");
+
+  const saved = await call("owner", { action: "save-kelola", kelola: { webhook_url: "https://kelola.test/api/public/toko/order/twh_abcdef123456", webhook_secret: secret } });
+  assert.equal(saved.status, 200);
+  const text = await saved.text();
+  assert.equal(text.includes(secret), false);
+  assert.equal(JSON.parse(text).data.verified, true);
+  assert.equal(JSON.parse(text).data.kelola.source, "dashboard");
+
+  // A new URL with the secret left empty keeps the stored secret.
+  assert.equal((await call("owner", { action: "save-kelola", kelola: { webhook_url: "https://kelola.test/api/public/toko/order/twh_rotated99", webhook_secret: "" } })).status, 200);
+  assert.deepEqual(
+    { ...sqlite.prepare("SELECT kelola_webhook_url AS url, kelola_webhook_secret AS secret FROM stores").get() },
+    { url: "https://kelola.test/api/public/toko/order/twh_rotated99", secret },
+  );
+
+  const read = await readSettings({ locals: { runtimeEnv: { OMS_DB: database } } } as never);
+  const readText = await read.text();
+  assert.equal(readText.includes(secret), false);
+  assert.equal(readText.includes("twh_rotated99"), false, "the token is masked");
+  assert.equal(JSON.parse(readText).data.credentials.kelola.configured, true);
+
+  assert.equal((await call("owner", { action: "save-kelola", kelola: { webhook_url: null } })).status, 200);
+  assert.equal(await getKelolaConfig(database, {}), null);
+});
+
+test("order detail state, and a resend that is not bound by the 24h window", async () => {
+  const { sqlite, database } = migratedStore();
+  const orderId = insertOrder(sqlite, "INV-20261001-0009", "2026-10-01T03:00:00.000Z");
+  sqlite.prepare("UPDATE orders SET kelola_attempts = 2, kelola_last_error = 'HTTP 503: down' WHERE id = ?").run(orderId);
+  assert.equal((await resendOrderToKelola(database, {}, orderId)).ok, false, "not connected");
+
+  sqlite.exec(`UPDATE stores SET kelola_webhook_url = '${config.url}', kelola_webhook_secret = '${config.secret}'`);
+  assert.deepEqual(await kelolaOrderState(database, {}, orderId), {
+    configured: true, synced_at: null, attempts: 2, last_error: "HTTP 503: down", voided: false,
+  });
+  const realFetch = globalThis.fetch;
+  let pushes = 0;
+  try {
+    globalThis.fetch = (async () => { pushes += 1; return new Response("{}", { status: 201 }); }) as typeof fetch;
+    const sent = await resendOrderToKelola(database, {}, orderId);
+    assert.equal(sent.ok, true);
+    assert.ok(sent.state.synced_at);
+    assert.equal(sent.state.last_error, null);
+    assert.equal((await resendOrderToKelola(database, {}, orderId)).ok, true, "already in Kelola");
+    assert.equal(pushes, 1, "not sent twice");
+
+    const voided = insertOrder(sqlite, "INV-VOID", new Date().toISOString());
+    sqlite.prepare("UPDATE orders SET stock_restored_at = ? WHERE id = ?").run(new Date().toISOString(), voided);
+    assert.match(String((await resendOrderToKelola(database, {}, voided)).error), /dibatalkan/);
+    assert.equal(pushes, 1);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("sync status counts the last day and names the latest failure", async () => {
+  const { sqlite, database } = migratedStore();
+  const now = new Date();
+  const ok = insertOrder(sqlite, "INV-OK", now.toISOString());
+  sqlite.prepare("UPDATE orders SET kelola_synced_at = ? WHERE id = ?").run(now.toISOString(), ok);
+  const bad = insertOrder(sqlite, "INV-BAD", now.toISOString());
+  sqlite.prepare("UPDATE orders SET kelola_attempts = 3, kelola_last_error = 'HTTP 409: Toko nonaktif' WHERE id = ?").run(bad);
+  const old = insertOrder(sqlite, "INV-OLD", new Date(now.getTime() - 30 * 3_600_000).toISOString());
+  sqlite.prepare("UPDATE orders SET kelola_attempts = 9, kelola_last_error = 'old' WHERE id = ?").run(old);
+  const status = await kelolaSyncStatus(database, now);
+  assert.deepEqual({ ...status, last_error: { ...status.last_error } }, {
+    last_synced_at: now.toISOString(),
+    synced_24h: 1,
+    failing_24h: 1,
+    last_error: { order_number: "INV-BAD", attempts: 3, message: "HTTP 409: Toko nonaktif" },
+  });
 });
 
 test("payload: COD carries the collected total, transfer does not; date is the WIB day", () => {

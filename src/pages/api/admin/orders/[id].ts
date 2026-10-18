@@ -27,6 +27,7 @@ import {
   resolveEligibleShippingRates,
   ShippingQuoteError,
 } from '../../../../lib/shipping-quote';
+import { kelolaOrderState, resendOrderToKelola } from '../../../../lib/kelola-order-sync';
 
 export const prerender = false;
 
@@ -35,7 +36,7 @@ const SHIPPING_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'ret
 const PAID_STATUSES = new Set(['paid', 'settled', 'success']);
 
 type OrderUpdatePayload = {
-  action?: 'dispatch-order' | 'refresh-scoring';
+  action?: 'dispatch-order' | 'refresh-scoring' | 'push-kelola';
   payment_status?: string;
   shipping_status?: string;
   cnote_no?: string;
@@ -302,6 +303,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
         ad_click_ids: order.ad_click_ids,
         source_page_path: order.source_page_path,
         created_at: order.created_at,
+        kelola: await kelolaOrderState(db, getRuntimeEnv(locals), order.id),
         payment: payment ? {
           reference_id: payment.reference_id,
           channel_code: payment.channel_code,
@@ -349,6 +351,12 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     if (!current) return jsonError('Order tidak ditemukan.', 404);
 
     const action = body.action;
+    if (action === 'push-kelola') {
+      const result = await resendOrderToKelola(db, getRuntimeEnv(locals), current.id);
+      return result.ok
+        ? jsonOk({ message: `Order ${current.order_number} sudah ada di Kelola.`, data: { kelola: result.state } })
+        : jsonError(result.error ?? 'Gagal mengirim order ke Kelola.', 502, { data: { kelola: result.state } });
+    }
     if (action === 'refresh-scoring') {
       const phone = (typeof body.customer_phone === 'string' ? normalizePhoneNumber(body.customer_phone).slice(0, 40) : undefined) ?? current.customer_phone;
       let performance: ReceiverPerformance;

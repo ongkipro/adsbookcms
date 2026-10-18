@@ -6758,3 +6758,26 @@ rebuilt from production.
   first reconcile after deploy writes nothing.
 
 Evidence lives in the STATUS 2026-10-19 entry.
+
+## 2026-10-19 — 1.5.11: a script-carrier image costs no request
+
+A fleet audit (518 live product and landing pages rendered at 390 px, with
+each order form checked against D1 variant ids and prices) found five
+taniniaga CMS landings whose merchant html runs script through
+`<img src="x" style="display:none" onerror=…>`. Every view of those pages also
+requested `/x`. That request reached the Worker, which looked up a landing
+called `x` in D1, rendered the 404 page, and logged a console error. `#`, the
+other common placeholder, refetches the page itself.
+
+- `deferOffscreenImages` rewrites the placeholder `src` (`x` or `#`) of an
+  `<img>` that carries `onerror` to `data:,`. The image still fails, so the
+  handler runs, but no request is made. Real sources, and images without
+  `onerror`, are not touched (tested).
+- Checked in Chromium: `onerror` fires once, the only request is the page, and
+  no console error appears.
+
+The same audit found no form, variant, price, `<h1>`, title or overflow
+defect on any page. The `/api/meta-event` 429s it logged came from its own
+traffic: 500+ pages from one IP against the 60-per-minute limit.
+
+Checked: `npm test` (837), `npm run check`.

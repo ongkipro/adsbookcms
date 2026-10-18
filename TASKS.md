@@ -2668,3 +2668,6 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   bare `wrangler deploy`, which skips `preflight:deploy` and all four of its
   refusals. Move both workflows onto `npm run deploy`, with D1 read access
   for the token.
+- [x] **A-328** — Script-carrier images in merchant html (`<img src="x"
+  onerror>`) no longer request `/x` on every view; the placeholder becomes
+  `data:,`. **Done 2026-10-19 (1.5.11).**

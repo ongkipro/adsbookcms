@@ -29,10 +29,23 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: "1.5.11",
+    date: "19 Oktober 2026",
+    releaseTag: "2026.10-landing-hero-h1",
+    isLatest: true,
+    highlight: "Landing page dengan HTML sendiri tidak lagi memicu request sia-sia setiap kali dibuka.",
+    changes: [
+      {
+        title: "Gambar pemicu script tanpa request",
+        description:
+          "Gambar tersembunyi berisi onerror (src=\"x\") yang dipakai HTML landing untuk menjalankan script kini memakai data kosong. Script tetap berjalan, tetapi tidak ada lagi request 404 ke server di setiap kunjungan.",
+      },
+    ],
+  },
+  {
     version: "1.5.10",
     date: "16 Oktober 2026",
     releaseTag: "2026.10-landing-hero-h1",
-    isLatest: true,
     highlight: "Deploy ditolak bila akan menghapus landing page native yang sedang tayang.",
     changes: [
       {

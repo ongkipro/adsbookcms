@@ -27,7 +27,14 @@ import {
   resolveEligibleShippingRates,
   ShippingQuoteError,
 } from '../../../../lib/shipping-quote';
-import { kelolaOrderState, resendOrderToKelola } from '../../../../lib/kelola-order-sync';
+import { pluginContext } from '../../../../plugins/registry';
+import { getKelolaConfig, kelolaOrderState, resendOrderToKelola } from '../../../../plugins/kelola/sync';
+
+/** The Kelola config when the plugin is active, else `undefined` (plugin off). */
+async function activeKelolaConfig(db: D1Database, locals: App.Locals) {
+  const context = await pluginContext(db, getRuntimeEnv(locals), 'kelola');
+  return context ? getKelolaConfig(context.settings, context.env) : undefined;
+}
 
 export const prerender = false;
 
@@ -303,7 +310,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
         ad_click_ids: order.ad_click_ids,
         source_page_path: order.source_page_path,
         created_at: order.created_at,
-        kelola: await kelolaOrderState(db, getRuntimeEnv(locals), order.id),
+        // Absent unless the Kelola plugin is active; OrderDetail then shows no panel.
+        kelola: await activeKelolaConfig(db, locals).then((config) =>
+          config === undefined ? null : kelolaOrderState(db, config, order.id)),
         payment: payment ? {
           reference_id: payment.reference_id,
           channel_code: payment.channel_code,
@@ -352,7 +361,9 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
 
     const action = body.action;
     if (action === 'push-kelola') {
-      const result = await resendOrderToKelola(db, getRuntimeEnv(locals), current.id);
+      const config = await activeKelolaConfig(db, locals);
+      if (config === undefined) return jsonError('Plugin Kelola CRM belum aktif.', 409);
+      const result = await resendOrderToKelola(db, config, current.id);
       return result.ok
         ? jsonOk({ message: `Order ${current.order_number} sudah ada di Kelola.`, data: { kelola: result.state } })
         : jsonError(result.error ?? 'Gagal mengirim order ke Kelola.', 502, { data: { kelola: result.state } });

@@ -1,6 +1,6 @@
 {
   "name": "adsbookcms",
-  "version": "1.5.12",
+  "version": "1.6.0",
   "description": "AdsBookCMS — single-install direct-response commerce CMS for Cloudflare Workers",
   "engines": {
     "node": ">=22",
@@ -15,7 +15,7 @@
     "dev:seed": "node --experimental-strip-types scripts/dev-seed.ts",
     "build": "astro build",
     "check": "astro check && tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/*.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/*.test.ts src/plugins/*.test.ts src/plugins/*/*.test.ts",
     "docs:check": "node --experimental-strip-types scripts/check-docs.ts",
     "preview": "astro preview",
     "cf:dev": "wrangler dev --local",

@@ -30,13 +30,6 @@ import {
   getProviderConfig,
   resolveCredentialUpdate,
 } from "../../../lib/provider-config.ts";
-import {
-  getKelolaConfig,
-  kelolaSyncStatus,
-  maskKelolaWebhookUrl,
-  normalizeKelolaWebhookUrl,
-  testKelolaConnection,
-} from "../../../lib/kelola-order-sync.ts";
 
 export const prerender = false;
 
@@ -53,8 +46,6 @@ type SettingsPayload = {
     | "save-warehouse"
     | "save-crm"
     | "save-integrations"
-    | "save-kelola"
-    | "test-kelola"
     | "save-payment-fee-policy"
     | "save-payment-toggles"
     | "save-autolaris-channels"
@@ -85,12 +76,6 @@ type SettingsPayload = {
     mengantar_base_url?: string;
     autolaris_api_key?: string | null;
     autolaris_base_url?: string;
-  };
-  kelola?: {
-    /** null clears the stored pair and falls back to the env pair. */
-    webhook_url?: string | null;
-    /** Empty keeps the stored secret. */
-    webhook_secret?: string;
   };
   warehouse?: {
     name?: string;
@@ -254,16 +239,6 @@ async function getSettingsRow(database: D1Database) {
   }
 }
 
-async function kelolaStatus(database: D1Database, locals: App.Locals) {
-  const config = await getKelolaConfig(database, getRuntimeEnv(locals));
-  return {
-    configured: Boolean(config),
-    source: config?.source ?? "none",
-    webhook_url_masked: config ? maskKelolaWebhookUrl(config.url) : "",
-    sync: config ? await kelolaSyncStatus(database) : null,
-  };
-}
-
 async function credentialStatus(database: D1Database, locals: App.Locals) {
   const config = await getProviderConfig(database, locals);
 
@@ -281,7 +256,6 @@ async function credentialStatus(database: D1Database, locals: App.Locals) {
       base_url: config.autolaris.baseUrl,
       source: config.autolaris.source,
     },
-    kelola: await kelolaStatus(database, locals),
   };
 }
 
@@ -374,43 +348,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 
   try {
     const db = database as D1Database;
-    if ((body.action === "save-integrations" || body.action === "save-kelola") && locals.admin?.role !== "owner") {
+    if (body.action === "save-integrations" && locals.admin?.role !== "owner") {
       return jsonError("Hanya owner yang dapat mengubah endpoint dan kredensial provider.", 403);
-    }
-    if (body.action === "test-kelola") {
-      const config = await getKelolaConfig(db, getRuntimeEnv(locals));
-      if (!config) return jsonError("Kelola CRM belum dihubungkan.", 400);
-      const result = await testKelolaConnection(config);
-      return result.ok
-        ? jsonOk({ verified: true, message: result.message })
-        : jsonError(result.message, 502, { verified: false });
-    }
-    if (body.action === "save-kelola") {
-      const store = await db.prepare("SELECT id, kelola_webhook_secret FROM stores ORDER BY id LIMIT 1")
-        .first<{ id: number; kelola_webhook_secret: string | null }>();
-      if (!store) return jsonError("Store belum tersedia.", 404);
-      if (body.kelola?.webhook_url === null) {
-        await db.prepare("UPDATE stores SET kelola_webhook_url = NULL, kelola_webhook_secret = NULL WHERE id = ?")
-          .bind(store.id).run();
-        return jsonOk({
-          message: "Sambungan Kelola dari dashboard dihapus.",
-          data: { kelola: await kelolaStatus(db, locals) },
-        });
-      }
-      const url = normalizeKelolaWebhookUrl(body.kelola?.webhook_url);
-      if (!url) {
-        return jsonError("URL webhook harus URL HTTPS dari Kelola, berakhiran /api/public/toko/order/<token>.", 400);
-      }
-      const secret = clean(body.kelola?.webhook_secret, 200) || store.kelola_webhook_secret?.trim() || "";
-      if (secret.length < 16) return jsonError("Secret webhook Kelola wajib diisi.", 400);
-      await db.prepare("UPDATE stores SET kelola_webhook_url = ?, kelola_webhook_secret = ? WHERE id = ?")
-        .bind(url, secret, store.id).run();
-      const kelola = await kelolaStatus(db, locals);
-      const check = await testKelolaConnection({ url, secret });
-      return jsonOk({
-        message: check.ok ? `Tersimpan. ${check.message}` : `Tersimpan, tetapi tes koneksi gagal: ${check.message}`,
-        data: { kelola, verified: check.ok },
-      });
     }
     const providerConfig = await getProviderConfig(db, locals);
     if (body.action === "test-mengantar") {

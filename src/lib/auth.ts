@@ -45,6 +45,7 @@ const ADMIN_PAGE_ROUTES = [
   '/admin/settings/developer',
   '/admin/settings/warehouse',
   '/admin/settings/crm',
+  '/admin/settings/plugins',
 ] as const;
 
 const ADMIN_API_ROUTES = [
@@ -68,6 +69,7 @@ const ADMIN_API_ROUTES = [
   '/api/admin/payment-reconciliation',
   '/api/admin/notifications',
   '/api/admin/profile',
+  '/api/admin/plugins',
   '/api/admin/logout',
 ] as const;
 

@@ -360,7 +360,8 @@ AdsBookCMS gives one merchant a complete direct-response storefront: catalog, la
 
 **Non-goals**
 1. Multi-store operation inside one Worker (ADR-001).
-2. Customer-authored code or a plugin runtime.
+2. Customer-authored code or a plugin runtime. First-party plugins compiled into
+   the product and activated per store (ADR-028) are not this.
 3. Public self-service signup.
 4. Marketplace features — multi-seller, bidding, escrow.
 

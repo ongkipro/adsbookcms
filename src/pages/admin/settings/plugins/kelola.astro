@@ -1,0 +1,210 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../../../components/admin/AdminPageHeader.astro';
+import { getRuntimeEnv } from '../../../../lib/env';
+import { pluginContext } from '../../../../plugins/registry';
+export const prerender = false;
+
+// The Kelola plugin's settings (ADR-028). Reachable only while the plugin is
+// active; otherwise the plugin list is where it is turned on.
+const db = getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined;
+const active = db ? Boolean(await pluginContext(db, getRuntimeEnv(Astro.locals), 'kelola')) : false;
+if (!active) return Astro.redirect('/admin/settings/plugins');
+---
+
+<AdminLayout title="Kelola CRM" activeMenu="settings">
+  <div class="space-y-6">
+    <AdminPageHeader
+      title="Kelola CRM"
+      description="Sambungan webhook ke Kelola: order baru ke Penjualan, pesanan tertinggal ke Data tertinggal."
+      backHref="/admin/settings/plugins"
+      backLabel="Plugin"
+    />
+
+    <div id="kelolaLoading" class="h-60 animate-pulse rounded-xl bg-slate-100" role="status" aria-live="polite" aria-busy="true" aria-atomic="true">
+      <span class="sr-only">Memuat pengaturan Kelola CRM.</span>
+    </div>
+    <div id="kelolaError" class="hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert" aria-live="assertive"></div>
+
+    <form id="kelolaForm" class="hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-7" novalidate aria-busy="false">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 class="font-semibold text-slate-950">Kelola CRM</h2>
+          <p class="mt-1 max-w-2xl text-xs leading-5 text-slate-500">Setiap order baru dikirim ke Penjualan Kelola. Ambil URL dan secret dari Kelola: <strong>Toko → Pengaturan → Toko / advertiser → Hubungkan web</strong>.</p>
+        </div>
+        <span id="kelolaSource" class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">Belum aktif</span>
+      </div>
+
+      <div id="kelolaSync" class="mt-5 hidden"><dl class="grid grid-cols-1 gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4 text-xs sm:grid-cols-3">
+        <div><dt class="font-semibold text-slate-500">Terakhir terkirim</dt><dd id="kelolaLastSynced" class="mt-1 font-semibold text-slate-950">—</dd></div>
+        <div><dt class="font-semibold text-slate-500">Terkirim 24 jam</dt><dd id="kelolaSynced24h" class="mt-1 font-mono text-base font-semibold text-emerald-700">0</dd></div>
+        <div><dt class="font-semibold text-slate-500">Gagal 24 jam</dt><dd id="kelolaFailing24h" class="mt-1 font-mono text-base font-semibold text-slate-950">0</dd></div>
+        <div id="kelolaLastError" class="hidden break-words rounded-lg bg-rose-50 px-3 py-2 text-rose-800 sm:col-span-3"></div>
+      </dl></div>
+
+      <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Both columns read label → field → hint, so the two fields share one row. */}
+        <div class="min-w-0">
+          <label class="block text-xs font-semibold text-slate-700" for="kelolaUrl">URL webhook</label>
+          <input id="kelolaUrl" name="webhook_url" type="url" inputmode="url" autocomplete="off" spellcheck="false" aria-describedby="kelolaUrlHint" class="admin-input-flat mt-2 font-mono sm:text-sm" />
+          <p id="kelolaUrlHint" class="mt-1 text-xs text-slate-500">Tempel ulang bersama secret setiap kali disambungkan ulang di Kelola.</p>
+        </div>
+        <div class="min-w-0">
+          <label class="block text-xs font-semibold text-slate-700" for="kelolaSecret">Secret webhook</label>
+          <div class="relative mt-2"><input id="kelolaSecret" name="webhook_secret" type="password" autocomplete="new-password" spellcheck="false" aria-describedby="kelolaSecretHint" class="admin-input-flat pr-24 font-mono sm:text-sm" /><button id="toggleKelolaSecret" type="button" class="absolute inset-y-1 right-1 min-w-20 rounded-lg bg-white px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300" aria-controls="kelolaSecret" aria-label="Tampilkan secret webhook Kelola" aria-pressed="false">Lihat</button></div>
+          <p id="kelolaSecretHint" class="mt-1 text-xs text-slate-500">Kosongkan untuk mempertahankan secret saat ini.</p>
+        </div>
+      </div>
+      <label class="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600"><input type="checkbox" name="kelola_clear" class="size-4 rounded border-slate-300" />Putuskan sambungan dashboard (fallback server tetap berlaku bila ada)</label>
+
+      <div class="mt-5 flex flex-col-reverse items-stretch gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <p id="kelolaStatus" class="min-h-5 text-xs font-semibold text-slate-500" role="status" aria-live="polite" aria-atomic="true">Simpan juga menguji koneksi tanpa membuat order.</p>
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <button id="testKelola" type="button" class="btn-secondary">Tes koneksi</button>
+          <button id="saveKelola" type="submit" class="btn-primary">Simpan Kelola</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    type Source = 'dashboard' | 'server' | 'none';
+    type KelolaStatus = {
+      configured: boolean;
+      source: Source;
+      webhook_url_masked: string;
+      sync: null | {
+        last_synced_at: string | null;
+        synced_24h: number;
+        failing_24h: number;
+        last_error: null | { order_number: string; attempts: number; message: string };
+      };
+    };
+    const byId = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
+
+    // lazy: these three helpers are copies of /admin/profile's. Upgrade path: a
+    // shared admin script module once a third page needs them.
+    const sourceLabel = (source: Source) => source === 'dashboard' ? 'Dashboard' : source === 'server' ? 'Fallback server' : 'Belum aktif';
+    const paintSource = (id: string, source: Source) => {
+      const node = byId<HTMLSpanElement>(id);
+      if (!node) return;
+      node.textContent = sourceLabel(source);
+      node.className = source === 'dashboard'
+        ? 'rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-800'
+        : source === 'server'
+          ? 'rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-800'
+          : 'rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600';
+    };
+    const setSecretVisibility = (input: HTMLInputElement | null, button: HTMLButtonElement | null, label: string, visible: boolean) => {
+      if (!input || !button) return;
+      input.type = visible ? 'text' : 'password';
+      button.textContent = visible ? 'Sembunyikan' : 'Lihat';
+      button.setAttribute('aria-label', `${visible ? 'Sembunyikan' : 'Tampilkan'} ${label}`);
+      button.setAttribute('aria-pressed', String(visible));
+    };
+    const wireSecretToggle = (inputId: string, buttonId: string, label: string) => {
+      const input = byId<HTMLInputElement>(inputId);
+      const button = byId<HTMLButtonElement>(buttonId);
+      button?.addEventListener('click', () => setSecretVisibility(input, button, label, input?.type === 'password'));
+    };
+
+    const formatWib = (value: string | null) => value
+      ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Jakarta' }).format(new Date(value))
+      : 'Belum ada';
+
+    const renderKelola = (kelola: KelolaStatus) => {
+      paintSource('kelolaSource', kelola.source);
+      const url = byId<HTMLInputElement>('kelolaUrl');
+      const secret = byId<HTMLInputElement>('kelolaSecret');
+      if (url) { url.value = ''; url.placeholder = kelola.webhook_url_masked || 'https://…/api/public/toko/order/twh_…'; }
+      if (secret) { secret.value = ''; secret.placeholder = kelola.configured ? '•••• tersimpan' : 'Tempel secret dari Kelola'; }
+      setSecretVisibility(secret, byId<HTMLButtonElement>('toggleKelolaSecret'), 'secret webhook Kelola', false);
+      const clear = byId<HTMLFormElement>('kelolaForm')?.elements.namedItem('kelola_clear');
+      if (clear instanceof HTMLInputElement) clear.checked = false;
+      byId('kelolaSync')?.classList.toggle('hidden', !kelola.sync);
+      if (!kelola.sync) return;
+      const set = (id: string, text: string) => { const node = byId(id); if (node) node.textContent = text; };
+      set('kelolaLastSynced', formatWib(kelola.sync.last_synced_at));
+      set('kelolaSynced24h', String(kelola.sync.synced_24h));
+      set('kelolaFailing24h', String(kelola.sync.failing_24h));
+      byId('kelolaFailing24h')?.classList.toggle('text-rose-700', kelola.sync.failing_24h > 0);
+      const lastError = byId('kelolaLastError');
+      if (lastError) {
+        const failure = kelola.sync.last_error;
+        lastError.textContent = failure ? `${failure.order_number} (${failure.attempts}× dicoba): ${failure.message}` : '';
+        lastError.classList.toggle('hidden', !failure);
+      }
+    };
+
+    const kelolaStatus = (message: string, state: 'idle' | 'success' | 'error') => {
+      const status = byId('kelolaStatus');
+      if (!status) return;
+      status.setAttribute('role', state === 'error' ? 'alert' : 'status');
+      status.setAttribute('aria-live', state === 'error' ? 'assertive' : 'polite');
+      status.textContent = message;
+      status.className = `min-h-5 text-xs font-semibold ${state === 'success' ? 'text-blue-700' : state === 'error' ? 'text-rose-700' : 'text-slate-500'}`;
+    };
+
+    let kelolaPending = false;
+    const setKelolaPending = (next: boolean, label?: string) => {
+      kelolaPending = next;
+      const save = byId<HTMLButtonElement>('saveKelola');
+      const test = byId<HTMLButtonElement>('testKelola');
+      if (save) { save.disabled = next; save.textContent = next && label === 'save' ? 'Menyimpan…' : 'Simpan Kelola'; }
+      if (test) { test.disabled = next; test.textContent = next && label === 'test' ? 'Menguji…' : 'Tes koneksi'; }
+      byId<HTMLFormElement>('kelolaForm')?.setAttribute('aria-busy', String(next));
+    };
+
+    const kelolaRequest = async (body: Record<string, unknown>, label: 'save' | 'test') => {
+      if (kelolaPending) return;
+      setKelolaPending(true, label);
+      kelolaStatus(label === 'save' ? 'Menyimpan dan menguji koneksi…' : 'Menguji koneksi ke Kelola…', 'idle');
+      try {
+        const response = await fetch('/api/admin/plugins/kelola', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (payload.data?.kelola) renderKelola(payload.data.kelola);
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Permintaan ke Kelola gagal.');
+        kelolaStatus(payload.message || 'Selesai.', payload.data?.verified === false ? 'error' : 'success');
+      } catch (error) {
+        kelolaStatus(error instanceof Error ? error.message : 'Permintaan ke Kelola gagal.', 'error');
+      } finally {
+        setKelolaPending(false);
+      }
+    };
+
+    byId<HTMLFormElement>('kelolaForm')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const values = new FormData(event.currentTarget as HTMLFormElement);
+      void kelolaRequest(values.get('kelola_clear')
+        ? { action: 'save', webhook_url: null }
+        : { action: 'save', webhook_url: values.get('webhook_url'), webhook_secret: values.get('webhook_secret') }, 'save');
+    });
+    byId('testKelola')?.addEventListener('click', () => void kelolaRequest({ action: 'test' }, 'test'));
+
+    wireSecretToggle('kelolaSecret', 'toggleKelolaSecret', 'secret webhook Kelola');
+
+    const loading = byId('kelolaLoading');
+    fetch('/api/admin/plugins/kelola', { headers: { Accept: 'application/json' } })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Gagal memuat pengaturan Kelola.');
+        renderKelola(payload.data.kelola);
+        byId('kelolaForm')?.classList.remove('hidden');
+      })
+      .catch((error) => {
+        const node = byId('kelolaError');
+        if (node) {
+          node.textContent = error instanceof Error ? error.message : 'Gagal memuat pengaturan Kelola.';
+          node.classList.remove('hidden');
+        }
+      })
+      .finally(() => {
+        loading?.setAttribute('aria-busy', 'false');
+        loading?.classList.add('hidden');
+      });
+  </script>
+</AdminLayout>

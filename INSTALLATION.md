@@ -181,7 +181,7 @@ For local development the same keys go in `.dev.vars`, which is never committed.
 
 ## 7. Verify the schema path
 
-The Worker bundles all 66 checked-in migrations (`0000`–`0065`) and applies a valid missing suffix
+The Worker bundles all 67 checked-in migrations (`0000`–`0066`) and applies a valid missing suffix
 automatically before serving a database-backed request. No terminal migration step
 is required for first run. Invalid, unknown, or ahead migration history returns a
 labelled 503 instead of running the application against an indeterminate schema.

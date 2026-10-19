@@ -1,0 +1,22 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import AdminPageHeader from '../../../../components/admin/AdminPageHeader.astro';
+import { PluginManager } from '../../../../components/admin/PluginManager';
+export const prerender = false;
+
+// First-party plugins (ADR-028). Every install carries the code; a plugin is
+// "installed" on this store only once it is activated here.
+const mayManage = Astro.locals.admin?.role === 'owner';
+---
+
+<AdminLayout title="Plugin" activeMenu="settings">
+  <div class="space-y-6">
+    <AdminPageHeader
+      title="Plugin"
+      description="Fitur opsional untuk toko ini. Plugin baru bekerja setelah dipasang dan diaktifkan; menonaktifkannya tidak menghapus data."
+      backHref="/admin/settings"
+      backLabel="Pengaturan"
+    />
+    <PluginManager client:load mayManage={mayManage} />
+  </div>
+</AdminLayout>

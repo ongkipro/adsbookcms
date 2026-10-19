@@ -1,9 +1,12 @@
 /**
- * Every new order pushed to the Kelola CRM (Penjualan) of one toko.
+ * The Kelola plugin's work: every new order pushed to the Kelola CRM
+ * (Penjualan) of one toko.
  *
- * Off until a URL + secret pair is configured — Kelola's toko settings issue
- * it. The pair saved at /admin/profile (`stores.kelola_webhook_*`) wins over the
- * `KELOLA_ORDER_WEBHOOK_URL` / `_SECRET` env fallback. The request is signed like
+ * Runs only while the plugin is active (src/plugins/registry.ts) and a URL +
+ * secret pair is configured. Kelola's toko settings issue the pair. The pair
+ * saved at /admin/settings/plugins/kelola (`plugins.settings`) wins over the
+ * `KELOLA_ORDER_WEBHOOK_URL` / `_SECRET` env fallback. Push state lives in the
+ * plugin's own table, `plugin_kelola_orders`. The request is signed like
  * Kelola's Mengantar webhook: HMAC-SHA256 hex over `{x-timestamp}.{raw body}`.
  *
  * Kelola keys the order on `code` = our order number, so a resend is answered
@@ -16,7 +19,7 @@
  * past a grace period the cron sends it to Kelola's lead webhook instead, for
  * CS to follow up (`drainKelolaLeads`).
  */
-import { getEnvValue, getRuntimeEnv } from "./env.ts";
+import { getEnvValue } from "../../lib/env.ts";
 
 /** Orders older than this are left alone — also stops a first enable from
  *  replaying the store's whole history into Kelola. */
@@ -51,17 +54,12 @@ export function readKelolaConfig(env: Parameters<typeof getEnvValue>[1]): Kelola
 }
 
 /** Dashboard pair first, env pair as the fallback; null = the push is off. */
-export async function getKelolaConfig(
-  database: D1Database,
+export function getKelolaConfig(
+  settings: Record<string, unknown>,
   env: Parameters<typeof getEnvValue>[1],
-): Promise<KelolaConfig | null> {
-  const row = await database
-    .prepare("SELECT kelola_webhook_url, kelola_webhook_secret FROM stores ORDER BY id LIMIT 1")
-    .first<{ kelola_webhook_url: string | null; kelola_webhook_secret: string | null }>()
-    // A Worker serving before migration 0064 lands still has its env pair.
-    .catch(() => null);
-  const url = row?.kelola_webhook_url?.trim();
-  const secret = row?.kelola_webhook_secret?.trim();
+): KelolaConfig | null {
+  const url = typeof settings.webhook_url === "string" ? settings.webhook_url.trim() : "";
+  const secret = typeof settings.webhook_secret === "string" ? settings.webhook_secret.trim() : "";
   return url && secret ? { url, secret, source: "dashboard" } : readKelolaConfig(env);
 }
 
@@ -117,26 +115,28 @@ export async function testKelolaConnection(
   }
 }
 
-/** What /admin/profile shows: is the push keeping up, and what broke last. */
+/** What the plugin's settings page shows: is the push keeping up, and what broke last. */
 export async function kelolaSyncStatus(database: D1Database, now = new Date()) {
   const since = new Date(now.getTime() - KELOLA_RETRY_WINDOW_HOURS * 3_600_000).toISOString();
   const counts = await database
     .prepare(
-      `SELECT MAX(kelola_synced_at) AS last_synced_at,
-              SUM(CASE WHEN kelola_synced_at IS NOT NULL AND created_at >= ?1 THEN 1 ELSE 0 END) AS synced_24h,
-              SUM(CASE WHEN kelola_synced_at IS NULL AND kelola_attempts > 0 AND created_at >= ?1 THEN 1 ELSE 0 END) AS failing_24h
-       FROM orders
-       WHERE shipping_status != 'abandoned' AND stock_restored_at IS NULL`,
+      `SELECT MAX(k.synced_at) AS last_synced_at,
+              SUM(CASE WHEN k.synced_at IS NOT NULL AND o.created_at >= ?1 THEN 1 ELSE 0 END) AS synced_24h,
+              SUM(CASE WHEN k.synced_at IS NULL AND k.attempts > 0 AND o.created_at >= ?1 THEN 1 ELSE 0 END) AS failing_24h
+       FROM plugin_kelola_orders k
+       JOIN orders o ON o.id = k.order_id
+       WHERE o.shipping_status != 'abandoned' AND o.stock_restored_at IS NULL`,
     )
     .bind(since)
     .first<{ last_synced_at: string | null; synced_24h: number | null; failing_24h: number | null }>();
   const lastError = await database
     .prepare(
-      `SELECT order_number, kelola_attempts AS attempts, kelola_last_error AS message
-       FROM orders
-       WHERE kelola_synced_at IS NULL AND kelola_last_error IS NOT NULL
-         AND shipping_status != 'abandoned' AND stock_restored_at IS NULL AND created_at >= ?
-       ORDER BY id DESC LIMIT 1`,
+      `SELECT o.order_number, k.attempts, k.last_error AS message
+       FROM plugin_kelola_orders k
+       JOIN orders o ON o.id = k.order_id
+       WHERE k.synced_at IS NULL AND k.last_error IS NOT NULL
+         AND o.shipping_status != 'abandoned' AND o.stock_restored_at IS NULL AND o.created_at >= ?
+       ORDER BY o.id DESC LIMIT 1`,
     )
     .bind(since)
     .first<{ order_number: string; attempts: number; message: string }>();
@@ -205,9 +205,9 @@ export async function pushOrderToKelola(
         `SELECT id, order_number, created_at, customer_name, customer_phone, address,
                 province, city, district, postal_code, shipping_cost, discount_amount,
                 total_amount, payment_method
-         FROM orders
-         WHERE id = ? AND kelola_synced_at IS NULL
-           AND shipping_status != 'abandoned' AND stock_restored_at IS NULL`,
+         FROM orders o
+         WHERE o.id = ? AND o.shipping_status != 'abandoned' AND o.stock_restored_at IS NULL
+           AND NOT EXISTS (SELECT 1 FROM plugin_kelola_orders k WHERE k.order_id = o.id AND k.synced_at IS NOT NULL)`,
       )
       .bind(orderId)
       .first<OrderRow>();
@@ -240,8 +240,11 @@ export async function pushOrderToKelola(
     });
     if (response.ok) {
       await database
-        .prepare("UPDATE orders SET kelola_synced_at = ?, kelola_last_error = NULL WHERE id = ?")
-        .bind(new Date().toISOString(), orderId)
+        .prepare(
+          `INSERT INTO plugin_kelola_orders (order_id, synced_at) VALUES (?1, ?2)
+           ON CONFLICT(order_id) DO UPDATE SET synced_at = ?2, last_error = NULL`,
+        )
+        .bind(orderId, new Date().toISOString())
         .run();
       return true;
     }
@@ -255,22 +258,29 @@ export async function pushOrderToKelola(
 function recordFailure(database: D1Database, orderId: number, message: string) {
   console.error("kelola-order-push-failed", { orderId, message });
   return database
-    .prepare("UPDATE orders SET kelola_attempts = kelola_attempts + 1, kelola_last_error = ? WHERE id = ?")
-    .bind(message, orderId)
+    .prepare(
+      `INSERT INTO plugin_kelola_orders (order_id, attempts, last_error) VALUES (?1, 1, ?2)
+       ON CONFLICT(order_id) DO UPDATE SET attempts = attempts + 1, last_error = ?2`,
+    )
+    .bind(orderId, message)
     .run();
 }
 
 /** One order's push as its detail page shows it. */
-export async function kelolaOrderState(database: D1Database, env: Parameters<typeof getEnvValue>[1], orderId: number) {
+export async function kelolaOrderState(database: D1Database, config: KelolaConfig | null, orderId: number) {
   const row = await database
-    .prepare("SELECT kelola_synced_at, kelola_attempts, kelola_last_error, stock_restored_at FROM orders WHERE id = ?")
+    .prepare(
+      `SELECT k.synced_at, k.attempts, k.last_error, o.stock_restored_at
+       FROM orders o LEFT JOIN plugin_kelola_orders k ON k.order_id = o.id
+       WHERE o.id = ?`,
+    )
     .bind(orderId)
-    .first<{ kelola_synced_at: string | null; kelola_attempts: number; kelola_last_error: string | null; stock_restored_at: string | null }>();
+    .first<{ synced_at: string | null; attempts: number | null; last_error: string | null; stock_restored_at: string | null }>();
   return {
-    configured: Boolean(await getKelolaConfig(database, env)),
-    synced_at: row?.kelola_synced_at ?? null,
-    attempts: Number(row?.kelola_attempts ?? 0),
-    last_error: row?.kelola_last_error ?? null,
+    configured: Boolean(config),
+    synced_at: row?.synced_at ?? null,
+    attempts: Number(row?.attempts ?? 0),
+    last_error: row?.last_error ?? null,
     voided: Boolean(row?.stock_restored_at),
   };
 }
@@ -279,14 +289,13 @@ export async function kelolaOrderState(database: D1Database, env: Parameters<typ
  * The detail page's "send again". Not bound by the cron's 24h window — an
  * operator asked for this order. An order Kelola already holds is not re-sent.
  */
-export async function resendOrderToKelola(database: D1Database, env: Parameters<typeof getEnvValue>[1], orderId: number) {
-  const config = await getKelolaConfig(database, env);
-  const before = await kelolaOrderState(database, env, orderId);
-  if (!config) return { ok: false, error: "Kelola CRM belum dihubungkan di Profil & Integrasi.", state: before };
+export async function resendOrderToKelola(database: D1Database, config: KelolaConfig | null, orderId: number) {
+  const before = await kelolaOrderState(database, config, orderId);
+  if (!config) return { ok: false, error: "Kelola CRM belum dihubungkan di Pengaturan → Plugin.", state: before };
   if (before.voided) return { ok: false, error: "Order yang dibatalkan tidak dikirim ke Kelola.", state: before };
   if (before.synced_at) return { ok: true, state: before };
   await pushOrderToKelola(database, config, orderId);
-  const state = await kelolaOrderState(database, env, orderId);
+  const state = await kelolaOrderState(database, config, orderId);
   return state.synced_at
     ? { ok: true, state }
     : { ok: false, error: `Kelola belum menerima order ini: ${state.last_error ?? "order tanpa item"}`, state };
@@ -302,10 +311,11 @@ export async function drainKelolaOrders(
   const since = new Date(now.getTime() - KELOLA_RETRY_WINDOW_HOURS * 3_600_000).toISOString();
   const { results } = await database
     .prepare(
-      `SELECT id FROM orders
-       WHERE kelola_synced_at IS NULL AND shipping_status != 'abandoned'
-         AND stock_restored_at IS NULL AND created_at >= ?
-       ORDER BY id LIMIT ?`,
+      `SELECT o.id FROM orders o
+       LEFT JOIN plugin_kelola_orders k ON k.order_id = o.id
+       WHERE k.synced_at IS NULL AND o.shipping_status != 'abandoned'
+         AND o.stock_restored_at IS NULL AND o.created_at >= ?
+       ORDER BY o.id LIMIT ?`,
     )
     .bind(since, DRAIN_BATCH)
     .all<{ id: number }>();
@@ -377,7 +387,8 @@ export async function drainKelolaLeads(
                JOIN products p ON p.id = pv.product_id
                WHERE oi.order_id = o.id ORDER BY oi.id LIMIT 1) AS product
        FROM orders o
-       WHERE o.shipping_status = 'abandoned' AND o.kelola_lead_synced_at IS NULL
+       LEFT JOIN plugin_kelola_orders k ON k.order_id = o.id
+       WHERE o.shipping_status = 'abandoned' AND k.lead_synced_at IS NULL
          AND o.stock_restored_at IS NULL AND o.created_at >= ? AND o.created_at <= ?
        ORDER BY o.id LIMIT ?`,
     )
@@ -404,8 +415,11 @@ export async function drainKelolaLeads(
         continue;
       }
       await database
-        .prepare("UPDATE orders SET kelola_lead_synced_at = ? WHERE id = ? AND shipping_status = 'abandoned'")
-        .bind(new Date().toISOString(), lead.id)
+        .prepare(
+          `INSERT INTO plugin_kelola_orders (order_id, lead_synced_at) VALUES (?1, ?2)
+           ON CONFLICT(order_id) DO UPDATE SET lead_synced_at = ?2`,
+        )
+        .bind(lead.id, new Date().toISOString())
         .run();
       synced += 1;
     } catch (error) {
@@ -413,13 +427,4 @@ export async function drainKelolaLeads(
     }
   }
   return synced;
-}
-
-/** Checkout leg: push right after the order is stored, without delaying the buyer. */
-export function scheduleKelolaOrderPush(database: D1Database, orderId: number, locals?: App.Locals) {
-  const task = getKelolaConfig(database, getRuntimeEnv(locals))
-    .then((config) => (config ? pushOrderToKelola(database, config, orderId) : false))
-    .catch((error) => console.error("kelola-order-push-failed", { orderId, error }));
-  if (locals?.cfContext) locals.cfContext.waitUntil(task);
-  else void task;
 }

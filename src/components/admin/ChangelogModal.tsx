@@ -29,16 +29,34 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: "1.6.0",
+    date: "20 Oktober 2026",
+    releaseTag: "2026.10-plugins",
+    isLatest: true,
+    highlight: "Fitur opsional kini berupa plugin: tidak terpasang sampai toko mengaktifkannya.",
+    changes: [
+      {
+        title: "Halaman Plugin",
+        description:
+          "Pengaturan → Plugin menampilkan fitur opsional toko. Owner memasang dan mengaktifkannya sendiri; menonaktifkan tidak menghapus data, dan Hapus data menghapus tabel plugin itu.",
+      },
+      {
+        title: "Kelola CRM menjadi plugin",
+        description:
+          "Sambungan Kelola pindah dari Profil & Integrasi ke Pengaturan → Plugin → Kelola CRM. Toko yang tidak mengaktifkannya tidak membawa tabel maupun menu Kelola.",
+      },
+    ],
+  },
+  {
     version: "1.5.12",
     date: "19 Oktober 2026",
     releaseTag: "2026.10-landing-hero-h1",
-    isLatest: true,
     highlight: "Order dan pesanan tertinggal bisa dikirim otomatis ke Kelola CRM untuk ditindaklanjuti tim.",
     changes: [
       {
         title: "Order masuk ke Penjualan Kelola",
         description:
-          "Tempel URL webhook dan secret dari Kelola di Profil & Integrasi. Setiap order baru dikirim setelah checkout tanpa menunda pembeli, dicoba ulang tiap jam selama 24 jam, dan bisa dikirim ulang dari detail order.",
+          "Tempel URL webhook dan secret dari Kelola (sejak 1.6.0 di Pengaturan → Plugin). Setiap order baru dikirim setelah checkout tanpa menunda pembeli, dicoba ulang tiap jam selama 24 jam, dan bisa dikirim ulang dari detail order.",
       },
       {
         title: "Pesanan tertinggal untuk follow-up",

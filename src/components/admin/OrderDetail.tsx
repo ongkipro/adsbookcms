@@ -121,7 +121,7 @@ type Order = {
   ad_click_ids?: string | null;
   source_page_path?: string | null;
   created_at: string;
-  kelola?: KelolaSync;
+  kelola?: KelolaSync | null;
   payment: PaymentDetails | null;
   items: OrderItem[];
 };

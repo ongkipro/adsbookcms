@@ -151,7 +151,12 @@ Migration-specific notes:
   order came from), the Kelola push state on `orders` (`kelola_synced_at`,
   `kelola_attempts`, `kelola_last_error`, `kelola_lead_synced_at`) and the
   `stores.kelola_webhook_*` pair. All additive; the push stays off until an
-  operator saves a webhook pair.
+  operator saves a webhook pair. `0066` (1.6.0) supersedes these columns.
+- **`0066`** (1.6.0, ADR-028) creates `plugins`, carries a saved Kelola pair
+  into an active `kelola` plugin row, and **drops** the six `kelola_*` columns
+  from `orders` and `stores`. That is destructive by design; on 2026-10-20 those
+  columns were empty on every store. Kelola's own table
+  (`plugin_kelola_orders`) is created on activation, not by the chain.
 
 ---
 
@@ -161,17 +166,17 @@ Two registries, currently in step:
 
 | Source | Field | Value |
 | --- | --- | --- |
-| `src/lib/version.ts` | `version` | `1.5.12` |
-| `src/lib/version.ts` | `releaseTag` | `2026.10-landing-hero-h1` |
-| `src/lib/version.ts` | `schemaVersion` | `66` |
-| `package.json` | `version` | `1.5.12` |
+| `src/lib/version.ts` | `version` | `1.6.0` |
+| `src/lib/version.ts` | `releaseTag` | `2026.10-plugins` |
+| `src/lib/version.ts` | `schemaVersion` | `67` |
+| `package.json` | `version` | `1.6.0` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration files, and the tree holds 66 (`0000`–`0065`).
+`schemaVersion` counts migration files, and the tree holds 67 (`0000`–`0066`).
 `1.5.0` (2026-10-11) is the first release that carries `0056`–`0061`;
-`1.5.12` carries `0062`–`0065`.
+`1.5.12` carries `0062`–`0065`; `1.6.0` carries `0066`.
 `schema-version.test.ts` fails CI on drift; middleware enforces the same chain at
 runtime; `operational-health.ts` and the dashboard expose applied version.
 

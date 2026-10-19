@@ -17,7 +17,7 @@ import {
   rateLimitHeaders,
 } from "../../lib/rate-limit";
 import { scheduleReceiverPerformanceRefresh } from "../../lib/rts-scoring";
-import { scheduleKelolaOrderPush } from "../../lib/kelola-order-sync";
+import { scheduleOrderCreated } from "../../plugins/registry";
 import {
   DuplicateSubmissionError,
   OrderInputError,
@@ -216,7 +216,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       customerPhone,
       locals,
     );
-    scheduleKelolaOrderPush(database, order.id, locals);
+    scheduleOrderCreated(database, order.id, locals);
     const data = {
       id: order.id,
       order_id: order.orderNumber,

@@ -886,8 +886,10 @@ a secret that exists before the operator does.
 
 ## ADR-027 — Optional integrations ship dormant; enabling one is install data, never install code
 
-**Date:** 2026-10-20 · **Status:** Accepted. First instance: Kelola CRM push
-(1.5.12, migrations `0062`–`0065`).
+**Date:** 2026-10-20 · **Status:** Amended by ADR-028 the same day. Points 1, 2,
+4, 5 and 6 stand. Point 3 is replaced: a plugin's schema is no longer part of
+the core chain. First instance: Kelola CRM push (1.5.12, migrations
+`0062`–`0065`).
 
 **Context.** The owner wants Kelola to stay optional. Most installs will never
 pair it, and a product update must not change how those stores behave. Removing
@@ -927,3 +929,59 @@ about the optional integration on each store. A store that wants Kelola pairs it
 in the admin, with no deploy. The cost is unused columns and a few kilobytes of
 dormant code on stores that never pair it. That cost is accepted, because
 avoiding it would bring back per-install code forks.
+
+## ADR-028 — First-party plugins: in the product, installed per store on activation
+
+**Date:** 2026-10-20 · **Status:** Accepted. 1.6.0, migration `0066`. Amends
+ADR-027.
+
+**Context.** The owner put it this way: Kelola CRM is a plugin. It should not
+be installed on every store, only on a store that adopts it, and it still
+follows the AdsBookCMS standard. ADR-027 kept the code out of the way, but its
+columns were still created on every store's `orders` and `stores`.
+`PRD.md` lists "customer-authored code or a plugin runtime" as a non-goal,
+and that stays true. What this ADR describes is first-party plugins, compiled
+in, and not uploaded by anyone.
+
+**Decision.**
+
+1. **Location.** A plugin lives in `src/plugins/<id>/`, with `index.ts` as its
+   manifest and its own tests beside it. The manifest gives the id, name,
+   description, settings page, ordered schema steps, uninstall statements and
+   hooks. `src/plugins/registry.ts` lists the plugins compiled into the
+   product. The folder is product-owned (UPDATE-PATH-OWNERSHIP), so every
+   install carries it and an update never conflicts on it.
+2. **Installed means activated.** A store "installs" a plugin by activating it
+   at **Pengaturan → Plugin** (`/admin/settings/plugins`, owner only).
+   Activation writes its `plugins` row and runs the plugin's own schema steps.
+   The steps are idempotent `CREATE … IF NOT EXISTS`, and their tables are
+   prefixed `plugin_<id>_`. A store that never activates a plugin has no row,
+   no table, no menu entry and no hook calls for it.
+3. **The core calls plugins through two hooks only.** `scheduleOrderCreated`
+   runs after checkout, in `waitUntil`, and never delays the buyer.
+   `runPluginCron` runs in the hourly cron. Each plugin's failure is isolated
+   and logged; it never fails the order or the cron. With no active plugin, the
+   cost is one `SELECT` on `plugins`.
+4. **Schema.** The core chain (ADR-024) carries only the `plugins` table. A
+   plugin's own schema version lives in `plugins.schema_version`, and an
+   update that adds a step is applied the next time the plugin runs.
+   Deactivating keeps its tables and settings. **Hapus data** (uninstall) drops
+   them and deletes the row, after a `useConfirm` dialog.
+5. **Settings** live in `plugins.settings` (JSON, this store's D1). Secrets in
+   there are never returned to the browser, the same as provider keys.
+6. **Admin surfaces** appear only while the plugin is active: its settings
+   page redirects to the list otherwise, and its order-detail panel and
+   actions answer as absent or 409.
+
+**Migration `0066`.** It creates `plugins`. It turns a Kelola pair already
+saved on `stores` into an active `kelola` plugin row, so no store loses a
+connection. It then drops the six `kelola_*` columns that `0063`–`0065` added
+to `orders` and `stores`. On 2026-10-20 no store had paired Kelola, so the
+dropped columns held no data. Push history, had there been any, would not
+carry over; that is accepted.
+
+**Consequences.** Kelola is the first plugin and the template for the next
+one. A new optional integration is built as a plugin by default, not as core
+columns behind a flag. The cost is a small registry, and a plugin cannot add
+storefront routes without a core change. That is deliberate: the storefront
+stays one product.

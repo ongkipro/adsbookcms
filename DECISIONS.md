@@ -883,3 +883,47 @@ provisioning* — the button documentation asks for default ids, and in an
 install the same omission would silently point a live store at a new empty
 database. *Generating `INSTALL_TOKEN` too* — nothing but the operator can hold
 a secret that exists before the operator does.
+
+## ADR-027 — Optional integrations ship dormant; enabling one is install data, never install code
+
+**Date:** 2026-10-20 · **Status:** Accepted. First instance: Kelola CRM push
+(1.5.12, migrations `0062`–`0065`).
+
+**Context.** The owner wants Kelola to stay optional. Most installs will never
+pair it, and a product update must not change how those stores behave. Removing
+the module from the installs that do not use it would make those installs differ
+from the product in code, and every later `git merge product/main` would then
+conflict on those files (ADR-012, ADR-020).
+
+**Decision.** An optional integration (Kelola, and any later one of the same
+kind) is part of the product, and every install carries it. It stays inert
+until the install configures it:
+
+1. **Off until paired.** The integration acts only when its configuration
+   exists. For Kelola that is the `stores.kelola_webhook_*` pair saved at
+   `/admin/profile`, or the `KELOLA_ORDER_WEBHOOK_URL` / `_SECRET` env pair. No
+   release ships a default value, and no migration ships one, that turns it on.
+2. **Dormant means zero effect.** With no configuration, the integration
+   sends no outbound request, writes no rows, changes no buyer-facing page, and
+   adds no checkout step. The only cost allowed is one configuration read inside
+   the existing cron or post-order hook (`getKelolaConfig` returns `null`).
+3. **Schema is additive and nullable.** The migrations land on every install,
+   because the chain is one chain (ADR-024). They add only nullable columns, or
+   columns with a default, so an install that does not use the integration
+   holds unused columns and nothing else.
+4. **Configuration is install data.** The URL and secret live in that install's
+   D1 or Worker secrets, not in product-owned files. An update never copies one
+   store's configuration into another.
+5. **Turning it off is configuration, too.** To turn the integration off, an
+   operator uses the dashboard's disconnect control, not a code deletion. An
+   install must not delete or edit the module's files to "uninstall" it; that is
+   the divergence this ADR exists to prevent.
+6. **Checks.** `kelola-order-sync.test.ts` covers the dormant path ("config
+   needs both URL and secret"; dashboard pair over env). A new optional
+   integration lands with the same kind of test before release.
+
+**Consequences.** Rolling a release out to the fleet never requires a decision
+about the optional integration on each store. A store that wants Kelola pairs it
+in the admin, with no deploy. The cost is unused columns and a few kilobytes of
+dormant code on stores that never pair it. That cost is accepted, because
+avoiding it would bring back per-install code forks.

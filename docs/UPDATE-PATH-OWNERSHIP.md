@@ -17,6 +17,10 @@ from the release:
 
 - `src/**` — all source, scripts, styles, and `src/db/migrations/**` (the sole
   ordered schema source; the install applies only the missing suffix).
+  This includes optional integrations such as Kelola. Every install carries
+  their code, and they stay dormant until that install pairs them in its own
+  admin, which writes D1 data, not files. An install that does not use one
+  keeps its files as they are and does not delete them (ADR-027).
 - `public/**` **except** merchant brand assets (see install-owned) — shared
   static files, and the favicons until a store replaces them.
 - `package.json`, `package-lock.json` — product dependencies and scripts.

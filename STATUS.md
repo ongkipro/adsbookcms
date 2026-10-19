@@ -2,6 +2,25 @@
 
 > Verified against disk: 2026-10-19 (1.5.11 on all eleven installs)
 
+## 2026-10-19 — beranda-tani: six petanisawit.com landing pages
+
+- **Ported.** `aussie-formulabaru`, `aussie-formulabaru-evrpro`,
+  `aussie-edukasi1`, `busukpucuk-simple`, `aussie-busukpucuk` and
+  `aussie-buahlandak` are now native pages on beranda.click under the same
+  slugs (`3eb874a`), so ads change domain only. Each order form sells `aussie`
+  (500ml Rp150.000, 1 Liter Rp275.000, as on petanisawit). The evrpro slug is
+  the formulabaru page again and is `noindex`.
+- **Deployed.** `npm run deploy`, preflight passing (ledger 62, 6 native pages
+  before, 12 registered), version `f26d44ae`. Live at 390 px: all six answer
+  200 with one `<h1>`, no overflow, no broken image, no console error; page
+  heights match the Berdu source to the pixel (busukpucuk-simple) or differ
+  by the form alone (+22 px).
+- **Payment.** COD where the province allows it; elsewhere QRIS and VA through
+  AutoLaris. Both were already live on beranda-tani (`/api/payment-methods`,
+  buyer pays the fee). The store has no orders yet, so no AutoLaris
+  transaction has run there; the key is a Worker secret, confirmable from
+  `/admin` settings.
+
 ## 2026-10-19 — fleet audit; 1.5.11 on all eleven installs
 
 - **Audit.** 518 live product and landing pages across ten stores were
@@ -523,7 +542,7 @@ is generated per store from that store's own D1.
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
 | `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.11 on `e0ee655`, installed 2026-10-15 |
-| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `3a6b4d1` |
+| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `3eb874a` |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.11 on `8ec7712` |
 | `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.11 on `f9bc526` |
 | `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.11 on `0161bde` |

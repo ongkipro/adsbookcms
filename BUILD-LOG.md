@@ -6729,6 +6729,33 @@ Checked: `npm test` (836), `npm run check`.
   `seller_bank_accounts` is empty, so manual transfer is not offered. No order
   was placed.
 
+## 2026-10-19 — beranda-tani: porting Berdu pages from their data, not their DOM
+
+Six landing pages lived on petanisawit.com, a Berdu site, and moved to
+beranda-tani with their slugs. Berdu renders client-side, so the HTML holds
+no content, but it ships the page as data: `initialStore`, a JS string literal
+whose JSON holds `sections` — image, Draft.js text, feature list, countdown,
+an html embed (the OrderOnline/Everpro form), pixel events. Pages were built
+from those sections, so the markup is plain and greppable instead of Berdu's
+nested editor DOM.
+
+- **Images** come from `cdn://img/_/…` at full resolution
+  (`https://brdsg.com/img/_/…`), as WebP with width <= 960. The usual
+  1280 px longest-edge cap would have shrunk the 900x3846 infographics to
+  300 px wide.
+- **Measured, not guessed.** Three of the obvious readings of Berdu's styles
+  were wrong, and each showed only in a side-by-side render. Feature-list
+  text is 19 px (class `fl_19`), not the 15 px its wrapper reports. An empty
+  Draft block is half a line high, not a whole line. Lists have 8 px margins
+  and a 16 px item indent, not the browser's 16 px margins. With those fixed,
+  busukpucuk-simple matches its source to the pixel.
+- **Font.** Berdu loads one face, Open Sans 400, and synthesizes the bold.
+  It is self-hosted the same way, so headings keep their weight without a
+  third-party request.
+- **Not ported:** the TikTok pixel (beranda-tani runs Meta only; the Meta
+  pixel id is the same on both sites) and Berdu's `pixel.event` sections,
+  whose ViewContent MetaLandingTracker sends.
+
 ## 2026-10-19 — zvarashop: rebuilding source that only production held
 
 zvarashop's production ran a build that was never pushed. Its D1 ledger listed

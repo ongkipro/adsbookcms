@@ -110,6 +110,7 @@ type OrderItemRow = {
   unit_price: number;
   variant_title: string;
   variant_sku: string;
+  variant_compare_price: number | null;
   product_id: number;
   product_title: string;
 };
@@ -228,6 +229,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
         oi.unit_price,
         pv.title AS variant_title,
         pv.sku AS variant_sku,
+        pv.compare_price AS variant_compare_price,
         p.id AS product_id,
         p.title AS product_title
       FROM order_items oi
@@ -331,6 +333,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
           unit_price: item.unit_price,
           variant_title: item.variant_title,
           variant_sku: item.variant_sku,
+          variant_compare_price: item.variant_compare_price,
           product_id: item.product_id,
           product_title: item.product_title,
         })),

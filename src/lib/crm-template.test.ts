@@ -152,3 +152,38 @@ test("renders all 15 canonical CRM placeholders and preserves normalized emoji t
   assert.equal(waUrl.searchParams.get("text"), rendered);
   assert.doesNotMatch(waUrl.searchParams.get("text") || "", /\uFFFD/);
 });
+
+test("templates name the variant, quantity and unit price, one line per item", () => {
+  const ctx = {
+    customerName: "Rina",
+    productName: "Paket Glow Up",
+    productPrice: 300000,
+    shippingCost: 15000,
+    totalAmount: 315000,
+    items: [{ productName: "Paket Glow Up", variantName: "150ml", quantity: 2, unitPrice: 150000, comparePrice: 180000 }],
+  };
+  assert.equal(
+    renderCrmMessage("{{product_variant}} | {{varian}} | {{jumlah}} | {{harga_satuan}} | {{product_price}} | {{compare_price}}", ctx),
+    "Paket Glow Up - 150ml | 150ml | 2 | Rp 150.000 | Rp 300.000 | Rp 360.000",
+  );
+  assert.equal(renderCrmMessage("{{rincian_pesanan}}", ctx), "- Paket Glow Up - 150ml × 2 @ Rp 150.000 = Rp 300.000");
+  const two = renderCrmMessage("{{rincian_pesanan}}|{{jumlah}}|{{varian}}", {
+    ...ctx,
+    items: [
+      { productName: "Toner", variantName: "Toner", quantity: 1, unitPrice: 79000 },
+      { productName: "Gel", variantName: "30ml", quantity: 2, unitPrice: 60000 },
+    ],
+  });
+  assert.equal(two, "- Toner × 1 @ Rp 79.000 = Rp 79.000\n- Gel - 30ml × 2 @ Rp 60.000 = Rp 120.000|3|30ml");
+  // The default order-detail message names the variant and the real quantity.
+  const welcome = renderCrmMessage(defaultCrmTemplates.welcome, ctx);
+  assert.match(welcome, /- Produk: Paket Glow Up - 150ml\n- Jumlah: 2\n- Harga: Rp 150\.000\n- Subtotal: Rp 300\.000/);
+  assert.doesNotMatch(defaultCrmTemplates.welcome, /Jumlah: 1/);
+});
+
+test("the strike price is never invented", () => {
+  const plain = { productName: "Gel", productPrice: 150000, items: [{ productName: "Gel", quantity: 1, unitPrice: 150000 }] };
+  assert.equal(renderCrmMessage("{{compare_price}}", plain), "Rp 150.000");
+  assert.equal(renderCrmMessage("{{compare_price}}", { productName: "Gel" }), "Rp 0");
+  assert.equal(renderCrmMessage("{{compare_price}}", { ...plain, comparePrice: 200000 }), "Rp 200.000");
+});

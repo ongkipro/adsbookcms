@@ -22,6 +22,24 @@ import {
   parseAdminDateSelection,
 } from '../../../../lib/admin-date-filter.ts';
 
+/** The order lines the CRM templates list (`{{rincian_pesanan}}`). */
+function parseItemsJson(raw: string | null) {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed)
+      ? parsed.map((item) => ({
+          product: typeof item?.product === "string" ? item.product : null,
+          variant: typeof item?.variant === "string" ? item.variant : null,
+          quantity: Number(item?.quantity) || 1,
+          unit_price: Number(item?.unit_price) || 0,
+          compare_price: Number(item?.compare_price) || null,
+        }))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export const prerender = false;
 
 const BULK_SHIPPING_STATUSES = ADMIN_SHIPPING_STATUSES;
@@ -40,6 +58,7 @@ type OrderRow = {
   product_name: string | null;
   variant_name: string | null;
   product_price: number;
+  items_json: string | null;
   total_amount: number;
   shipping_cost: number;
   payment_method: string;
@@ -233,6 +252,16 @@ export const GET: APIRoute = async ({ url, locals }) => {
             FROM order_items
             WHERE order_items.order_id = orders.id
           ) AS product_price,
+          (
+            SELECT json_group_array(json_object(
+              'product', products.title, 'variant', product_variants.title,
+              'quantity', order_items.quantity, 'unit_price', order_items.unit_price,
+              'compare_price', product_variants.compare_price))
+            FROM order_items
+            LEFT JOIN product_variants ON product_variants.id = order_items.variant_id
+            LEFT JOIN products ON products.id = product_variants.product_id
+            WHERE order_items.order_id = orders.id
+          ) AS items_json,
           total_amount,
           shipping_cost,
           payment_method,
@@ -356,6 +385,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
           product_name: row.product_name,
           variant_name: row.variant_name,
           product_price: row.product_price,
+          items: parseItemsJson(row.items_json),
           total_amount: row.total_amount,
           shipping_cost: row.shipping_cost,
           payment_method: row.payment_method,

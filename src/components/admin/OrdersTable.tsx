@@ -9,6 +9,7 @@ import {
   buildWaUrl,
   defaultCrmTemplates,
   renderCrmMessage,
+  type CrmOrderItem,
 } from "../../lib/crm-template";
 import { ADMIN_CUSTOM_DATE_FILTER } from "../../lib/admin-date-filter";
 import {
@@ -75,6 +76,7 @@ export type OrderItem = {
   address: string;
   productName: string;
   variantName?: string;
+  items?: CrmOrderItem[];
   productPrice: number;
   shippingCost: number;
   district: string;
@@ -122,6 +124,7 @@ type OrderRow = {
   product_name: string | null;
   variant_name?: string | null;
   product_price: number;
+  items?: Array<{ product: string | null; variant: string | null; quantity: number; unit_price: number; compare_price: number | null }>;
   shipping_cost: number;
   total_amount: number;
   payment_method: string;
@@ -175,6 +178,13 @@ const mapOrder = (row: OrderRow): OrderItem => ({
   address: row.address || "",
   productName: row.product_name || "",
   variantName: row.variant_name || "",
+  items: (row.items ?? []).map((item) => ({
+    productName: item.product,
+    variantName: item.variant,
+    quantity: item.quantity,
+    unitPrice: item.unit_price,
+    comparePrice: item.compare_price,
+  })),
   productPrice: Number(row.product_price) || 0,
   shippingCost: Number(row.shipping_cost) || 0,
   district: row.district || "",
@@ -969,6 +979,8 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                 province: order.province,
                 orderNumber: order.orderNumber,
                 productName: order.productName,
+                variantName: order.variantName,
+                items: order.items,
                 productPrice: order.productPrice,
                 shippingCost: order.shippingCost,
                 totalAmount: order.totalAmount,

@@ -29,10 +29,33 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.6.2",
+    version: "1.6.3",
     date: "20 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Pesan WhatsApp CRM kini menyebut varian, jumlah, dan harga satuan yang dipilih pembeli.",
+    changes: [
+      {
+        title: "Varian dan harga di Template CRM",
+        description:
+          "Variabel baru: {{varian}}, {{product_variant}}, {{jumlah}}, {{harga_satuan}}, dan {{rincian_pesanan}} (satu baris per item). Template bawaan memakainya; template yang sudah Anda ubah tetap seperti semula dan bisa ditambahkan variabelnya di Pengaturan → Template CRM.",
+      },
+      {
+        title: "Harga coret tidak lagi dikarang",
+        description:
+          "{{compare_price}} kini memakai harga coret asli varian. Tanpa harga coret, nilainya sama dengan harga jual, tidak lagi harga × 1,3.",
+      },
+      {
+        title: "Status tugas terjadwal di dashboard",
+        description:
+          "Panel kesehatan menampilkan apakah pemeliharaan per jam (retry CAPI, rekonsiliasi pembayaran, skor penerima, plugin) benar-benar berjalan.",
+      },
+    ],
+  },
+  {
+    version: "1.6.2",
+    date: "20 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Skor penerima Mengantar pulih sendiri setelah akun di-whitelist, termasuk di toko yang lama tidak menerima order.",
     changes: [
       {

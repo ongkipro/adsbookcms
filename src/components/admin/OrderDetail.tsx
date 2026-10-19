@@ -47,6 +47,7 @@ type OrderItem = {
   unit_price: number;
   variant_title: string | null;
   variant_sku: string | null;
+  variant_compare_price?: number | null;
   product_title: string | null;
 };
 
@@ -885,6 +886,13 @@ export function OrderDetail({ invoice }: { invoice: string }) {
             .map((item) => item.product_title || item.variant_title)
             .filter(Boolean)
             .join(", ") || "Produk",
+        items: items.map((item) => ({
+          productName: item.product_title || item.variant_title,
+          variantName: item.variant_title,
+          quantity: item.quantity || 1,
+          unitPrice: item.unit_price || 0,
+          comparePrice: item.variant_compare_price ?? null,
+        })),
         productPrice: items.reduce(
           (total, item) =>
             total + (item.quantity || 1) * (item.unit_price || 0),

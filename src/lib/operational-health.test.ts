@@ -10,6 +10,9 @@ import {
   summarizeHealth,
   type HealthSignal,
   classifyAlerting,
+  classifyScheduler,
+  recordSchedulerRun,
+  SCHEDULER_HEARTBEAT_KEY,
   classifyGoogleAdsOutbox,
 } from "./operational-health.ts";
 
@@ -393,4 +396,29 @@ test("orders that were never scored nor refused say nothing about Mengantar acce
   assert.equal(health.state, "unknown");
   assert.equal(health.reason, "never-scored");
   assert.equal(classifyReceiverScore(null, RECEIVER_NOW).reason, "unreadable");
+});
+
+test("the scheduler signal reads the hourly stamp: missing is unknown, stopped is degraded", async () => {
+  const now = Date.parse("2026-10-20T03:00:00.000Z");
+  assert.equal(classifyScheduler(undefined, now).reason, "unreadable");
+  assert.deepEqual(
+    { state: classifyScheduler(null, now).state, reason: classifyScheduler(null, now).reason },
+    { state: "unknown", reason: "scheduler-never-ran" },
+  );
+  assert.equal(classifyScheduler("2026-10-20T02:07:00.000Z", now).state, "healthy");
+  const stalled = classifyScheduler("2026-10-20T00:07:00.000Z", now);
+  assert.deepEqual({ state: stalled.state, reason: stalled.reason, age: stalled.ageMinutes }, { state: "degraded", reason: "scheduler-stalled", age: 173 });
+
+  const kv = new Map<string, string>();
+  const store = { get: async (key: string) => kv.get(key) ?? null, put: async (key: string, value: string) => { kv.set(key, value); } } as unknown as KVNamespace;
+  await recordSchedulerRun(store, new Date("2026-10-20T02:07:00.000Z"));
+  assert.equal(kv.get(SCHEDULER_HEARTBEAT_KEY), "2026-10-20T02:07:00.000Z");
+  const failing = { put: async () => { throw new Error("kv down"); } } as unknown as KVNamespace;
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    await recordSchedulerRun(failing, new Date()); // never throws into the cron
+  } finally {
+    console.error = originalError;
+  }
 });

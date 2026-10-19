@@ -44,7 +44,8 @@ export type HealthSignalId =
   | "receiver-score"
   | "autolaris"
   | "google-ads-outbox"
-  | "alerting";
+  | "alerting"
+  | "scheduler";
 
 export type HealthSignal = {
   id: HealthSignalId;
@@ -243,6 +244,44 @@ export function classifyAlerting(
   return webhookConfigured
     ? signal("alerting", "healthy", "configured", null, now)
     : signal("alerting", "unknown", "not-configured", null, now);
+}
+
+/** KV key the hourly run stamps; the panel reads it back. */
+export const SCHEDULER_HEARTBEAT_KEY = "adsbookcms:scheduler:last-run:v1";
+/** Two missed hours before the panel calls the clock stopped. */
+export const SCHEDULER_STALE_MINUTES = 150;
+
+/** Stamp one scheduled run. Never throws: a KV hiccup must not fail the cron. */
+export async function recordSchedulerRun(store: KVNamespace | undefined, at: Date) {
+  await store?.put(SCHEDULER_HEARTBEAT_KEY, at.toISOString()).catch((error) =>
+    console.error("scheduler-heartbeat-write-failed", error),
+  );
+}
+
+/**
+ * Whether the hourly maintenance runs at all.
+ *
+ * Every retry in this product rides that clock: the CAPI and Google Ads
+ * drains, AutoLaris reconciliation, the Receiver Score backfill, plugin hooks
+ * and these alerts. A store with no cron slot looked healthy until something
+ * needed a retry; zanobyshop (2026-10-20) read as "not whitelisted" for a day
+ * because nothing ever asked Mengantar again. No stamp yet is `unknown`: a
+ * store just installed, or one whose slot was given up on purpose. A stamp
+ * that stopped is `degraded`.
+ */
+export function classifyScheduler(lastRunAt: string | null | undefined, now: number): HealthSignal {
+  if (lastRunAt === undefined) return signal("scheduler", "unknown", "unreadable", null, now);
+  if (!lastRunAt) return signal("scheduler", "unknown", "scheduler-never-ran", null, now);
+  const age = ageMinutes(lastRunAt, now);
+  return age !== null && age > SCHEDULER_STALE_MINUTES
+    ? signal("scheduler", "degraded", "scheduler-stalled", lastRunAt, now)
+    : signal("scheduler", "healthy", "scheduler-ran", lastRunAt, now);
+}
+
+async function readSchedulerHeartbeat(locals?: App.Locals): Promise<string | null | undefined> {
+  const store = (getRuntimeEnv(locals) as { SESSION?: KVNamespace }).SESSION;
+  if (!store) return undefined;
+  return store.get(SCHEDULER_HEARTBEAT_KEY).catch(() => undefined);
 }
 
 /** When Meta last accepted an event. */
@@ -513,7 +552,7 @@ export async function collectOperationalHealth(
   database: D1Database,
   locals?: App.Locals,
 ): Promise<OperationalHealth> {
-  const [depth, delivery, mengantar, receiverScore, autolaris, googleAdsDepth, schema] = await Promise.all([
+  const [depth, delivery, mengantar, receiverScore, autolaris, googleAdsDepth, schema, schedulerRunAt] = await Promise.all([
     readCapiOutboxDepth(database),
     readCapiDeliveryWindow(database),
     readMengantarWindow(database),
@@ -521,6 +560,7 @@ export async function collectOperationalHealth(
     readAutoLarisWindow(database),
     readGoogleAdsOutboxDepth(database),
     getSchemaVersionStatus(locals),
+    readSchedulerHeartbeat(locals),
   ]);
 
   const now = Date.now();
@@ -535,6 +575,7 @@ export async function collectOperationalHealth(
       Boolean(getEnvValue("OPS_ALERT_WEBHOOK_URL", getRuntimeEnv(locals))?.trim()),
       now,
     ),
+    classifyScheduler(schedulerRunAt, now),
   ];
 
   return {

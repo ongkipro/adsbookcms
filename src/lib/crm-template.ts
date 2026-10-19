@@ -1,3 +1,13 @@
+/** One order line, as the CRM message lists it. */
+export type CrmOrderItem = {
+  productName?: string | null;
+  variantName?: string | null;
+  quantity?: number | null;
+  unitPrice?: number | null;
+  /** The variant's own strike price; never invented when absent. */
+  comparePrice?: number | null;
+};
+
 export type CrmOrderContext = {
   customerName?: string;
   customerPhone?: string;
@@ -8,6 +18,10 @@ export type CrmOrderContext = {
   postalCode?: string;
   orderNumber?: string;
   productName?: string;
+  /** Variant titles, used when `items` is not available. */
+  variantName?: string;
+  /** The order lines; `{{varian}}`, `{{jumlah}}` and `{{rincian_pesanan}}` read these. */
+  items?: CrmOrderItem[];
   productPrice?: number;
   comparePrice?: number;
   shippingCost?: number;
@@ -27,27 +41,27 @@ export type CrmOrderContext = {
 
 export const defaultCrmTemplates: Record<string, string> = {
   welcome:
-    'Hai {{name}}, terima kasih telah memesan {{product_name}} di toko kami! Berikut detail pesanan kamu:\n\n- Produk: {{product_name}}\n- Harga: {{product_price}}\n- Ongkir: {{shipping_cost}}\n- Jumlah: 1\n- Total: {{total_price}}\n- Dikirim ke:\n  Nama: {{name}}\n  No HP: {{phone}}\n  Alamat: {{address}}\n\nApakah bisa melengkapi alamatnya ya kak?',
+    'Hai {{name}}, terima kasih telah memesan {{product_variant}} di toko kami! Berikut detail pesanan kamu:\n\n- Produk: {{product_variant}}\n- Jumlah: {{jumlah}}\n- Harga: {{harga_satuan}}\n- Subtotal: {{product_price}}\n- Ongkir: {{shipping_cost}}\n- Total: {{total_price}}\n- Dikirim ke:\n  Nama: {{name}}\n  No HP: {{phone}}\n  Alamat: {{address}}\n\nApakah bisa melengkapi alamatnya ya kak?',
   1:
-    'Halo Kak {{name}}, terima kasih sebelumnya sudah tertarik dengan {{product_name}} dengan harga {{product_price}}. Aku mau pastikan, apakah ada kendala atau hal yang masih ingin Kakak pastikan sebelum lanjut pemesanan ya kak? Aku dengan senang hati bisa bantu jelaskan supaya Kakak bisa lebih yakin.',
+    'Halo Kak {{name}}, terima kasih sebelumnya sudah tertarik dengan {{product_variant}} dengan harga {{product_price}}. Aku mau pastikan, apakah ada kendala atau hal yang masih ingin Kakak pastikan sebelum lanjut pemesanan ya kak? Aku dengan senang hati bisa bantu jelaskan supaya Kakak bisa lebih yakin.',
   2:
-    'Hai {{name}}, kami perhatikan pesanan kamu untuk {{product_name}} (Harga: {{product_price}}) belum diselesaikan. Berikut ringkasan pesanan kamu:\n\n- Produk: {{product_name}}\n- Harga: {{product_price}}\n- Total: {{total_price}}\n- Alamat: {{address}}, {{district}}, {{city}}\n\nSilakan lanjutkan pembayaran ke: {{bank_accounts}}\nAtau klik link berikut untuk pembayaran: {{epayment_link}}\n\nKalau ada yang bingung, tinggal tanya ya! {{seller_name}}',
+    'Hai {{name}}, kami perhatikan pesanan kamu untuk {{product_variant}} (Harga: {{product_price}}) belum diselesaikan. Berikut ringkasan pesanan kamu:\n\n- Produk: {{product_variant}}\n- Jumlah: {{jumlah}}\n- Harga: {{product_price}}\n- Total: {{total_price}}\n- Alamat: {{address}}, {{district}}, {{city}}\n\nSilakan lanjutkan pembayaran ke: {{bank_accounts}}\nAtau klik link berikut untuk pembayaran: {{epayment_link}}\n\nKalau ada yang bingung, tinggal tanya ya! {{seller_name}}',
   3:
-    'Hai {{name}}, pesanan kamu untuk {{product_name}} (Harga: {{product_price}}) masih belum kami terima pembayarannya. Stok terbatas, jadi pastikan kamu menyelesaikan pembayaran segera agar pesananmu bisa kami proses.\n\nPembayaran bisa ke: {{bank_accounts}}\nAtau pakai link ini: {{epayment_link}}\n\nDitunggu ya! {{seller_name}}',
+    'Hai {{name}}, pesanan kamu untuk {{product_variant}} (Harga: {{product_price}}) masih belum kami terima pembayarannya. Stok terbatas, jadi pastikan kamu menyelesaikan pembayaran segera agar pesananmu bisa kami proses.\n\nPembayaran bisa ke: {{bank_accounts}}\nAtau pakai link ini: {{epayment_link}}\n\nDitunggu ya! {{seller_name}}',
   4:
-    'Hai {{name}}, kami ingin mengingatkan kembali bahwa pesanan kamu untuk {{product_name}} (Harga: {{product_price}}) masih belum diselesaikan. Kalau masih berminat, bisa langsung lanjut pembayaran di: {{epayment_link}}\nAtau transfer ke: {{bank_accounts}}\n\nKami siap bantu kalau ada kendala, {{seller_name}}',
+    'Hai {{name}}, kami ingin mengingatkan kembali bahwa pesanan kamu untuk {{product_variant}} (Harga: {{product_price}}) masih belum diselesaikan. Kalau masih berminat, bisa langsung lanjut pembayaran di: {{epayment_link}}\nAtau transfer ke: {{bank_accounts}}\n\nKami siap bantu kalau ada kendala, {{seller_name}}',
   5:
-    'Hai {{name}}, ini adalah pengingat terakhir untuk pesanan kamu atas {{product_name}} (Harga: {{product_price}}). Kalau masih ingin lanjut, bisa selesaikan pembayaran via: {{epayment_link}}\nAtau transfer ke: {{bank_accounts}}\n\nKalau belum bisa, tidak masalah. Terima kasih banyak sudah mampir! {{seller_name}}',
+    'Hai {{name}}, ini adalah pengingat terakhir untuk pesanan kamu atas {{product_variant}} (Harga: {{product_price}}). Kalau masih ingin lanjut, bisa selesaikan pembayaran via: {{epayment_link}}\nAtau transfer ke: {{bank_accounts}}\n\nKalau belum bisa, tidak masalah. Terima kasih banyak sudah mampir! {{seller_name}}',
   6:
-    'Hai {{name}}, kami belum menerima pembayaran untuk pesanan kamu atas {{product_name}} (Harga: {{product_price}}). Kalau kamu mebutuhkan bantuan atau ada pertanyaan, tinggal hubungi kami ya. Terima kasih sudah tertarik dengan produk kami! {{seller_name}}',
+    'Hai {{name}}, kami belum menerima pembayaran untuk pesanan kamu atas {{product_variant}} (Harga: {{product_price}}). Kalau kamu mebutuhkan bantuan atau ada pertanyaan, tinggal hubungi kami ya. Terima kasih sudah tertarik dengan produk kami! {{seller_name}}',
   7:
-    'Hai {{name}}, pembayaran kamu untuk {{product_name}} sebesar {{total_price}} telah kami terima. Pesanan kamu sedang kami proses dan akan segera dikirim ke:\n{{address}}, {{district}}, {{city}}\n\nAkan kami update lagi kalau sudah dikirim ya, {{seller_name}}',
+    'Hai {{name}}, pembayaran kamu untuk {{product_variant}} sebesar {{total_price}} telah kami terima. Pesanan kamu sedang kami proses dan akan segera dikirim ke:\n{{address}}, {{district}}, {{city}}\n\nAkan kami update lagi kalau sudah dikirim ya, {{seller_name}}',
   8:
-    'Hai {{name}}, pesanan kamu atas {{product_name}} sudah berhasil kami kirim!\n\nCek resinya di sini: {{receipt_number}}\nDetail pesanan: {{order_details_link}}\n\nSemoga kamu suka ya, sampai ketemu di pesanan selanjutnya, {{seller_name}}',
+    'Hai {{name}}, pesanan kamu atas {{product_variant}} sudah berhasil kami kirim!\n\nCek resinya di sini: {{receipt_number}}\nDetail pesanan: {{order_details_link}}\n\nSemoga kamu suka ya, sampai ketemu di pesanan selanjutnya, {{seller_name}}',
   9:
-    'Halo {{name}}, kami lagi ada promo khusus untuk {{product_name}}, dari harga {{compare_price}} jadi cuma {{product_price}} saja! Stok terbatas ya, pesan sekarang sebelum kehabisan.',
+    'Halo {{name}}, kami lagi ada promo khusus untuk {{product_variant}}, dari harga {{compare_price}} jadi cuma {{product_price}} saja! Stok terbatas ya, pesan sekarang sebelum kehabisan.',
   redirect:
-    'Halo, saya sudah melakukan pemesanan {{product_name}}, atas nama {{name}}. Mohon segera diproses ya.',
+    'Halo, saya sudah melakukan pemesanan {{product_variant}}, atas nama {{name}}. Mohon segera diproses ya.',
 };
 
 export const CRM_TEMPLATE_KEYS = [
@@ -114,9 +128,48 @@ export function renderCrmMessage(template: string, ctx: CrmOrderContext): string
   const totalStr = fmtPrice(rawTotalAmount);
 
   const shippingStr = fmtPrice(ctx.shippingCost ?? 0);
-  const comparePriceStr = ctx.comparePrice && ctx.comparePrice > 0
-    ? fmtPrice(ctx.comparePrice)
-    : (rawProductPrice > 0 ? fmtPrice(Math.round(rawProductPrice * 1.3)) : 'Rp 180.000');
+  // The strike price is a claim to the buyer, so it is the variant's real
+  // compare price or nothing. It used to fall back to price × 1.3 (or a fixed
+  // Rp 180.000), which the UpSelling template then sent as a discount that
+  // never existed. With no real one it reads as the price itself.
+  const items = (ctx.items ?? []).filter((item) => item.productName || item.variantName);
+  const realCompare = ctx.comparePrice && ctx.comparePrice > 0
+    ? ctx.comparePrice
+    : items.length === 1 && items[0].comparePrice && items[0].comparePrice > (items[0].unitPrice ?? 0)
+      ? items[0].comparePrice * (items[0].quantity || 1)
+      : 0;
+  const comparePriceStr = realCompare > rawProductPrice ? fmtPrice(realCompare) : productPriceStr;
+
+  // A variant title equal to its product's adds nothing ("Gel - Gel").
+  const variantOf = (item: CrmOrderItem) => {
+    const variant = String(item.variantName ?? '').trim();
+    return variant && variant !== String(item.productName ?? '').trim() ? variant : '';
+  };
+  const lineName = (item: CrmOrderItem) =>
+    [String(item.productName ?? '').trim(), variantOf(item)].filter(Boolean).join(' - ') || 'Produk';
+  const variantStr = items.length
+    ? items.map(variantOf).filter(Boolean).join(', ') || '-'
+    : String(ctx.variantName ?? '').trim() || '-';
+  const productVariantStr = items.length
+    ? items.map(lineName).join(', ')
+    : [ctx.productName, ctx.variantName].filter((part) => part && String(part).trim()).join(' - ') || ctx.productName || 'Produk';
+  const quantity = items.length ? items.reduce((sum, item) => sum + (item.quantity || 1), 0) : 1;
+  const unitPriceStr = items.length === 1 && items[0].unitPrice
+    ? fmtPrice(items[0].unitPrice)
+    : items.length > 1
+      ? items.map((item) => fmtPrice(item.unitPrice ?? 0)).join(', ')
+      : productPriceStr;
+  // One line per item, so a two-size bundle or two products read the way the
+  // buyer chose them: "- Paket Glow Up - 150ml × 2 @ Rp 150.000 = Rp 300.000".
+  const itemLines = items.length
+    ? items
+        .map((item) => {
+          const qty = item.quantity || 1;
+          const unit = item.unitPrice ?? 0;
+          return `- ${lineName(item)} × ${qty} @ ${fmtPrice(unit)} = ${fmtPrice(unit * qty)}`;
+        })
+        .join('\n')
+    : `- ${productVariantStr} × 1 = ${productPriceStr}`;
 
   const replacements: Record<string, string> = {
     name: ctx.customerName || 'Pelanggan',
@@ -129,6 +182,24 @@ export function renderCrmMessage(template: string, ctx: CrmOrderContext): string
     produk: ctx.productName || 'Produk',
     nama_produk: ctx.productName || 'Produk',
     item_name: ctx.productName || 'Produk',
+
+    variant_name: variantStr,
+    variantname: variantStr,
+    variant: variantStr,
+    varian: variantStr,
+    product_variant: productVariantStr,
+    produk_varian: productVariantStr,
+
+    quantity: String(quantity),
+    qty: String(quantity),
+    jumlah: String(quantity),
+    unit_price: unitPriceStr,
+    harga_satuan: unitPriceStr,
+
+    items: itemLines,
+    order_items: itemLines,
+    rincian_pesanan: itemLines,
+    rincian: itemLines,
 
     product_price: productPriceStr,
     productprice: productPriceStr,

@@ -6,7 +6,7 @@ import {
   alertsFromOperationalHealth,
   evaluateOperationalAlerts,
 } from "./lib/operational-alerts.ts";
-import { collectOperationalHealth } from "./lib/operational-health.ts";
+import { collectOperationalHealth, recordSchedulerRun } from "./lib/operational-health.ts";
 import { backfillReceiverScores } from "./lib/rts-scoring.ts";
 import { ensureSchemaUpgraded } from "./lib/schema-version.ts";
 import { purgeExpiredRateLimits } from "./lib/rate-limit.ts";
@@ -36,6 +36,8 @@ async function runScheduledMaintenance(
   context: ExecutionContext,
 ) {
   await ensureSchemaUpgraded(env.OMS_DB);
+  // The panel's "Tugas terjadwal" signal: proof this clock still runs at all.
+  await recordSchedulerRun(env.SESSION, new Date(scheduledTime));
   // No step takes the ones after it down: payment reconciliation, both outbox
   // drains and the health evaluation each run even when an earlier step hit a
   // transient D1 or provider error. The failure is logged and reads as -1.

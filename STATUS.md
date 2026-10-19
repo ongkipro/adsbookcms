@@ -2,6 +2,31 @@
 
 > Verified against disk: 2026-10-20 (1.6.2 on numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
 
+## 2026-10-20 — 1.6.3: CRM variant and price; scheduler heartbeat
+
+- **CRM templates.** The owner reported that the WhatsApp templates had no
+  variant or price detail. Order detail sent only product titles. The list sent
+  a summed price, and the default order-detail message said `Jumlah: 1` for
+  every order. New variables are `{{varian}}`, `{{product_variant}}`,
+  `{{jumlah}}`, `{{harga_satuan}}` and `{{rincian_pesanan}}` (one line per
+  item), and both the order list and the order detail now pass the order lines.
+  All eleven default templates name product + variant. Templates a store has
+  already saved are left as they are.
+- **Honest strike price.** `{{compare_price}}` fell back to price × 1.3, or a
+  fixed Rp 180.000, which the UpSelling default sent as a discount. It is now
+  the variant's own `compare_price` × quantity, or the price itself.
+- **Scheduler heartbeat.** The hourly run stamps KV
+  (`adsbookcms:scheduler:last-run:v1`), and the health panel shows "Tugas
+  terjadwal". With no stamp it is `unknown`; with no stamp for more than 150
+  minutes it is `degraded`. That makes a store like zanobyshop, with no cron
+  slot, visible.
+- **Verified locally.** On a fresh D1 with a 2 × 150ml order, all ten CRM
+  buttons read "Paket Glow Up - 150ml". Welcome lists "Jumlah: 2 / Harga:
+  Rp 150.000 / Subtotal: Rp 300.000", and Upsell uses the real Rp 360.000
+  strike. The scheduler signal moved from never-ran to healthy after
+  `/cdn-cgi/handler/scheduled`. 858 tests passed, 0 type errors, 0 console
+  errors.
+
 ## 2026-10-20 — 1.6.2: Receiver Score refusals recover by themselves
 
 - **Symptom (zanobyshop).** After a Receiver Score whitelist was reported, the

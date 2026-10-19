@@ -24,6 +24,7 @@ const SIGNAL_TITLES: Record<HealthSignal["id"], string> = {
   autolaris: "AutoLaris Create Order & verifikasi",
   "google-ads-outbox": "Antrean Google Ads offline",
   alerting: "Saluran peringatan",
+  scheduler: "Tugas terjadwal (cron per jam)",
 };
 
 const REASONS: Record<string, string> = {
@@ -61,6 +62,12 @@ const REASONS: Record<string, string> = {
   "payment-confirmed": "Pembayaran terakhir telah dikonfirmasi AutoLaris atau operator.",
   "stalled-with-terminal-failures":
     "Ada conversion yang gagal permanen, dan event yang masih bisa dikirim pun sudah lewat jadwal retry — antrean macet.",
+  // scheduler
+  "scheduler-ran": "Pemeliharaan per jam berjalan: retry CAPI, rekonsiliasi pembayaran, skor penerima, dan plugin.",
+  "scheduler-never-ran":
+    "Pemeliharaan per jam belum pernah tercatat berjalan. Bila lebih dari satu jam sejak deploy, cek triggers.crons di wrangler.jsonc — tanpa cron, retry CAPI, rekonsiliasi pembayaran, skor penerima, dan plugin tidak berjalan otomatis.",
+  "scheduler-stalled":
+    "Pemeliharaan per jam berhenti lebih dari dua jam — retry CAPI, rekonsiliasi pembayaran, skor penerima, dan plugin ikut berhenti. Cek Workers Logs dan triggers.crons.",
   // alerting
   configured: "Peringatan dikirim ke webhook operasional.",
   "not-configured":

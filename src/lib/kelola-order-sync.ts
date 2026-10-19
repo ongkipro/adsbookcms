@@ -11,6 +11,10 @@
  * at-least-once on purpose: a push right after checkout (`waitUntil`), then
  * the hourly cron retries whatever Kelola has not accepted yet, and an operator
  * can resend one order from its detail page.
+ *
+ * An abandoned order is never pushed as a sale. Once it has stayed abandoned
+ * past a grace period the cron sends it to Kelola's lead webhook instead, for
+ * CS to follow up (`drainKelolaLeads`).
  */
 import { getEnvValue, getRuntimeEnv } from "./env.ts";
 
@@ -308,6 +312,105 @@ export async function drainKelolaOrders(
   let synced = 0;
   for (const { id } of results) {
     if (await pushOrderToKelola(database, config, id, fetcher)) synced += 1;
+  }
+  return synced;
+}
+
+/** An abandoned row younger than this may still convert in place into an order. */
+const LEAD_GRACE_MINUTES = 30;
+
+/** Kelola's lead webhook sits beside the order one, behind the same token and secret. */
+export function kelolaLeadUrl(orderUrl: string) {
+  return orderUrl.replace(/\/order\/([^/]+)$/, "/lead/$1");
+}
+
+type LeadRow = {
+  id: number;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  address: string;
+  province: string;
+  city: string;
+  district: string;
+  total_amount: number;
+  source_page_path: string | null;
+  product: string | null;
+};
+
+/** The body Kelola's `/api/public/toko/lead/:token` validates. */
+export function kelolaLeadPayload(lead: LeadRow) {
+  return {
+    code: lead.order_number,
+    customerName: lead.customer_name,
+    customerPhone: lead.customer_phone,
+    address: lead.address || undefined,
+    kecamatan: lead.district || undefined,
+    kota: lead.city || undefined,
+    provinsi: lead.province || undefined,
+    produk: lead.product || undefined,
+    nilai: lead.total_amount > 0 ? lead.total_amount : undefined,
+    halaman: lead.source_page_path || undefined,
+  };
+}
+
+/**
+ * Cron leg: every abandoned order still abandoned after the grace period goes
+ * to Kelola as a lead (not a sale) for CS follow-up. Only success is recorded;
+ * a failure is logged and the 24h window bounds the retries.
+ */
+export async function drainKelolaLeads(
+  database: D1Database,
+  config: KelolaConfig,
+  now = new Date(),
+  fetcher: typeof fetch = fetch,
+): Promise<number> {
+  const since = new Date(now.getTime() - KELOLA_RETRY_WINDOW_HOURS * 3_600_000).toISOString();
+  const until = new Date(now.getTime() - LEAD_GRACE_MINUTES * 60_000).toISOString();
+  const { results } = await database
+    .prepare(
+      `SELECT o.id, o.order_number, o.customer_name, o.customer_phone, o.address, o.province,
+              o.city, o.district, o.total_amount, o.source_page_path,
+              (SELECT p.title || CASE WHEN pv.title = p.title THEN '' ELSE ' - ' || pv.title END
+               FROM order_items oi
+               JOIN product_variants pv ON pv.id = oi.variant_id
+               JOIN products p ON p.id = pv.product_id
+               WHERE oi.order_id = o.id ORDER BY oi.id LIMIT 1) AS product
+       FROM orders o
+       WHERE o.shipping_status = 'abandoned' AND o.kelola_lead_synced_at IS NULL
+         AND o.stock_restored_at IS NULL AND o.created_at >= ? AND o.created_at <= ?
+       ORDER BY o.id LIMIT ?`,
+    )
+    .bind(since, until, DRAIN_BATCH)
+    .all<LeadRow>();
+  const url = kelolaLeadUrl(config.url);
+  let synced = 0;
+  for (const lead of results) {
+    try {
+      const body = JSON.stringify(kelolaLeadPayload(lead));
+      const timestamp = String(Date.now());
+      const response = await fetcher(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-timestamp": timestamp,
+          "x-signature": await signKelolaBody(config.secret, timestamp, body),
+        },
+        body,
+        signal: AbortSignal.timeout(PUSH_TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        console.error("kelola-lead-push-failed", { orderId: lead.id, status: response.status, body: (await response.text()).slice(0, 300) });
+        continue;
+      }
+      await database
+        .prepare("UPDATE orders SET kelola_lead_synced_at = ? WHERE id = ? AND shipping_status = 'abandoned'")
+        .bind(new Date().toISOString(), lead.id)
+        .run();
+      synced += 1;
+    } catch (error) {
+      console.error("kelola-lead-push-failed", { orderId: lead.id, error: error instanceof Error ? error.message : String(error) });
+    }
   }
   return synced;
 }

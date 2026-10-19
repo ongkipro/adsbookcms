@@ -4,8 +4,10 @@ import { DatabaseSync } from "node:sqlite";
 import { readdirSync, readFileSync } from "node:fs";
 import { splitMigrationStatements } from "./schema-version.ts";
 import {
+  drainKelolaLeads,
   drainKelolaOrders,
   getKelolaConfig,
+  kelolaLeadUrl,
   kelolaOrderPayload,
   kelolaOrderState,
   resendOrderToKelola,
@@ -225,6 +227,43 @@ test("drain skips abandoned, voided and out-of-window orders", async () => {
   const fetcher = (async () => { calls += 1; return new Response("{}", { status: 201 }); }) as unknown as typeof fetch;
   assert.equal(await drainKelolaOrders(database, config, now, fetcher), 0);
   assert.equal(calls, 0);
+});
+
+test("abandoned orders go to Kelola's lead webhook once, only after the grace period", async () => {
+  const { sqlite, database } = migratedStore();
+  const now = new Date();
+  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString();
+  const lead = insertOrder(sqlite, "ABN-0007", ago(45));
+  sqlite.prepare("UPDATE orders SET shipping_status = 'abandoned', source_page_path = '/gel' WHERE id = ?").run(lead);
+  const fresh = insertOrder(sqlite, "ABN-0008", ago(5));
+  sqlite.prepare("UPDATE orders SET shipping_status = 'abandoned' WHERE id = ?").run(fresh);
+  insertOrder(sqlite, "INV-0009", ago(45));
+  const calls: { url: string; headers: Headers; body: string }[] = [];
+  let status = 503;
+  const fetcher = (async (url: string, init: RequestInit) => {
+    calls.push({ url, headers: new Headers(init.headers), body: String(init.body) });
+    return new Response("{}", { status });
+  }) as unknown as typeof fetch;
+
+  // A refused push leaves the lead for the next run.
+  assert.equal(await drainKelolaLeads(database, config, now, fetcher), 0);
+  status = 201;
+  assert.equal(await drainKelolaLeads(database, config, now, fetcher), 1);
+  assert.equal(calls.length, 2);
+  const sent = calls[1];
+  assert.equal(sent.url, "https://kelola.test/api/public/toko/lead/twh_x");
+  assert.equal(sent.headers.get("x-signature"), await signKelolaBody(config.secret, sent.headers.get("x-timestamp")!, sent.body));
+  assert.deepEqual(JSON.parse(sent.body), {
+    code: "ABN-0007", customerName: "Budi", customerPhone: "081234567890", address: "Jl. Melati 1",
+    kecamatan: "Coblong", kota: "Bandung", provinsi: "Jawa Barat", produk: "Gel Tenggorokan",
+    nilai: 120000, halaman: "/gel",
+  });
+  // Never twice, and the lead marker leaves the order push untouched.
+  assert.equal(await drainKelolaLeads(database, config, now, fetcher), 0);
+  const row = sqlite.prepare("SELECT kelola_synced_at, kelola_lead_synced_at FROM orders WHERE id = ?").get(lead) as Record<string, unknown>;
+  assert.ok(row.kelola_lead_synced_at);
+  assert.equal(row.kelola_synced_at, null);
+  assert.equal(kelolaLeadUrl("https://kelolatim.com/api/public/toko/order/twh_order"), "https://kelolatim.com/api/public/toko/lead/twh_order");
 });
 
 /** The full checked-in migration chain, so the test breaks if the columns drift. */

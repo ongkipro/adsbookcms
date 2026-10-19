@@ -572,7 +572,7 @@ is generated per store from that store's own D1.
 | `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.11 on `70c5ce2` |
 | `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.11 on `81b5f19` |
 | `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.5.11 on `59c4788` |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.5.11 on `d0c4642` |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.5.11 on `9d944fd` |
 | `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | 1.5.11 on `d40544a`, schema 74 (`0069`–`0073` recovered 2026-10-18) |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more

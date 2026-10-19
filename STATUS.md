@@ -2,6 +2,20 @@
 
 > Verified against disk: 2026-10-19 (1.5.11 on all eleven installs)
 
+## 2026-10-20 — 1.5.12 on numaskin-adbook; Kelola push off until paired
+
+- **numaskin-adbook** merged 1.5.12 (`94dc044`). The only conflict was in the
+  generated route map, which was regenerated. It passed `check` (0 errors)
+  and `test` (858 pass, 0 failing), then deployed as `998b5cad`. On the first
+  request the Worker applied `0062`–`0065`, so production D1 is at 66/66.
+- **Verified locally:** a PDP order stored
+  `source_page_path = /produk/paket-clean-and-glow`. With no webhook pair,
+  `kelola_attempts` stayed 0, so the push is inert as designed.
+  `/produk` flows passed live with no console errors.
+- **Kelola not paired yet.** The webhook URL and secret come from the toko
+  settings in Kelola and are entered at `/admin/profile`. No other install has
+  1.5.12 yet; the fleet table below records each one's own head.
+
 ## 2026-10-19 — Actions deploys run the preflight; beranda-tani defaults
 
 - **A-327.** permatamall and zanobyshop now deploy from Actions via
@@ -567,7 +581,7 @@ is generated per store from that store's own D1.
 | `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `0a65018` |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.11 on `8ec7712` |
 | `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.11 on `f9bc526` |
-| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.11 on `0161bde` |
+| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.12 on `94dc044`, schema 66 (2026-10-20) |
 | `permatamall.shop` | `ongkipro/permatamall` | `git merge product/main` on `main`; GitHub Actions deploys on push | 1.5.11 on `17ddf59` |
 | `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.11 on `70c5ce2` |
 | `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.11 on `81b5f19` |

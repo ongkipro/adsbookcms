@@ -147,6 +147,11 @@ Migration-specific notes:
 - **`0061`** deletes the `Ninja` courier rule `0056` disabled. Only
   `courier_rules` rows; no install had an order with Ninja, and one that did
   would keep its `courier_code`.
+- **`0062`–`0065`** (1.5.12): `orders.source_page_path` (the landing page an
+  order came from), the Kelola push state on `orders` (`kelola_synced_at`,
+  `kelola_attempts`, `kelola_last_error`, `kelola_lead_synced_at`) and the
+  `stores.kelola_webhook_*` pair. All additive; the push stays off until an
+  operator saves a webhook pair.
 
 ---
 
@@ -164,8 +169,9 @@ Two registries, currently in step:
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration files, and the tree holds 62 (`0000`–`0061`).
-`1.5.0` (2026-10-11) is the first release that carries `0056`–`0061`.
+`schemaVersion` counts migration files, and the tree holds 66 (`0000`–`0065`).
+`1.5.0` (2026-10-11) is the first release that carries `0056`–`0061`;
+`1.5.12` carries `0062`–`0065`.
 `schema-version.test.ts` fails CI on drift; middleware enforces the same chain at
 runtime; `operational-health.ts` and the dashboard expose applied version.
 

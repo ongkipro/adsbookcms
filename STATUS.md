@@ -1,6 +1,6 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-20 (1.6.0 on numaskin-adbook, taniniaga, agritani-shop)
+> Verified against disk: 2026-10-20 (1.6.2 on numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
 
 ## 2026-10-20 — 1.6.2: Receiver Score refusals recover by themselves
 
@@ -19,6 +19,18 @@
   (Receiver Score, `getReceiverScoreByNumberUser`) and the key source. Mengantar
   whitelists per account and per feature, so a grant on another account's key,
   or on another feature such as `labelGeneration`, still reads as refused.
+- **zanobyshop has no cron.** It runs 1.6.2 (Actions run 39303914041, D1
+  67/67), but its `wrangler.jsonc` carries `"crons": []` on purpose. On
+  2026-09-05 its slot went to beranda-tani, because the Free plan caps the
+  account at 5 schedules. The 19:07 UTC run therefore never reached it, and
+  the three refusals from 2026-10-19 16:48 UTC are unchanged. Its only
+  recovery path is an admin page view. A refusal older than an hour is asked
+  again when `/admin/orders` or the order is opened, and Cek WA asks live. A
+  cron slot back (another store gives one up, or a paid plan) is an owner
+  decision.
+- **Fleet.** numaskin-adbook (`a7cf4b95`, after merging 15 native landing pages
+  another session had published), taniniaga (`8abbbdd5`), agritani-shop
+  (`bbd1014b`) and zanobyshop run 1.6.2.
 
 ## 2026-10-20 — 1.6.0: first-party plugins; Kelola uninstalled everywhere
 
@@ -632,16 +644,16 @@ is generated per store from that store's own D1.
 
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
-| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.6.0 on `8de68aa`, schema 67 (2026-10-20); installed 2026-10-15 |
+| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.6.2, schema 67 (2026-10-20); installed 2026-10-15 |
 | `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `0a65018` |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.11 on `8ec7712` |
 | `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.11 on `f9bc526` |
-| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.6.0 on `32c6ef6`, schema 67 (2026-10-20) |
+| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.6.2, schema 67 (2026-10-20) |
 | `permatamall.shop` | `ongkipro/permatamall` | `git merge product/main` on `main`; GitHub Actions deploys on push | 1.5.11 on `17ddf59` |
 | `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.11 on `70c5ce2` |
 | `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.11 on `81b5f19` |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.6.0 on `1bac1b5`, schema 67 (2026-10-20) |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.5.11 on `9d944fd` |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.6.2, schema 67 (2026-10-20) |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.6.2 on `4f5dbcb`, schema 67, no cron slot (2026-10-20) |
 | `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | 1.5.11 on `d40544a`, schema 74 (`0069`–`0073` recovered 2026-10-18) |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more

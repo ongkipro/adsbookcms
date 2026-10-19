@@ -29,10 +29,32 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.5.11",
+    version: "1.5.12",
     date: "19 Oktober 2026",
     releaseTag: "2026.10-landing-hero-h1",
     isLatest: true,
+    highlight: "Order dan pesanan tertinggal bisa dikirim otomatis ke Kelola CRM untuk ditindaklanjuti tim.",
+    changes: [
+      {
+        title: "Order masuk ke Penjualan Kelola",
+        description:
+          "Tempel URL webhook dan secret dari Kelola di Profil & Integrasi. Setiap order baru dikirim setelah checkout tanpa menunda pembeli, dicoba ulang tiap jam selama 24 jam, dan bisa dikirim ulang dari detail order.",
+      },
+      {
+        title: "Pesanan tertinggal untuk follow-up",
+        description:
+          "Pesanan tertinggal yang 30 menit kemudian masih belum jadi order dikirim ke menu Data tertinggal di Kelola — terpisah dari Penjualan, jadi omzet tidak menggelembung.",
+      },
+      {
+        title: "Halaman asal order",
+        description: "Setiap order mencatat halaman (landing page) tempat pembeli memesan, terlihat di detail order.",
+      },
+    ],
+  },
+  {
+    version: "1.5.11",
+    date: "19 Oktober 2026",
+    releaseTag: "2026.10-landing-hero-h1",
     highlight: "Landing page dengan HTML sendiri tidak lagi memicu request sia-sia setiap kali dibuka.",
     changes: [
       {

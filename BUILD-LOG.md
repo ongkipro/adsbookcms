@@ -6808,3 +6808,24 @@ defect on any page. The `/api/meta-event` 429s it logged came from its own
 traffic: 500+ pages from one IP against the 60-per-minute limit.
 
 Checked: `npm test` (837), `npm run check`.
+
+## 2026-10-19 — 1.5.12: optional Kelola CRM push
+
+Upstreamed from the penyembuhan.com install, where it has run since
+2026-10-17. Off until a store saves a Kelola webhook URL and secret at
+`/admin/profile` (env `KELOLA_ORDER_WEBHOOK_URL` / `_SECRET` is the fallback;
+the saved pair wins and the secret is never returned to the browser).
+
+- Every new order is pushed to Kelola's `/api/public/toko/order/:token`,
+  signed HMAC-SHA256 over `{x-timestamp}.{body}`. The first push runs in
+  `waitUntil` after checkout; the hourly cron retries unaccepted orders for
+  24 h; an operator can resend one from the order detail. Kelola keys on the
+  order number, so a resend is a duplicate, not a second sale.
+- An order still `abandoned` 30 minutes after capture goes from the cron to
+  `/api/public/toko/lead/:token`, never as a sale. `orders.kelola_lead_synced_at`
+  is its own marker because the row converts in place into the completed
+  order, which must still be pushed.
+- Every order records `source_page_path`, the page the buyer ordered from.
+- Migrations `0062_order_source_page`, `0063_kelola_order_sync`,
+  `0064_kelola_dashboard_config`, `0065_kelola_lead_sync`. The file names match
+  the install's, so it merges this release without a migration conflict.

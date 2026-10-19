@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.5.11",
+  version: "1.5.12",
+  // 1.5.12: optional Kelola CRM push — orders as sales, abandoned orders as follow-up leads.
   // 1.5.11: a script-carrier image in merchant html fails without a request.
   // 1.5.10: deploy preflight refuses when production lists native landings the register does not.
   channel: "production",
@@ -25,6 +26,6 @@ export const CMS_VERSION: CmsVersionInfo = {
   // mobile order button, deploy builds before upload (BUILD-LOG 2026-10-11).
   releaseTag: "2026.10-landing-hero-h1",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
-  schemaVersion: 62,
+  schemaVersion: 66,
   lastUpdated: "2026-10-19",
 };

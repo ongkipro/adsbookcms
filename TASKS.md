@@ -2671,3 +2671,8 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
 - [x] **A-328** — Script-carrier images in merchant html (`<img src="x"
   onerror>`) no longer request `/x` on every view; the placeholder becomes
   `data:,`. **Done 2026-10-19 (1.5.11).**
+- [x] **A-329** — Optional Kelola CRM push: every new order to Kelola's order
+  webhook (checkout `waitUntil`, hourly retry for 24 h, resend from the order
+  detail), abandoned orders still abandoned after 30 min to its lead webhook,
+  and the source landing path on every order. Migrations `0062`-`0065`.
+  **Done 2026-10-19 (1.5.12).**

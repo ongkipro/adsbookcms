@@ -165,6 +165,8 @@ npx wrangler secret put AUTH_SECRET            # 32+ chars; otherwise generated 
 npx wrangler secret put BOOTSTRAP_ADMIN_PASSWORD
 ```
 
+The Kelola CRM push is off until a webhook URL and secret from Kelola are saved under `/admin/profile` (or set as `KELOLA_ORDER_WEBHOOK_URL` / `KELOLA_ORDER_WEBHOOK_SECRET`; the saved pair wins). It sends each new order to Kelola as a sale and each order still abandoned after 30 minutes as a follow-up lead.
+
 Provider credentials — `MENGANTAR_API_KEY`, `AUTOLARIS_API_KEY`, `META_CAPI_ACCESS_TOKEN`, and their base URLs — can be set either as secrets or, preferably, saved later from `/admin/profile` and `/admin/ads`. The database value wins over the deployed secret, and `/admin` reports which source is active.
 
 `INSTALL_TOKEN` is the one-time capability requested by the fresh-install wizard;

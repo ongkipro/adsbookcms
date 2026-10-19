@@ -20,6 +20,13 @@
   buyer pays the fee). The store has no orders yet, so no AutoLaris
   transaction has run there; the key is a Worker secret, confirmable from
   `/admin` settings.
+- **Follow-up (`d0c7e27`, version `72a4d6a3`).** The seven WhatsApp
+  screenshots are now `WhatsAppChat` threads: transcribed text, with the
+  customers' photos and avatars cropped from the originals. Three chats each
+  render live on aussie-formulabaru(-evrpro), busukpucuk-simple and
+  aussie-busukpucuk. The busukpucuk-simple countdown, an 8-minute timer that
+  restarted on every visit, is removed. All six pages answer 200 with no
+  console error or overflow.
 
 ## 2026-10-19 — fleet audit; 1.5.11 on all eleven installs
 
@@ -542,7 +549,7 @@ is generated per store from that store's own D1.
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
 | `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.11 on `e0ee655`, installed 2026-10-15 |
-| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `3eb874a` |
+| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `d0c7e27` |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.11 on `8ec7712` |
 | `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.11 on `f9bc526` |
 | `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.11 on `0161bde` |

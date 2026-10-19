@@ -2,6 +2,24 @@
 
 > Verified against disk: 2026-10-20 (1.6.0 on numaskin-adbook, taniniaga, agritani-shop)
 
+## 2026-10-20 — 1.6.2: Receiver Score refusals recover by themselves
+
+- **Symptom (zanobyshop).** After a Receiver Score whitelist was reported, the
+  admin still showed the not-whitelisted notice. D1 (read-only, 2026-10-20) had
+  7 orders scored up to 2026-10-12 and 3 refused on 2026-10-19 16:48 UTC. The
+  last order there dates from 2026-08-18. The key is the server secret, not
+  a dashboard key.
+- **Product bug.** The hourly backfill scanned only orders from the last 30
+  days, so a store without recent orders never retried a refusal. Its health
+  signal stayed `not-whitelisted` after access returned. Since 1.6.2 a stored
+  refusal is retried at any age; the run still stops at the first refusal, so
+  an account without access costs one call an hour.
+- **Message.** The Cek WA text "Akses Mengantar untuk fitur ini belum aktif" is
+  a live 403 from Mengantar, not a cached state. It now names the feature
+  (Receiver Score, `getReceiverScoreByNumberUser`) and the key source. Mengantar
+  whitelists per account and per feature, so a grant on another account's key,
+  or on another feature such as `labelGeneration`, still reads as refused.
+
 ## 2026-10-20 — 1.6.0: first-party plugins; Kelola uninstalled everywhere
 
 - **What changed (ADR-028).** Optional integrations are now first-party

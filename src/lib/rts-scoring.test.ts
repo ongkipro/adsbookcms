@@ -265,3 +265,56 @@ test("a refusal younger than the retry window is not retried from a page view", 
   assert.equal(isRecentReceiverRefusal(null, now), false);
   assert.equal(isRecentReceiverRefusal("not a date", now), false);
 });
+
+test("a refused order older than 30 days is still retried, so a granted whitelist clears itself", async (context) => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const { splitMigrationStatements } = await import("./schema-version.ts");
+  const sqlite = new DatabaseSync(":memory:");
+  const dir = new URL("../db/migrations/", import.meta.url);
+  for (const name of readdirSync(dir).filter((file) => file.endsWith(".sql")).sort()) {
+    for (const statement of splitMigrationStatements(readFileSync(new URL(name, dir), "utf8"))) sqlite.exec(statement);
+  }
+  sqlite.exec(`INSERT INTO stores (id, name, slug, created_at, mengantar_api_key) VALUES (1, 'Toko', 'toko', '2026-01-01', 'test-key')`);
+  const old = new Date(Date.now() - 60 * 86_400_000).toISOString();
+  const insert = sqlite.prepare(
+    `INSERT INTO orders (order_number, store_id, customer_name, customer_phone, address, province, city, district,
+       total_amount, shipping_cost, payment_method, payment_status, shipping_status, created_at, receiver_performance_json)
+     VALUES (?, 1, 'Budi', ?, 'Jl. Melati 1', 'Jawa Barat', 'Bandung', 'Coblong', 120000, 15000, 'cod', 'unpaid', 'pending', ?, ?)`,
+  );
+  insert.run("INV-OLD-REFUSED", "081300000011", old, JSON.stringify({ unavailable: "not-whitelisted", at: old }));
+  insert.run("INV-OLD-NEVER", "081300000012", old, null);
+  const database = {
+    prepare: (sql: string) => {
+      const bound: unknown[] = [];
+      const statement = {
+        bind: (...values: unknown[]) => { bound.push(...values); return statement; },
+        run: async () => ({ meta: { changes: Number(sqlite.prepare(sql).run(...bound as never[]).changes) } }),
+        first: async () => sqlite.prepare(sql).get(...bound as never[]) ?? null,
+        all: async () => ({ results: sqlite.prepare(sql).all(...bound as never[]) }),
+      };
+      return statement;
+    },
+  } as unknown as D1Database;
+  const calls = mockMengantar(context, () =>
+    Response.json({ success: true, data: { JNE: { total: 4, delivered: 4, rts: 0, undelivered: 0, rate: 10 }, summary: { average_number: 10, average_score: "≈A" } } }),
+  );
+
+  assert.equal(await backfillReceiverScores(database, { runtimeEnv: {} } as never), 1);
+  assert.equal(calls(), 1, "only the refused order is probed; an old never-scored one is left alone");
+  const row = sqlite.prepare("SELECT rts_risk_label, receiver_performance_checked_at FROM orders WHERE order_number = 'INV-OLD-REFUSED'").get() as Record<string, unknown>;
+  assert.equal(row.rts_risk_label, "LOW");
+  assert.ok(row.receiver_performance_checked_at);
+});
+
+test("a refusal names the feature and which key Mengantar refused", async (context) => {
+  mockMengantar(context, () => Response.json({ success: false, message: "Not allowed" }, { status: 403 }));
+  const { database } = backfillDatabase();
+  await assert.rejects(
+    getReceiverPerformance(database, "081300000001", { runtimeEnv: {} } as never),
+    (error: Error) => error.name === "MengantarNotWhitelistedError"
+      && /cek skor penerima/.test(error.message)
+      && /dashboard/.test(error.message)
+      && /getReceiverScoreByNumberUser/.test(error.message),
+  );
+});

@@ -371,9 +371,11 @@ function posCodIneligibility(httpStatus: number, payload: Record<string, unknown
  * Access is granted by Mengantar CS, never by a retry or a new key.
  */
 export class MengantarNotWhitelistedError extends Error {
-  constructor() {
+  /** `detail` names the feature and the key that was refused, when the caller knows them. */
+  constructor(detail?: string) {
     super(
-      'Akses Mengantar untuk fitur ini belum aktif: akun belum di-whitelist. Minta akses ke CS Mengantar.',
+      detail ??
+        'Akses Mengantar untuk fitur ini belum aktif: akun belum di-whitelist. Minta akses ke CS Mengantar.',
     );
     this.name = 'MengantarNotWhitelistedError';
   }

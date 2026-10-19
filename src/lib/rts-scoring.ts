@@ -15,8 +15,20 @@ export async function getReceiverPerformance(
   if (!config.apiKey) throw new Error('Mengantar API belum dikonfigurasi.');
 
   const client = new MengantarClient(config.apiKey, config.baseUrl);
-  const payload = await client.getReceiverPerformance(cleanPhone);
-  return parseReceiverPerformance(payload, cleanPhone);
+  try {
+    return parseReceiverPerformance(await client.getReceiverPerformance(cleanPhone), cleanPhone);
+  } catch (error) {
+    // Whitelisting is per Mengantar account and per feature, so say which
+    // feature and which key: a whitelist granted to another account's key, or
+    // to another feature, reads exactly like no whitelist at all.
+    if (error instanceof MengantarNotWhitelistedError) {
+      const key = config.source === 'dashboard' ? 'API key yang tersimpan di dashboard (Profil & Integrasi)' : 'API key dari secret server (MENGANTAR_API_KEY)';
+      throw new MengantarNotWhitelistedError(
+        `Mengantar menolak cek skor penerima (403 Not allowed) untuk ${key}. Pastikan CS Mengantar mengaktifkan Receiver Score (getReceiverScoreByNumberUser) untuk akun pemilik key ini.`,
+      );
+    }
+    throw error;
+  }
 }
 
 /**
@@ -115,7 +127,8 @@ export const RECEIVER_SCORE_BACKFILL_LIMIT = 20;
 
 /**
  * Hourly catch-up for orders that never got a score: a refusal before the
- * account was whitelisted, a timeout, or an order nobody opened in /admin.
+ * account was whitelisted (at any age), a timeout, or an order nobody opened
+ * in /admin within the last 30 days.
  * Stops at the first refusal, so an account without access costs one call an
  * hour, not twenty; and after two failures in a row or 30 seconds, so a slow
  * Mengantar cannot hold the health check and alerts behind it for minutes.
@@ -140,7 +153,11 @@ export async function backfillReceiverScores(
        WHERE receiver_performance_checked_at IS NULL
          AND COALESCE(shipping_status, '') NOT IN ('abandoned', 'cancelled')
          AND length(customer_phone) >= 9
-         AND date(created_at) >= date('now', '-30 days')
+         -- An order Mengantar refused stays a probe at any age: without one, a
+         -- store with no order in 30 days never sees its access return, and
+         -- the health signal stays "not-whitelisted" after the whitelist lands.
+         AND (date(created_at) >= date('now', '-30 days')
+              OR json_extract(receiver_performance_json, '$.unavailable') = 'not-whitelisted')
        ORDER BY id DESC LIMIT ?`,
     )
     .bind(limit)

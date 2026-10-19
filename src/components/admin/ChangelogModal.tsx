@@ -29,10 +29,28 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.6.1",
+    version: "1.6.2",
     date: "20 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Skor penerima Mengantar pulih sendiri setelah akun di-whitelist, termasuk di toko yang lama tidak menerima order.",
+    changes: [
+      {
+        title: "Cek ulang otomatis setelah whitelist",
+        description:
+          "Order yang pernah ditolak Mengantar karena belum di-whitelist kini dicek ulang tiap jam berapa pun umurnya, jadi peringatan di dashboard hilang sendiri begitu akses aktif.",
+      },
+      {
+        title: "Pesan penolakan lebih jelas",
+        description:
+          "Pesan dari Mengantar kini menyebut fitur yang ditolak (cek skor penerima) dan API key mana yang dipakai: dari dashboard atau dari secret server. Dengan begitu permintaan ke CS Mengantar tepat sasaran.",
+      },
+    ],
+  },
+  {
+    version: "1.6.1",
+    date: "20 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Halaman Kelola CRM lebih mudah dibaca saat ada order yang gagal terkirim.",
     changes: [
       {

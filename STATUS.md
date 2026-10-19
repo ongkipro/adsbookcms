@@ -1,6 +1,33 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-19 (1.5.11 on all eleven installs)
+> Verified against disk: 2026-10-20 (1.6.0 on numaskin-adbook, taniniaga, agritani-shop)
+
+## 2026-10-20 — 1.6.0: first-party plugins; Kelola uninstalled everywhere
+
+- **What changed (ADR-028).** Optional integrations are now first-party
+  plugins under `src/plugins/<id>/`. A store installs one at Pengaturan →
+  Plugin (`/admin/settings/plugins`, owner only). Kelola CRM is the first
+  plugin. Migration `0066` creates `plugins` and drops the six `kelola_*` core
+  columns. Kelola's own `plugin_kelola_orders` table exists only on a store
+  that activates the plugin.
+- **Routing.** The route map went from 111 to 115 product routes. The four new
+  ones are `/admin/settings/plugins`, `/admin/settings/plugins/kelola`,
+  `/api/admin/plugins` and `/api/admin/plugins/kelola`, all owner/admin. No
+  existing route changed path, auth or roles. Checkout and `/api/admin/settings`
+  no longer import Kelola.
+- **Verified.** 849 tests on the product, including `registry.test.ts`, which
+  proves an unactivated plugin creates no table and sends no request. `check`
+  reported 0 errors. A local browser run on a fresh D1 covered `/install`,
+  install → activate → Kelola settings → deactivate (redirect) → remove data
+  (`useConfirm`) → back to "Belum dipasang", plus 11 other routes at 200 and 0
+  console errors.
+- **Fleet.** numaskin-adbook (`bb2ac813`), taniniaga (`4618effa`) and
+  agritani-shop (`619db41d`) run 1.6.0. Before the deploy, the `kelola_*`
+  columns were confirmed empty on all three. After it, each has D1 at 67/67,
+  0 plugin rows, 0 Kelola tables and 0 `kelola_*` columns. `/` and `/produk`
+  answer 200, and the new admin routes answer 302 (page) and 401 (API) without
+  a session. The other eight installs stay on their own heads; their next
+  update runs `0062`–`0066` in order.
 
 ## 2026-10-20 — 1.5.12 on numaskin-adbook; Kelola push off until paired
 
@@ -587,15 +614,15 @@ is generated per store from that store's own D1.
 
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
-| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.12 on `e3ec7a0`, schema 66 (2026-10-20); installed 2026-10-15 |
+| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.6.0 on `8de68aa`, schema 67 (2026-10-20); installed 2026-10-15 |
 | `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `0a65018` |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.11 on `8ec7712` |
 | `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.11 on `f9bc526` |
-| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.12 on `94dc044`, schema 66 (2026-10-20) |
+| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.6.0 on `32c6ef6`, schema 67 (2026-10-20) |
 | `permatamall.shop` | `ongkipro/permatamall` | `git merge product/main` on `main`; GitHub Actions deploys on push | 1.5.11 on `17ddf59` |
 | `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.11 on `70c5ce2` |
 | `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.11 on `81b5f19` |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.5.12 on `56bae22`, schema 66 (2026-10-20) |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.6.0 on `1bac1b5`, schema 67 (2026-10-20) |
 | `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.5.11 on `9d944fd` |
 | `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | 1.5.11 on `d40544a`, schema 74 (`0069`–`0073` recovered 2026-10-18) |
 

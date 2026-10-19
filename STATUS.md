@@ -12,6 +12,10 @@
   `source_page_path = /produk/paket-clean-and-glow`. With no webhook pair,
   `kelola_attempts` stayed 0, so the push is inert as designed.
   `/produk` flows passed live with no console errors.
+- **taniniaga and agritani-shop** merged 1.5.12 too. Each passed `check` (0
+  errors) and `test` (848 pass, 0 failing). Each deployed with D1 at 66/66, and
+  `/` and `/produk` answered 200. Kelola is unpaired on both, so it is
+  dormant (ADR-027). The Kelola form fix (`516dec4`) is live on all three.
 - **Kelola not paired yet.** The webhook URL and secret come from the toko
   settings in Kelola and are entered at `/admin/profile`. No other install has
   1.5.12 yet; the fleet table below records each one's own head.
@@ -577,7 +581,7 @@ is generated per store from that store's own D1.
 
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
-| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.11 on `e0ee655`, installed 2026-10-15 |
+| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.12 on `e3ec7a0`, schema 66 (2026-10-20); installed 2026-10-15 |
 | `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `0a65018` |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.11 on `8ec7712` |
 | `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.11 on `f9bc526` |
@@ -585,7 +589,7 @@ is generated per store from that store's own D1.
 | `permatamall.shop` | `ongkipro/permatamall` | `git merge product/main` on `main`; GitHub Actions deploys on push | 1.5.11 on `17ddf59` |
 | `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.11 on `70c5ce2` |
 | `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.11 on `81b5f19` |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.5.11 on `59c4788` |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.5.12 on `56bae22`, schema 66 (2026-10-20) |
 | `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.5.11 on `9d944fd` |
 | `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | 1.5.11 on `d40544a`, schema 74 (`0069`–`0073` recovered 2026-10-18) |
 

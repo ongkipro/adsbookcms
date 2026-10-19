@@ -2667,7 +2667,12 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
 - [ ] **A-327** — permatamall and zanobyshop deploy from GitHub Actions with a
   bare `wrangler deploy`, which skips `preflight:deploy` and all four of its
   refusals. Move both workflows onto `npm run deploy`, with D1 read access
-  for the token.
+  for the token. **2026-10-19: both workflows moved** (permatamall
+  `46aaaab`, zanobyshop `9d944fd`), plus a strict step that fails the run when
+  the preflight cannot read production D1. zanobyshop deployed through it,
+  preflight complete (ledger 62). permatamall's run stopped at the strict step
+  without deploying: its `CLOUDFLARE_API_TOKEN` cannot read D1. Open until
+  that token gets Account › D1 › Read and the run is re-run green.
 - [x] **A-328** — Script-carrier images in merchant html (`<img src="x"
   onerror>`) no longer request `/x` on every view; the placeholder becomes
   `data:,`. **Done 2026-10-19 (1.5.11).**

@@ -2,6 +2,21 @@
 
 > Verified against disk: 2026-10-19 (1.5.11 on all eleven installs)
 
+## 2026-10-19 — Actions deploys run the preflight; beranda-tani defaults
+
+- **A-327.** permatamall and zanobyshop now deploy from Actions via
+  `npm run deploy`. The checkout tracks `origin/main`, so a stale re-run is
+  refused as behind. A strict step fails the run when the preflight cannot
+  read production D1. zanobyshop's run passed it (ledger 62, 0 native pages)
+  and deployed `e37d97a8`. permatamall's run was refused at the strict step,
+  with "could not read the production migration ledger"; its token lacks D1
+  read. Nothing was deployed, and permatamall.shop still serves `17ddf59`
+  (200).
+- **beranda-tani (`0a65018`, version `07527aa9`).** The six petanisawit pages
+  open their form on 1 Liter (SKU `AUSSIE1LITER`, as petanisawit did), and the
+  stale "Spesial Promo Tahun Baru" headline now reads "Spesial Promo".
+  Verified live on all six.
+
 ## 2026-10-19 — beranda-tani: six petanisawit.com landing pages
 
 - **Ported.** `aussie-formulabaru`, `aussie-formulabaru-evrpro`,
@@ -549,7 +564,7 @@ is generated per store from that store's own D1.
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
 | `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.5.11 on `e0ee655`, installed 2026-10-15 |
-| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `d0c7e27` |
+| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `0a65018` |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.11 on `8ec7712` |
 | `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.11 on `f9bc526` |
 | `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.5.11 on `0161bde` |

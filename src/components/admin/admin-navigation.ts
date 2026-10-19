@@ -168,10 +168,15 @@ export const profileNavItem: AdminNavItem = {
   keywords: "profile akun password mengantar autolaris api domain",
 };
 
+/** Menu items whose sub-pages are the item itself: each plugin's settings page
+ *  lives under the plugin list (ADR-028). Every other item matches exactly. */
+const NESTED_NAV_HREFS = new Set(["/admin/settings/plugins"]);
+
 export function isAdminNavHrefActive(currentPath: string, href: string) {
   const base = "https://admin.local";
   const current = new URL(currentPath, base);
   const target = new URL(href, base);
+  if (NESTED_NAV_HREFS.has(target.pathname) && current.pathname.startsWith(`${target.pathname}/`)) return true;
   if (current.pathname !== target.pathname) return false;
   for (const [key, value] of target.searchParams) {
     if (current.searchParams.get(key) !== value) return false;

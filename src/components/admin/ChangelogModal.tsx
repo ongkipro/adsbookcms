@@ -29,10 +29,26 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.6.0",
+    version: "1.6.1",
     date: "20 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Halaman Kelola CRM lebih mudah dibaca saat ada order yang gagal terkirim.",
+    changes: [
+      {
+        title: "Jumlah gagal berwarna merah",
+        description: "Angka Gagal 24 jam di Kelola CRM kini merah setiap kali ada order yang belum diterima Kelola.",
+      },
+      {
+        title: "Menu Plugin tetap tersorot",
+        description: "Saat membuka pengaturan sebuah plugin, menu Pengaturan → Plugin di sidebar tetap tersorot.",
+      },
+    ],
+  },
+  {
+    version: "1.6.0",
+    date: "20 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Fitur opsional kini berupa plugin: tidak terpasang sampai toko mengaktifkannya.",
     changes: [
       {

@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.6.0",
+  version: "1.6.1",
+  // 1.6.1: Kelola failure count turns red; "Plugin" stays lit on a plugin's settings page.
   // 1.6.0: first-party plugins (ADR-028); Kelola CRM becomes the first plugin, off per store.
   // 1.5.12: optional Kelola CRM push — orders as sales, abandoned orders as follow-up leads.
   // 1.5.11: a script-carrier image in merchant html fails without a request.

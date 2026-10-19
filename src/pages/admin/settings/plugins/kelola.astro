@@ -127,7 +127,11 @@ if (!active) return Astro.redirect('/admin/settings/plugins');
       set('kelolaLastSynced', formatWib(kelola.sync.last_synced_at));
       set('kelolaSynced24h', String(kelola.sync.synced_24h));
       set('kelolaFailing24h', String(kelola.sync.failing_24h));
-      byId('kelolaFailing24h')?.classList.toggle('text-rose-700', kelola.sync.failing_24h > 0);
+      // Swap, not add: with both classes present the stylesheet order decides,
+      // and text-slate-950 won, so a failure count never turned red.
+      const failing = byId('kelolaFailing24h');
+      failing?.classList.toggle('text-rose-700', kelola.sync.failing_24h > 0);
+      failing?.classList.toggle('text-slate-950', kelola.sync.failing_24h === 0);
       const lastError = byId('kelolaLastError');
       if (lastError) {
         const failure = kelola.sync.last_error;

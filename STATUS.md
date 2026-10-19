@@ -41,8 +41,14 @@
   `aussie-edukasi1`, `busukpucuk-simple`, `aussie-busukpucuk` and
   `aussie-buahlandak` are now native pages on beranda.click under the same
   slugs (`3eb874a`), so ads change domain only. Each order form sells `aussie`
-  (500ml Rp150.000, 1 Liter Rp275.000, as on petanisawit). The evrpro slug is
-  the formulabaru page again and is `noindex`.
+  (500ml Rp150.000, 1 Liter Rp275.000, as on petanisawit). The second ad
+  slug, `aussie-formulabaru-evrpro`, is the formulabaru page again, canonical
+  to `/aussie-formulabaru` (it was `noindex` while the sitemap listed it).
+- **Strike prices.** Every petanisawit promo image strikes 550.000 (1 Liter)
+  and 300.000 (500ml) against the official 275.000 and 150.000. D1 struck
+  349.000 and 229.000, so the form contradicted the page above it. Aussie's
+  `compare_price` is now 550000 and 300000 in production D1, and live forms on
+  all eight Aussie pages show it. Selling prices are unchanged.
 - **Deployed.** `npm run deploy`, preflight passing (ledger 62, 6 native pages
   before, 12 registered), version `f26d44ae`. Live at 390 px: all six answer
   200 with one `<h1>`, no overflow, no broken image, no console error; page

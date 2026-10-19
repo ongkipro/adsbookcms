@@ -6735,7 +6735,7 @@ Six landing pages lived on petanisawit.com, a Berdu site, and moved to
 beranda-tani with their slugs. Berdu renders client-side, so the HTML holds
 no content, but it ships the page as data: `initialStore`, a JS string literal
 whose JSON holds `sections` — image, Draft.js text, feature list, countdown,
-an html embed (the OrderOnline/Everpro form), pixel events. Pages were built
+an html embed (a third-party order form), pixel events. Pages were built
 from those sections, so the markup is plain and greppable instead of Berdu's
 nested editor DOM.
 

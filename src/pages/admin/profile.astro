@@ -129,15 +129,16 @@ const pageTitle = mustChangePassword
       </dl></div>
 
       <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <label class="block min-w-0 text-xs font-semibold text-slate-700" for="kelolaUrl">
-          URL webhook
-          <span class="block font-medium text-slate-500">Tempel ulang bersama secret setiap kali disambungkan ulang di Kelola.</span>
-          <input id="kelolaUrl" name="webhook_url" type="url" inputmode="url" autocomplete="off" spellcheck="false" class="admin-input-flat mt-2 font-mono sm:text-sm" />
-        </label>
+        {/* Both columns read label → field → hint, so the two fields share one row. */}
+        <div class="min-w-0">
+          <label class="block text-xs font-semibold text-slate-700" for="kelolaUrl">URL webhook</label>
+          <input id="kelolaUrl" name="webhook_url" type="url" inputmode="url" autocomplete="off" spellcheck="false" aria-describedby="kelolaUrlHint" class="admin-input-flat mt-2 font-mono sm:text-sm" />
+          <p id="kelolaUrlHint" class="mt-1 text-xs text-slate-500">Tempel ulang bersama secret setiap kali disambungkan ulang di Kelola.</p>
+        </div>
         <div class="min-w-0">
           <label class="block text-xs font-semibold text-slate-700" for="kelolaSecret">Secret webhook</label>
-          <div class="relative mt-2"><input id="kelolaSecret" name="webhook_secret" type="password" autocomplete="new-password" spellcheck="false" class="admin-input-flat pr-24 font-mono sm:text-sm" /><button id="toggleKelolaSecret" type="button" class="absolute inset-y-1 right-1 min-w-20 rounded-lg bg-white px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300" aria-controls="kelolaSecret" aria-label="Tampilkan secret webhook Kelola" aria-pressed="false">Lihat</button></div>
-          <p class="mt-1 text-xs text-slate-500">Kosongkan untuk mempertahankan secret saat ini.</p>
+          <div class="relative mt-2"><input id="kelolaSecret" name="webhook_secret" type="password" autocomplete="new-password" spellcheck="false" aria-describedby="kelolaSecretHint" class="admin-input-flat pr-24 font-mono sm:text-sm" /><button id="toggleKelolaSecret" type="button" class="absolute inset-y-1 right-1 min-w-20 rounded-lg bg-white px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300" aria-controls="kelolaSecret" aria-label="Tampilkan secret webhook Kelola" aria-pressed="false">Lihat</button></div>
+          <p id="kelolaSecretHint" class="mt-1 text-xs text-slate-500">Kosongkan untuk mempertahankan secret saat ini.</p>
         </div>
       </div>
       <label class="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600"><input type="checkbox" name="kelola_clear" class="size-4 rounded border-slate-300" />Putuskan sambungan dashboard (fallback server tetap berlaku bila ada)</label>

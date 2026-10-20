@@ -1,6 +1,43 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-20 (1.6.2 on numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
+> Verified against disk: 2026-10-20 (1.6.5 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
+
+## 2026-10-20 — 1.6.5: one canonical domain; beranda-tani on petanisejahtera.com
+
+- **Product.** `src/lib/host-redirect.ts` runs in the middleware before any
+  store lookup. Every `http:` request 301s to `https:`. A host listed in
+  `PUBLIC_ALIAS_HOSTS` (comma separated, `www.` implied) 301s to the origin in
+  `PUBLIC_SITE_URL`, keeping path and query (UTM, fbclid). `/api/*` and local
+  hosts are never moved, so webhooks and callbacks registered on an older
+  domain still land. 4 tests; `INSTALLATION.md` documents the variable.
+- **beranda-tani domains.** `https://petanisejahtera.com` is canonical, in
+  `PUBLIC_SITE_URL` and in D1 `stores.site_url` (updated from
+  `https://beranda.click`). `PUBLIC_ALIAS_HOSTS=petanisawit.com,beranda.click`.
+  All six hosts (bare and `www`) are now custom domains in `wrangler.jsonc`;
+  before this, only beranda.click was declared and the other two were attached
+  from the dashboard. www.petanisejahtera.com and www.petanisawit.com had no
+  DNS before; the deploy created it.
+- **Verified live (Worker `dbdc44ae`).** http and www of every domain, and
+  both alias domains, end on
+  `https://petanisejahtera.com/<path>?<query>`. petanisawit.com used to answer
+  plain http with 200. The two-hop cases come from zone rules that act first:
+  Always Use HTTPS on beranda.click, and www→root on petanisawit.com. The
+  canonical link, og:url and sitemap read petanisejahtera.com, and
+  `/api/form-config` on an alias host is served, not redirected.
+- **Form recheck (beranda.click, then petanisejahtera.com).** Full form
+  `INV-10002`: Coblong auto-picked, iDexpress Rp7.800, COD Rp163.055. Middle
+  form `INV-10001`. LP hybrid `/aussie-formulabaru` `INV-10003`, resolved to
+  middle for a Jawa Timur geo-IP. In each case, the Pixel sent PageView →
+  ViewContent → AddToCart → InitiateCheckout → Purchase. The CAPI leg sent the
+  same, with Purchase `event_id` = order number. Since 1.6.4, `/thanks` redirects
+  to wa.me/628820057575 with the invoice, name, and product + variant. A
+  resubmission was deduplicated to the same order. The test dropped every
+  Pixel beacon and answered `/api/meta-event` locally, and no conversion is in
+  the outbox, so nothing reached the ad account. `INV-10001..10003` and the
+  abandoned `ABN-10004` are named "TEST QA Jangan Diproses" and should be
+  cancelled, not marked paid: a paid COD order sends a server Purchase.
+- **Fleet.** beranda-tani, numaskin-adbook, taniniaga, agritani-shop and
+  zanobyshop run 1.6.5, and http now 301s to https on every host.
 
 ## 2026-10-20 — 1.6.4: beranda-tani on 1.6.x; middle-form WhatsApp hand-off
 
@@ -693,16 +730,16 @@ is generated per store from that store's own D1.
 
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
-| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.6.2, schema 67 (2026-10-20); installed 2026-10-15 |
-| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.6.4, schema 67 (2026-10-20) |
+| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.6.5, schema 67 (2026-10-20); installed 2026-10-15 |
+| `petanisejahtera.com` (aliases petanisawit.com, beranda.click) | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.6.5, schema 67 (2026-10-20) |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.11 on `8ec7712` |
 | `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.11 on `f9bc526` |
-| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.6.2, schema 67 (2026-10-20) |
+| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.6.5, schema 67 (2026-10-20) |
 | `permatamall.shop` | `ongkipro/permatamall` | `git merge product/main` on `main`; GitHub Actions deploys on push | 1.5.11 on `17ddf59` |
 | `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.11 on `70c5ce2` |
 | `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.11 on `81b5f19` |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.6.2, schema 67 (2026-10-20) |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.6.2 on `4f5dbcb`, schema 67, no cron slot (2026-10-20) |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.6.5, schema 67 (2026-10-20) |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.6.5, schema 67, no cron slot (2026-10-20) |
 | `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | 1.5.11 on `d40544a`, schema 74 (`0069`–`0073` recovered 2026-10-18) |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more

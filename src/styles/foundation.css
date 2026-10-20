@@ -33,6 +33,39 @@
 @import "@fontsource/inter/700.css";
 @import "@fontsource/cinzel/700.css";
 
+/* Inter, latin: `optional` instead of the package's `swap` (ADR-029). A swap
+   reflows the headline when the file lands late, which cost a landing page a
+   CLS of 0.18 even with the file preloaded. With `optional` the face is used
+   if it is ready for the first render, and otherwise not at all until the next
+   page, so the text never changes font under the reader. Declared after the
+   imports above, so it takes the latin range from the package's own rule; the
+   other subsets keep theirs. The preload in BaseLayout makes "ready" the usual
+   case. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: optional;
+  font-weight: 400;
+  src: url(../../node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2) format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: optional;
+  font-weight: 600;
+  src: url(../../node_modules/@fontsource/inter/files/inter-latin-600-normal.woff2) format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: optional;
+  font-weight: 700;
+  src: url(../../node_modules/@fontsource/inter/files/inter-latin-700-normal.woff2) format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /* ./form-hybrid.css is deliberately NOT imported here. It is checkout-only

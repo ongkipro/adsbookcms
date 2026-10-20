@@ -70,6 +70,7 @@ failure mode this section exists to prevent.
 - Price, stock, weight, and identity come from D1. Browser state is never pricing authority.
 - **Stock never gates a sale (ADR-023).** It is not read at checkout, at CS conversion, or when deciding what the storefront publishes, and nothing decrements or restores it. Do not reintroduce a stock check; the tests assert its absence.
 - Exactly-once order release is enforced through the shared order lifecycle. All single/bulk status changes and deletions must use `src/lib/order-lifecycle.ts`; never write order status or delete order rows around it. `orders.stock_restored_at` is that marker — it predates ADR-023 and now means only "this order is void".
+- Anonymous storefront HTML may be served from a two-minute edge cache (ADR-029, `src/lib/edge-cache.ts`). A page whose HTML differs per visitor must not be cacheable: set `Cache-Control: no-store`, set a cookie, or add its path to the denylist. Never write a per-visitor value (an event id, a token, a geo result) into server-rendered HTML.
 - Optional integrations are first-party plugins under `src/plugins/<id>/` (ADR-028; Kelola is the first). The core reaches them only through `src/plugins/registry.ts` (`scheduleOrderCreated`, `runPluginCron`). A plugin's tables (`plugin_<id>_*`) are created by its own schema steps on activation, never by `src/db/migrations`. Until a store activates a plugin, it has no row, table, menu, or hook call for it. An install never deletes plugin code to opt out (ADR-027).
 
 **Config**

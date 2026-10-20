@@ -28,6 +28,7 @@ import {
 } from './lib/operational-alerts';
 import { CMS_VERSION } from './lib/version';
 import { resolveHostRedirect } from './lib/host-redirect';
+import { edgeCacheRequest, readEdgeCache, writeEdgeCache } from './lib/edge-cache';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -158,6 +159,37 @@ export function createMiddleware(
   // readable, and writable cross-site, with no session at all.
   const url = context.url;
   const runtime = getRuntimeEnv(context.locals);
+
+  // Persist ad attribution click ids (Google, Meta, UTMs) from landing/embed URL.
+  // A function, because a page served from the edge cache needs it too: the
+  // cookie is written from the request's URL, never from the cached HTML.
+  const persistClickIds = (response: Response) => {
+    const incoming = parseClickIdsFromUrl(url);
+    if (!hasClickId(incoming)) return;
+    // Merged, not overwritten. A bare `utm_source` is enough to reach this
+    // branch, so writing the parsed URL straight over the cookie let an
+    // ordinary WhatsApp or email link erase a `gclid` the merchant had paid
+    // for — days before the COD sale that needed it was confirmed.
+    const clickIds = mergeClickIds(readClickIdCookie(context.request), incoming);
+    const sameSiteAttr = url.protocol === 'https:' ? ' SameSite=None; Secure;' : ' SameSite=Lax;';
+    response.headers.append(
+      'Set-Cookie',
+      `${CLICK_ID_COOKIE}=${encodeURIComponent(serializeClickIds(clickIds))};` +
+        ` Path=/; Max-Age=${90 * 24 * 60 * 60};${sameSiteAttr}`,
+    );
+    if (clickIds._fbp) {
+      response.headers.append(
+        'Set-Cookie',
+        `_fbp=${encodeURIComponent(clickIds._fbp)}; Path=/; Max-Age=${90 * 24 * 60 * 60};${sameSiteAttr}`,
+      );
+    }
+    if (clickIds._fbc) {
+      response.headers.append(
+        'Set-Cookie',
+        `_fbc=${encodeURIComponent(clickIds._fbc)}; Path=/; Max-Age=${90 * 24 * 60 * 60};${sameSiteAttr}`,
+      );
+    }
+  };
   const identityDb = runtime?.OMS_DB as D1Database | undefined;
   try {
     if (!identityDb?.prepare) {
@@ -236,6 +268,21 @@ export function createMiddleware(
         );
       }
     } catch {}
+  }
+
+  // The edge cache (ADR-029): an anonymous page another visitor rendered in
+  // the last two minutes skips the store lookup, the page's D1 reads and the
+  // render. It sits after the host redirects, so an alias or http host never
+  // reads an entry made for the canonical one.
+  const edgeKey = edgeCacheRequest(context.request, url);
+  if (edgeKey) {
+    const hit = await readEdgeCache(edgeKey);
+    if (hit) {
+      const cached = applySecurityHeaders(hit, false);
+      if (url.hostname.endsWith('.workers.dev')) cached.headers.set('X-Robots-Tag', 'noindex, nofollow');
+      persistClickIds(cached);
+      return cached;
+    }
   }
 
   // Store identity is resolved once per request and handed to every consumer
@@ -391,8 +438,15 @@ export function createMiddleware(
     }
   }
 
+  const rendered = await next();
+  // Stored before cookies and security headers are added: the copy carries
+  // none of them, and a visitor's own cookies are never part of a shared page.
+  if (edgeKey) {
+    writeEdgeCache(edgeKey, rendered, context.locals);
+    rendered.headers.set('X-Edge-Cache', 'MISS');
+  }
   const response = applySecurityHeaders(
-    await next(),
+    rendered,
     isPrivate || isLoginPage || isEmbedForm,
     embedFrameAncestors,
   );
@@ -404,35 +458,7 @@ export function createMiddleware(
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
 
-  // Persist ad attribution click ids (Google, Meta, UTMs) from landing/embed URL.
-  if (!isPrivate) {
-    const incoming = parseClickIdsFromUrl(url);
-    if (hasClickId(incoming)) {
-      // Merged, not overwritten. A bare `utm_source` is enough to reach this
-      // branch, so writing the parsed URL straight over the cookie let an
-      // ordinary WhatsApp or email link erase a `gclid` the merchant had paid
-      // for — days before the COD sale that needed it was confirmed.
-      const clickIds = mergeClickIds(readClickIdCookie(context.request), incoming);
-      const sameSiteAttr = url.protocol === 'https:' ? ' SameSite=None; Secure;' : ' SameSite=Lax;';
-      response.headers.append(
-        'Set-Cookie',
-        `${CLICK_ID_COOKIE}=${encodeURIComponent(serializeClickIds(clickIds))};` +
-          ` Path=/; Max-Age=${90 * 24 * 60 * 60};${sameSiteAttr}`,
-      );
-      if (clickIds._fbp) {
-        response.headers.append(
-          'Set-Cookie',
-          `_fbp=${encodeURIComponent(clickIds._fbp)}; Path=/; Max-Age=${90 * 24 * 60 * 60};${sameSiteAttr}`,
-        );
-      }
-      if (clickIds._fbc) {
-        response.headers.append(
-          'Set-Cookie',
-          `_fbc=${encodeURIComponent(clickIds._fbc)}; Path=/; Max-Age=${90 * 24 * 60 * 60};${sameSiteAttr}`,
-        );
-      }
-    }
-  }
+  if (!isPrivate) persistClickIds(response);
 
   return response;
   });

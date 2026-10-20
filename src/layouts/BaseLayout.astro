@@ -15,6 +15,13 @@ import SiteFooter from '../components/storefront/shared/SiteFooter.astro';
 import SiteHeader from '../components/storefront/shared/SiteHeader.astro';
 import { getStoreAdsConfig } from '../lib/store-ads';
 import '../styles/storefront.css';
+// The three Inter faces the pages draw above the fold. The stylesheet only
+// names them, so the browser found the files late (about 2 s on a slow phone),
+// and the swap to Inter reflowed the headline: CLS 0.18 on a landing page.
+// `?url` resolves to the same hashed file the stylesheet points at.
+import inter400 from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
+import inter600 from '@fontsource/inter/files/inter-latin-600-normal.woff2?url';
+import inter700 from '@fontsource/inter/files/inter-latin-700-normal.woff2?url';
 
 type JsonLdProps = ComponentProps<typeof JsonLdSchema>;
 
@@ -101,6 +108,9 @@ const preloadImageUrls =
         <link rel="preconnect" href="https://connect.facebook.net" crossorigin />
       </>
     )}
+    {[inter400, inter600, inter700].map((href) => (
+      <link rel="preload" as="font" type="font/woff2" href={href} crossorigin />
+    ))}
     {
       preloadImageUrls.map((item) =>
         typeof item === 'string' ? (

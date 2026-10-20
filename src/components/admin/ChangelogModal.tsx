@@ -29,10 +29,27 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.6.5",
+    version: "1.7.0",
     date: "20 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Halaman toko dan landing page terbuka lebih cepat, dan tidak lagi bergeser saat font dimuat.",
+    changes: [
+      {
+        title: "Cache halaman dua menit",
+        description:
+          "Beranda, daftar produk, dan landing page disimpan sebentar di edge Cloudflare, sehingga pengunjung berikutnya tidak menunggu render ulang. Perubahan dari admin tampil paling lama dua menit kemudian. Halaman produk, form, terima kasih, dan admin tidak pernah di-cache, dan harga tetap divalidasi ulang saat order.",
+      },
+      {
+        title: "Font dimuat lebih awal",
+        description: "Font Inter dipreload sehingga judul tidak lagi bergeser saat font tiba (CLS).",
+      },
+    ],
+  },
+  {
+    version: "1.6.5",
+    date: "20 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Satu domain utama: domain lama dan http diarahkan otomatis, link iklan tetap jalan.",
     changes: [
       {

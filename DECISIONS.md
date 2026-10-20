@@ -985,3 +985,45 @@ one. A new optional integration is built as a plugin by default, not as core
 columns behind a flag. The cost is a small registry, and a plugin cannot add
 storefront routes without a core change. That is deliberate: the storefront
 stays one product.
+
+## ADR-029 — A two-minute edge cache for anonymous storefront HTML
+
+**Date:** 2026-10-20 · **Status:** Accepted. 1.7.0, `src/lib/edge-cache.ts`.
+
+**Context.** Every public page is server-rendered. Each request paid the store
+lookup, the page's D1 reads and the render, 0.5 to 2 seconds before the first
+byte on a mobile network. On beranda-tani that was the largest term in Lighthouse's
+LCP (TTFB 1.2 s of a 4.6 s home page) and it varied by a factor of four between
+identical requests. The HTML of the home page, the product list and a landing
+page is the same for every visitor.
+
+**Decision.**
+
+1. The middleware keeps a copy of a rendered page in the Workers Cache API for
+   120 seconds (`EDGE_CACHE_SECONDS`) and serves it to the next anonymous
+   visitor, before the store lookup.
+2. **Eligible:** `GET` of `/`, `/produk`, and single-segment slugs (landing and
+   legal pages). **Not eligible:** product pages (the server picks the checkout
+   form from the visitor's geo-IP), the geo and test form pages, `/thanks`,
+   `/payment`, `/hello`, `/install`, `/api`, `/admin`, `/embed`, uploads, and any
+   request with an admin session cookie, an `Authorization` header or
+   `?preview=1`.
+3. **Stored only** a 200 `text/html` answer with no `Set-Cookie` and no
+   `no-store` or `private`.
+4. **The key** drops ad parameters (`CLICK_ID_KEYS`, `ttclid`, `msclkid`,
+   `gad_*`, `utm_id`), so ad traffic shares one entry. Every other parameter
+   stays in the key.
+5. **What a hit still does:** security headers and the ad click id cookie, both
+   computed from the request, never from the cached HTML. Nothing visitor
+   specific may be written into HTML that this cache can store; the Pixel
+   `event_id` is made in the browser for that reason.
+6. **Freshness.** An admin edit shows within two minutes. Prices are not read
+   from the cache for money: checkout validates them again.
+7. **Observable:** `X-Edge-Cache: HIT` or `MISS`; absent where the cache is
+   not consulted.
+
+**Consequences.** A page that must differ per visitor and is rendered from a
+single-segment path must set `Cache-Control: no-store` or `private`, or set a
+cookie: the way `/[slug]` already does for a preview. Adding a page to the
+denylist in `edge-cache.ts` is the other option. Misses cost what they did
+before, and a store with very little traffic sees fewer hits.

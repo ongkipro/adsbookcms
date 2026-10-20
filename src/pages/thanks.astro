@@ -625,7 +625,7 @@ const productCatalog = products.map((item) => ({
       document.getElementById('note-title').textContent = 'Catatan konfirmasi COD';
       document.getElementById('note-list').innerHTML = `
         <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-[#2c6ecb]"></span><p>Nominal saat ini hanya estimasi harga produk: <span class="font-bold text-[#111111]">${fmt(productTotal || productPrice || 0)}</span>.</p></div>
-        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-[#2c6ecb]"></span><p>Biaya admin, ongkir, dan total akhir dikonfirmasi Customer Service melalui WhatsApp <span class="font-normal text-[#111111]">${escapeHtml(phone)}</span>.</p></div>
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-[#2c6ecb]"></span><p>Biaya admin, ongkir, dan total akhir dikonfirmasi Customer Service ke WhatsApp Anda di nomor <span class="font-normal text-[#111111]">${escapeHtml(phone)}</span>.</p></div>
         <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-[#2c6ecb]"></span><p>Pastikan nomor aktif agar pesanan COD bisa segera diproses.</p></div>`;
       document.getElementById('cta-title').textContent = 'Hubungi admin';
       document.getElementById('cta-copy').textContent =
@@ -850,6 +850,7 @@ const productCatalog = products.map((item) => ({
           enabled: d.autoRedirect === '1',
           paymentMethod: d.paymentMethod || '',
           leadOnly: d.leadOnly === '1',
+          orderNumber: d.orderNumber || '',
           url,
         })
       ) {

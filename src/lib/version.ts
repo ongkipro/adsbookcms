@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.6.3",
+  version: "1.6.4",
+  // 1.6.4: a middle-form COD order is handed to WhatsApp from /thanks; clearer buyer-number note.
   // 1.6.3: CRM templates name the variant, quantity and unit price; no invented strike price; cron heartbeat signal.
   // 1.6.2: a Receiver Score refusal at any age is retried hourly; the refusal names its key.
   // 1.6.1: Kelola failure count turns red; "Plugin" stays lit on a plugin's settings page.

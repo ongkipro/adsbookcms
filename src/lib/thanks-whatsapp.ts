@@ -3,7 +3,10 @@
  * store's support number, and whether the page may take them there itself.
  *
  * Only a COD order is redirected. A QRIS, VA or transfer buyer still has to pay
- * from the instructions on the page, and a lead-only record has no order.
+ * from the instructions on the page. A lead-only record is redirected only when
+ * it carries an order number: the middle form marks every submission
+ * `lead_only` (its total waits on CS) yet has created a real order since
+ * 1.5.x, and that buyer is exactly the one CS must confirm on WhatsApp.
  */
 
 export type ThanksWhatsappOrder = {
@@ -58,11 +61,13 @@ export function shouldAutoRedirectToWhatsapp(input: {
   enabled: boolean;
   paymentMethod: string;
   leadOnly: boolean;
+  /** The order the thanks page shows; a lead without one is not handed off. */
+  orderNumber?: string;
   url: string | null;
 }): boolean {
   return (
     input.enabled &&
-    !input.leadOnly &&
+    (!input.leadOnly || Boolean(input.orderNumber?.trim())) &&
     input.paymentMethod.trim().toLowerCase() === "cod" &&
     Boolean(input.url)
   );

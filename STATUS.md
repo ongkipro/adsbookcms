@@ -2,6 +2,30 @@
 
 > Verified against disk: 2026-10-20 (1.6.2 on numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
 
+## 2026-10-20 — 1.6.4: beranda-tani on 1.6.x; middle-form WhatsApp hand-off
+
+- **beranda-tani** moved from 1.5.11 to 1.6.3 (`12ce4a7`, Worker `4da8b46c`). It
+  passed `check` (0 errors) and `test` (859 pass). Its preflight registered all
+  12 native landing pages, and D1 is at 67/67. The store holds a cron slot and
+  has had 0 orders.
+- **Live recheck on beranda.click.** A middle-form COD order (`INV-10001`,
+  named "TEST QA Jangan Diproses") reached `/thanks`. The CAPI leg sent
+  PageView → ViewContent → AddToCart → InitiateCheckout → Purchase, with
+  `event_id` = order number. The test answered those `/api/meta-event` calls
+  locally and dropped the Pixel beacons, so nothing reached the ad account.
+  The browser Pixel calls `init`, `PageView` and `ViewContent`. Meta sends no
+  beacon for a `HeadlessChrome` user agent; with a regular one, both `/tr`
+  POSTs leave.
+- **Bug: middle-form buyers were never sent to WhatsApp.** `form-middle.ts`
+  marks every submission `lead_only` because its total waits on CS.
+  `shouldAutoRedirectToWhatsapp` refused every lead-only record on the
+  assumption that one has no order, which stopped being true when the middle
+  form began creating orders. Hybrid shows the middle form to most provinces,
+  so most COD buyers missed the hand-off. A lead-only record that carries an
+  order number is now redirected.
+- **Copy.** The COD note named the buyer's own number as if it were CS's. It
+  now says CS confirms "ke WhatsApp Anda di nomor …".
+
 ## 2026-10-20 — 1.6.3: CRM variant and price; scheduler heartbeat
 
 - **CRM templates.** The owner reported that the WhatsApp templates had no
@@ -670,7 +694,7 @@ is generated per store from that store's own D1.
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
 | `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.6.2, schema 67 (2026-10-20); installed 2026-10-15 |
-| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.5.11 on `0a65018` |
+| `beranda.click` | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.6.4, schema 67 (2026-10-20) |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.11 on `8ec7712` |
 | `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.11 on `f9bc526` |
 | `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.6.2, schema 67 (2026-10-20) |

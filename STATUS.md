@@ -1,6 +1,52 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-20 (1.6.5 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
+> Verified against disk: 2026-10-20 (1.7.2 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
+
+## 2026-10-20 — 1.7.0-1.7.2: page speed; edge cache and font CLS
+
+- **Measured, not guessed.** Mobile Lighthouse 12.8.2 (simulated Moto G Power,
+  slow 4G) on all 21 public pages of petanisejahtera.com, once before and once
+  after. PageSpeed Insights' own API was over its anonymous quota, so the
+  numbers come from the same engine run locally. Lab scores move by about
+  ±8 points between identical runs, so only the structural changes below are
+  claimed.
+- **Result.** Layout shift fell from 0.431 summed over the pages to 0.000 on
+  every page (it was 0.18 on saratoga-anggrek, 0.14 on saratoga-padi and 0.10
+  on saratoga-anthurium). The home page went from 74 to 92 (LCP 4.6 s to
+  2.5 s). The mean over 21 pages moved only from 83.3 to 84.1: some pages gained
+  (saratoga-anggrek +9, saratoga-padi +9, busukpucuk-simple +11), some lost, and
+  the losses track which run landed on a cache miss.
+- **1.7.0, edge cache (ADR-029).** A two-minute Workers Cache API copy of
+  anonymous HTML for `/`, `/produk` and single-segment slugs, keyed without ad
+  parameters, skipping the store lookup and render. `X-Edge-Cache: HIT|MISS`
+  shows it. Hits reach the network floor (180-420 ms from Jakarta against
+  150-400 ms for a static file), against 0.5-2 s uncached. The cache is per
+  server inside a data centre, so a quiet store sees fewer hits than a busy
+  one, and a lab run often lands on a miss. A miss still costs 1-2 s: that is
+  the open item (see below).
+- **1.7.1-1.7.2, font CLS.** Inter is preloaded and declared only as
+  `font-display: optional` faces (latin, latin-ext). The first attempt kept the
+  package's `swap` faces beside the `optional` ones and did not work: when an
+  `optional` face is dropped, the browser falls back to the earlier face for the
+  same characters, so both sets loaded and the swap still reflowed the headline
+  (`document.fonts` showed both `loaded`). Removing the package CSS fixed it:
+  CLS 0.000 in nine runs under 4G and 4x CPU throttling. Cyrillic, Greek and
+  Vietnamese fall back to the system font.
+- **beranda-tani images.** 38 landing images capped at 840 px wide (-1.4 MiB,
+  hero 176 to 82 KiB), checked side by side at phone size. `scripts/shrink-images.mjs`
+  repeats it for new images.
+- **Not fixable in code.** Best Practices stays 79 on every page: Meta Pixel
+  sets a third-party `fr` cookie. Total Blocking Time (220-530 ms) is almost all
+  Meta: `fbevents.js` plus the 144 KiB `signals/config` script, which loads
+  because Automatic events and Automatic Advanced Matching are on in Events
+  Manager (the same setting fires the stray `SubscribedButtonClick`). Turning
+  them off is an account setting for the owner.
+- **Open.** The cache-miss path (1-2 s TTFB) is the next lever: count the D1
+  round trips before the first byte, and try Smart Placement
+  (`placement.mode = "smart"`) so the Worker runs near D1. Product pages and the
+  geo form pages are not cached by design.
+- **Fleet.** beranda-tani, numaskin-adbook, taniniaga, agritani-shop and
+  zanobyshop run 1.7.2; `X-Edge-Cache` showed HIT on all five.
 
 ## 2026-10-20 — 1.6.5: one canonical domain; beranda-tani on petanisejahtera.com
 
@@ -730,16 +776,16 @@ is generated per store from that store's own D1.
 
 | Install | Repository | Adopts the product by | State (2026-10-15) |
 | --- | --- | --- | --- |
-| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.6.5, schema 67 (2026-10-20); installed 2026-10-15 |
-| `petanisejahtera.com` (aliases petanisawit.com, beranda.click) | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.6.5, schema 67 (2026-10-20) |
+| `agritani.shop` | `ongkipro/agritani-shop` | `git merge product/main` on `install/agritani-shop` | 1.7.2, schema 67 (2026-10-20); installed 2026-10-15 |
+| `petanisejahtera.com` (aliases petanisawit.com, beranda.click) | `ongkipro/beranda-tani` | `git merge product/main` on `install/beranda-tani` | 1.7.2, schema 67 (2026-10-20) |
 | `carukesi.com` | `ongkipro/carukesi` | `git merge product/main` on `install/carukesi` | 1.5.11 on `8ec7712` |
 | `klikinaja.shop` (and `klikinaja.ongki.workers.dev`) | `ongkipro/klikinaja` | `git merge product/main` on `install/klikinaja` | 1.5.11 on `f9bc526` |
-| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.6.5, schema 67 (2026-10-20) |
+| `page.numaskin.id` | `ongkipro/numaskin-adbook` | `git merge product/main` on `main`, manual deploy | 1.7.2, schema 67 (2026-10-20) |
 | `permatamall.shop` | `ongkipro/permatamall` | `git merge product/main` on `main`; GitHub Actions deploys on push | 1.5.11 on `17ddf59` |
 | `page.revenleather.com` | `ongkipro/revenleather` | `git merge product/main` on `main` | 1.5.11 on `70c5ce2` |
 | `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.11 on `81b5f19` |
-| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.6.5, schema 67 (2026-10-20) |
-| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.6.5, schema 67, no cron slot (2026-10-20) |
+| `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.7.2, schema 67 (2026-10-20) |
+| `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.7.2, schema 67, no cron slot (2026-10-20) |
 | `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | 1.5.11 on `d40544a`, schema 74 (`0069`–`0073` recovered 2026-10-18) |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more

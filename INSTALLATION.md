@@ -133,6 +133,7 @@ rebuild. Keep them accurate, because they are what an uninstalled Worker shows:
 | --- | --- |
 | `PUBLIC_SITE_NAME` | every `<title>`, header, footer, JSON-LD publisher, OG site name |
 | `PUBLIC_SITE_URL` | canonical origin — must be `https:`, no path, no query, or it silently falls back |
+| `PUBLIC_ALIAS_HOSTS` | optional, comma separated older domains (`www.` implied). Each one 301s to `PUBLIC_SITE_URL` with path and query kept, and every `http:` request goes to `https:`. `/api/*` is never redirected (`src/lib/host-redirect.ts`). Read at runtime, so a deploy without a rebuild applies it. Attach each host as a custom domain too. `stores.site_url` must match the new canonical origin. |
 | `PUBLIC_SITE_DESCRIPTION` | default meta description |
 | `PUBLIC_SITE_LOGO` | storefront and admin logo path |
 | `PUBLIC_SITE_TAGLINE` | brand line, also used to compose the default title |

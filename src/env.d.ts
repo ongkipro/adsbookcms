@@ -13,6 +13,8 @@ interface SharedEnvVars {
   PUBLIC_COD_DISABLED_PROVINCES?: string;
   PUBLIC_SITE_NAME?: string;
   PUBLIC_SITE_URL?: string;
+  /** Older domains of this store, comma separated; each 301s to PUBLIC_SITE_URL (lib/host-redirect.ts). */
+  PUBLIC_ALIAS_HOSTS?: string;
   PUBLIC_SITE_DESCRIPTION?: string;
   PUBLIC_SITE_LOGO?: string;
   PUBLIC_SITE_TAGLINE?: string;

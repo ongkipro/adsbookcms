@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.6.4",
+  version: "1.6.5",
+  // 1.6.5: http to https in the Worker; PUBLIC_ALIAS_HOSTS 301s older domains to the canonical one.
   // 1.6.4: a middle-form COD order is handed to WhatsApp from /thanks; clearer buyer-number note.
   // 1.6.3: CRM templates name the variant, quantity and unit price; no invented strike price; cron heartbeat signal.
   // 1.6.2: a Receiver Score refusal at any age is retried hourly; the refusal names its key.

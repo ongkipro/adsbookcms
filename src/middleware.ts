@@ -27,6 +27,7 @@ import {
   schemaAlertFromError,
 } from './lib/operational-alerts';
 import { CMS_VERSION } from './lib/version';
+import { resolveHostRedirect } from './lib/host-redirect';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -217,6 +218,10 @@ export function createMiddleware(
   // also a host-level decision that needs no store row, so answering it here
   // spares a D1 read on every `www` request.
   const siteUrl = getEnvValue('PUBLIC_SITE_URL', runtime);
+  const hostRedirect = resolveHostRedirect(url, siteUrl, getEnvValue('PUBLIC_ALIAS_HOSTS', runtime));
+  if (hostRedirect) {
+    return applySecurityHeaders(context.redirect(hostRedirect, 301), false);
+  }
   if (siteUrl && url.hostname.startsWith('www.')) {
     try {
       const canonical = new URL(siteUrl);

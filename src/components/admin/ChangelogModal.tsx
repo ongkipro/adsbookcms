@@ -29,10 +29,27 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.6.4",
+    version: "1.6.5",
     date: "20 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Satu domain utama: domain lama dan http diarahkan otomatis, link iklan tetap jalan.",
+    changes: [
+      {
+        title: "Domain lama diarahkan ke domain utama",
+        description:
+          "Domain lama toko (diatur lewat PUBLIC_ALIAS_HOSTS) diarahkan permanen ke domain utama, lengkap dengan path dan parameter iklan (UTM, fbclid). Webhook dan callback pembayaran tidak ikut diarahkan.",
+      },
+      {
+        title: "Selalu HTTPS",
+        description: "Kunjungan lewat http kini selalu diarahkan ke https, walau pengaturan zona Cloudflare belum mengaktifkannya.",
+      },
+    ],
+  },
+  {
+    version: "1.6.4",
+    date: "20 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Pembeli COD dari form singkat kini otomatis diarahkan ke WhatsApp CS dari halaman terima kasih.",
     changes: [
       {

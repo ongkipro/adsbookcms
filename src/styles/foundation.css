@@ -28,19 +28,44 @@
    by CSS Fonts 4 weight matching, which flattens the ladder rather than
    smearing it, and widening the ramp is a type decision rather than this fix.
    Cinzel ships 700, the weight SiteBrand actually declares. */
-@import "@fontsource/inter/400.css";
-@import "@fontsource/inter/600.css";
-@import "@fontsource/inter/700.css";
-@import "@fontsource/cinzel/700.css";
+/* Inter, latin and latin-ext only, declared here instead of through
+   `@fontsource/inter/{400,600,700}.css` (ADR-029). The package declares every
+   subset with `font-display: swap`, and a swap reflows the headline when the
+   file lands late: a landing page measured CLS 0.18-0.22.
 
-/* Inter, latin: `optional` instead of the package's `swap` (ADR-029). A swap
-   reflows the headline when the file lands late, which cost a landing page a
-   CLS of 0.18 even with the file preloaded. With `optional` the face is used
-   if it is ready for the first render, and otherwise not at all until the next
-   page, so the text never changes font under the reader. Declared after the
-   imports above, so it takes the latin range from the package's own rule; the
-   other subsets keep theirs. The preload in BaseLayout makes "ready" the usual
-   case. */
+   The faces are `optional`: used if ready for the first render, otherwise the
+   page keeps the system font until the next one. They must be the ONLY faces
+   for their range. An `optional` face that is dropped makes the browser fall
+   back to an earlier face covering the same characters, so a `swap` face left
+   in the CSS loaded anyway and swapped (seen as both sets `loaded` in
+   `document.fonts`). Cyrillic, Greek and Vietnamese are left to the system
+   font; this CMS serves Indonesian and Malay storefronts. The ramp stays
+   400/600/700 (A-32). Cinzel ships 700, the weight SiteBrand declares. */
+@import "@fontsource/cinzel/700.css";
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: optional;
+  font-weight: 400;
+  src: url(../../node_modules/@fontsource/inter/files/inter-latin-ext-400-normal.woff2) format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: optional;
+  font-weight: 600;
+  src: url(../../node_modules/@fontsource/inter/files/inter-latin-ext-600-normal.woff2) format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: optional;
+  font-weight: 700;
+  src: url(../../node_modules/@fontsource/inter/files/inter-latin-ext-700-normal.woff2) format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
 @font-face {
   font-family: 'Inter';
   font-style: normal;

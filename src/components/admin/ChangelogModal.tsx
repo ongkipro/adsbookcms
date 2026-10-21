@@ -29,10 +29,22 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: "1.7.3",
+    date: "21 Oktober 2026",
+    releaseTag: "2026.10-plugins",
+    isLatest: true,
+    highlight: "Foto produk yang diunggah tampil jauh lebih cepat.",
+    changes: [
+      {
+        title: "Foto unggahan disimpan di edge Cloudflare",
+        description: "Foto dari penyimpanan R2 sebelumnya dibaca ulang lewat Worker di setiap permintaan, sekitar satu detik sebelum byte pertama. Kini salinannya disimpan di edge selama sehari dan dikirim tanpa membaca database maupun R2. Foto yang dihapus berhenti tampil paling lambat dalam sehari.",
+      },
+    ],
+  },
+  {
     version: "1.7.2",
     date: "20 Oktober 2026",
     releaseTag: "2026.10-plugins",
-    isLatest: true,
     highlight: "Teks halaman benar-benar tidak lagi bergeser saat font dimuat.",
     changes: [
       {

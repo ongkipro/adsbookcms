@@ -28,7 +28,7 @@ import {
 } from './lib/operational-alerts';
 import { CMS_VERSION } from './lib/version';
 import { resolveHostRedirect } from './lib/host-redirect';
-import { edgeCacheRequest, readEdgeCache, writeEdgeCache } from './lib/edge-cache';
+import { edgeCacheRequest, readEdgeCache, readUploadCache, uploadCacheRequest, writeEdgeCache, writeUploadCache } from './lib/edge-cache';
 
 const JSON_HEADERS = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -190,6 +190,13 @@ export function createMiddleware(
       );
     }
   };
+  // An uploaded image another visitor fetched is answered before the schema
+  // check, the store lookup and the R2 read: it is the same bytes for everyone.
+  const uploadKey = uploadCacheRequest(context.request, url);
+  if (uploadKey) {
+    const hit = await readUploadCache(uploadKey);
+    if (hit) return applySecurityHeaders(hit, false);
+  }
   const identityDb = runtime?.OMS_DB as D1Database | undefined;
   try {
     if (!identityDb?.prepare) {
@@ -443,6 +450,10 @@ export function createMiddleware(
   // none of them, and a visitor's own cookies are never part of a shared page.
   if (edgeKey) {
     writeEdgeCache(edgeKey, rendered, context.locals);
+    rendered.headers.set('X-Edge-Cache', 'MISS');
+  }
+  if (uploadKey) {
+    writeUploadCache(uploadKey, rendered, context.locals);
     rendered.headers.set('X-Edge-Cache', 'MISS');
   }
   const response = applySecurityHeaders(

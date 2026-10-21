@@ -131,3 +131,51 @@ export function writeEdgeCache(
   if (locals?.cfContext) locals.cfContext.waitUntil(task);
   else void task;
 }
+
+/**
+ * Uploaded images (`/assets/uploads/…`) come from R2 through the Worker, which
+ * Cloudflare's CDN does not cache, so every request paid the middleware and an
+ * R2 read: 1.1-1.2 s to the first byte for a home hero, measured on zvara.shop.
+ * Upload keys are random and never rewritten, so the bytes behind a URL do not
+ * change. The edge copy lives a day, not the browser's year, so an image an
+ * operator deletes stops being served within a day.
+ */
+export const UPLOAD_EDGE_CACHE_SECONDS = 86_400;
+
+/** The cache key for an upload; the query string never selects different bytes. */
+export function uploadCacheRequest(request: Request, url: URL): Request | null {
+  if (request.method !== "GET" || !url.pathname.startsWith("/assets/uploads/")) return null;
+  return new Request(new URL(url.pathname, url.origin));
+}
+
+export async function readUploadCache(
+  key: Request,
+  cache: EdgeCacheStore | null = defaultCache(),
+): Promise<Response | null> {
+  try {
+    const hit = await cache?.match(key);
+    if (!hit) return null;
+    const response = new Response(hit.body, hit);
+    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+    response.headers.set("X-Edge-Cache", "HIT");
+    return response;
+  } catch (error) {
+    console.error("upload-cache-read-failed", error);
+    return null;
+  }
+}
+
+/** Store a served upload. Never throws and never delays the answer. */
+export function writeUploadCache(
+  key: Request,
+  response: Response,
+  locals?: { cfContext?: { waitUntil(task: Promise<unknown>): void } },
+  cache: EdgeCacheStore | null = defaultCache(),
+) {
+  if (!cache || response.status !== 200) return;
+  const copy = new Response(response.clone().body, response);
+  copy.headers.set("Cache-Control", `public, max-age=${UPLOAD_EDGE_CACHE_SECONDS}`);
+  const task = cache.put(key, copy).catch((error) => console.error("upload-cache-write-failed", error));
+  if (locals?.cfContext) locals.cfContext.waitUntil(task);
+  else void task;
+}

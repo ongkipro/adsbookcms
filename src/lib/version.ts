@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.7.2",
+  version: "1.7.3",
+  // 1.7.3: uploaded images (R2) are kept a day in the Workers cache and answered before D1 and R2.
   // 1.7.2: Inter is declared only as optional faces (latin, latin-ext); the package swap faces are gone.
   // 1.7.1: Inter latin faces use font-display optional, so text never changes font mid-read (CLS).
   // 1.7.0: two-minute edge cache for anonymous storefront HTML; Inter preloaded (CLS).
@@ -36,5 +37,5 @@ export const CMS_VERSION: CmsVersionInfo = {
   releaseTag: "2026.10-plugins",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
   schemaVersion: 67,
-  lastUpdated: "2026-10-20",
+  lastUpdated: "2026-10-21",
 };

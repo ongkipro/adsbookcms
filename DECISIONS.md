@@ -1027,3 +1027,15 @@ single-segment path must set `Cache-Control: no-store` or `private`, or set a
 cookie: the way `/[slug]` already does for a preview. Adding a page to the
 denylist in `edge-cache.ts` is the other option. Misses cost what they did
 before, and a store with very little traffic sees fewer hits.
+
+**Amendment, 2026-10-21 (1.7.3): uploads get their own, longer entry.** Uploaded
+images (`/assets/uploads/…`) are served from R2 by the Worker, which the CDN
+does not cache, so each one paid the middleware and an R2 read: 1.1-1.2 s to the
+first byte for zvara.shop's home hero on every request, the largest part of
+that page's 4.7 s LCP. They stay out of the HTML cache above, and get a
+separate one in the same file: the key is the path alone (the route ignores the
+query), only a `200` is stored, the edge copy lives `UPLOAD_EDGE_CACHE_SECONDS`
+(a day), and a hit is answered at the top of the middleware, before the schema
+check, the store lookup and R2. A day rather than the browser's year bounds how
+long a deleted image is still served from the edge. Upload keys are random and
+never rewritten, so a URL never needs fresher bytes than the ones stored.

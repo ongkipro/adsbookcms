@@ -160,3 +160,37 @@ test("middleware: a hit skips D1 and the render, keeps security headers and writ
   assert.equal(await admin.response.text(), "<p>preview</p>");
   assert.notEqual(admin.response.headers.get("x-edge-cache"), "HIT");
 });
+
+test("middleware: an upload is fetched from R2 once, then served without D1 or the route", async (context) => {
+  const cache = fakeCache();
+  const original = (globalThis as { caches?: unknown }).caches;
+  (globalThis as { caches?: unknown }).caches = { default: cache };
+  context.after(() => { (globalThis as { caches?: unknown }).caches = original; });
+  const originalError = console.error;
+  console.error = () => {};
+  context.after(() => { console.error = originalError; });
+  let reads = 0;
+  const image = async () => { reads += 1; return new Response("webp-bytes", { status: 200, headers: { "content-type": "image/webp", "cache-control": "public, max-age=31536000, immutable" } }); };
+  const href = "https://store.example/assets/uploads/2026-08-18/ccf44dda-90ac.webp";
+
+  const first = await run(`${href}?v=1`, image);
+  assert.equal(first.response.headers.get("x-edge-cache"), "MISS");
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const entry = cache.map.get(href)!;
+  assert.ok(entry, "stored without the query string");
+  assert.equal(entry.headers.get("cache-control"), "public, max-age=86400", "the edge keeps it a day");
+
+  const second = await run(href, image);
+  assert.equal(await second.response.text(), "webp-bytes");
+  assert.equal(reads, 1, "R2 read once");
+  assert.equal(second.d1Calls(), 0, "D1 untouched");
+  assert.equal(second.response.headers.get("x-edge-cache"), "HIT");
+  assert.equal(second.response.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  assert.equal(second.response.headers.get("x-content-type-options"), "nosniff");
+
+  // A missing upload is not remembered.
+  const missing = `${href.replace("ccf44dda-90ac", "deadbeef")}`;
+  await run(missing, async () => new Response("Not found", { status: 404 }));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(cache.map.has(missing), false);
+});

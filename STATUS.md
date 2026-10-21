@@ -1,9 +1,23 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-21 (1.7.3 on zvarashop; 1.7.2 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
+> Verified against disk: 2026-10-21 (1.7.4 on zvarashop; 1.7.2 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
 
-## 2026-10-21 — 1.7.3: uploads cached at the edge; zvarashop back on the product line
+## 2026-10-21 — 1.7.3–1.7.4: uploads and province-scoped product pages cached at the edge; zvarashop back on the product line
 
+- **1.7.4 (ADR-029 amendment).** The only visitor-dependent value in the SSR
+  HTML of `/produk/<slug>` and single-segment landing pages (`/<slug>`) is the
+  normalized two-letter Indonesian province code (`resolveProvinceCode` in
+  `src/lib/geo.ts`), which picks the `middle` or `full` checkout form and
+  prefills the province name in `GeoIpResolvedForm`. `edgeCachePath` now admits
+  `/produk/<slug>`, and `edgeCacheRequest` appends `__prov=<CODE>` (resolved
+  from `request.cf` or its fallback headers, never from the URL query string)
+  for every path other than `/` and `/produk`. When `/produk/<slug>` rewrites
+  to a claimed native landing page, the inner rewrite still carries
+  `x-adsbook-product-page` and skips the cache, while the outer `/produk/<slug>`
+  request caches the rendered 200 HTML under the product's province key. In
+  `src/middleware.ts`, canonical host redirects and `readEdgeCache` now run
+  above `ensureSchemaReady(identityDb)`, so an edge-cache `HIT` never pays a
+  D1 `d1_migrations` read on a cold isolate.
 - **1.7.3 (ADR-029 amendment).** `/assets/uploads/…` comes from R2 through the
   Worker, which the CDN does not cache: zvara.shop's home hero took 1.1-1.4 s
   to the first byte on every request. A served upload is now kept a day in the
@@ -13,7 +27,7 @@
   0.15 s); a missing key still answers 404 and is not stored. One middleware
   test covers miss, hit without D1 or route, the day-long edge lifetime and the
   uncached 404.
-- **zvarashop 1.5.11 → 1.7.2 → 1.7.3.** Its own catalogue migrations held
+- **zvarashop 1.5.11 → 1.7.2 → 1.7.3 → 1.7.4.** Its own catalogue migrations held
   `0062`-`0073`, colliding with the product's `0062`-`0066`; a plain merge would
   have failed `validateMigrationChain` and answered 503 on every database route.
   Per ADR-024 the catalogue moved unchanged to `0067`-`0078` (schemaVersion 79)
@@ -24,22 +38,25 @@
   of production D1: schema identical to a fresh product chain (77 tables), 72
   pages matching live on title, H1, prices, image count and variant ids.
   Backup `~/backups/zvarashop/zvarashop-d1-2026-10-21-pre-1.7.2.sql`.
-  Deployed `4532afc2` (1.7.2), then `4070cd45` (1.7.3); `/produk` answered 503
-  for about 13 s between the ledger batch and the new Worker. After: D1 79/79,
-  69 native pages, 73 routes 200 and 69 redirects 301 as before.
+  Deployed `4532afc2` (1.7.2), `4070cd45` (1.7.3), then `0c428689` (1.7.4);
+  `/produk` answered 503 for about 13 s between the ledger batch and the new
+  Worker. After: D1 79/79, 69 native pages, 73 routes 200 and 69 redirects 301
+  as before.
 - **zvarashop tests.** Three product fixtures (`rts-scoring`, `plugins/registry`,
   `plugins/kelola/sync`) replay the whole chain into an empty store; on this
   install they stop before `0067`, whose catalogue rows need store 1. The cut
   must move whenever the product's chain passes it again.
-- **zvara.shop page speed (local Lighthouse 13.5, mobile, simulated).** CLS
-  0.000 everywhere. Home 66 → 74-80 (LCP 3.3-4.7 s → 2.8-4.3 s; the hero now
-  arrives at 0.36 s and the rest is render delay behind the main thread).
-  Product landing pages 78-87, unchanged within run-to-run noise: Total
-  Blocking Time 410-580 ms is almost all Meta (`signals/config` 0.9 s main
-  thread, `fbevents.js` 0.5 s) and `gtag/js` (0.65 s). The `signals/config`
-  load follows Automatic Advanced Matching / automatic events in Events Manager,
-  an owner setting. Product pages stay out of the HTML cache (geo-IP form), so
-  their TTFB still swings 0.3-1.1 s.
+- **zvara.shop page speed (local Lighthouse 13.5, mobile, simulated, on 1.7.4).**
+  CLS 0.000 everywhere. Direct HTTP/2 `X-Edge-Cache: HIT` TTFB on `/produk/<slug>`
+  is 0.218-0.274 s (down from 1.0-3.8 s on a cold D1 render). Mobile Lighthouse
+  scores (1.5.11 baseline → 1.7.4 warm edge): `/` 59 → 78 (LCP 4.71 s → 3.77 s,
+  CLS 0.118 → 0.000), `/produk` 71 → 79 (LCP 3.86 s → 3.76 s, CLS 0.036 → 0.000,
+  TTFB 368 ms), `/produk/wamena-oil` 59 → 84 (LCP 5.96 s → 2.44 s, TTFB 100 ms),
+  `/produk/4g-lucky-spray-herbal-pria-dewasa` 74 → 87 (LCP 3.37 s → 2.18 s,
+  TTFB 406 ms), `/produk/dragon-blood-cream` 77 → 83 (LCP 3.10 s → 2.54 s),
+  `/produk/foam-pembersih-toilet-500ml` 71 → 80 (LCP 3.71 s → 2.07 s). The
+  remaining Total Blocking Time (300-714 ms) is third-party ad tags (`fbevents.js`,
+  `signals/config`, `gtag/js`).
 
 ## 2026-10-20 — 1.7.0-1.7.2: page speed; edge cache and font CLS
 

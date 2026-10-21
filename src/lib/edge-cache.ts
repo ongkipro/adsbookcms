@@ -9,14 +9,19 @@
  *
  * What makes this safe is how narrow it is:
  *
- * - Only `GET` of `/`, `/produk` and single-segment slugs (landing pages and
- *   the legal pages). Product pages are out: they pick their checkout form
- *   from the visitor's geo-IP on the server. The geo and test form pages, the
- *   thanks and payment pages, the installer, `/api`, `/admin` and uploads are
- *   out for the same reason or because they are per-visitor.
+ * - Only `GET` of `/`, `/produk`, `/produk/<slug>` and single-segment slugs
+ *   (landing pages and the legal pages). Product and landing pages pick their
+ *   checkout form (`middle` vs `full`) and prefill the province name from the
+ *   visitor's Cloudflare province code (`resolveProvinceCode`), so their cache
+ *   key carries that two-letter code (`__prov`). Visitors in the same province
+ *   share one rendered page; visitors in different provinces never see each
+ *   other's form. The geo test pages, the thanks and payment pages, the
+ *   installer, `/api`, `/admin` and `/embed` stay out.
  * - Never with an admin session cookie or an Authorization header, so a CMS
  *   preview and the admin never read or write the cache, and never for the
- *   internal rewrite of a product page onto a landing page's path.
+ *   internal rewrite of a product page onto a landing page's path (the outer
+ *   `/produk/<slug>` request caches the rewritten HTML under the product's own
+ *   province-scoped key).
  * - Only a 200 `text/html` answer with no `Set-Cookie` and no `no-store` or
  *   `private`; anything else is rendered every time.
  * - The key drops ad tracking parameters (`gclid`, `fbclid`, `utm_*`...), so ad
@@ -30,10 +35,11 @@
  */
 import { SESSION_COOKIE_NAME } from "./auth.ts";
 import { CLICK_ID_KEYS } from "./click-ids.ts";
+import { resolveProvinceCode } from "./geo.ts";
 
 export const EDGE_CACHE_SECONDS = 120;
 
-/** Parameters that identify an ad click, not a different page. */
+/** Parameters that identify an ad click, not a different page, plus the internal province key. */
 const TRACKING_PARAMS = new Set<string>([
   ...CLICK_ID_KEYS,
   "ttclid",
@@ -41,6 +47,7 @@ const TRACKING_PARAMS = new Set<string>([
   "gad_source",
   "gad_campaignid",
   "utm_id",
+  "__prov",
 ]);
 
 /** Single-segment paths that are not shared pages. */
@@ -54,6 +61,7 @@ const NOT_SHARED = new Set([
 export function edgeCachePath(pathname: string): string | null {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
   if (path === "/" || path === "/produk") return path;
+  if (/^\/produk\/([a-z0-9][a-z0-9-]{0,120})$/i.test(path)) return path;
   const match = /^\/([a-z0-9][a-z0-9-]{0,80})$/i.exec(path);
   return match && !NOT_SHARED.has(match[1].toLowerCase()) ? path : null;
 }
@@ -79,6 +87,10 @@ export function edgeCacheRequest(request: Request, url: URL): Request | null {
     .filter(([name]) => !TRACKING_PARAMS.has(name.toLowerCase()))
     .sort(([a], [b]) => a.localeCompare(b));
   for (const [name, value] of kept) key.searchParams.append(name, value);
+  if (path !== "/" && path !== "/produk") {
+    const province = resolveProvinceCode(request);
+    if (province) key.searchParams.set("__prov", province);
+  }
   return new Request(key.toString(), { method: "GET" });
 }
 

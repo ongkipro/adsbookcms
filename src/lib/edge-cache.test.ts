@@ -3,15 +3,24 @@ import { registerHooks } from "node:module";
 import test from "node:test";
 import { edgeCachePath, edgeCacheRequest, isEdgeStorable, readEdgeCache, writeEdgeCache } from "./edge-cache.ts";
 
-const req = (href: string, init?: RequestInit) => new Request(href, init);
-const key = (href: string, init?: RequestInit) => edgeCacheRequest(req(href, init), new URL(href))?.url ?? null;
+const req = (href: string, init?: RequestInit & { cf?: Record<string, unknown> }) => {
+  const { cf, ...rest } = init ?? {};
+  const request = new Request(href, rest);
+  if (cf) Object.defineProperty(request, "cf", { value: cf });
+  return request;
+};
+const key = (href: string, init?: RequestInit & { cf?: Record<string, unknown> }) =>
+  edgeCacheRequest(req(href, init), new URL(href))?.url ?? null;
 
-test("only shared pages are eligible; per-visitor and geo pages never are", () => {
-  for (const path of ["/", "/produk", "/produk/", "/aussie-formulabaru", "/kontak", "/Tentang"]) {
+test("only shared pages are eligible; per-visitor and geo test pages never are", () => {
+  for (const path of [
+    "/", "/produk", "/produk/", "/produk/aussie", "/produk/4g-lucky-spray-herbal-pria-dewasa/",
+    "/aussie-formulabaru", "/kontak", "/Tentang",
+  ]) {
     assert.ok(edgeCachePath(path), path);
   }
   for (const path of [
-    "/produk/aussie", "/thanks", "/payment", "/hello", "/install", "/admin", "/admin/orders",
+    "/produk/a/b", "/thanks", "/payment", "/hello", "/install", "/admin", "/admin/orders",
     "/api/geo-province", "/full-form", "/middle-form", "/hybrid-form", "/geoipform", "/embed/form",
     "/assets/uploads/x.webp", "/media/x", "/robots.txt", "/sitemap.xml", "/a/b",
   ]) {
@@ -19,12 +28,28 @@ test("only shared pages are eligible; per-visitor and geo pages never are", () =
   }
 });
 
-test("ad tracking parameters share one entry; real parameters and bypasses do not", () => {
+test("ad tracking parameters share one entry; real parameters, provinces and bypasses do not", () => {
   const base = "https://store.example/aussie-formulabaru";
   assert.equal(key(base), base);
   assert.equal(key(`${base}?utm_source=fb&utm_campaign=x&fbclid=abc&gclid=g&_fbp=fb.1.2.3`), base);
   assert.equal(key("https://store.example/produk?q=serum&kategori=Sawit"), "https://store.example/produk?kategori=Sawit&q=serum");
   assert.equal(key("https://store.example/produk?kategori=Sawit&q=serum&utm_source=fb"), "https://store.example/produk?kategori=Sawit&q=serum");
+  // Product and landing pages partition by the visitor's normalized province code so
+  // GeoIpResolvedForm's middle/full choice and prefilled province never leak across provinces.
+  const product = "https://store.example/produk/wamena-oil";
+  assert.equal(key(product, { cf: { regionCode: "JB" } }), `${product}?__prov=JB`);
+  assert.equal(
+    key(`${product}?fbclid=click1&utm_source=ig`, { cf: { region: "Jawa Barat" } }),
+    `${product}?__prov=JB`,
+  );
+  assert.equal(key(product, { cf: { regionCode: "PA" } }), `${product}?__prov=PA`);
+  assert.equal(key(base, { cf: { regionCode: "JK" } }), `${base}?__prov=JK`);
+  // A query string `__prov` from the client cannot forge or collide with the server's province key.
+  assert.equal(key(`${product}?__prov=PA`), product);
+  assert.equal(key(`${product}?__prov=PA`, { cf: { regionCode: "JB" } }), `${product}?__prov=JB`);
+  // Home and catalogue list do not embed a checkout form, so all provinces share one entry.
+  assert.equal(key("https://store.example/", { cf: { regionCode: "JB" } }), "https://store.example/");
+  assert.equal(key("https://store.example/produk", { cf: { regionCode: "JB" } }), "https://store.example/produk");
   // An admin session, an Authorization header, a preview and a non-GET never use the cache.
   assert.equal(key(base, { headers: { cookie: "adsbook_session=abc" } }), null);
   assert.equal(key(base, { headers: { cookie: "_fbp=x; adsbook_session=abc" } }), null);
@@ -107,18 +132,30 @@ const hooks = registerHooks({
 });
 const { createMiddleware } = await import("../middleware.ts");
 hooks.deregister();
-const onRequest = createMiddleware(async () => undefined);
+let schemaCalls = 0;
+const onRequest = createMiddleware(async () => { schemaCalls += 1; });
 
-function run(href: string, next: () => Promise<Response>, headers: Record<string, string> = {}) {
-  const request = new Request(href, { headers });
+async function run(
+  href: string,
+  next: () => Promise<Response>,
+  headers: Record<string, string> = {},
+  cf?: Record<string, unknown>,
+) {
+  const request = req(href, { headers, cf });
   let d1Calls = 0;
+  const schemaBefore = schemaCalls;
   const context = {
     request,
     url: new URL(href),
     locals: { runtimeEnv: { OMS_DB: { prepare() { d1Calls += 1; throw new Error("d1 unavailable"); } } } },
     redirect: (location: string, status = 302) => new Response(null, { status, headers: { location } }),
   };
-  return Promise.resolve(onRequest(context as never, next as never)).then((response) => ({ response: response as Response, d1Calls: () => d1Calls }));
+  const response = await onRequest(context as never, next as never);
+  return {
+    response: response as Response,
+    d1Calls: () => d1Calls,
+    schemaCalls: () => schemaCalls - schemaBefore,
+  };
 }
 
 test("middleware: a hit skips D1 and the render, keeps security headers and writes the click id cookie", async (context) => {
@@ -136,6 +173,7 @@ test("middleware: a hit skips D1 and the render, keeps security headers and writ
   const first = await run("https://store.example/aussie-formulabaru?utm_source=fb&fbclid=abc123", render);
   assert.equal(await first.response.text(), "<p>live render</p>");
   assert.equal(first.response.headers.get("x-edge-cache"), "MISS");
+  assert.equal(first.schemaCalls(), 1);
   assert.match(first.response.headers.get("set-cookie") ?? "", /adsbook_click_ids=/);
   await new Promise((resolve) => setTimeout(resolve, 10));
   const entry = cache.map.get("https://store.example/aussie-formulabaru")!;
@@ -143,10 +181,11 @@ test("middleware: a hit skips D1 and the render, keeps security headers and writ
   assert.equal(entry.headers.has("set-cookie"), false);
   assert.equal(entry.headers.has("x-frame-options"), false);
 
-  // The next visitor, from another ad, is served from the cache.
+  // The next visitor, from another ad, is served from the cache before the schema check or D1.
   const second = await run("https://store.example/aussie-formulabaru?gclid=gg99&utm_campaign=y", render);
   assert.equal(await second.response.text(), "<p>live render</p>");
   assert.equal(renders, 1, "not rendered again");
+  assert.equal(second.schemaCalls(), 0, "schema check skipped on a hit");
   assert.equal(second.d1Calls(), 0, "D1 untouched");
   assert.equal(second.response.headers.get("x-edge-cache"), "HIT");
   assert.equal(second.response.headers.get("x-frame-options"), "DENY");
@@ -154,6 +193,36 @@ test("middleware: a hit skips D1 and the render, keeps security headers and writ
   const cookie = second.response.headers.get("set-cookie") ?? "";
   assert.match(cookie, /adsbook_click_ids=[^;]*gclid/);
   assert.equal(cookie.includes("fbclid=abc123"), false, "this visitor's ids, not the first visitor's");
+
+  // Product pages share within a province and isolate between provinces.
+  const jbFirst = await run(
+    "https://store.example/produk/wamena-oil?fbclid=jb1",
+    async () => { renders += 1; return new Response("<p>middle:Jawa Barat</p>", { status: 200, headers: { "content-type": "text/html" } }); },
+    {},
+    { regionCode: "JB" },
+  );
+  assert.equal(jbFirst.response.headers.get("x-edge-cache"), "MISS");
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const jbSecond = await run(
+    "https://store.example/produk/wamena-oil?fbclid=jb2",
+    async () => { renders += 1; return new Response("<p>unexpected</p>", { status: 200, headers: { "content-type": "text/html" } }); },
+    {},
+    { regionCode: "JB" },
+  );
+  assert.equal(jbSecond.response.headers.get("x-edge-cache"), "HIT");
+  assert.equal(await jbSecond.response.text(), "<p>middle:Jawa Barat</p>");
+  assert.equal(jbSecond.schemaCalls(), 0, "product hit skips schema check");
+  assert.equal(jbSecond.d1Calls(), 0, "product hit skips D1");
+
+  const paFirst = await run(
+    "https://store.example/produk/wamena-oil?fbclid=pa1",
+    async () => { renders += 1; return new Response("<p>full:Papua</p>", { status: 200, headers: { "content-type": "text/html" } }); },
+    {},
+    { regionCode: "PA" },
+  );
+  assert.equal(paFirst.response.headers.get("x-edge-cache"), "MISS");
+  assert.equal(await paFirst.response.text(), "<p>full:Papua</p>");
 
   // An admin session never reads the cache.
   const admin = await run("https://store.example/aussie-formulabaru", async () => new Response("<p>preview</p>", { status: 200, headers: { "content-type": "text/html" } }), { cookie: "adsbook_session=abc" });

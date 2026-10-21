@@ -29,10 +29,26 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.7.3",
+    version: "1.7.4",
     date: "21 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Halaman produk kini disimpan di edge per provinsi dengan TTFB di bawah 0,3 detik.",
+    changes: [
+      {
+        title: "Cache halaman produk & landing page per provinsi",
+        description: "Halaman produk (/produk/<slug>) dan landing page kini disimpan selama 2 menit di edge Cloudflare berdasarkan kode provinsi pengunjung (Geo-IP). Pengunjung dari provinsi yang sama menerima halaman instan tanpa query database, sementara pemilihan form checkout (COD vs non-COD) tetap akurat sesuai provinsi masing-masing.",
+      },
+      {
+        title: "Halaman dari cache langsung dijawab sebelum pengecekan skema D1",
+        description: "Permintaan yang sudah ada di cache edge kini langsung dijawab sebelum Worker memeriksa tabel migrasi D1, memangkas jeda byte pertama (TTFB) pada isolate baru.",
+      },
+    ],
+  },
+  {
+    version: "1.7.3",
+    date: "21 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Foto produk yang diunggah tampil jauh lebih cepat.",
     changes: [
       {

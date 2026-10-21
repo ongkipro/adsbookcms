@@ -20,6 +20,34 @@ type CloudflareRequest = Request & {
   };
 };
 
+/**
+ * The visitor's normalized two-letter Indonesian province code (`JB`, `JK`,
+ * `PA`…), or `""` when Cloudflare and the request headers carry no province.
+ * Synchronous: `resolveGeoLocation` and `edgeCacheRequest` read the same input,
+ * so the cache key and the checkout form never disagree on which province a
+ * request is in.
+ */
+export function resolveProvinceCode(request: Request): string {
+  const headers = request.headers;
+  const cf = (request as CloudflareRequest).cf;
+  const cfProvinceCode =
+    normalizeProvinceCode(cf?.regionCode) || normalizeProvinceCode(cf?.region);
+  if (cfProvinceCode) return cfProvinceCode;
+
+  const headerProvince =
+    headers.get('cf-region-code') ||
+    headers.get('x-cf-region-code') ||
+    headers.get('cf-region') ||
+    headers.get('x-cf-region') ||
+    '';
+  const headerProvinceCode = normalizeProvinceCode(headerProvince);
+  if (headerProvinceCode) return headerProvinceCode;
+
+  const customProvince =
+    headers.get('x-user-province') || headers.get('x-geo-province') || '';
+  return normalizeProvinceCode(customProvince);
+}
+
 export async function resolveGeoLocation(request: Request): Promise<GeoLocationResult> {
   const headers = request.headers;
   const cf = (request as CloudflareRequest).cf;

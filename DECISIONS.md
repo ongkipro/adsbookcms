@@ -1039,3 +1039,18 @@ query), only a `200` is stored, the edge copy lives `UPLOAD_EDGE_CACHE_SECONDS`
 check, the store lookup and R2. A day rather than the browser's year bounds how
 long a deleted image is still served from the edge. Upload keys are random and
 never rewritten, so a URL never needs fresher bytes than the ones stored.
+
+**Amendment, 2026-10-21 (1.7.4): product and landing pages are cached per
+province, and a hit skips the schema check.** The only visitor-dependent value in
+the SSR HTML of `/produk/<slug>` and single-segment landing pages (`/<slug>`) is
+ the two-letter Indonesian province code (`resolveProvinceCode(request)`), which
+picks the `middle` or `full` checkout form and prefills the province name in
+`GeoIpResolvedForm`. `edgeCachePath` now admits `/produk/<slug>`, and
+`edgeCacheRequest` appends `__prov=<CODE>` (resolved from `request.cf` or its
+fallback headers, never from the URL query string) for every path other than `/`
+and `/produk`. When `/produk/<slug>` rewrites to a claimed native landing page,
+the inner rewrite still carries `x-adsbook-product-page` and skips the cache,
+while the outer `/produk/<slug>` request caches the final 200 HTML under the
+product's province key. In `src/middleware.ts`, canonical host redirects and
+`readEdgeCache` now run above `ensureSchemaReady(identityDb)`, so an edge cache
+hit never pays a D1 `d1_migrations` read on a cold isolate.

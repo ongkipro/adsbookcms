@@ -197,6 +197,48 @@ export function createMiddleware(
     const hit = await readUploadCache(uploadKey);
     if (hit) return applySecurityHeaders(hit, false);
   }
+
+  // Canonical host first. This used to sit below the installer redirects, which
+  // are relative - so `www` reached `/install` and the wizard was served on the
+  // non-canonical host, and an installed store took two hops to get home. It is
+  // also a host-level decision that needs no store row, so answering it here
+  // spares a D1 read on every `www` request.
+  const siteUrl = getEnvValue('PUBLIC_SITE_URL', runtime);
+  const hostRedirect = resolveHostRedirect(url, siteUrl, getEnvValue('PUBLIC_ALIAS_HOSTS', runtime));
+  if (hostRedirect) {
+    return applySecurityHeaders(context.redirect(hostRedirect, 301), false);
+  }
+  if (siteUrl && url.hostname.startsWith('www.')) {
+    try {
+      const canonical = new URL(siteUrl);
+      if (url.hostname.slice(4) === canonical.hostname) {
+        const targetUrl = new URL(url);
+        targetUrl.hostname = canonical.hostname;
+        targetUrl.protocol = canonical.protocol;
+        targetUrl.port = canonical.port;
+        return applySecurityHeaders(
+          context.redirect(targetUrl.toString(), 301),
+          false,
+        );
+      }
+    } catch {}
+  }
+
+  // The edge cache (ADR-029): an anonymous page another visitor rendered in
+  // the last two minutes skips the schema check, the store lookup, the page's
+  // D1 reads and the render. It sits after the host redirects, so an alias or
+  // http host never reads an entry made for the canonical one.
+  const edgeKey = edgeCacheRequest(context.request, url);
+  if (edgeKey) {
+    const hit = await readEdgeCache(edgeKey);
+    if (hit) {
+      const cached = applySecurityHeaders(hit, false);
+      if (url.hostname.endsWith('.workers.dev')) cached.headers.set('X-Robots-Tag', 'noindex, nofollow');
+      persistClickIds(cached);
+      return cached;
+    }
+  }
+
   const identityDb = runtime?.OMS_DB as D1Database | undefined;
   try {
     if (!identityDb?.prepare) {
@@ -249,47 +291,6 @@ export function createMiddleware(
           },
         );
     return applySecurityHeaders(response, true);
-  }
-
-  // Canonical host first. This used to sit below the installer redirects, which
-  // are relative - so `www` reached `/install` and the wizard was served on the
-  // non-canonical host, and an installed store took two hops to get home. It is
-  // also a host-level decision that needs no store row, so answering it here
-  // spares a D1 read on every `www` request.
-  const siteUrl = getEnvValue('PUBLIC_SITE_URL', runtime);
-  const hostRedirect = resolveHostRedirect(url, siteUrl, getEnvValue('PUBLIC_ALIAS_HOSTS', runtime));
-  if (hostRedirect) {
-    return applySecurityHeaders(context.redirect(hostRedirect, 301), false);
-  }
-  if (siteUrl && url.hostname.startsWith('www.')) {
-    try {
-      const canonical = new URL(siteUrl);
-      if (url.hostname.slice(4) === canonical.hostname) {
-        const targetUrl = new URL(url);
-        targetUrl.hostname = canonical.hostname;
-        targetUrl.protocol = canonical.protocol;
-        targetUrl.port = canonical.port;
-        return applySecurityHeaders(
-          context.redirect(targetUrl.toString(), 301),
-          false,
-        );
-      }
-    } catch {}
-  }
-
-  // The edge cache (ADR-029): an anonymous page another visitor rendered in
-  // the last two minutes skips the store lookup, the page's D1 reads and the
-  // render. It sits after the host redirects, so an alias or http host never
-  // reads an entry made for the canonical one.
-  const edgeKey = edgeCacheRequest(context.request, url);
-  if (edgeKey) {
-    const hit = await readEdgeCache(edgeKey);
-    if (hit) {
-      const cached = applySecurityHeaders(hit, false);
-      if (url.hostname.endsWith('.workers.dev')) cached.headers.set('X-Robots-Tag', 'noindex, nofollow');
-      persistClickIds(cached);
-      return cached;
-    }
   }
 
   // Store identity is resolved once per request and handed to every consumer

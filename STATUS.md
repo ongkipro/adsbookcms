@@ -1,6 +1,45 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-20 (1.7.2 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
+> Verified against disk: 2026-10-21 (1.7.3 on zvarashop; 1.7.2 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
+
+## 2026-10-21 — 1.7.3: uploads cached at the edge; zvarashop back on the product line
+
+- **1.7.3 (ADR-029 amendment).** `/assets/uploads/…` comes from R2 through the
+  Worker, which the CDN does not cache: zvara.shop's home hero took 1.1-1.4 s
+  to the first byte on every request. A served upload is now kept a day in the
+  Workers cache (key = path) and answered at the top of the middleware, before
+  the schema check, the store lookup and R2. Measured on the hero after deploy:
+  `X-Edge-Cache: HIT`, 0.17-0.5 s to the first byte (a static `/images/` file:
+  0.15 s); a missing key still answers 404 and is not stored. One middleware
+  test covers miss, hit without D1 or route, the day-long edge lifetime and the
+  uncached 404.
+- **zvarashop 1.5.11 → 1.7.2 → 1.7.3.** Its own catalogue migrations held
+  `0062`-`0073`, colliding with the product's `0062`-`0066`; a plain merge would
+  have failed `validateMigrationChain` and answered 503 on every database route.
+  Per ADR-024 the catalogue moved unchanged to `0067`-`0078` (schemaVersion 79)
+  and the production ledger was rewritten in one batch: product `0062`-`0066`
+  applied as their net DDL (`orders.source_page_path`, `plugins`; the
+  `kelola_*` columns are added and dropped within the five, and never existed
+  there), the twelve catalogue rows renamed in place. Rehearsed first on a copy
+  of production D1: schema identical to a fresh product chain (77 tables), 72
+  pages matching live on title, H1, prices, image count and variant ids.
+  Backup `~/backups/zvarashop/zvarashop-d1-2026-10-21-pre-1.7.2.sql`.
+  Deployed `4532afc2` (1.7.2), then `4070cd45` (1.7.3); `/produk` answered 503
+  for about 13 s between the ledger batch and the new Worker. After: D1 79/79,
+  69 native pages, 73 routes 200 and 69 redirects 301 as before.
+- **zvarashop tests.** Three product fixtures (`rts-scoring`, `plugins/registry`,
+  `plugins/kelola/sync`) replay the whole chain into an empty store; on this
+  install they stop before `0067`, whose catalogue rows need store 1. The cut
+  must move whenever the product's chain passes it again.
+- **zvara.shop page speed (local Lighthouse 13.5, mobile, simulated).** CLS
+  0.000 everywhere. Home 66 → 74-80 (LCP 3.3-4.7 s → 2.8-4.3 s; the hero now
+  arrives at 0.36 s and the rest is render delay behind the main thread).
+  Product landing pages 78-87, unchanged within run-to-run noise: Total
+  Blocking Time 410-580 ms is almost all Meta (`signals/config` 0.9 s main
+  thread, `fbevents.js` 0.5 s) and `gtag/js` (0.65 s). The `signals/config`
+  load follows Automatic Advanced Matching / automatic events in Events Manager,
+  an owner setting. Product pages stay out of the HTML cache (geo-IP form), so
+  their TTFB still swings 0.3-1.1 s.
 
 ## 2026-10-20 — 1.7.0-1.7.2: page speed; edge cache and font CLS
 
@@ -786,7 +825,7 @@ is generated per store from that store's own D1.
 | `skincarebpom.shop` | `ongkipro/skincarebpom` | `git merge product/main` on `install/skincarebpom` | 1.5.11 on `81b5f19` |
 | `taniniaga.shop` | `ongkipro/taniniaga` | `git merge product/main` on `install/taniniaga` | 1.7.2, schema 67 (2026-10-20) |
 | `zanobyshop.shop` | `ongkipro/zanobyshop` | `scripts/sync-from-product.sh`; GitHub Actions deploys on push | 1.7.2, schema 67, no cron slot (2026-10-20) |
-| `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | 1.5.11 on `d40544a`, schema 74 (`0069`–`0073` recovered 2026-10-18) |
+| `zvara.shop` | `ongkipro/zvarashop` | `git merge product/main` on `install/zvarashop` | 1.7.3 on `c3b308b`, schema 79 (catalogue at `0067`–`0078`, 2026-10-21) |
 
 Holding a catalogue is each install's own job; nothing is bundled here any more
 (ADR-016). Older installs keep legacy `cmsads-*` names on their Cloudflare

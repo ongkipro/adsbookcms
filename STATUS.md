@@ -1,6 +1,39 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-21 (1.7.4 on zvarashop; 1.7.2 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
+> Verified against disk: 2026-10-23 (1.7.8 on revenleather; 1.7.4 on zvarashop; 1.7.2 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
+
+## 2026-10-22/23 — 1.7.5–1.7.9: store mark and noindex opt-ins, IP preview, checkout resilience; revenleather drift
+
+- **1.7.5** `PUBLIC_SITE_BRAND_MARK` shows a store's own mark beside the
+  wordmark (root-relative or `https:` only; inverted on the light tone, sized
+  by attribute because `h-7` resolves through an undefined `--spacing` in
+  inlined CSS). **1.7.6** the home h1 and brand title read
+  `tenant.defaultTitle`, so an empty tagline no longer leaves "Store — ".
+  **1.7.7** `PUBLIC_SITE_NOINDEX=true` sends `X-Robots-Tag: noindex, nofollow`
+  on every response (edge-cache hits and pages outside BaseLayout too) and
+  BaseLayout's robots meta agrees. **1.7.8** bare IPv4/IPv6 hosts are never
+  host-redirected, so a LAN or Tailscale preview opens.
+- **1.7.9** A failed exact-district estimate no longer ends a COD checkout: it
+  falls through to the existing city-average `ICO` fallback (prepaid still
+  fails, it has no fallback); one test covers both. Manual transfer options
+  carry fee text and the holder (`a.n. …`), and a single bank or VA renders as
+  its own row instead of a one-item accordion. `GeoIpResolvedForm` passes the
+  visitor province to the full form as it already did to the middle form.
+  Rendered on `npm run dev:local` at 390 and 1440 px with no console errors; a
+  checkout through the single bank row stored `manual_transfer` with that
+  account.
+- **revenleather (`page.revenleather.com`) on 1.7.8, noindexed** because the
+  brand's Shopify shop owns search for the same catalog. Its own commits on
+  2026-10-23 edit 27 product-owned files under `src/` (checkout, header, footer,
+  inner pages, thanks page) and this file's fleet header. Three of those
+  ideas are in 1.7.9. Not taken, on purpose: allowing every courier when
+  `courier_rules` is empty (the server accepts orders through the same rule
+  check, and deny-by-default is the product contract), a store's bank account
+  hardcoded as a client fallback, and slug lists or palettes compiled into
+  shared components. The palette edits are the recurring gap (zanobyshop's
+  `apply-store-palette.py` is the same need): installs fork components because
+  the product has no per-store colour tokens. Its next product merge will
+  conflict wherever both sides moved.
 
 ## 2026-10-21 — 1.7.3–1.7.4: uploads and province-scoped product pages cached at the edge; zvarashop back on the product line
 

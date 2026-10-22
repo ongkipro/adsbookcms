@@ -99,3 +99,46 @@ test("a COD checkout quote never asks Mengantar for its COD fee", async (context
   assert.equal(quote.rates[0].price, 8_500);
   assert.equal(quote.rates[0].cod_fee, 8_324);
 });
+
+test("a failed district estimate falls back to the city average for COD, never for prepaid", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const failedDestination = "5fc62f63f8f44b34aa4c0e0b";
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.includes("/address/search")) {
+      return Response.json({
+        success: true,
+        data: [
+          { _id: "5fc62f63f8f44b34aa4c0e0c", CITY_NAME: "Kota Malang" },
+          { _id: "5fc62f63f8f44b34aa4c0e0d", CITY_NAME: "Kota Malang" },
+        ],
+      });
+    }
+    if (url.includes(`destination_id=${failedDestination}`)) {
+      throw new TypeError("network down");
+    }
+    return Response.json({
+      success: true,
+      data: { SiCepat: { price: 12_000, estimate_delivery: "2" } },
+    });
+  };
+  const input = { destinationId: failedDestination, destinationCity: "Kota Malang" };
+
+  const cod = await resolveEligibleShippingRates(createQuoteDatabase(), {} as App.Locals, {
+    ...input,
+    paymentMethod: "cod",
+  });
+  assert.equal(cod.rates.length, 1);
+  assert.equal(cod.rates[0].courier_code, "ICO");
+  assert.equal(cod.rates[0].price, 12_000);
+
+  await assert.rejects(
+    resolveEligibleShippingRates(createQuoteDatabase(), {} as App.Locals, {
+      ...input,
+      paymentMethod: "manual_transfer",
+    }),
+  );
+});

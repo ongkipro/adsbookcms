@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.7.8",
+  version: "1.7.9",
+  // 1.7.9: COD city-average fallback when the district estimate fails; manual transfer shows the holder; single bank/VA renders as one row.
   // 1.7.8: bare IP hosts (LAN or Tailscale preview) are never host-redirected, like localhost.
   // 1.7.7: optional PUBLIC_SITE_NOINDEX keeps a whole store out of search (header and robots meta).
   // 1.7.6: home h1 and the header brand title no longer end in a dangling separator when the tagline is empty.

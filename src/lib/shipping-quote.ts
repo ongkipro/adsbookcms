@@ -153,12 +153,22 @@ export async function resolveEligibleShippingRates(
   // 2026-08-19, the provider charges exactly one rupiah less than this store's
   // policy at every amount sampled between Rp50.000 and Rp1.000.000. That
   // divergence is recorded in `UNIMPLEMENTED_SPECS.md`, not silently corrected.
+  const isCod = input.paymentMethod === "cod";
+  const hasCityFallback = isCod && Boolean(input.destinationCity?.trim());
   const [rates, ruleResult] = await Promise.all([
-    client.estimateRates({
-      originId,
-      destinationId,
-      weight: weightKg,
-    }),
+    // A failed exact-district estimate used to end a COD checkout even though
+    // the city-average fallback below exists for exactly that buyer. Prepaid
+    // still fails loudly: it has no fallback (see ICO below).
+    client
+      .estimateRates({
+        originId,
+        destinationId,
+        weight: weightKg,
+      })
+      .catch((error: unknown) => {
+        if (hasCityFallback) return [] as CourierRateResult[];
+        throw error;
+      }),
     database
       .prepare(
         `
@@ -170,7 +180,6 @@ export async function resolveEligibleShippingRates(
       .all<CourierAvailabilityRule>(),
   ]);
   const rules = ruleResult.results ?? [];
-  const isCod = input.paymentMethod === "cod";
   const eligible = (providerRates: CourierRateResult[]) =>
     providerRates
       .filter((rate) =>
@@ -187,7 +196,7 @@ export async function resolveEligibleShippingRates(
   // prepaid buyer who checked out on it paid for an order that could neither
   // be dispatched ("ICO" is no Mengantar courier) nor rerouted, so prepaid
   // gets real rates or none.
-  if (eligibleRates.length > 0 || !input.destinationCity?.trim() || !isCod) {
+  if (eligibleRates.length > 0 || !hasCityFallback) {
     return {
       originId,
       rates: eligibleRates,

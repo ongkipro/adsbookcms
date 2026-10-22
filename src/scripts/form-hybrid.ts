@@ -172,7 +172,12 @@ const parsePaymentOptions = (payload: unknown): PaymentOption[] => {
           : undefined,
         logoUrl: row.logo_url ? String(row.logo_url).trim() : undefined,
         label: String(row.name || code),
-        desc: String(row.fee_description || row.description || ""),
+        // A manual transfer's description names the account holder; showing
+        // only the fee text hid who the buyer is paying.
+        desc:
+          paymentMethod === "manual_transfer"
+            ? [row.fee_description, row.description].filter(Boolean).join(" · ")
+            : String(row.fee_description || row.description || ""),
         adminFee: Number(row.admin_fee || 0),
         adminFeeRate: Number(row.admin_fee_rate || 0),
         adminFeeVatRate: Number(row.admin_fee_vat_rate || 0),
@@ -1333,24 +1338,30 @@ function initHybridOrderFormInstance(formRoot: HTMLElement) {
     };
 
     appendPaymentRows(qrisOptions);
-    appendPaymentGroup(
-      manualBankOptions,
-      "Transfer Bank",
-      `${manualBankOptions.length} rekening tersedia`,
-      manualBankGroupExpanded,
-      () => {
-        manualBankGroupExpanded = !manualBankGroupExpanded;
-      },
-    );
-    appendPaymentGroup(
-      virtualAccountOptions,
-      "Virtual Account",
-      `${virtualAccountOptions.length} bank tersedia`,
-      bankGroupExpanded,
-      () => {
-        bankGroupExpanded = !bankGroupExpanded;
-      },
-    );
+    // A group of one is an extra click in front of the only choice, so a
+    // single account or bank renders as its own row.
+    if (manualBankOptions.length === 1) appendPaymentRows(manualBankOptions);
+    else
+      appendPaymentGroup(
+        manualBankOptions,
+        "Transfer Bank",
+        `${manualBankOptions.length} rekening tersedia`,
+        manualBankGroupExpanded,
+        () => {
+          manualBankGroupExpanded = !manualBankGroupExpanded;
+        },
+      );
+    if (virtualAccountOptions.length === 1) appendPaymentRows(virtualAccountOptions);
+    else
+      appendPaymentGroup(
+        virtualAccountOptions,
+        "Virtual Account",
+        `${virtualAccountOptions.length} bank tersedia`,
+        bankGroupExpanded,
+        () => {
+          bankGroupExpanded = !bankGroupExpanded;
+        },
+      );
     appendPaymentRows(codOptions);
     appendPaymentRows(otherDirectOptions);
 

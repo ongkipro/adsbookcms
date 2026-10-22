@@ -29,10 +29,30 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: "1.7.9",
+    date: "23 Oktober 2026",
+    releaseTag: "2026.10-plugins",
+    isLatest: true,
+    highlight: "Checkout lebih tahan gangguan ongkir dan pilihan transfer lebih jelas.",
+    changes: [
+      {
+        title: "Ongkir COD tetap muncul saat estimasi kecamatan gagal",
+        description: "Bila estimasi ongkir ke kecamatan tujuan gagal, pembeli COD kini mendapat ongkir rata-rata kota yang dikonfirmasi admin, tidak lagi berhenti di pesan gagal. Pembayaran di muka tetap memakai ongkir kurir asli.",
+      },
+      {
+        title: "Rekening transfer tampil lengkap",
+        description: "Pilihan transfer bank kini menampilkan nama pemilik rekening di samping keterangan biaya. Toko dengan satu rekening atau satu bank Virtual Account menampilkannya langsung sebagai satu pilihan, tanpa harus membuka daftar terlebih dulu.",
+      },
+      {
+        title: "Form lengkap mengenali provinsi pengunjung sejak awal",
+        description: "Form lengkap kini menerima provinsi pengunjung seperti form ringkas, sehingga pilihan COD sesuai provinsi tampil tanpa jeda.",
+      },
+    ],
+  },
+  {
     version: "1.7.8",
     date: "22 Oktober 2026",
     releaseTag: "2026.10-plugins",
-    isLatest: true,
     highlight: "Pratinjau toko lewat alamat IP tidak lagi dialihkan ke domain toko.",
     changes: [
       {

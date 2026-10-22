@@ -22,6 +22,19 @@
   Rendered on `npm run dev:local` at 390 and 1440 px with no console errors; a
   checkout through the single bank row stored `manual_transfer` with that
   account.
+- **1.7.10 — gates learned from revenleather.** `npm run deploy` now warns
+  (does not refuse) with the product-owned files an install has edited since
+  its last product merge, and `fleet:status` gains an `edits` column from the
+  same `findProductOwnedEdits`. Install-owned paths and native landing pages
+  (registered route files, their styles, the register and generated
+  route-map/safelist) are not counted. First reading, 2026-10-23: revenleather
+  49, zvarashop 27 (12 of them its own catalogue migrations `0067`-`0078`,
+  which will collide by number with the product's next migration), taniniaga
+  4 (research notes under `docs/spec`). The setup checklist owes "Aktifkan
+  minimal satu kurir" when no courier rule is enabled: with every courier off
+  the buyer saw only "Ongkir belum berhasil dihitung", which is what led a
+  revenleather session (on a local D1 without courier rules) to make the quote
+  allow every courier instead. Rendered on `dev:local` at 390 and 1440 px.
 - **revenleather (`page.revenleather.com`) on 1.7.8, noindexed** because the
   brand's Shopify shop owns search for the same catalog. Its own commits on
   2026-10-23 edit 27 product-owned files under `src/` (checkout, header, footer,

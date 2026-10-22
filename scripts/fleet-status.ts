@@ -8,6 +8,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { findProductOwnedEdits } from "../src/lib/deploy-preflight.ts";
 
 const args = process.argv.slice(2);
 const offline = args.includes("--offline");
@@ -50,9 +51,20 @@ for (const dir of dirs) {
 
   // Installs that share history with the product report how far behind it
   // they are; a tree-synced one has no merge base to count from.
-  row.product = git(root, "merge-base", "HEAD", "product/main") === null
+  const productBase = git(root, "merge-base", "HEAD", "product/main");
+  row.product = productBase === null
     ? "no shared history"
     : `${git(root, "rev-list", "--count", "HEAD..product/main")} behind`;
+  // Product-owned files the install edited since that merge (preflight warns on the same list).
+  row.edits = productBase === null
+    ? "-"
+    : String(
+        findProductOwnedEdits(
+          (git(root, "diff", "--name-only", productBase, "HEAD") ?? "").split("\n"),
+          // The install's own register, read as text: importing it would run its code.
+          [...read(path.join(root, "src/data/native-landing-pages.ts")).matchAll(/slug:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]),
+        ).length,
+      );
 
   if (!offline) {
     const worker = field(wrangler, /"name":\s*"([^"]+)"/);

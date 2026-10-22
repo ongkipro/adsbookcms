@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  findProductOwnedEdits,
   findUnbundledMigrations,
   findUnregisteredNativeLandings,
   checkDeployTarget,
@@ -245,4 +246,32 @@ test("a native landing live in D1 but missing from the register is named", () =>
   // A registered page not yet synced to D1 is the reconcile's job, not a refusal.
   assert.deepEqual(findUnregisteredNativeLandings(["promo-a"], ["promo-a", "promo-new"]), []);
   assert.deepEqual(findUnregisteredNativeLandings([], []), []);
+});
+
+test("an install's edits to product-owned files are named; its config, log, brand assets and native landing pages are not", () => {
+  assert.deepEqual(
+    findProductOwnedEdits([
+      "wrangler.jsonc",
+      "RELEASE.md",
+      "public/images/reven-mark.svg",
+      ".github/workflows/deploy.yml",
+      "src/scripts/form-hybrid.ts",
+      "STATUS.md",
+      "docs/UPDATE-PATH-OWNERSHIP.md",
+      "src/pages/promo-lebaran.astro",
+      "src/styles/landing-pages/promo-lebaran.css",
+      "src/data/native-landing-pages.ts",
+      "docs/route-map.xml",
+      "src/pages/tentang.astro",
+      "src/db/migrations/0067_store_catalogue.sql",
+      "",
+    ], ["promo-lebaran"]),
+    [
+      "src/scripts/form-hybrid.ts",
+      "STATUS.md",
+      "docs/UPDATE-PATH-OWNERSHIP.md",
+      "src/pages/tentang.astro",
+      "src/db/migrations/0067_store_catalogue.sql",
+    ],
+  );
 });

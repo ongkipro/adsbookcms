@@ -8,6 +8,8 @@ const fresh: SetupFacts = {
   mengantarConfigured: false,
   autolarisConfigured: false,
   activeBankAccounts: 0,
+  // Install seeds the default couriers.
+  enabledCouriers: 4,
   siteUrl: "https://adsbookcms.toko.workers.dev",
 };
 
@@ -28,6 +30,7 @@ test("every step ticks itself from what the store already holds", () => {
     mengantarConfigured: true,
     autolarisConfigured: false,
     activeBankAccounts: 1,
+    enabledCouriers: 2,
     siteUrl: "https://tokosaya.com",
   });
   assert.ok(ready.every((step) => step.done));
@@ -37,4 +40,11 @@ test("a workers.dev, placeholder or unparsable address is not the store's own do
   for (const siteUrl of ["https://x.y.workers.dev", "https://example.com", "not a url"]) {
     assert.equal(buildSetupChecklist({ ...fresh, siteUrl }).find((s) => s.id === "domain")?.done, false, siteUrl);
   }
+});
+
+test("a store with every courier switched off owes the courier step before it can quote", () => {
+  const step = buildSetupChecklist({ ...fresh, enabledCouriers: 0 }).find((s) => s.id === "couriers");
+  assert.equal(step?.done, false);
+  assert.equal(step?.required, true);
+  assert.equal(step?.href, "/admin/couriers");
 });

@@ -21,6 +21,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import {
   checkDeployTarget,
   evaluateDeployPreflight,
+  findProductOwnedEdits,
   findUnbundledMigrations,
   findUnregisteredNativeLandings,
   parseWranglerConfig,
@@ -154,6 +155,22 @@ const result = evaluateDeployPreflight({
 });
 
 for (const note of result.notes) console.log(`[preflight] ${note}`);
+
+// An install that shares history with the product: what it has changed in the
+// product's own files since the version it last merged. Warned, not refused.
+const productBase = git(["merge-base", "HEAD", "product/main"]);
+if (productBase) {
+  const edits = findProductOwnedEdits(
+    git(["diff", "--name-only", productBase, "HEAD"]).split("\n"),
+    activeNativeLandingPages().map((entry) => entry.slug),
+  );
+  if (edits.length) {
+    console.warn(`[preflight] ${edits.length} product-owned file(s) edited in this install since its last product merge:`);
+    for (const path of edits.slice(0, 10)) console.warn(`      ${path}`);
+    if (edits.length > 10) console.warn(`      … and ${edits.length - 10} more (git diff --stat ${productBase.slice(0, 7)} HEAD)`);
+    console.warn("  The next `git merge product/main` conflicts wherever both sides moved; a fix every store needs belongs in adsbookcms.");
+  }
+}
 if (!result.ok) {
   console.error("\n[preflight] Refusing to deploy:\n");
   for (const failure of result.failures) console.error(`  ✖ ${failure}\n`);

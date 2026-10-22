@@ -29,10 +29,22 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.7.9",
+    version: "1.7.10",
     date: "23 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Panel Siapkan Toko kini memperingatkan saat tidak ada kurir aktif.",
+    changes: [
+      {
+        title: "Langkah wajib: aktifkan minimal satu kurir",
+        description: "Bila semua kurir dimatikan, checkout tidak bisa menghitung ongkir dan pembeli hanya melihat pesan gagal. Panel Siapkan Toko di dashboard kini menampilkan langkah ini dengan tautan langsung ke halaman Ekspedisi.",
+      },
+    ],
+  },
+  {
+    version: "1.7.9",
+    date: "23 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Checkout lebih tahan gangguan ongkir dan pilihan transfer lebih jelas.",
     changes: [
       {

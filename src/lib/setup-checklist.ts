@@ -12,11 +12,12 @@ export type SetupFacts = {
   mengantarConfigured: boolean;
   autolarisConfigured: boolean;
   activeBankAccounts: number;
+  enabledCouriers: number;
   siteUrl: string;
 };
 
 export type SetupStep = {
-  id: "product" | "warehouse" | "mengantar" | "payment" | "domain";
+  id: "product" | "warehouse" | "mengantar" | "couriers" | "payment" | "domain";
   label: string;
   hint: string;
   href: string;
@@ -60,6 +61,17 @@ export function buildSetupChecklist(facts: SetupFacts): SetupStep[] {
       required: true,
     },
     {
+      // Install seeds the default couriers, so this is open only when every one
+      // was switched off: checkout then quotes nothing and the buyer sees only
+      // "Ongkir belum berhasil dihitung", which reads like a provider outage.
+      id: "couriers",
+      label: "Aktifkan minimal satu kurir",
+      hint: "Tanpa kurir aktif, checkout tidak bisa menghitung ongkir.",
+      href: "/admin/couriers",
+      done: facts.enabledCouriers > 0,
+      required: true,
+    },
+    {
       id: "payment",
       label: "Aktifkan pembayaran non-COD",
       hint: "Rekening bank untuk transfer manual, atau AutoLaris untuk QRIS/VA.",
@@ -85,7 +97,7 @@ export async function readSetupFacts(
 ): Promise<SetupFacts | null> {
   if (!database) return null;
   try {
-    const [products, warehouse, banks, providers] = await Promise.all([
+    const [products, warehouse, banks, couriers, providers] = await Promise.all([
       database
         .prepare("SELECT COUNT(*) AS total FROM products WHERE is_active = 1")
         .first<{ total: number }>(),
@@ -99,6 +111,9 @@ export async function readSetupFacts(
       database
         .prepare("SELECT COUNT(*) AS total FROM seller_bank_accounts WHERE is_active = 1")
         .first<{ total: number }>(),
+      database
+        .prepare("SELECT COUNT(*) AS total FROM courier_rules WHERE is_enabled = 1")
+        .first<{ total: number }>(),
       getProviderConfig(database, locals),
     ]);
     return {
@@ -107,6 +122,7 @@ export async function readSetupFacts(
       mengantarConfigured: Boolean(providers.mengantar.apiKey),
       autolarisConfigured: Boolean(providers.autolaris.apiKey),
       activeBankAccounts: Number(banks?.total) || 0,
+      enabledCouriers: Number(couriers?.total) || 0,
       siteUrl: locals.tenant.siteUrl,
     };
   } catch (error) {

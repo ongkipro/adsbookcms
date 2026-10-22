@@ -137,6 +137,7 @@ rebuild. Keep them accurate, because they are what an uninstalled Worker shows:
 | `PUBLIC_SITE_DESCRIPTION` | default meta description |
 | `PUBLIC_SITE_LOGO` | storefront and admin logo path |
 | `PUBLIC_SITE_BRAND_MARK` | optional header mark beside the store name, root-relative or `https:` (anything else is ignored). Unset keeps the letter monogram |
+| `PUBLIC_SITE_NOINDEX` | `true` keeps the whole store out of search (`X-Robots-Tag` and robots meta `noindex, nofollow` on every page). For a funnel domain that sells the same products as the brand's main shop; paid ads still run on noindexed pages. Unset keeps the store indexed |
 | `PUBLIC_SITE_TAGLINE` | brand line, also used to compose the default title |
 | `PUBLIC_SITE_THEME_COLOR` | must match `#rrggbb` or it falls back |
 | `PUBLIC_SITE_LOCALE` | `id-ID` style; drives `lang` and OG locale |

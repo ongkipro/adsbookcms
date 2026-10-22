@@ -50,13 +50,16 @@ const {
   canonical: canonicalProp,
   hideHeader = false,
   hideFooter = false,
-  noindex = false,
+  noindex: noindexProp = false,
   breadcrumbs,
   product,
   faqs,
   itemList,
   preloadImages,
 } = Astro.props;
+// A store-wide PUBLIC_SITE_NOINDEX must not leave the meta saying "index"
+// beside the middleware's noindex header.
+const noindex = noindexProp || Astro.locals.tenant.noindex;
 
 // Clean title: remove any "landing page" or "(landing page)" phrasing to focus strictly on product/brand name
 const title = (rawTitle || Astro.locals.tenant.defaultTitle)

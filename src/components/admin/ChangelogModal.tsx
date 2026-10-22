@@ -29,10 +29,22 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.7.6",
+    version: "1.7.7",
     date: "22 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Toko bisa disembunyikan dari mesin pencari dengan satu pengaturan.",
+    changes: [
+      {
+        title: "Opsi noindex untuk seluruh toko",
+        description: "Pengaturan PUBLIC_SITE_NOINDEX=true membuat semua halaman toko tidak diindeks mesin pencari. Cocok untuk domain funnel iklan atau COD yang menjual produk yang sama dengan toko utama merek, supaya keduanya tidak bersaing di hasil pencarian. Iklan berbayar tetap berjalan. Tanpa pengaturan ini toko tetap diindeks seperti biasa.",
+      },
+    ],
+  },
+  {
+    version: "1.7.6",
+    date: "22 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Judul utama beranda tidak lagi diakhiri tanda pisah saat tagline kosong.",
     changes: [
       {

@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.7.6",
+  version: "1.7.7",
+  // 1.7.7: optional PUBLIC_SITE_NOINDEX keeps a whole store out of search (header and robots meta).
   // 1.7.6: home h1 and the header brand title no longer end in a dangling separator when the tagline is empty.
   // 1.7.5: optional PUBLIC_SITE_BRAND_MARK shows the store's own mark in the header; unset keeps the monogram.
   // 1.7.4: product and landing pages are cached per province at the edge; cache hits skip the schema check.

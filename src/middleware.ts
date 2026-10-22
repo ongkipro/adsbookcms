@@ -12,7 +12,7 @@ import { resolveAdminSession } from './lib/admin-session';
 import { resolveAuthSecret } from './lib/auth-secret';
 import { getEnvValue, getRuntimeEnv } from './lib/env';
 import { isRegisteredNativeSlug, productPageRedirect } from './lib/native-landing-pages';
-import { readStoreIdentity, resolveTenantConfig } from './lib/tenant';
+import { readStoreIdentity, resolveTenantConfig, siteNoindex } from './lib/tenant';
 import {
   buildEmbedFrameAncestors,
   resolveEmbedAllowedOrigins,
@@ -233,7 +233,7 @@ export function createMiddleware(
     const hit = await readEdgeCache(edgeKey);
     if (hit) {
       const cached = applySecurityHeaders(hit, false);
-      if (url.hostname.endsWith('.workers.dev')) cached.headers.set('X-Robots-Tag', 'noindex, nofollow');
+      if (url.hostname.endsWith('.workers.dev') || siteNoindex(runtime)) cached.headers.set('X-Robots-Tag', 'noindex, nofollow');
       persistClickIds(cached);
       return cached;
     }
@@ -465,8 +465,10 @@ export function createMiddleware(
 
   // The Worker's own *.workers.dev address stays on so a one-click install has
   // somewhere to open /install (ADR-026). It must never compete with the
-  // store's domain in search, whatever site_url says.
-  if (url.hostname.endsWith('.workers.dev')) {
+  // store's domain in search, whatever site_url says. PUBLIC_SITE_NOINDEX does
+  // the same for a whole store, and as a header it also covers the pages that
+  // render outside BaseLayout.
+  if (url.hostname.endsWith('.workers.dev') || siteNoindex(runtime)) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
 

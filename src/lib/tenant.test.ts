@@ -6,6 +6,7 @@ import {
   envTenantConfig,
   loadStoreIdentity,
   resolveTenantConfig,
+  siteNoindex,
   type StoreIdentityRow,
   LOCALE_PATTERN,
   THEME_COLOR_PATTERN,
@@ -200,5 +201,27 @@ test("the header brand mark is opt-in and accepts only a site or https image pat
   } finally {
     if (previous === undefined) delete process.env.PUBLIC_SITE_BRAND_MARK;
     else process.env.PUBLIC_SITE_BRAND_MARK = previous;
+  }
+});
+
+test("the store-wide noindex is opt-in and only `true` or `1` turns it on", () => {
+  const previous = process.env.PUBLIC_SITE_NOINDEX;
+  try {
+    delete process.env.PUBLIC_SITE_NOINDEX;
+    assert.equal(resolveTenantConfig(null).noindex, false);
+    for (const on of ["true", "TRUE", "1"]) {
+      process.env.PUBLIC_SITE_NOINDEX = on;
+      assert.equal(resolveTenantConfig(null).noindex, true, on);
+    }
+    for (const off of ["false", "0", "yes", "ture"]) {
+      process.env.PUBLIC_SITE_NOINDEX = off;
+      assert.equal(resolveTenantConfig(null).noindex, false, off);
+    }
+    // The middleware reads the Worker's runtime vars, not only the build env.
+    delete process.env.PUBLIC_SITE_NOINDEX;
+    assert.equal(siteNoindex({ PUBLIC_SITE_NOINDEX: "true" }), true);
+  } finally {
+    if (previous === undefined) delete process.env.PUBLIC_SITE_NOINDEX;
+    else process.env.PUBLIC_SITE_NOINDEX = previous;
   }
 });

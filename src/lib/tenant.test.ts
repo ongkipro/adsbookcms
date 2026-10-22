@@ -182,3 +182,23 @@ test("saving the store profile persists all three previously uneditable fields",
   // rather than storing an empty string the resolver would treat as a value.
   assert.match(statement, /clean\(body\.admin_name, 120\) \|\| null/);
 });
+
+test("the header brand mark is opt-in and accepts only a site or https image path", () => {
+  const previous = process.env.PUBLIC_SITE_BRAND_MARK;
+  try {
+    delete process.env.PUBLIC_SITE_BRAND_MARK;
+    assert.equal(resolveTenantConfig(null).brandMark, "");
+
+    for (const accepted of ["/images/mark.svg", "https://cdn.example/mark.svg"]) {
+      process.env.PUBLIC_SITE_BRAND_MARK = accepted;
+      assert.equal(resolveTenantConfig(null).brandMark, accepted);
+    }
+    for (const refused of ["//evil.example/mark.svg", "javascript:alert(1)", "http://cdn.example/m.svg", "mark.svg"]) {
+      process.env.PUBLIC_SITE_BRAND_MARK = refused;
+      assert.equal(resolveTenantConfig(null).brandMark, "", refused);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.PUBLIC_SITE_BRAND_MARK;
+    else process.env.PUBLIC_SITE_BRAND_MARK = previous;
+  }
+});

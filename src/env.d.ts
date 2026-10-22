@@ -17,6 +17,7 @@ interface SharedEnvVars {
   PUBLIC_ALIAS_HOSTS?: string;
   PUBLIC_SITE_DESCRIPTION?: string;
   PUBLIC_SITE_LOGO?: string;
+  PUBLIC_SITE_BRAND_MARK?: string;
   PUBLIC_SITE_TAGLINE?: string;
   PUBLIC_SITE_THEME_COLOR?: string;
   PUBLIC_SITE_LOCALE?: string;

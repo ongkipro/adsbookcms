@@ -27,6 +27,7 @@ const [leadWord = '', ...restWords] = storeName.split(/\s+/);
 const trailingWords = restWords.join(' ');
 const tagline = Astro.locals.tenant.tagline?.trim() ?? '';
 const monogram = (leadWord[0] ?? 'A').toUpperCase();
+const brandMark = Astro.locals.tenant.brandMark;
 ---
 
 <a
@@ -42,13 +43,31 @@ const monogram = (leadWord[0] ?? 'A').toUpperCase();
        `aria-hidden` keeps it out of the accessible name but not out of what an
        auditor reads as the link's visible text. Generated content is not text
        either way, and a decorative duplicate of a letter that is already
-       spelled out beside it should never have been a text node. -->
-  <span
-    aria-hidden="true"
-    data-monogram={monogram}
-    class={`site-brand-monogram flex h-7 w-7 items-center justify-center bg-transparent text-[14px] font-bold tracking-widest ${goldClass} transition-colors group-hover:text-[#111111]`}
-    style="font-family: 'Cinzel', serif;"
-  ></span>
+       spelled out beside it should never have been a text node.
+       A store that sets PUBLIC_SITE_BRAND_MARK shows its own mark instead,
+       decorative for the same reason (empty alt). Sized by the width
+       attribute, not h-7: that utility resolves through var(--spacing), which
+       a page's inlined CSS can leave undefined, and the image then renders at
+       its intrinsic size. -->
+  {
+    brandMark ? (
+      <img
+        src={brandMark}
+        alt=""
+        width="26"
+        height="28"
+        class={`shrink-0 object-contain ${isLight ? 'invert' : ''}`}
+        decoding="async"
+      />
+    ) : (
+      <span
+        aria-hidden="true"
+        data-monogram={monogram}
+        class={`site-brand-monogram flex h-7 w-7 items-center justify-center bg-transparent text-[14px] font-bold tracking-widest ${goldClass} transition-colors group-hover:text-[#111111]`}
+        style="font-family: 'Cinzel', serif;"
+      ></span>
+    )
+  }
 
   <span class="flex flex-col justify-center">
     <span

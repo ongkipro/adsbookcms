@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.7.4",
+  version: "1.7.5",
+  // 1.7.5: optional PUBLIC_SITE_BRAND_MARK shows the store's own mark in the header; unset keeps the monogram.
   // 1.7.4: product and landing pages are cached per province at the edge; cache hits skip the schema check.
   // 1.7.3: uploaded images (R2) are kept a day in the Workers cache and answered before D1 and R2.
   // 1.7.2: Inter is declared only as optional faces (latin, latin-ext); the package swap faces are gone.

@@ -29,10 +29,22 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: "1.7.5",
+    date: "22 Oktober 2026",
+    releaseTag: "2026.10-plugins",
+    isLatest: true,
+    highlight: "Header toko kini bisa menampilkan logo merek sendiri di samping nama toko.",
+    changes: [
+      {
+        title: "Logo merek di header (opsional)",
+        description: "Isi PUBLIC_SITE_BRAND_MARK dengan path gambar (misalnya /images/merek.svg) untuk menampilkan logo toko di samping nama toko pada header. Bila tidak diisi, header tetap memakai monogram huruf seperti sebelumnya, jadi toko lain tidak berubah.",
+      },
+    ],
+  },
+  {
     version: "1.7.4",
     date: "21 Oktober 2026",
     releaseTag: "2026.10-plugins",
-    isLatest: true,
     highlight: "Halaman produk kini disimpan di edge per provinsi dengan TTFB di bawah 0,3 detik.",
     changes: [
       {

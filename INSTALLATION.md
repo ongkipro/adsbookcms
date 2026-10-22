@@ -136,6 +136,7 @@ rebuild. Keep them accurate, because they are what an uninstalled Worker shows:
 | `PUBLIC_ALIAS_HOSTS` | optional, comma separated older domains (`www.` implied). Each one 301s to `PUBLIC_SITE_URL` with path and query kept, and every `http:` request goes to `https:`. `/api/*` is never redirected (`src/lib/host-redirect.ts`). Read at runtime, so a deploy without a rebuild applies it. Attach each host as a custom domain too. `stores.site_url` must match the new canonical origin. |
 | `PUBLIC_SITE_DESCRIPTION` | default meta description |
 | `PUBLIC_SITE_LOGO` | storefront and admin logo path |
+| `PUBLIC_SITE_BRAND_MARK` | optional header mark beside the store name, root-relative or `https:` (anything else is ignored). Unset keeps the letter monogram |
 | `PUBLIC_SITE_TAGLINE` | brand line, also used to compose the default title |
 | `PUBLIC_SITE_THEME_COLOR` | must match `#rrggbb` or it falls back |
 | `PUBLIC_SITE_LOCALE` | `id-ID` style; drives `lang` and OG locale |

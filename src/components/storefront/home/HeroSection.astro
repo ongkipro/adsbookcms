@@ -27,7 +27,7 @@ const { slides } = Astro.props;
 ---
 
 <section class="bg-white">
-  <h1 class="sr-only">{Astro.locals.tenant.name} — {Astro.locals.tenant.tagline}</h1>
+  <h1 class="sr-only">{Astro.locals.tenant.defaultTitle}</h1>
   <div class="relative overflow-hidden bg-white">
     <div id="hero-track" class="flex transition-transform duration-700 ease-out will-change-transform">
       {

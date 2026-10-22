@@ -29,10 +29,22 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.7.5",
+    version: "1.7.6",
     date: "22 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Judul utama beranda tidak lagi diakhiri tanda pisah saat tagline kosong.",
+    changes: [
+      {
+        title: "Judul beranda dan nama toko di header lebih rapi",
+        description: "Toko tanpa tagline sebelumnya menampilkan judul utama beranda (dibaca mesin pencari dan pembaca layar) sebagai \"Nama Toko — \" dengan tanda pisah menggantung, begitu juga keterangan saat kursor diarahkan ke nama toko di header. Kini keduanya hanya berisi nama toko, atau nama toko dan tagline bila tagline diisi.",
+      },
+    ],
+  },
+  {
+    version: "1.7.5",
+    date: "22 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Header toko kini bisa menampilkan logo merek sendiri di samping nama toko.",
     changes: [
       {

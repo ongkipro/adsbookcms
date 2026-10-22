@@ -34,7 +34,7 @@ const brandMark = Astro.locals.tenant.brandMark;
   href={href}
   class={`group inline-flex min-h-11 items-center gap-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#111111] ${className}`}
   aria-label={Astro.locals.tenant.name}
-  title={`${Astro.locals.tenant.name} - ${Astro.locals.tenant.tagline}`}
+  title={Astro.locals.tenant.defaultTitle}
 >
   <!-- Elegant Monogram Luxury Emblem Icon without border.
        The letter is drawn by CSS rather than written as a text node. As markup

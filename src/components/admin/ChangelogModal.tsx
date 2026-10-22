@@ -29,10 +29,22 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.7.7",
+    version: "1.7.8",
     date: "22 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Pratinjau toko lewat alamat IP tidak lagi dialihkan ke domain toko.",
+    changes: [
+      {
+        title: "Pratinjau lewat alamat IP",
+        description: "Membuka toko lewat alamat IP, misalnya dari jaringan lokal atau Tailscale saat pengembangan, sebelumnya langsung dialihkan ke domain toko sehingga perubahan tidak bisa dilihat. Kini alamat IP diperlakukan sama seperti localhost. Pengunjung yang datang lewat domain tidak terpengaruh.",
+      },
+    ],
+  },
+  {
+    version: "1.7.7",
+    date: "22 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Toko bisa disembunyikan dari mesin pencari dengan satu pengaturan.",
     changes: [
       {

@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.7.7",
+  version: "1.7.8",
+  // 1.7.8: bare IP hosts (LAN or Tailscale preview) are never host-redirected, like localhost.
   // 1.7.7: optional PUBLIC_SITE_NOINDEX keeps a whole store out of search (header and robots meta).
   // 1.7.6: home h1 and the header brand title no longer end in a dangling separator when the tagline is empty.
   // 1.7.5: optional PUBLIC_SITE_BRAND_MARK shows the store's own mark in the header; unset keeps the monogram.

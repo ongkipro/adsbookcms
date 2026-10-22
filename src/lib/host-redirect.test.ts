@@ -25,6 +25,8 @@ test('api paths and local hosts are never moved', () => {
   assert.equal(go('http://petanisawit.com/api/submit-order'), null);
   assert.equal(go('http://localhost:4321/'), null);
   assert.equal(go('http://127.0.0.1:8798/produk'), null);
+  assert.equal(go('http://100.127.67.86:4321/produk/asoka-wallet'), null);
+  assert.equal(go('http://[fd7a:115c:a1e0::1]:4321/produk'), null);
 });
 
 test('aliases need a canonical site; a bad list or URL moves nothing but http', () => {

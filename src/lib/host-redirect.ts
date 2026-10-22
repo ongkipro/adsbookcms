@@ -14,7 +14,8 @@
  *
  * `/api/` is never moved. A webhook or payment callback registered on an older
  * domain, or on http, must still land: most senders do not follow a redirect,
- * and a 301 turns a POST into a GET. Local hosts are never moved either.
+ * and a 301 turns a POST into a GET. Local hosts and bare IP addresses (a LAN
+ * or Tailscale preview) are never moved either.
  */
 export function resolveHostRedirect(
   url: URL,
@@ -23,7 +24,7 @@ export function resolveHostRedirect(
 ): string | null {
   if (url.pathname.startsWith('/api/')) return null;
   const host = url.hostname.toLowerCase();
-  if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')) return null;
+  if (host === 'localhost' || host.endsWith('.localhost') || /^(\d+\.){3}\d+$/.test(host) || host.startsWith('[')) return null;
 
   let canonical: URL | null = null;
   try {

@@ -275,3 +275,12 @@ test("an install's edits to product-owned files are named; its config, log, bran
     ],
   );
 });
+
+test("the product template runs beside its D1, and the parser sees placement", () => {
+  const onDisk = parseWranglerConfig(readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8"));
+  // Installs own their wrangler.jsonc; only the template is held to it here.
+  if (onDisk.d1Databases?.some((database) => database.database_id === ZERO_D1)) {
+    assert.deepEqual(onDisk.placement, { mode: "smart" });
+  }
+  assert.equal(parseWranglerConfig(`{ "name": "x" }`).placement, undefined);
+});

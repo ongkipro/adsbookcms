@@ -2,6 +2,25 @@
 
 > Verified against disk: 2026-10-23 (1.7.8 on revenleather; 1.7.4 on zvarashop; 1.7.2 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
 
+## 2026-10-23 — 1.7.11: product pages and far colos (ADR-030)
+
+- A PageSpeed pass over page.revenleather.com (Lighthouse mobile, every
+  template) put product pages at 3.7-6 s to the first byte while the rest sat
+  near 0.5 s. Cause, measured: Cloudflare served part of the Indonesian traffic
+  (and all of PageSpeed) from SEA/SJC; `wrangler tail` showed 80-220 ms CPU in
+  a 3.7-6 s wall, and a product page made nine sequential D1 reads to the APAC
+  primary, the catalogue twice.
+- **1.7.11** the catalogue is read once per request with its two queries in
+  parallel, and the product page reads its landing claim beside the order
+  count: nine sequential round trips become six (counted on `dev:local`). The
+  template sets `"placement": { "mode": "smart" }`; the deploy preflight warns
+  an install whose `wrangler.jsonc` has none. Also restores the type narrowing
+  1.7.9 lost in `shipping-quote.ts`: `npm run check` had been red since 1.7.9
+  while `npm test` stayed green, so both gates must run, never one.
+- Not taken: delaying the Google and Meta tags (most of the 450-860 ms TBT on
+  every page), because the ad signal is the product. SEO 69 on the revenleather
+  run is its own `PUBLIC_SITE_NOINDEX`, by design.
+
 ## 2026-10-22/23 — 1.7.5–1.7.9: store mark and noindex opt-ins, IP preview, checkout resilience; revenleather drift
 
 - **1.7.5** `PUBLIC_SITE_BRAND_MARK` shows a store's own mark beside the

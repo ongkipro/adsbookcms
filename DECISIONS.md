@@ -1054,3 +1054,55 @@ while the outer `/produk/<slug>` request caches the final 200 HTML under the
 product's province key. In `src/middleware.ts`, canonical host redirects and
 `readEdgeCache` now run above `ensureSchemaReady(identityDb)`, so an edge cache
 hit never pays a D1 `d1_migrations` read on a cold isolate.
+
+## ADR-030 — Run beside D1, and budget the D1 round trips a page makes
+
+**Date:** 2026-10-23 · **Status:** Accepted. 1.7.11, `wrangler.jsonc`
+`placement`, `src/lib/catalog.ts`.
+
+**Context.** A PageSpeed pass over page.revenleather.com found product pages at
+3.7-6 s to the first byte while the rest of the store sat near 0.5 s. CPU was
+80-220 ms per request (`wrangler tail`); the rest was waiting. The `cf-ray`
+suffix showed why: Cloudflare served part of the Indonesian traffic from SEA
+and SJC, and PageSpeed Insights always runs from the US. From there every
+sequential D1 read crosses the Pacific to the APAC primary, and the
+per-colo edge cache (ADR-029) is cold. The same uncached page from SIN took
+0.4-0.7 s. A product page made nine sequential D1 reads, two of them the whole
+catalogue twice (once for the page, once for its order form).
+
+**Decision.**
+
+1. The template turns on Smart Placement (`"placement": { "mode": "smart" }`),
+   so Cloudflare runs the fetch handler beside D1 when that is faster. Static
+   assets still serve from the nearest colo. It is install-owned config, so
+   each install opts in in its own `wrangler.jsonc`.
+2. The catalogue is read once per request (`getStorefrontProducts` memoised on
+   `locals`), and its two queries run in parallel. A product page went from
+   nine sequential round trips to six.
+3. **Budget for a storefront page:** independent D1 reads run in
+   `Promise.all` or one `batch`; nothing loads the same data twice in one
+   request; a new sequential read on a public page needs a reason in its
+   comment.
+
+**How to check a page (the procedure behind these numbers).**
+
+- `curl -sD - -o /dev/null <url>`: read `X-Edge-Cache` and the `cf-ray` colo.
+  A slow `MISS` from a US colo is distance, not code.
+- `npx wrangler tail --format json`: `wallTime` far above `cpuTime` means the
+  request waited on I/O.
+- Count D1 statements locally with `npm run dev:local` and a temporary
+  counting proxy on `OMS_DB`; never commit it.
+- Lighthouse mobile (`npx lighthouse <url> --form-factor=mobile`) for every
+  template: home, `/produk`, one legal page, product pages with and without a
+  landing claim, a landing page. Test a product page with a fresh URL, since a
+  repeat run reads the edge cache.
+
+**Not changed.** Google and Meta tags account for most of the 450-860 ms
+Total Blocking Time on every page. That is the cost of the ad signal this
+product exists for. They are not delayed past first interaction, because a
+PageView lost to a fast bounce is worth more than the score.
+
+**Consequences.** Smart Placement needs up to 15 minutes of traffic from
+several locations before it decides, and it can decline (`cf-placement`
+response header). A store whose traffic all comes from one colo gains nothing
+and loses nothing.

@@ -155,6 +155,10 @@ const result = evaluateDeployPreflight({
 });
 
 for (const note of result.notes) console.log(`[preflight] ${note}`);
+if (!target.placement) {
+  console.warn('[preflight] wrangler.jsonc has no `placement`: a visitor routed to a far colo pays every D1 read across the ocean.');
+  console.warn('  Add `"placement": { "mode": "smart" }` as the product template does (ADR-030).');
+}
 
 // An install that shares history with the product: what it has changed in the
 // product's own files since the version it last merged. Warned, not refused.

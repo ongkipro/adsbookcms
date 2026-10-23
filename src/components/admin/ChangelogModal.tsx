@@ -29,10 +29,26 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.7.10",
+    version: "1.7.11",
     date: "23 Oktober 2026",
     releaseTag: "2026.10-plugins",
     isLatest: true,
+    highlight: "Halaman produk lebih cepat terbuka, termasuk saat dilayani dari server luar negeri.",
+    changes: [
+      {
+        title: "Halaman produk membaca database lebih sedikit",
+        description: "Katalog kini dibaca sekali per kunjungan dan bacaan yang tidak saling bergantung dijalankan bersamaan. Waktu tunggu halaman produk sebelum mulai tampil jadi lebih singkat, terutama bila Cloudflare melayani pengunjung dari server di Amerika.",
+      },
+      {
+        title: "Worker berjalan dekat database (Smart Placement)",
+        description: "Template wrangler.jsonc kini menyalakan Smart Placement. Toko yang sudah terpasang perlu menambahkannya di wrangler.jsonc sendiri; deploy preflight akan mengingatkan bila belum.",
+      },
+    ],
+  },
+  {
+    version: "1.7.10",
+    date: "23 Oktober 2026",
+    releaseTag: "2026.10-plugins",
     highlight: "Panel Siapkan Toko kini memperingatkan saat tidak ada kurir aktif.",
     changes: [
       {

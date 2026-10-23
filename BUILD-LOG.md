@@ -6829,3 +6829,27 @@ the saved pair wins and the secret is never returned to the browser).
 - Migrations `0062_order_source_page`, `0063_kelola_order_sync`,
   `0064_kelola_dashboard_config`, `0065_kelola_lead_sync`. The file names match
   the install's, so it merges this release without a migration conflict.
+
+### Entry 180: Product pages that waited on the Pacific
+
+- Lighthouse mobile across every page.revenleather.com template: home 76,
+  `/produk` 86, legal pages 81-86, product pages 47-68. Accessibility 96-100.
+  Best practices 77 everywhere (ad tags' third-party cookies). SEO 69 is the
+  store's own noindex. The product pages lost on TTFB (3.9-7.9 s) and Speed
+  Index (8-14 s).
+- Curl with `cf-ray` tied it to the colo: uncached product pages took
+  3.2-4.8 s from SEA and SJC and 0.36-1.4 s from SIN. Request headers made no
+  difference; an earlier "query string is fast" reading was coincidence.
+  `wrangler tail`: 80-220 ms CPU per request. D1 itself answered the heaviest
+  catalogue query in 2.4 ms (79 rows, 180 KB).
+- A temporary counting proxy on `OMS_DB` (not committed) counted nine
+  sequential reads on `/produk/<slug>`, the catalogue batch and content read
+  twice. After 1.7.11: six. Home 6, `/produk` 4, `/tentang` 2, unchanged.
+- 1.7.11: per-request catalogue memo plus a parallel content read
+  (`catalog.test.ts`, mutation-checked: removing the memo fails it), the
+  landing claim read beside the order count, Smart Placement in the template, a
+  preflight warning for an install without `placement`, and ADR-030 with the
+  measuring procedure. Gates: `npm run check` 0 errors, `npm test` 875/875,
+  `npm run build` green.
+- `npm run check` had been red since 1.7.9 (lost narrowing in
+  `shipping-quote.ts`) while `npm test` was green. Fixed here.

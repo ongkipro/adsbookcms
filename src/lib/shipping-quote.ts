@@ -154,7 +154,8 @@ export async function resolveEligibleShippingRates(
   // policy at every amount sampled between Rp50.000 and Rp1.000.000. That
   // divergence is recorded in `UNIMPLEMENTED_SPECS.md`, not silently corrected.
   const isCod = input.paymentMethod === "cod";
-  const hasCityFallback = isCod && Boolean(input.destinationCity?.trim());
+  const destinationCity = input.destinationCity ?? "";
+  const hasCityFallback = isCod && destinationCity.trim() !== "";
   const [rates, ruleResult] = await Promise.all([
     // A failed exact-district estimate used to end a COD checkout even though
     // the city-average fallback below exists for exactly that buyer. Prepaid
@@ -205,8 +206,8 @@ export async function resolveEligibleShippingRates(
     };
   }
 
-  const cityKey = normalizeCity(input.destinationCity);
-  const candidates = (await client.searchAddress(input.destinationCity))
+  const cityKey = normalizeCity(destinationCity);
+  const candidates = (await client.searchAddress(destinationCity))
     .filter(
       (item) =>
         item._id &&

@@ -34,6 +34,16 @@
     "nodejs_compat"
   ],
 
+  // Run the Worker beside its D1, not beside the visitor. A page makes several
+  // sequential D1 reads, and Cloudflare serves part of Indonesian traffic (and
+  // all of PageSpeed Insights) from US colos: there each read crossed the
+  // Pacific, 3.7-6 s to the first byte on page.revenleather.com against 0.5 s
+  // from SIN. Static assets still serve from the nearest colo. Cloudflare needs
+  // up to 15 minutes of multi-location traffic to decide (ADR-030).
+  "placement": {
+    "mode": "smart"
+  },
+
   // The one secret a store cannot run without, and the only one the Deploy
   // button asks for (.dev.vars.example). `wrangler deploy` refuses a Worker
   // that lacks it. Everything else is optional:

@@ -24,6 +24,8 @@ export type WranglerTarget = {
   d1Databases?: { binding?: unknown; database_name?: unknown; database_id?: unknown }[];
   kvNamespaces?: { binding?: unknown; id?: unknown }[];
   r2Buckets?: { binding?: unknown; bucket_name?: unknown }[];
+  /** `placement` — absent means the Worker runs beside the visitor, not its D1 (ADR-030). */
+  placement?: unknown;
 };
 
 export type PreflightResult =
@@ -101,6 +103,7 @@ export function parseWranglerConfig(source: string): WranglerTarget {
     r2Buckets: Array.isArray(parsed.r2_buckets)
       ? (parsed.r2_buckets as WranglerTarget["r2Buckets"])
       : [],
+    placement: parsed.placement,
   };
 }
 

@@ -33,10 +33,13 @@ if (!product) {
 // read, so the geo helper is named once here to keep that check clean.
 void geoHeadersFromCf;
 
-const productPageLanding = await getProductPageLanding(
-  Astro.locals,
-  String(product.productId),
-);
+// Read beside the landing claim, not after it: a D1 round trip is a Pacific
+// crossing when a US colo serves the page. Unused when the claim rewrites.
+const [productPageLanding, socialProofOrders] = await Promise.all([
+  getProductPageLanding(Astro.locals, String(product.productId)),
+  // The store's real orders (A-300); under the threshold the toast renders nothing.
+  recentOrderCount(getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined),
+]);
 if (productPageLanding) {
   // The rewritten route does NOT see this route's `Astro.url` — it sees the
   // landing slug — so the hand-off is signalled on the request itself.
@@ -54,8 +57,6 @@ if (productPageLanding) {
     }),
   );
 }
-// The store's real orders (A-300); under the threshold the toast renders nothing.
-const socialProofOrders = await recentOrderCount(getRuntimeEnv(Astro.locals)?.OMS_DB as D1Database | undefined);
 
 const cheapestVariant = [...product.variants].sort((a, b) => a.price - b.price)[0] ?? null;
 const displayPrice = cheapestVariant?.price ?? product.price;

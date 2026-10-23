@@ -71,3 +71,22 @@ test("the Product ID the API publishes resolves back to its product", () => {
   assert.equal(published, "10001");
   assert.equal(lookup(products, String(published))?.slug, "serum-wajah");
 });
+
+test("a request reads the catalogue from D1 once, however many components ask", async () => {
+  const { getStorefrontProducts, getStorefrontProduct } = await import("./catalog.ts");
+  let reads = 0;
+  const statement = { bind: () => statement, all: async () => { reads += 1; return { results: [] }; } };
+  const database = {
+    prepare: () => statement,
+    batch: async () => { reads += 1; return [{ results: [] }, { results: [] }]; },
+  };
+  const locals = { runtimeEnv: { OMS_DB: database } } as never;
+
+  // The product page and its order form, as on /produk/<slug>.
+  await Promise.all([getStorefrontProduct(locals, "a"), getStorefrontProduct(locals, "a")]);
+  await getStorefrontProducts(locals);
+  assert.equal(reads, 2, "one catalogue batch and one content read for the whole request");
+
+  await getStorefrontProducts({ runtimeEnv: { OMS_DB: database } } as never);
+  assert.equal(reads, 4, "the next request reads again, so an admin edit shows");
+});

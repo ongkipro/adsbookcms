@@ -117,7 +117,7 @@ install on 2026-09-26 and neither is visible in this repository:
 | `ViewContent` | `view_item` | One canonical product is viewed | Canonical D1 product ID and current D1 value. |
 | `AddToCart` | `add_to_cart` | Current direct-response form reaches qualified customer intent | Never a scroll, impression, or arbitrary CTA click. |
 | `InitiateCheckout` | `begin_checkout` | A valid checkout submit attempt begins | Product, variant, value, and customer boundary have passed browser validation; server still revalidates. |
-| `Purchase` | `purchase` | The qualifying persisted order state is confirmed | COD requires persisted order success; online payment requires authenticated paid reconciliation, which itself enqueues the server CAPI Purchase (same `INV-` event id, so a browser leg that already fired is a no-op) for buyers who never return to `/thanks`. |
+| `Purchase` | `purchase` | The qualifying persisted order state is confirmed | COD requires persisted order success and fires from `/thanks`; a manual transfer requires the operator's "Transfer Diterima" confirmation, which enqueues the server CAPI Purchase (§13); online payment requires authenticated paid reconciliation, which itself enqueues the server CAPI Purchase (same `INV-` event id, so a browser leg that already fired is a no-op) for buyers who never return to `/thanks`. |
 
 `src/lib/meta-event-contract.ts` accepts exactly these five names. The repository does not map every interaction to `Lead` or `Purchase`. Analytics UI events must remain separate from optimization events.
 
@@ -722,6 +722,29 @@ A successfully persisted COD order may qualify as Purchase because the commercia
 Order creation alone is not Purchase. `/api/order-status` reads the existing D1 order/payment state. Only authenticated AutoLaris paid reconciliation qualifies the online Purchase path. Unknown orders return `404`; unpaid or failed states must not be rewritten as Purchase.
 
 Payment success, provider acceptance, ad-platform acceptance, attribution, and reported revenue are separate observable facts.
+
+### Manual transfer (2026-10-24, 1.7.13)
+
+The buyer pays into the seller's own account, usually after a WhatsApp chat,
+so no provider can confirm it and `/thanks` never sees it paid (`fire()` stops
+on a non-COD order that is not `is_paid`). The operator's "Transfer Diterima"
+button on the order detail page is the qualifying event: it PATCHes
+`payment_status: paid`, and `manualTransferBecamePaid()` in
+`src/lib/paid-order-purchase.ts` then calls `enqueuePurchaseForPaidOrder`,
+the same server path AutoLaris reconciliation uses. The Purchase carries the
+`INV-` number as `event_id` and the identity stored at checkout
+(`meta_request_context`: fbp, fbc, IP, user agent, external id), with
+`event_time` at confirmation. It is best effort: a CAPI failure never undoes
+the payment, and the outbox retries it.
+
+Only `manual_transfer` crossing into a paid status qualifies. COD stays on
+`/thanks` (courier remittance must not report it again), and QRIS/VA stay on
+reconciliation. Before 1.7.13 the dashboard had no control that set a manual
+transfer paid at all, so those orders could not be pushed to Mengantar either.
+
+**Rule for every install and every new order path:** a path that makes an
+order paid outside `/thanks` must call `enqueuePurchaseForPaidOrder`, or the
+buyer it served never reaches Meta as a Purchase.
 
 ## 14. Consent and Privacy Boundary
 

@@ -6886,3 +6886,27 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   `#54656f` (4.2:1 to 5.5:1). Deployed `8e41fa52`.
 - Still open, by choice: Google and Meta tags remain most of TBT (ADR-030);
   Best Practices 77 is their third-party cookies; Reven SEO 69 is its noindex.
+
+### Entry 183: Manual transfer confirmation and its Purchase (1.7.13)
+
+- Reported: "Purchase from /thanks often does not reach Meta Ads". Measured on
+  revenleather D1 instead of assumed: 136/136 COD `INV-` orders in 30 days have
+  a `sent` Purchase in `capi_event_outbox`, with fbp, IP and user agent on all
+  and fbc on 59/60. The server leg is complete, so a shortfall in Ads Manager is
+  attribution or dataset, not delivery. The 41 orders without a Purchase are
+  `ABN-` abandoned leads.
+- The real gap: `manual_transfer` (12 orders, all `pending`, zero Purchases).
+  The reconciliation queue lists only AutoLaris QRIS/VA, and no admin control
+  sent `payment_status`, so a transfer confirmed over WhatsApp could neither be
+  marked paid nor dispatched, and never became a Purchase.
+- Added the "Transfer Diterima" button (non-destructive confirm dialog, new
+  `tone` option on `useConfirm`) and `manualTransferBecamePaid()` gating
+  `enqueuePurchaseForPaidOrder` in `PATCH /api/admin/orders/[id]`. The response
+  message says whether the Purchase was sent. Test in
+  `paid-order-purchase.test.ts`, mutation-checked (dropping the previous-status
+  guard fails it).
+- Browser evidence on `dev:local` (390x844 and 1440x900): button shown only on
+  an unpaid manual transfer, dialog, PATCH 200, badge "Lunas", button gone, no
+  console errors. Meta was unconfigured locally (`skipped`), so the CAPI send
+  itself is covered by the unit tests, not observed against Meta.
+

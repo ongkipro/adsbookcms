@@ -1,8 +1,21 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-23 (1.7.8 on revenleather; 1.7.4 on zvarashop; 1.7.2 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
+> Verified against disk: 2026-10-24 (1.7.13 on revenleather, zvarashop, taniniaga, agritani-shop, halotanishop, permatamall, numaskin-adbook, bavenshop, beranda-tani; zanobyshop on 1.7.2)
 
 ## 2026-10-24 — 1.7.13: manual transfer confirmation sends the Purchase
+
+- Fleet on 1.7.13, all deployed 2026-10-24 with `placement: smart` now in every
+  install's `wrangler.jsonc`: zvarashop `892b5e1c`, taniniaga `f5e5f989`,
+  agritani-shop `5ff9537f`, halotanishop `221c80a2`, numaskin-adbook
+  `c1abc162`, bavenshop `c5ae60ed`, beranda-tani `9450565d`, permatamall
+  `613ca146` (from 1.5.11; production D1 went 62 → 67 migrations on the first
+  request). Each: home, a sitemap product page with its form, and `/admin`
+  (302) checked live. halotanishop and bavenshop repositories made private.
+- **permatamall's GitHub Actions deploy cannot pass.** `deploy.yml` runs the
+  strict preflight, and the repository's `CLOUDFLARE_API_TOKEN` cannot read D1
+  ("could not read the production migration ledger"), so every push since
+  2026-10-19 has failed. 1.7.13 was deployed from a workstation instead. Fix:
+  give that token D1 read on the account, or deploy by hand.
 
 - Audit of revenleather D1, last 30 days: every `INV-` COD order (136/136) has
   a `sent` CAPI Purchase, fbc on 59 of the last 60. The 41 without one are

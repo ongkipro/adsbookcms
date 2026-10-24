@@ -6910,3 +6910,13 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   console errors. Meta was unconfigured locally (`skipped`), so the CAPI send
   itself is covered by the unit tests, not observed against Meta.
 
+### Entry 184: Event Match Quality measured from Meta (docs only)
+
+- Read revenleather's Dataset Quality through the Graph API with the owner's
+  approval, with the token piped from D1 and never printed. Purchase and
+  InitiateCheckout scored 7.8, AddToCart 7.3, ViewContent and PageView 6.1.
+  event_id deduplication was 100% browser and server on every event.
+- Recorded in TRACKING_SPECS §16.2 (diagnosing a Purchase shortfall from D1),
+  §16.3 (the request, the baseline, how to read it), and the owner's decisions:
+  no fabricated match keys, and an optional email field deferred.
+

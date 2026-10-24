@@ -14,8 +14,9 @@
 - **permatamall's GitHub Actions deploy cannot pass.** `deploy.yml` runs the
   strict preflight, and the repository's `CLOUDFLARE_API_TOKEN` cannot read D1
   ("could not read the production migration ledger"), so every push since
-  2026-10-19 has failed. 1.7.13 was deployed from a workstation instead. Fix:
-  give that token D1 read on the account, or deploy by hand.
+  2026-10-19 has failed. 1.7.13 was deployed from a workstation instead, and
+  `deploy.yml` was then removed (permatamall `5499583`): it deploys by hand
+  like every other install, and CI runs check, test and build only.
 
 - Audit of revenleather D1, last 30 days: every `INV-` COD order (136/136) has
   a `sent` CAPI Purchase, fbc on 59 of the last 60. The 41 without one are

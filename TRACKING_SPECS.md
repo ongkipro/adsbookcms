@@ -780,3 +780,31 @@ For the selected storefront:
 - use Meta Test Events only with an operator-provided test code and explicit outbound-call approval.
 
 A passing local test or build does not prove live Meta/Google acceptance, Event Match Quality, attribution, catalog health, or campaign performance. Record exact observed results and non-actions in `STATUS.md` and `BUILD-LOG.md`.
+
+### 16.1 Checking a live install without sending events (2026-10-24)
+
+The procedure behind the 1.7.12 check on revenleather and petanisejahtera.com.
+
+- **Block before you watch.** Route every tracking request in Playwright and
+  abort it after reading the payload: `facebook.com/tr`, `/api/meta-event`,
+  `google.com/(ccm|rmkt|pagead)`, `doubleclick.net`, `googleadservices.com`.
+  An order-path walk that does not do this sends real AddToCart and
+  InitiateCheckout events through CAPI with the test buyer's data. That
+  happened once on 2026-10-23.
+- **The browser Pixel is silent under automation.** fbevents loads and
+  `fbq('track')` is called, but no `/tr` request is made while
+  `navigator.webdriver` is true. Launch Chrome with
+  `--disable-blink-features=AutomationControlled` before you conclude the
+  Pixel is broken.
+- **Deduplication is checked within one visit:** each `eid` on a Pixel hit must
+  equal the `event_id` of one `/api/meta-event` body. Expected pairs: PageView
+  and ViewContent on load; AddToCart once name and phone qualify;
+  InitiateCheckout once the district resolves (hybrid), or on submit (middle).
+  `SubscribedButtonClick` is Meta's automatic event and has no CAPI twin.
+- **Attribution:** a URL with `fbclid` must leave `_fbc`, `_fbp` and
+  `adsbook_click_ids` cookies, on an edge-cache hit as well as a miss.
+- **Server side:** `npx wrangler tail --format json` on the install's Worker
+  for a couple of minutes of real traffic; `/api/meta-event`, submit and
+  `/thanks` should answer 200 with no exceptions or `error` logs.
+- Purchase is not covered by any of this: it needs a real order, which is a
+  production write and needs explicit approval.

@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   activeNativeLandingPages,
   isNativeLandingId,
   isRegisteredNativeSlug,
   nativeLandingIdFor,
+  nonCanonicalNativeSlugs,
   validateNativeLandingPages,
   type NativeLandingPage,
 } from "./native-landing-pages.ts";
@@ -75,4 +77,18 @@ test("a register image must be a site path or an https URL", async () => {
   for (const image of ["javascript:alert(1)", "//evil.test/x.webp", "http://insecure.test/x.webp", "promo.webp"]) {
     assert.equal(validateNativeLandingPages([{ ...base, image }]).length, 1, image);
   }
+});
+
+test("a second ad slug canonical to another page stays out of the sitemap", () => {
+  const entries = [entry({ slug: "promo-a" }), entry({ slug: "promo-a-2", canonicalSlug: "promo-a" })];
+  assert.deepEqual([...nonCanonicalNativeSlugs(entries)], ["promo-a-2"]);
+  assert.deepEqual(validateNativeLandingPages(entries), []);
+  // Pointing at itself or at a malformed slug is a register mistake.
+  for (const canonicalSlug of ["promo-a", "Bad Slug"]) {
+    const errors = validateNativeLandingPages([entry({ slug: "promo-a", canonicalSlug })]);
+    assert.equal(errors[0]?.reason, "canonicalSlug harus slug halaman lain.", canonicalSlug);
+  }
+  // The sitemap reads this set.
+  const sitemap = readFileSync(new URL("../pages/sitemap.xml.ts", import.meta.url), "utf8");
+  assert.match(sitemap, /!duplicates\.has\(p\.slug\)/);
 });

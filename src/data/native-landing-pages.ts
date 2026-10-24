@@ -36,6 +36,11 @@ export type NativeLandingPage = {
   image?: string;
   /** A page can be registered before it is ready to be linked. */
   isActive?: boolean;
+  /** A second ad slug that renders another page's content declares that page
+   *  here, and its route points `canonical` at it. The sitemap then lists only
+   *  the canonical one: Google reports a submitted URL whose canonical is
+   *  elsewhere as a duplicate. */
+  canonicalSlug?: string;
 };
 
 export const nativeLandingPages: NativeLandingPage[] = [

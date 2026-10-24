@@ -56,9 +56,19 @@ export function validateNativeLandingPages(
     if (entry.image !== undefined && !/^(\/(?![/\\])|https:\/\/)\S+$/.test(String(entry.image))) {
       errors.push({ slug, reason: "image harus path (/...) atau URL https." });
     }
+    if (entry.canonicalSlug !== undefined && (!SLUG_PATTERN.test(entry.canonicalSlug) || entry.canonicalSlug === slug)) {
+      errors.push({ slug, reason: "canonicalSlug harus slug halaman lain." });
+    }
   }
 
   return errors;
+}
+
+/** Registered slugs whose canonical is another page, kept out of the sitemap. */
+export function nonCanonicalNativeSlugs(
+  entries: readonly NativeLandingPage[] = nativeLandingPages,
+): Set<string> {
+  return new Set(entries.filter((entry) => entry.canonicalSlug && entry.canonicalSlug !== entry.slug).map((entry) => entry.slug));
 }
 
 export function activeNativeLandingPages(

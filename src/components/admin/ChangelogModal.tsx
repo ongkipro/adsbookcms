@@ -29,10 +29,26 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: "1.7.12",
+    date: "24 Oktober 2026",
+    releaseTag: "2026.10-plugins",
+    isLatest: true,
+    highlight: "Sitemap dan judul halaman lebih bersih untuk Google.",
+    changes: [
+      {
+        title: "Slug iklan kedua tidak lagi masuk sitemap",
+        description: "Landing page native yang memakai konten halaman lain (canonical ke halaman itu) bisa ditandai canonicalSlug di register. Sitemap hanya mencantumkan halaman aslinya, sehingga Google tidak melaporkannya sebagai duplikat.",
+      },
+      {
+        title: "Nama toko tidak tertulis dua kali di judul",
+        description: "Judul Kebijakan Privasi, Syarat & Ketentuan, dan Pengiriman tidak lagi menambahkan nama toko bila judulnya sudah memuat nama itu.",
+      },
+    ],
+  },
+  {
     version: "1.7.11",
     date: "23 Oktober 2026",
     releaseTag: "2026.10-plugins",
-    isLatest: true,
     highlight: "Halaman produk lebih cepat terbuka, termasuk saat dilayani dari server luar negeri.",
     changes: [
       {

@@ -6853,3 +6853,16 @@ the saved pair wins and the secret is never returned to the browser).
   `npm run build` green.
 - `npm run check` had been red since 1.7.9 (lost narrowing in
   `shipping-quote.ts`) while `npm test` was green. Fixed here.
+
+### Entry 181: Order path walked, sitemap duplicate, titles (1.7.12)
+
+- After the 1.7.11 deploys, a Playwright walk (390x844, mobile) on two Reven
+  product pages and four Petani pages filled the form to the submit button:
+  district picked, SiCepat rate quoted, Transfer and COD offered on Reven;
+  middle form totals per variant on Petani. Submit enabled, no page errors,
+  no failed first-party requests. No order was created.
+- SEO audit of all 25 petanisejahtera.com sitemap URLs: 200, self canonical,
+  one h1, og:image and valid JSON-LD everywhere, except
+  `/aussie-formulabaru-evrpro` (canonical to `/aussie-formulabaru`, still in
+  the sitemap) and three legal titles that named the store twice. Both fixed in
+  1.7.12, with tests in `native-landing-pages.test.ts` and `tenant.test.ts`.

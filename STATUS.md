@@ -2,6 +2,21 @@
 
 > Verified against disk: 2026-10-23 (1.7.8 on revenleather; 1.7.4 on zvarashop; 1.7.2 on beranda-tani, numaskin-adbook, taniniaga, agritani-shop, zanobyshop)
 
+## 2026-10-24 — 1.7.12: sitemap and titles; 1.7.11 live on revenleather and beranda-tani
+
+- 1.7.11 deployed: revenleather `49445725`, beranda-tani (petanisejahtera.com)
+  `fe3f3f50`, both with `placement: smart`. The order path was walked to the
+  submit button on both (hybrid form on Reven, middle form on Petani). No
+  order was placed.
+- **1.7.12** `canonicalSlug` on a native landing register entry keeps a second
+  ad slug out of the sitemap: petanisejahtera.com listed
+  `/aussie-formulabaru-evrpro`, whose canonical is `/aussie-formulabaru`.
+  `withStoreName` stops legal page titles reading "… Petani Sejahtera - Petani
+  Sejahtera".
+- Lab caveat: local Lighthouse TBT is unreliable while other work loads the
+  machine (load 13 measured); TTFB is network-bound and stays comparable. The
+  keyless PageSpeed API quota is shared and was exhausted on both days.
+
 ## 2026-10-23 — 1.7.11: product pages and far colos (ADR-030)
 
 - A PageSpeed pass over page.revenleather.com (Lighthouse mobile, every

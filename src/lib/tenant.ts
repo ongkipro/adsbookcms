@@ -263,3 +263,8 @@ export async function loadStoreIdentity(
  */
 export const envTenantConfig: Readonly<PublicTenantConfig> =
   resolveTenantConfig(null);
+
+/** `Title - Store`, unless the title already names the store (legal pages do). */
+export function withStoreName(title: string, storeName: string): string {
+  return storeName && title.toLowerCase().includes(storeName.toLowerCase()) ? title : `${title} - ${storeName}`;
+}

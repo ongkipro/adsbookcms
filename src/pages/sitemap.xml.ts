@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { getStorefrontProducts } from "../lib/catalog";
 import { listPublicLandingPages } from "../lib/landing-pages";
+import { nonCanonicalNativeSlugs } from "../lib/native-landing-pages";
 
 export const prerender = false;
 
@@ -58,12 +59,15 @@ export const GET: APIRoute = async ({ locals }) => {
     // The read-only public listing: a sitemap hit (every crawler, hourly) must
     // not run the native-page reconcile writes `listLandingPages` performs.
     const pages = await listPublicLandingPages(locals);
+    const duplicates = nonCanonicalNativeSlugs();
     landingEntries = pages
       // A page that has taken over its product's page answers `308` on its own
       // slug, and the product URL is already listed above. Advertising the
       // redirecting address here would hand Google exactly the duplicate pair
       // the takeover exists to prevent.
       .filter((p) => !p.isProductPage)
+      // A second ad slug canonical to another page (`canonicalSlug`).
+      .filter((p) => !duplicates.has(p.slug))
       .map((p) => ({
         path: `/${p.slug}`,
       }));

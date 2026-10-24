@@ -225,3 +225,9 @@ test("the store-wide noindex is opt-in and only `true` or `1` turns it on", () =
     else process.env.PUBLIC_SITE_NOINDEX = previous;
   }
 });
+
+test("a page title names the store once, never twice", async () => {
+  const { withStoreName } = await import("./tenant.ts");
+  assert.equal(withStoreName("Kebijakan Privasi Petani Sejahtera", "Petani Sejahtera"), "Kebijakan Privasi Petani Sejahtera");
+  assert.equal(withStoreName("Kontak Resmi", "Petani Sejahtera"), "Kontak Resmi - Petani Sejahtera");
+});

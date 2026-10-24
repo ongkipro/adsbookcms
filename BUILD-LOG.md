@@ -6866,3 +6866,23 @@ the saved pair wins and the secret is never returned to the browser).
   `/aussie-formulabaru-evrpro` (canonical to `/aussie-formulabaru`, still in
   the sitemap) and three legal titles that named the store twice. Both fixed in
   1.7.12, with tests in `native-landing-pages.test.ts` and `tenant.test.ts`.
+
+### Entry 182: Measured after 1.7.11-1.7.12 on both stores
+
+Lighthouse mobile, local, machine load 8-13 from unrelated work, so TBT is
+noisy; TTFB, LCP and Speed Index are the comparable figures.
+
+| Page | Before (perf / TTFB / LCP / SI) | After |
+|---|---|---|
+| Reven `/produk/asoka-wallet` | 47-61 / 4.3-7.9 s / 3.8-5.0 s / 8.6-14.6 s | 67 / 0.27 s / 2.4 s / 2.5 s |
+| Reven `/produk/dewa-exclusive-handbag` | 63 / 3.9 s / 4.7 s / 8.0 s | 78 / 0.34 s / 2.4 s / 2.4 s |
+| Reven `/produk/mahesa-multibag` | 68 / 3.9 s / 3.6 s / 7.9 s | 79 / 0.44 s / 2.5 s / 2.6 s |
+| Petani `/produk/aussie` | 82 / 0.97 s / 2.8 s / 3.1 s (A11y 96) | 77 / 0.71 s / 2.7 s / 2.3 s (A11y 100) |
+| Petani `/aussie-formulabaru` | 84 / 0.60 s / 2.7 s / 1.9 s (A11y 96) | 89 / 0.52 s / 2.3 s / 1.9 s (A11y 100) |
+
+- Install-side fixes on beranda-tani in the same pass: strike prices and review
+  meta at slate-500 (2.6:1 to 4.8:1), the wordmark link named by its visible
+  text, sized images on `/saratoga-padi`, WhatsApp chat timestamps at
+  `#54656f` (4.2:1 to 5.5:1). Deployed `8e41fa52`.
+- Still open, by choice: Google and Meta tags remain most of TBT (ADR-030);
+  Best Practices 77 is their third-party cookies; Reven SEO 69 is its noindex.

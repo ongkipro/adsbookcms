@@ -18,6 +18,13 @@ import { courierServiceLabel } from "@/lib/courier-names";
 import { DistrictCombobox, type DistrictOption } from "@/components/admin/DistrictCombobox";
 import { FilterSelect } from "@/components/admin/filter-bar";
 import { etaLabel } from "@/lib/rate-check";
+import {
+  CURRENT_WEIGHT_LABEL,
+  RECORDED_WEIGHT_LABEL,
+  formatGrams,
+  formatWeight,
+  summarizeOrderWeight,
+} from "@/lib/weight";
 import { cn } from "@/lib/utils";
 import { groupLocationResults } from "../../lib/location-search";
 import {
@@ -48,6 +55,8 @@ type OrderItem = {
   variant_title: string | null;
   variant_sku: string | null;
   variant_compare_price?: number | null;
+  weight_grams?: number | null;
+  weight_recorded?: boolean;
   product_title: string | null;
 };
 
@@ -1232,6 +1241,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
       : ["processing", "shipped", "delivered", "returned", "cancelled"];
 
   const items = Array.isArray(order.items) ? order.items : [];
+  const weight = summarizeOrderWeight(items);
   const formattedAddress = [
     order.address,
     order.district,
@@ -1446,7 +1456,9 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                   Rincian item produk belum tersedia.
                 </div>
               ) : (
-                items.map((item) => (
+                items.map((item, index) => {
+                  const itemWeight = weight.items[index];
+                  return (
                   <div key={item.id} className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
                     <div className="min-w-0">
                       <h3 className="font-semibold text-sm text-slate-950 truncate">
@@ -1455,6 +1467,20 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                       <p className="mt-0.5 text-xs text-slate-500 font-medium">
                         {item.variant_title || "Standard"}
                         {item.variant_sku ? ` · SKU: ${item.variant_sku}` : ""}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Berat:{" "}
+                        {itemWeight?.unit != null && itemWeight.line != null ? (
+                          <>
+                            {item.quantity > 1 ? `${item.quantity} x ${formatGrams(itemWeight.unit)} = ` : ""}
+                            <span className="font-semibold text-slate-700">
+                              {formatWeight(itemWeight.line)}
+                            </span>
+                            {` · ${itemWeight.recorded ? RECORDED_WEIGHT_LABEL : CURRENT_WEIGHT_LABEL}`}
+                          </>
+                        ) : (
+                          "tidak diketahui (varian sudah dihapus)"
+                        )}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
@@ -1466,7 +1492,23 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                       </p>
                     </div>
                   </div>
-                ))
+                  );
+                })
+              )}
+              {items.length > 0 && (
+                <div className="p-4 sm:px-5 bg-slate-50/50">
+                  <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+                    <span className="font-medium text-slate-600">Total berat</span>
+                    <span className="font-semibold text-slate-950">
+                      {weight.total != null ? formatWeight(weight.total) : "Tidak diketahui"}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {weight.recorded
+                      ? "Berat saat order, dipakai saat kirim ke Mengantar."
+                      : "Berat varian saat ini, dipakai saat kirim ke Mengantar."}
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>

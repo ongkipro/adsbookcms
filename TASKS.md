@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + s3-a41 working tree
 
 ## A21 — A landing page may become the product page
 
@@ -3304,7 +3304,11 @@ the order write path.
   `STATUS.md`; nothing is written to any store.
   -> REQ: REQ-236 · deps: [] · Done when: `STATUS.md` lists each store's
   variants at 1000 g and at other weights, with the date.
-- [ ] **A-392** — Save API: `product-mutation.ts` returns null for a missing
+- [x] **A-392** — **Done 2026-10-29** (worktree s3-a41): `product-mutation.test.ts`
+  "a new variant without a weight is refused with a 422", "a new variant saves
+  the weight it states", "an existing variant saved without a weight keeps its
+  stored one", "zero, negative, fractional and non-numeric weights are refused".
+  Save API: `product-mutation.ts` returns null for a missing
   weight instead of 1000; a new variant (no id) with null is refused with
   "Berat varian <SKU> wajib diisi (gram)." (422). `api/admin/products.ts`
   updates with `weight_grams = COALESCE(?, weight_grams)`, so an omitted weight
@@ -3313,7 +3317,20 @@ the order write path.
   variant without weight is refused, a new variant with 250 saves 250, an
   existing variant saved without weight keeps its stored value (not 1000), and
   zero, negative and fractional weights are refused as before.
-- [ ] **A-393** — Form: a new variant row starts with an empty, required weight
+- [x] **A-393** — **Done 2026-10-29** (worktree s3-a41): SSR proof
+  (`admin-islands-render.test.ts` "ProductForm starts a new variant with an empty
+  weight and states its use", 9/9 pass) plus browser evidence on `dev:local`
+  (Chrome headless, 390px and 1280px, 0 overflow, no console errors, no 4xx/5xx
+  except the intended 422): a new and an added row start empty and `required`
+  with "Dipakai untuk ongkir Mengantar" (`a393-new-empty-*`,
+  `a393-new-second-row-empty-*`); Simpan with no weight sends no request and
+  shows "Berat varian <SKU> wajib diisi (gram)." (`a393-new-refused-*`); a
+  direct POST without weight gets the 422 with the same message; 1250 → "1,25 kg",
+  250 → "0,25 kg" (`a393-new-kg-hint-*`); with weights it saves and reopens with
+  1250/250 (`a393-new-saved-*`); seeded "Madu" opens with 400/750 and an edit
+  persists (`a393-existing-open-*`, `a393-existing-saved-*`). Screenshots are
+  in the session scratchpad `evidence/s3/` (not committed).
+  Form: a new variant row starts with an empty, required weight
   (not `"1000"`); the input carries the hint "Dipakai untuk ongkir Mengantar"
   and a live kg equivalent (1250 → "1,25 kg", `Intl.NumberFormat("id-ID")`);
   existing variants show their stored grams.
@@ -3321,24 +3338,54 @@ the order write path.
   and 1280px shows an empty new row blocking save with the message, the kg hint
   updating, an existing product opening with its stored weights, and
   `ProductForm` still passing `admin-islands-render.test.ts`.
-- [ ] **A-394** — Order detail API: the item query adds the variant's current
+- [x] **A-394** — **Done 2026-10-29** (worktree s3-a41): `weight.test.ts` "each
+  line is unit × quantity and the order total is their sum", "a deleted variant
+  reads as unknown, never as zero". The query reads `COALESCE(oi.weight_grams,
+  pv.weight_grams)`; the "order statements untouched" clause is superseded by
+  A-397's approved exception.
+  Order detail API: the item query adds the variant's current
   `weight_grams` (one joined column, no extra round trip); a pure helper sums
   line and order weight.
   -> REQ: REQ-234, REQ-235 · deps: [] · Done when: a test proves unit × quantity
   per line and the order total, a deleted variant reads as unknown (not 0), and
   the order statements in `order-persistence.ts` are untouched.
-- [ ] **A-395** — Order detail page (the invoice): per item "Berat" (unit and
+- [x] **A-395** — **Done 2026-10-29** (worktree s3-a41): `OrderDetail` renders per-item
+  "Berat", "Total berat" and the A-397 label ("Berat saat order, …" when
+  recorded, "Berat varian saat ini, …" otherwise; `weight.test.ts` covers the
+  choice) and still passes `admin-islands-render.test.ts`. Browser evidence
+  (390px and 1280px, 0 overflow, no console errors, no 4xx/5xx; the edit dialog
+  opens, so the island is hydrated) on two seeded orders given a second line in
+  local D1: INV-10007, both lines recorded — "300 g (0,3 kg)", "2 x 250 g =
+  500 g (0,5 kg)", total "800 g (0,8 kg)", "Berat saat order, …"
+  (`a395-INV-10007-*`); INV-10008, one line with no recorded weight — "260 g
+  (0,26 kg) · berat varian saat ini", total "610 g (0,61 kg)", "Berat varian
+  saat ini, …" (`a395-INV-10008-*`). Screenshots are in the session scratchpad
+  `evidence/s3/` (not committed).
+  Order detail page (the invoice): per item "Berat" (unit and
   line) and an order total "Total berat 2.500 g (2,5 kg)", labelled "berat
   varian saat ini, dipakai saat kirim ke Mengantar".
   -> REQ: REQ-234, REQ-235 · deps: [A-394] · Done when: browser evidence at 390px
   and 1280px shows the weights on a two-item order, the label, no overflow, and
   `OrderDetail` still passing `admin-islands-render.test.ts`.
-- [ ] **A-396** — Lock the existing contract with tests, no source change:
+- [x] **A-396** — **Done 2026-10-29** (worktree s3-a41): `order-item-weight.test.ts`
+  "quote and dispatch agree on 1000 g × 3" and "… 250 g × 3". The "no diff
+  under `mengantar-*.ts`" clause is **superseded** by A-397's approved
+  exception: `mengantar-dispatch.ts` changes one line (the `COALESCE`);
+  `shipping-quote.ts` is untouched.
+  Lock the existing contract with tests, no source change:
   the quote's weight is `weight_grams / 1000 × quantity` and dispatch sends the
   same per item, from a variant at 1000 g and one at 250 g.
   -> REQ: REQ-230 · deps: [] · Done when: the tests exist and pass, and
   `git diff` shows no change under `shipping-quote.ts` or `mengantar-*.ts`.
-- [ ] **A-397** — **Exception, approved by Paduka 2026-10-29** (order flow):
+- [x] **A-397** — **Done 2026-10-29** (worktree s3-a41): migration
+  `0068_order_item_weight.sql`; `order-item-weight.test.ts` "a new order line
+  records the variant's weight at checkout", "editing the variant after
+  checkout does not change what dispatch sends", "an order placed before the
+  column existed dispatches with the variant weight", and (review fix) "CS
+  conversion of a lead records the variant's weight at conversion". The Kelola
+  plugin follows the same `COALESCE` (`sync.test.ts` "the Kelola payload carries the order's
+  recorded weight, …").
+  **Exception, approved by Paduka 2026-10-29** (order flow):
   record `weight_grams` on `order_items` at checkout so dispatch sends exactly
   the weight that was quoted, even if the variant is edited later. The insert
   copies the variant's weight in SQL (`SELECT weight_grams FROM
@@ -3350,7 +3397,15 @@ the order write path.
   dispatch sends, an old order without the column value still dispatches with
   the variant weight, and the order detail label (A-395) then says "berat saat
   order".
-- [ ] **A-398** — Verify Mengantar's maximum parcel weight from its own
+- [ ] **A-398** — **Partial 2026-10-29.** Limit: regular 50 kg, cargo 100 kg,
+  lite 0.5 kg. Source: `~/Projects/mengantar-documentation/docs/02-couriers-and-rules.md`
+  §3.1 (local notes that cite the official Mengantar API docs plus live
+  analysis; not re-checked against app.mengantar.com/docs). Applied as
+  `MAX_VARIANT_WEIGHT_GRAMS = 50_000` in `product-mutation.ts`, tested in
+  `product-mutation.test.ts`. **Remaining:** confirm the figure against
+  Mengantar's own published documentation; the cap is per unit, not per parcel
+  (a `// lazy:` comment names the upgrade path).
+  Verify Mengantar's maximum parcel weight from its own
   documentation (not inferred) and, if it exists, add it as the save API's
   upper bound with its source in a comment.
   -> REQ: REQ-231 · deps: [] · Done when: the limit and its source are written

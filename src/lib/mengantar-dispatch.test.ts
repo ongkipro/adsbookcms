@@ -128,6 +128,8 @@ class DispatchDatabase {
         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
       );
       INSERT INTO order_items VALUES (1, 1, 1, 1, 150000);
+      -- 0068_order_item_weight: the row above predates it, so it stays NULL.
+      ALTER TABLE order_items ADD weight_grams INTEGER;
     `);
   }
 

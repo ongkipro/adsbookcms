@@ -139,6 +139,14 @@ test("ProductForm renders in create mode without throwing", async () => {
   assert.ok(html.length > 0);
 });
 
+test("ProductForm starts a new variant with an empty weight and states its use", async () => {
+  const html = await renderIsland("ProductForm.tsx", "ProductForm", {});
+  assert.match(html, /Dipakai untuk ongkir Mengantar/);
+  const weightInput = html.match(/<input[^>]*placeholder="Contoh: 250"[^>]*>/)?.[0] ?? "";
+  assert.match(weightInput, /value=""/);
+  assert.match(weightInput, /required/);
+});
+
 test("LandingPageEditor renders in create mode without throwing", async () => {
   const html = await renderIsland("LandingPageEditor.tsx", "default", {});
   assert.ok(html.length > 0);

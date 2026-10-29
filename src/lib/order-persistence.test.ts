@@ -186,9 +186,12 @@ test("persistOrder promotes the recent abandoned row and replaces its items", as
   assert.equal(result.orderNumber, "INV-10007");
   assert.equal(result.publicStatusToken, "status-original");
   assert.equal(batchStatements.length, 5);
-  // Five statements, and none of them a stock movement (ADR-023).
+  // Five statements, and none of them a stock movement (ADR-023). The item
+  // insert reads the variant's weight (A-397); nothing writes the variant.
   assert.equal(
-    batchStatements.some((statement) => statement.sql.includes("product_variants")),
+    batchStatements.some((statement) =>
+      /(UPDATE|INSERT INTO|DELETE FROM)\s+product_variants/i.test(statement.sql),
+    ),
     false,
   );
   assert.match(batchStatements[1].sql, /^\s*UPDATE orders/);

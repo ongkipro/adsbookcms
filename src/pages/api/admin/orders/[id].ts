@@ -112,6 +112,8 @@ type OrderItemRow = {
   variant_title: string;
   variant_sku: string;
   variant_compare_price: number | null;
+  weight_grams: number | null;
+  weight_recorded: number;
   product_id: number;
   product_title: string;
 };
@@ -231,6 +233,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
         pv.title AS variant_title,
         pv.sku AS variant_sku,
         pv.compare_price AS variant_compare_price,
+        COALESCE(oi.weight_grams, pv.weight_grams) AS weight_grams,
+        oi.weight_grams IS NOT NULL AS weight_recorded,
         p.id AS product_id,
         p.title AS product_title
       FROM order_items oi
@@ -335,6 +339,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
           variant_title: item.variant_title,
           variant_sku: item.variant_sku,
           variant_compare_price: item.variant_compare_price,
+          weight_grams: item.weight_grams,
+          weight_recorded: Boolean(item.weight_recorded),
           product_id: item.product_id,
           product_title: item.product_title,
         })),

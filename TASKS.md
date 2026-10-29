@@ -3338,12 +3338,18 @@ the order write path.
   same per item, from a variant at 1000 g and one at 250 g.
   -> REQ: REQ-230 · deps: [] · Done when: the tests exist and pass, and
   `git diff` shows no change under `shipping-quote.ts` or `mengantar-*.ts`.
-- [ ] **A-397** — **Proposal** (order flow): record `weight_grams` on
-  `order_items` at checkout so dispatch sends exactly the weight that was
-  quoted, even if the variant is edited later. Write the migration, the one
-  insert it changes, the dispatch read it changes and the test plan; change
-  nothing until Paduka approves this item.
-  -> REQ: REQ-235 · deps: [] · Done when: the proposal is written here.
+- [ ] **A-397** — **Exception, approved by Paduka 2026-10-29** (order flow):
+  record `weight_grams` on `order_items` at checkout so dispatch sends exactly
+  the weight that was quoted, even if the variant is edited later. The insert
+  copies the variant's weight in SQL (`SELECT weight_grams FROM
+  product_variants`), so no submit route changes; dispatch reads
+  `COALESCE(order_items.weight_grams, product_variants.weight_grams)`, so
+  orders placed before the migration still dispatch as today.
+  -> REQ: REQ-235 · deps: [] · Done when: tests prove a new order stores the
+  variant's weight, editing the variant afterwards does not change what
+  dispatch sends, an old order without the column value still dispatches with
+  the variant weight, and the order detail label (A-395) then says "berat saat
+  order".
 - [ ] **A-398** — Verify Mengantar's maximum parcel weight from its own
   documentation (not inferred) and, if it exists, add it as the save API's
   upper bound with its source in a comment.
@@ -3481,3 +3487,32 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
   -> REQ: REQ-246 · deps: [A-417] · Done when: the bundle grows by the measured
   size (target under 150 KB raw), a new install resolves a sampled district
   with no Mengantar call, and the generator is committed under `scripts/`.
+
+## Integration — parallel streams and one release
+
+Added 2026-10-29 after the plan review. A36–A43 run as parallel streams on
+their own branches from `feat/a35-a40-analytics-fit`; this section is how
+they come back together.
+
+**Migration rule for parallel work.** The chain must be gap-free
+(`schema-version.test.ts`). Each stream names its migration `0068_<topic>.sql`
+and sets `schemaVersion` to 69 on its own branch; tests find a migration by
+its `_<topic>.sql` suffix, never by number. Integration renumbers them in merge
+order.
+
+- [ ] **A-419** — Merge the streams in this order: A36→A37→A38, A39 (+A-379),
+  A41, A43, A42. Renumber migrations gap-free, set `schemaVersion`, regenerate
+  the route map, resolve the known shared files (`auth.ts` route lists,
+  `admin-navigation.ts`, `version.ts`, `order-persistence.ts`).
+  -> REQ: all of A36–A43 · deps: every stream · Done when: `npm test`,
+  `npm run check` and `npm run build` pass on the merged branch; `dev:local`
+  with `dev:seed` passes; a Playwright run covers a COD order through the
+  hybrid form, `/thanks`, the order detail, the dashboard, Analitik, the status
+  page and Gudang at 390 and 1280 px; every protected suite passes unchanged.
+- [ ] **A-420** — One release: version and changelog per `RELEASE.md` naming
+  every migration, `STATUS.md`, `ARCHITECTURE.md`, `MENGANTAR_INTEGRATION_SPEC.md`,
+  and the doc headers re-stamped. Deploying to any install stays a separate,
+  per-install approval (`AGENTS.md` §5).
+  -> REQ: all of A35–A43 · deps: [A-419] · Done when: the release notes list
+  each migration and each behaviour change an operator will see.
+

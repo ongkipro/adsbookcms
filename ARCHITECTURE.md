@@ -18,7 +18,7 @@ An AdsBookCMS install is one Cloudflare Worker with its own private resources:
 | --- | --- | --- |
 | Worker | — | one per install, named by that install |
 | D1 database | `OMS_DB` | one per install |
-| KV namespace | `SESSION` | caches only — location lookups, COD-province policy, alert transition state; every write is best-effort (ADR-021) |
+| KV namespace | `SESSION` | caches only — COD-province policy, alert transition state; every write is best-effort (ADR-021). Kecamatan → Mengantar area lookups moved to D1 `mengantar_areas` (PRD A43) |
 | R2 bucket | `ASSET_BUCKET` | product uploads + CMS media |
 | Workers AI | `AI` | optional platform binding; not used by the public content workflow |
 | Static assets | `ASSETS` | `dist/client`, served by the Cloudflare adapter |
@@ -204,7 +204,7 @@ including the normalized-path shapes that once walked past it.
 
 1. **Catalog** — `products` + `product_variants` in D1 carry identity, price, weight, and stock. `src/lib/catalog.ts` merges those operational rows with published presentation JSON from `storefront_content`.
 2. **Form** — `/hybrid-form` resolves COD eligibility from trusted Cloudflare geo; a known eligible province routes to the middle form, a disabled or unknown province routes to the full form (`src/lib/form-mode.ts`).
-3. **Rates** — `/api/shipping-rates` quotes Mengantar for the resolved destination, filtered by `courier_rules` and store-level COD province exclusions.
+3. **Rates** — the form's district is resolved to a Mengantar area by `/api/locations?level=resolve`, which answers from `mengantar_areas` (`src/lib/mengantar-areas.ts`) before asking Mengantar: one row per district|city|province, seeded from the store's own orders and filled by live resolves (exact district matches only), each answering for 30 days from `resolved_at` before it is resolved again. A stored row answers even when Mengantar is not configured. `/api/shipping-rates` then quotes Mengantar live for that destination, filtered by `courier_rules` and store-level COD province exclusions; rates are never stored.
 4. **Submit** — `/api/submit-order` persists order and items atomically. It is rate-limited, honeypot-guarded, and idempotent via `submit_token`. **Checkout never dispatches to the courier.**
 Stock is not part of this flow: a variant is sellable when it is active and priced, and no step reads, reserves, or returns a counter (ADR-023).
 

@@ -3700,8 +3700,16 @@ one-warehouse store byte-identical (REQ-242).
 
 Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
 
-- [ ] **A-412** — Migration: `mengantar_areas` (key `district|city|province`
-  normalised as `location-cache.ts` already does, `area_id`, `label`,
+- [x] **A-412** — **Done 2026-10-29** (uncommitted, s4-a43 worktree):
+  `0071_mengantar_areas.sql` (0068 and schemaVersion 69 until the A-419 renumber) and `src/lib/mengantar-areas.ts`;
+  `mengantar-areas.test.ts` applies the real chain on node:sqlite to an empty
+  store and to one with orders (one row per district, majority id, ties to the
+  newest order) and proves read-back, replace-on-store and drop. Precision mode
+  leaves no marker on an order, so the seed counts every order with an area id
+  and records `agreeing_orders` / `total_orders` (migration header). Not run
+  against a miniflare local D1.
+  Migration: `mengantar_areas` (key `district|city|province`
+  normalised as `location-cache.ts` already did, `area_id`, `label`,
   `source` ('order-history' or 'resolve'), `resolved_at`), seeded in the same
   migration from `orders` (distinct district, city, province with the most
   frequent `destination_area_id`), and `src/lib/mengantar-areas.ts` (read,
@@ -3711,14 +3719,44 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
   a copy with orders (one row per district, the majority id), and tests prove a
   stored area is read back, a second store of the same key replaces it, and
   drop removes it.
-- [ ] **A-413** — **Exception** (`/api/locations` resolve): read `mengantar_areas`
+- [x] **A-413** — **Done 2026-10-29** (uncommitted). **Exception, approved by
+  Paduka 2026-10-29** (recorded at review; audit §5). `/api/locations` resolve
+  goes through `resolveMengantarArea`; tests pin the pre-A43 bodies byte for
+  byte (golden captured from `be00fee`), prove a second resolve makes no
+  Mengantar call, and assert the route names no `SESSION`/KV. Two refinements
+  from review: only an exact district match is stored (a fallback such as
+  Jakabaring → Seberang Ulu I, 8 Ulu is returned but asked again next time),
+  and a row answers for `MENGANTAR_AREA_MAX_AGE_DAYS` (30) from `resolved_at`
+  before it is resolved again — the bound that stands in for A-415 until that
+  is approved. Behaviour change: a stored district now answers even when
+  Mengantar is not configured (before, no API key meant catalogue only).
+  Review finding 20: the seed cannot tell an exact id from a fallback the form
+  accepted, so a seeded row is dated by its newest order (not the migration)
+  and a stale row whose re-resolve is a fallback or empty is deleted; a
+  district ordered within the bound still answers from its seed until then.
+  The delete touches only an expired row, so a fresh row reached through a
+  failed read is kept (test "a fresh row survives a fallback re-resolve
+  reached through a failed read", mutation-checked).
+  **Exception** (`/api/locations` resolve): read `mengantar_areas`
   before Mengantar; on a miss resolve as today and store in D1 instead of the
   24-hour KV entry.
   -> REQ: REQ-243, REQ-247 · deps: [A-412] · Done when: a test pins the resolve
   response byte-identical to today's for the same input, a second resolve of
   the same district makes no Mengantar call, and no KV write remains on the
   resolve path.
-- [ ] **A-414** — **Exception** (`/api/locations` search): drop the 10-minute KV
+- [x] **A-414** — **Done 2026-10-29** (uncommitted). **Exception, approved by
+  Paduka 2026-10-29** (recorded at review; audit §5). Decision: **dropped**, not
+  bounded. Free-text provider search is now uncached; the response is the same
+  `fetchProviderLocations` body (golden test, `kebayoran`). Numbers: the hit
+  rate **could not be measured** — the repository has no KV hit/miss counter
+  and the fleet's KV analytics need `--remote` access, which was not requested.
+  The decision rests on the shape of the traffic instead: the key was the raw
+  query, so each typed prefix was its own entry and its own KV write; the
+  buyer form searches the bundled district index locally and reaches the
+  provider search only for the kelurahan fallback; the admin pickers are a
+  handful of operators. If A-416's fleet figures show repeat queries, a bounded
+  D1 or in-memory cache is the upgrade, never KV.
+  **Exception** (`/api/locations` search): drop the 10-minute KV
   cache for free-text searches, or bound it, based on how often it is hit;
   the local district index already answers the form.
   -> REQ: REQ-245 · deps: [A-413] · Done when: the decision and its numbers are
@@ -3728,18 +3766,41 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
   Touches `shipping-quote.ts` and `mengantar-dispatch.ts`; write the change and
   its tests; change nothing until approved.
   -> REQ: REQ-244 · deps: [A-412] · Done when: the proposal is written here.
-- [ ] **A-416** — Measure: resolve latency before and after A-413 on a local
+  **Proposal, 2026-10-29 — not implemented, awaiting approval.** Interim: the
+  30-day bound in A-413 heals a wrong id within a month with no protected-file
+  edit. The change, once approved: (1) in `shipping-quote.ts`, when
+  `/order/estimate` fails with Mengantar's area refusal for the destination,
+  call `dropMengantarArea(db, destinationAreaId)` inside a try/catch that only
+  logs, then return the quote error unchanged; (2) the same in
+  `mengantar-dispatch.ts` for the dispatch's destination id, after the dispatch
+  is recorded as failed, never before. The exact refusal text must first be
+  captured from the provider stand-in or a sandbox answer — none is on disk, so
+  matching it would be a guess today. Tests (Mengantar stubbed): a refusal drops
+  every row carrying that id and the next resolve asks Mengantar; any other
+  error drops nothing; a D1 failure in the drop leaves the quote/dispatch
+  result identical; every protected suite passes unchanged. `dropMengantarArea`
+  and its test already exist; it has no caller until this is approved.
+- [ ] **A-416** — **Not started.** Remaining: run `dev:local` with the
+  `dev-providers` stand-in on `be00fee` and on this tree, time N resolves of
+  the same districts (cold and warm), and take the KV-writes-per-day estimate
+  from the fleet's analytics (needs `--remote` approval; `STATUS.md` carries no
+  per-key location figures today).
+  Measure: resolve latency before and after A-413 on a local
   store with the provider stand-in, and the KV writes removed per day from the
   fleet figures (`STATUS.md`).
   -> REQ: REQ-243 · deps: [A-413] · Done when: the before and after figures are
   recorded here.
-- [ ] **A-417** — Stability study from order history, read-only, needs approval
+- [ ] **A-417** — **Not started; needs Paduka's approval for `--remote`** before
+  any query runs. Open.
+  Stability study from order history, read-only, needs approval
   for `--remote`: for each district|city|province, the `destination_area_id`
   values across all 14 databases' orders, with counts. No waiting for A-413.
   -> REQ: REQ-246 · deps: [] · Done when: the share of districts whose majority
   id agrees across stores, and the districts that disagree, are recorded in
   `STATUS.md`, which decides A-418.
-- [ ] **A-418** — Only if A-417 shows stable ids: a throttled, read-only script
+- [ ] **A-418** — **Not started; blocked on A-417** and on its own approval for
+  ~7,300 live Mengantar searches. Open.
+  Only if A-417 shows stable ids: a throttled, read-only script
   resolves all 7,285 districts once (about 7,300 Mengantar searches, needs
   approval) and adds the area id to the bundled district data, with the D1
   table kept as the fallback.

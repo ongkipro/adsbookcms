@@ -3369,7 +3369,8 @@ Proposed 2026-10-29. Evidence in PRD A40. Nothing here deploys, and nothing runs
   saving from A-376 and its risk to the form and tracking paths.
   -> REQ: REQ-227 · deps: [A-376] · Done when: the options are written in this
   entry; no file under the protected surfaces changed.
-- [x] **A-379** — Move the scheduler heartbeat into the A39 snapshot row and
+- [x] **A-379** — **Exception, approved by Paduka 2026-10-29** (`src/worker.ts`
+  beyond the A-368 row; recorded at the integration review). Move the scheduler heartbeat into the A39 snapshot row and
   delete the KV write (`recordSchedulerRun`, `SCHEDULER_HEARTBEAT_KEY`); the
   `scheduler` signal reads the D1 value. Written at the start of `scheduled()`
   inside `housekeeping()`, so a later failing step still records the run.
@@ -3589,6 +3590,17 @@ the order write path.
   conversion of a lead records the variant's weight at conversion". The Kelola
   plugin follows the same `COALESCE` (`sync.test.ts` "the Kelola payload carries the order's
   recorded weight, …").
+  Integration review fix 2026-10-29: the admin courier re-quote of an existing
+  order (`src/pages/api/admin/orders/[id].ts`) quotes the line's recorded
+  weight, `MAX(0.001, COALESCE(oi.weight_grams, pv.weight_grams) / 1000)` × quantity
+  of the first line — dispatch's own expression — passed as the quote's
+  explicit weight; OrderDetail's preview sends the same figure as `weight=`
+  (`quoteUnitWeightKg` in `weight.ts`), so preview, save and dispatch agree
+  after the variant is edited (`admin-requote-weight.test.ts`,
+  mutation-checked). `shipping-quote.ts` is unchanged. The no-variant-write
+  assertion in `order-persistence.test.ts` now also catches a quoted
+  identifier (`"…"`, `` `…` ``, `[…]`), `OR <conflict>` and `REPLACE INTO`, with a
+  self-check of each form and of the two reads it must accept.
   **Exception, approved by Paduka 2026-10-29** (order flow):
   record `weight_grams` on `order_items` at checkout so dispatch sends exactly
   the weight that was quoted, even if the variant is edited later. The insert
@@ -3961,7 +3973,18 @@ and sets `schemaVersion` to 69 on its own branch; tests find a migration by
 its `_<topic>.sql` suffix, never by number. Integration renumbers them in merge
 order.
 
-- [ ] **A-419** — Merge the streams in this order: A36→A37→A38, A39 (+A-379),
+- [ ] **A-419** — **Merged 2026-10-29** on `feat/a35-a40-analytics-fit`:
+  s1 → s2 → s3 → s4 → s5, migrations renumbered `0068`–`0072`, `schemaVersion`
+  73, route map regenerated; 1007 tests, check and build pass; the chain
+  applies to a fresh and an upgraded database (node:sqlite). Browser run on the
+  merged tree at 390/1280 (`scratchpad/evidence/integration*/`): COD order to
+  `/thanks`, order detail (weight, source, warehouse), dashboard icon,
+  `/admin/status`, a second warehouse quoting its province, source deep links.
+  Post-merge fixes (Exceptions A-397/A-408): the admin courier re-quote and its
+  preview quote the order's recorded weight; `/admin/orders` server-renders
+  its deep-link filters. **Open:** Analitik is not built (A37/A38 not started),
+  so this task's Done when cannot close yet.
+  Merge the streams in this order: A36→A37→A38, A39 (+A-379),
   A41, A43, A42. Renumber migrations gap-free, set `schemaVersion`, regenerate
   the route map, resolve the known shared files (`auth.ts` route lists,
   `admin-navigation.ts`, `version.ts`, `order-persistence.ts`).

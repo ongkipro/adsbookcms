@@ -1020,7 +1020,7 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **997 / 997 passing** (2026-10-29, A-419 integration branch; not released) |
+| `npm test` | **1007 / 1007 passing** (2026-10-29, A-419 integration branch; not released) |
 | `npm run check` | 0 errors · 0 warnings · 0 hints |
 | `npm run build` | Cloudflare server bundle complete; 73 bundled migrations, `0000`–`0072` (2026-10-29, A-419 integration branch) |
 | PageSpeed Insights, mobile, official API (2026-08-24) | taniniaga 96 · carukesi 95 · permatamall 94 · zanobyshop 92 · skincarebpom 89 · zvara 85 — CLS 0.00 on every store |

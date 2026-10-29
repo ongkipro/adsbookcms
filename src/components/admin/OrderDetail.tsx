@@ -24,6 +24,7 @@ import {
   RECORDED_WEIGHT_LABEL,
   formatGrams,
   formatWeight,
+  quoteUnitWeightKg,
   summarizeOrderWeight,
 } from "@/lib/weight";
 import { cn } from "@/lib/utils";
@@ -308,9 +309,16 @@ function EditCustomerDialog({
     const params = new URLSearchParams({
       destination_id: formData.destination_area_id,
       payment_method: order.payment_method || "cod",
-      variant_id: String(firstItem?.variant_id || 1),
       quantity: String(firstItem?.quantity || 1),
     });
+    // The weight recorded on the order line, not the variant's current one:
+    // the save re-quotes and dispatch ships at this weight (A-397). Sent in kg,
+    // which the rate route reads as kg up to 100 kg a unit.
+    // lazy: a unit over 100 kg would be read as grams; the save caps variants
+    // at 50 kg (A-398). Upgrade path: an explicit unit on the rate route.
+    const unitWeightKg = quoteUnitWeightKg(firstItem.weight_grams);
+    if (unitWeightKg === null) params.set("variant_id", String(firstItem.variant_id || 1));
+    else params.set("weight", String(unitWeightKg));
     // The same warehouse the save re-quotes from (PRD A42, REQ-241): the
     // order's own while it is active, else the one chosen by province.
     if (order.warehouse_id) params.set("warehouse_id", String(order.warehouse_id));

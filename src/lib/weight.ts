@@ -52,6 +52,17 @@ function knownWeight(value: unknown): number | null {
     : null;
 }
 
+/**
+ * One unit's weight in kg as a shipping quote and Mengantar dispatch send it:
+ * grams / 1000, never below 1 g (`mengantar-dispatch.ts` reads
+ * `MAX(0.001, grams / 1000)`). Null when the weight is unknown. OrderDetail's
+ * re-quote preview sends this so it quotes what the save and dispatch use (A-397).
+ */
+export function quoteUnitWeightKg(grams: unknown): number | null {
+  const known = knownWeight(grams);
+  return known === null ? null : Math.max(0.001, known / 1000);
+}
+
 export function summarizeOrderWeight(items: readonly WeighedItem[]): OrderWeightSummary {
   const lines = items.map((item): ItemWeight => {
     const unit = knownWeight(item.weight_grams);

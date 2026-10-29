@@ -585,6 +585,12 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
         paymentMethod: current.payment_method,
         variantKey: String(item.variant_id),
         quantity: Number(item.quantity),
+        // The order keeps its own warehouse (REQ-241) while it is still
+        // active; one without (a middle-form order) or whose warehouse was
+        // made inactive is chosen by its province. OrderDetail previews the
+        // rates with the same two values.
+        warehouseId: current.warehouse_id || undefined,
+        destinationProvince: nextProvince ?? current.province,
       });
       const selectedRate = selectQuotedRate(
         quote.rates,

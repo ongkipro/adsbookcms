@@ -1,6 +1,6 @@
 # Architecture Decision Record — AdsBookCMS
 
-> Verified against disk: 2026-09-25 @ `6e30950` + audit working tree
+> Verified against disk: 2026-10-29 @ be00fee + s5-a42 working tree
 
 Append-only. One decision per entry. A decision is recorded here only when it constrains future work; implementation detail belongs in `ARCHITECTURE.md`, remaining work in `UNIMPLEMENTED_SPECS.md`.
 
@@ -1147,3 +1147,62 @@ the cliff, not the cost.
 **Rejected alternative.** Staying on Free and cutting reads under 5M a day. The
 largest single store already reads 6.5M a day, so no amount of query work in
 one install fixes an account-wide allowance.
+
+---
+
+## ADR-032 — A quote ships from the warehouse that covers the buyer's province
+
+**Date:** 2026-10-29 · **Status:** Proposed (PRD A42, A-411). Not deployed to any
+install; the Exception tasks A-407/A-408 that touch the quote path have no
+recorded approval in `TASKS.md` yet.
+
+**Context.** A store may keep up to ten warehouses (REQ-237), each registered at
+Mengantar with an origin area and a pickup address. Until A42 every quote,
+order and dispatch used the lowest-id `warehouses` row. The rate route and every
+submit route receive the buyer's destination area id and city, not coordinates;
+the bundled district index (`src/data/indonesia-districts.ts`) maps a city to
+its province, and only one city name (`banjar`: Kota Banjar, Jawa Barat, and
+Kabupaten Banjar, Kalimantan Selatan) maps to two.
+
+**Decision.**
+
+1. `chooseWarehouse` (`src/lib/warehouse-choice.ts`) picks, among **active and
+   ready** warehouses (origin and pickup address both set): (1) one whose served
+   provinces include the buyer's province — the list defaults to the
+   warehouse's own province and the operator can add more; (2) else one in the
+   buyer's island group (a static map of the 38 province codes); (3) else the
+   primary. Ties go to the primary, then the lowest id. Exactly one warehouse is
+   primary (a partial unique index), and it cannot be made inactive.
+2. The buyer's province is derived on the server from the city
+   (`provinceCodeForCity`). An unknown or ambiguous city quotes from the
+   primary, identically on the rate call and on submit, so no form change is
+   needed.
+3. The quote makes exactly one Mengantar rate call, from the chosen warehouse's
+   origin. The order stores that warehouse's id; dispatch and the pickup
+   schedule read `orders.warehouse_id`.
+4. An explicit warehouse (`warehouseId`: the admin re-quote of an existing
+   order, `/api/shipping-rates?warehouse_id=`, the headless checkout's echoed
+   `warehouse_id`) is honoured only while it is active and ready, or the
+   primary. Otherwise the warehouse is chosen as if none had been given.
+5. Headless: `/api/v1/geo/shipping-rates` chooses by its optional `city` and
+   returns `warehouse_id`; `/api/v1/checkout` re-quotes from the `warehouse_id`
+   the client echoes, or from the primary when it sends none, and answers 409
+   `SHIPPING_QUOTE_CHANGED` when that warehouse is no longer quotable. The
+   checkout's `city` does not choose a warehouse: a client that quoted without
+   one was shown the primary's price.
+
+**Consequences.** A store with one warehouse quotes, orders and dispatches
+byte-identically (REQ-242, `warehouse-quote.test.ts`). An install that already
+holds **more than one** `warehouses` row changes behaviour on the deploy that
+carries the migration: rows other than the lowest id start receiving buyers in
+their own province (RELEASE.md §3). An order whose warehouse is later made
+inactive still dispatches from it, but an admin courier change re-chooses by
+the order's province.
+
+**Rejected alternatives.**
+
+- *GPS distance.* No coordinates exist in the data, and IP geolocation is too
+  coarse; the form already carries the buyer's real district.
+- *Cheapest of all warehouses.* Most accurate to "ongkir from the nearest", but
+  N Mengantar calls per quote, slower forms and N times the rate limit.
+  Revisit as a per-store mode once A-330/A43 measure the rate call.

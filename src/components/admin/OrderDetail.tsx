@@ -299,6 +299,10 @@ function EditCustomerDialog({
       variant_id: String(firstItem?.variant_id || 1),
       quantity: String(firstItem?.quantity || 1),
     });
+    // The same warehouse the save re-quotes from (PRD A42, REQ-241): the
+    // order's own while it is active, else the one chosen by province.
+    if (order.warehouse_id) params.set("warehouse_id", String(order.warehouse_id));
+    if (formData.province) params.set("province", formData.province);
     setRatesLoading(true);
     void fetch(`/api/shipping-rates?${params}`, {
       headers: { Accept: "application/json" },
@@ -338,7 +342,9 @@ function EditCustomerDialog({
   }, [
     firstItem,
     formData.destination_area_id,
+    formData.province,
     open,
+    order.warehouse_id,
     order.courier_code,
     order.courier_service,
     courierEditable,

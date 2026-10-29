@@ -154,7 +154,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
       database.prepare(
         `SELECT id, name
          FROM warehouses
-         ORDER BY id
+         ORDER BY is_primary DESC, id
          LIMIT 1`,
       ),
     ]);
@@ -310,6 +310,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
       paymentMethod: "cod",
       variantKey: String(variantId),
       quantity,
+      // The warehouse follows the province the CS console previewed with (PRD A42).
+      destinationProvince: String(body.province || "") || undefined,
     });
     const selectedRate = selectQuotedRate(
       quote.rates,

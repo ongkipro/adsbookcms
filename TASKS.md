@@ -2682,11 +2682,13 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   and the source landing path on every order. Migrations `0062`-`0065`.
   **Done 2026-10-19 (1.5.12).**
 
-## Protected surfaces for A35–A39 — read before any of those tasks
+## Protected surfaces for A35–A43 — read before any of those tasks
 
 Ad tracking, the three order forms, and the order flow and its processing are
-working and are **not** in scope for A35–A39. Every task below is held to this
-list; a task that cannot be done inside it stops and asks first.
+working and are **not** in scope for A35–A43. Every task below is held to this
+list; a task that cannot be done inside it stops and asks first. The only
+planned edits to it are the tasks marked **Exception** (A42, A43), each
+approved by Paduka on its own, and each held to the same gate.
 
 **Untouched — no edit, no reformat, no import change:**
 
@@ -2735,7 +2737,13 @@ A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
   -> REQ: REQ-190 · deps: [] · Done when: a written before-figure for submit
   latency (local and one live read-only GET at most) and a list of awaited work,
   with no provider write and no remote D1 command.
-- [ ] **A-331** — Migration `0067` creates `whatsapp_numbers` (id, label, phone,
+- [x] **A-331** — **Done 2026-10-29** (uncommitted in the worktree):
+  `0067_whatsapp_numbers.sql`, `src/lib/whatsapp-numbers.ts`, and
+  `CMS_VERSION.schemaVersion` 68. The cap and the last-active rule are part of
+  the writing SQL statement, so concurrent admins cannot both pass a check.
+  `whatsapp-numbers.test.ts` (7 tests, real SQLite with the migration) covers
+  the seed, each refusal and the mirror. Not yet run on local D1 under wrangler.
+  Migration `0067` creates `whatsapp_numbers` (id, label, phone,
   is_active, created_at; unique on phone) and seeds one row from
   `stores.support_whatsapp` where it is set. Add `src/lib/whatsapp-numbers.ts`
   (list, add, update, remove; normalize to `62…`; reject unusable, duplicate, an
@@ -2744,7 +2752,10 @@ A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
   -> REQ: REQ-184, REQ-185, REQ-189 · deps: [] · Done when: the migration applies
   to an empty local D1 and to one holding a store number (one seeded row), and
   focused tests prove each refusal and that the mirror follows the first active.
-- [ ] **A-332** — Add the pure picker `pickThanksWhatsapp(numbers, orderNumber,
+- [x] **A-332** — **Done 2026-10-29.** FNV-1a over the order number. Measured
+  over INV-10001..INV-11000: 50.1/49.9 for two numbers, 34.1/32.4/33.5 for three,
+  25.0 each for four; the test allows three points.
+  Add the pure picker `pickThanksWhatsapp(numbers, orderNumber,
   random)` to `thanks-whatsapp.ts`: filter numbers `thanksWhatsappUrl` rejects,
   `fnv1a(orderNumber) mod n`, random only when there is no order number, null for
   an empty list.
@@ -2775,15 +2786,45 @@ A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
   admin reach both, advertiser and customer service get 403 on both, every
   refusal from A-331 reaches the client
   as a stated 4xx, and no response carries anything but label, number, state.
-- [ ] **A-336** — Admin menu: `/admin/settings/whatsapp` with a child entry in
-  `admin-navigation.ts`, the active count and per-number share, and the last-
-  active guard message. Settings → Store replaces its number field with a link,
-  keeps the PRD A28 switch, and its PUT no longer requires or clears
-  `support_whatsapp`.
-  -> REQ: REQ-184, REQ-185, REQ-186, REQ-189 · deps: [A-335] · Done when: browser
-  evidence at 390px and 1280px proves add, deactivate, remove, the share text for
-  1, 2 and 3 numbers, the guard, no horizontal overflow and an empty console;
-  saving Settings → Store leaves the number list untouched.
+- [ ] **A-336** — The page `/admin/settings/whatsapp` ("Nomor WhatsApp CS"), on
+  `AdminLayout` + `AdminPageHeader` (back to Pengaturan), one React island
+  modelled on `SellerBankAccounts.tsx`:
+  - header line: "2 nomor aktif · tiap nomor ±50% order COD" (1 → "semua
+    order", 3 → "±33,3%"), and a note that the split is per order, not an
+    alternation;
+  - list (table at `md`, cards below): label, number shown as `0812-…`,
+    active switch, share for active rows, edit and delete with `useConfirm`;
+  - add form: label (optional, 60) and number, both validated in the browser
+    with the server's messages; the add button disabled at 10 with the reason;
+  - the last-active guard shown as the server's 409 text, never as a silent
+    no-op; loading skeleton, empty state ("Belum ada nomor — tambahkan nomor
+    CS pertama"), and an error state.
+  Controls follow DESIGN-SYSTEM §7.1 (shadcn primitives, `FilterBar` rules).
+  -> REQ: REQ-184, REQ-185, REQ-186 · deps: [A-335] · Done when: browser
+  evidence at 390px and 1280px proves add, edit, deactivate, delete, the share
+  text for 1, 2 and 3 numbers, the 10-number limit, the guard message, no
+  horizontal overflow and an empty console; `admin-controls.test.ts` and
+  `admin-page-width.test.ts` pass.
+- [ ] **A-399** — Navigation: a "Nomor WhatsApp" child under Pengaturan in
+  `admin-navigation.ts` (after "Toko & CS"), command-palette keywords
+  (whatsapp, wa, cs, rotator, nomor), shown to owner and admin only, and a card
+  on `/admin/settings`. `npm run route-map` after the page exists.
+  -> REQ: REQ-184 · deps: [A-336] · Done when: the item opens the page for owner
+  and admin, is absent for advertiser and customer service, and the route-map
+  drift test passes.
+- [ ] **A-400** — Settings → Store: the "WhatsApp customer service" input
+  becomes a read-only line showing the first active number with a link
+  "Kelola nomor WhatsApp"; the PRD A28 redirect switch stays. The store PUT
+  in `api/admin/settings.ts` no longer requires `support_whatsapp` and never
+  writes it (only `whatsapp-numbers.ts` does).
+  -> REQ: REQ-189 · deps: [A-336] · Done when: a test proves saving the store
+  without the field keeps `support_whatsapp` and the list unchanged; browser
+  evidence shows the line and the link; saving store settings still works for
+  every other field.
+- [ ] **A-401** — Release: version and changelog entry per `RELEASE.md`
+  (schema 68, migration `0067`), `STATUS.md`, and the A-340 close-out.
+  -> REQ: REQ-184 … REQ-189 · deps: [A-334, A-336, A-337, A-399, A-400] · Done
+  when: the release notes name the migration and the Settings → Store change.
 - [ ] **A-337** — The installer inserts its number as the first
   `whatsapp_numbers` row, and an install given no number leaves the list empty.
   -> REQ: REQ-189 · deps: [A-331] · Done when: an `install.test.ts` case proves
@@ -2809,7 +2850,7 @@ A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
   separately.
 - [ ] **A-340** — Close out: `npm run route-map`, a short mention in
   `ARCHITECTURE.md`, version and changelog per `RELEASE.md`, `STATUS.md`.
-  -> REQ: REQ-184 … REQ-189 · deps: [A-334, A-336, A-337] · Done when:
+  -> REQ: REQ-184 … REQ-189 · deps: [A-334, A-336, A-337, A-399, A-400, A-401] · Done when:
   `npm test` (≥ 833 plus the new checks), `npm run check` and `npm run build`
   pass and the doc headers cite the commit they were checked at. The rotator
   does not wait on A-338 or A-339: those ship on their own, and A-339 waits on
@@ -3240,3 +3281,188 @@ waits for Paduka's approval of that item alone.
   (a downgrade path npm proposes under `--force`). Leave it and recheck at the
   next shadcn release.
   -> REQ: REQ-226 · deps: [] · Done when: rechecked after a shadcn update.
+
+## A41 — Variant weight: required for new products, visible on every order
+
+Proposed 2026-10-29. PRD A41. The quote and dispatch already use
+`weight_grams`; nothing here edits `shipping-quote.ts`, `mengantar-*.ts` or
+the order write path.
+
+- [ ] **A-391** — Read-only, needs Paduka's approval for `--remote`: per live
+  store, `SELECT weight_grams, COUNT(*) FROM product_variants GROUP BY 1`, and
+  the active products whose variants are all at 1000 g. Record the counts in
+  `STATUS.md`; nothing is written to any store.
+  -> REQ: REQ-236 · deps: [] · Done when: `STATUS.md` lists each store's
+  variants at 1000 g and at other weights, with the date.
+- [ ] **A-392** — Save API: `product-mutation.ts` returns null for a missing
+  weight instead of 1000; a new variant (no id) with null is refused with
+  "Berat varian <SKU> wajib diisi (gram)." (422). `api/admin/products.ts`
+  updates with `weight_grams = COALESCE(?, weight_grams)`, so an omitted weight
+  keeps the stored one.
+  -> REQ: REQ-230, REQ-231, REQ-232 · deps: [] · Done when: tests prove a new
+  variant without weight is refused, a new variant with 250 saves 250, an
+  existing variant saved without weight keeps its stored value (not 1000), and
+  zero, negative and fractional weights are refused as before.
+- [ ] **A-393** — Form: a new variant row starts with an empty, required weight
+  (not `"1000"`); the input carries the hint "Dipakai untuk ongkir Mengantar"
+  and a live kg equivalent (1250 → "1,25 kg", `Intl.NumberFormat("id-ID")`);
+  existing variants show their stored grams.
+  -> REQ: REQ-231, REQ-233 · deps: [A-392] · Done when: browser evidence at 390px
+  and 1280px shows an empty new row blocking save with the message, the kg hint
+  updating, an existing product opening with its stored weights, and
+  `ProductForm` still passing `admin-islands-render.test.ts`.
+- [ ] **A-394** — Order detail API: the item query adds the variant's current
+  `weight_grams` (one joined column, no extra round trip); a pure helper sums
+  line and order weight.
+  -> REQ: REQ-234, REQ-235 · deps: [] · Done when: a test proves unit × quantity
+  per line and the order total, a deleted variant reads as unknown (not 0), and
+  the order statements in `order-persistence.ts` are untouched.
+- [ ] **A-395** — Order detail page (the invoice): per item "Berat" (unit and
+  line) and an order total "Total berat 2.500 g (2,5 kg)", labelled "berat
+  varian saat ini, dipakai saat kirim ke Mengantar".
+  -> REQ: REQ-234, REQ-235 · deps: [A-394] · Done when: browser evidence at 390px
+  and 1280px shows the weights on a two-item order, the label, no overflow, and
+  `OrderDetail` still passing `admin-islands-render.test.ts`.
+- [ ] **A-396** — Lock the existing contract with tests, no source change:
+  the quote's weight is `weight_grams / 1000 × quantity` and dispatch sends the
+  same per item, from a variant at 1000 g and one at 250 g.
+  -> REQ: REQ-230 · deps: [] · Done when: the tests exist and pass, and
+  `git diff` shows no change under `shipping-quote.ts` or `mengantar-*.ts`.
+- [ ] **A-397** — **Proposal** (order flow): record `weight_grams` on
+  `order_items` at checkout so dispatch sends exactly the weight that was
+  quoted, even if the variant is edited later. Write the migration, the one
+  insert it changes, the dispatch read it changes and the test plan; change
+  nothing until Paduka approves this item.
+  -> REQ: REQ-235 · deps: [] · Done when: the proposal is written here.
+- [ ] **A-398** — Verify Mengantar's maximum parcel weight from its own
+  documentation (not inferred) and, if it exists, add it as the save API's
+  upper bound with its source in a comment.
+  -> REQ: REQ-231 · deps: [] · Done when: the limit and its source are written
+  here, or "not documented" is.
+
+## A42 — Multiple warehouses, each quote from the warehouse nearest the buyer
+
+Proposed 2026-10-29. PRD A42. Tasks marked **Exception** edit a protected
+surface; each needs Paduka's approval as its own item, and each must keep a
+one-warehouse store byte-identical (REQ-242).
+
+- [ ] **A-402** — Migration: `warehouses.is_primary` (the first existing row
+  becomes 1), `is_active` (default 1), `served_provinces` (JSON array of
+  province codes, NULL meaning "its own province"); a partial unique index so
+  only one row can be primary.
+  -> REQ: REQ-237, REQ-239 · deps: [] · Done when: it applies to an empty local
+  D1 and to one holding a warehouse (which becomes primary), and a second
+  primary is refused by the index.
+- [ ] **A-403** — Pure chooser `chooseWarehouse(warehouses, buyerProvinceCode)`
+  in `src/lib/warehouse-choice.ts`, plus the static island-group map of the 38
+  province codes. Order: ready and serving the province, then same island
+  group, then primary; ties to primary, then lowest id; not-ready and
+  inactive rows never chosen.
+  -> REQ: REQ-239 · deps: [] · Done when: tests cover one warehouse (always it),
+  coverage, island fallback, primary fallback, an unknown province, a not-ready
+  warehouse skipped, and every province code mapped to exactly one group.
+- [ ] **A-404** — Buyer province on the server: derive the province code from
+  the destination the rate route already receives (city, and district where
+  given) using the bundled district index. Report ambiguous city names.
+  -> REQ: REQ-239 · deps: [] · Done when: a test resolves every city in the index
+  to one province or lists the ambiguous ones, and the result decides whether a
+  form change is needed (if it is, that becomes a separate proposal).
+- [ ] **A-405** — Warehouse management: `src/lib/warehouses.ts` and
+  `/api/admin/warehouses` (list, add, edit, delete, set primary). Saving needs a
+  precise Mengantar origin and a pickup address from `ensurePickupAddress`, as
+  the current single form does; at most 10; deleting a warehouse with orders is
+  refused (deactivate instead); the primary cannot be deactivated. Add the route
+  to `ADMIN_API_ROUTES`.
+  -> REQ: REQ-237, REQ-238, REQ-248 · deps: [A-402] · Done when: tests with the
+  Mengantar client stubbed prove each rule, that a warehouse without
+  `origin_area_id` or `pickup_address_id` is stored as not ready, and that no
+  test calls Mengantar.
+- [ ] **A-406** — Pengaturan → Gudang becomes a list: each warehouse with name,
+  city, Mengantar status (siap / belum lengkap), primary badge, served
+  provinces; an editor reusing `WarehouseOriginPicker`, the PIC fields and a
+  province multi-select; "Jadikan utama", deactivate, delete with confirm.
+  `save-warehouse` in `api/admin/settings.ts` stays working for older clients
+  until this page no longer calls it.
+  -> REQ: REQ-237, REQ-238 · deps: [A-405] · Done when: browser evidence at 390px
+  and 1280px proves add, edit, primary switch, the not-ready state, the 10-row
+  limit and the delete guard, with no overflow and an empty console.
+- [ ] **A-407** — **Exception** (`shipping-quote.ts`): replace the
+  first-warehouse read with one read of ready warehouses fed to
+  `chooseWarehouse`, and accept `destinationProvince` in `ShippingQuoteInput`.
+  `input.originId` still wins when given.
+  -> REQ: REQ-239, REQ-240, REQ-242 · deps: [A-403, A-404] · Done when: the
+  existing quote tests pass unchanged, a one-warehouse fixture returns the
+  identical result, a two-warehouse fixture quotes from the chosen one, and
+  the quote makes still exactly one rate call.
+- [ ] **A-408** — **Exception** (rate and submit routes): `/api/shipping-rates`,
+  `/api/v1/geo/shipping-rates`, `submit-order`, `submit-middle-order`,
+  `v1/checkout`, lead conversion in `abandoned-orders`, and the admin re-quote
+  pass the buyer province (or, for a re-quote, the order's `warehouse_id` as the
+  origin).
+  -> REQ: REQ-240, REQ-241 · deps: [A-407] · Done when: tests prove the submit
+  re-verifies from the same warehouse the form was quoted from, an admin
+  re-quote keeps the order's warehouse, and every protected suite listed in the
+  gate passes unchanged.
+- [ ] **A-409** — Show the warehouse where it matters: the order detail and the
+  shipping workspace name the warehouse each order ships from (the workspace
+  already groups pickups per warehouse).
+  -> REQ: REQ-240 · deps: [A-407] · Done when: browser evidence shows the
+  warehouse name on an order shipped from the second warehouse.
+- [ ] **A-410** — End-to-end on a local store: two warehouses on the local
+  Mengantar stand-in (`dev-providers`), a buyer in Jawa Timur quoted and
+  dispatched from the Surabaya warehouse, one in Aceh from the primary, and a
+  one-warehouse store unchanged.
+  -> REQ: REQ-239, REQ-240, REQ-242 · deps: [A-408, A-406] · Done when: the
+  dispatch payload's pickup address and origin match the chosen warehouse in
+  each case, recorded here; nothing reaches a real Mengantar account.
+- [ ] **A-411** — ADR for the choice rule (province coverage over distance or
+  cheapest-of-all), `MENGANTAR_INTEGRATION_SPEC.md`, `ARCHITECTURE.md`, route
+  map, version and changelog.
+  -> REQ: REQ-237 … REQ-242, REQ-248 · deps: [A-410] · Done when: the docs match
+  disk and `npm test`, `npm run check` and `npm run build` pass.
+
+## A43 — Resolve kecamatan to Mengantar areas without calling Mengantar
+
+Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
+
+- [ ] **A-412** — Migration: `mengantar_areas` (key `district|city|province`
+  normalised as `location-cache.ts` already does, `area_id`, `label`,
+  `resolved_at`, `last_used_at`), and `src/lib/mengantar-areas.ts` (read,
+  store, drop).
+  -> REQ: REQ-243 · deps: [] · Done when: it applies to an empty local D1, and
+  tests prove a stored area is read back, a second store of the same key
+  replaces it, and drop removes it.
+- [ ] **A-413** — **Exception** (`/api/locations` resolve): read `mengantar_areas`
+  before Mengantar; on a miss resolve as today and store in D1 instead of the
+  24-hour KV entry.
+  -> REQ: REQ-243, REQ-247 · deps: [A-412] · Done when: a test pins the resolve
+  response byte-identical to today's for the same input, a second resolve of
+  the same district makes no Mengantar call, and no KV write remains on the
+  resolve path.
+- [ ] **A-414** — **Exception** (`/api/locations` search): drop the 10-minute KV
+  cache for free-text searches, or bound it, based on how often it is hit;
+  the local district index already answers the form.
+  -> REQ: REQ-245 · deps: [A-413] · Done when: the decision and its numbers are
+  written here, and the search response is unchanged.
+- [ ] **A-415** — **Proposal** (quote and dispatch): when Mengantar answers
+  "area not found" for a stored area, drop it so the next resolve heals it.
+  Touches `shipping-quote.ts` and `mengantar-dispatch.ts`; write the change and
+  its tests; change nothing until approved.
+  -> REQ: REQ-244 · deps: [A-412] · Done when: the proposal is written here.
+- [ ] **A-416** — Measure: resolve latency before and after A-413 on a local
+  store with the provider stand-in, and the KV writes removed per day from the
+  fleet figures (`STATUS.md`).
+  -> REQ: REQ-243 · deps: [A-413] · Done when: the before and after figures are
+  recorded here.
+- [ ] **A-417** — Stability study, read-only, needs approval for `--remote`:
+  after a few weeks of A-413 in production, compare the stored area id for the
+  same district across installs.
+  -> REQ: REQ-246 · deps: [A-413] · Done when: the share of districts whose id
+  agrees across stores is recorded, which decides A-418.
+- [ ] **A-418** — Only if A-417 shows stable ids: a throttled, read-only script
+  resolves all 7,285 districts once (about 7,300 Mengantar searches, needs
+  approval) and adds the area id to the bundled district data, with the D1
+  table kept as the fallback.
+  -> REQ: REQ-246 · deps: [A-417] · Done when: the bundle grows by the measured
+  size (target under 150 KB raw), a new install resolves a sampled district
+  with no Mengantar call, and the generator is committed under `scripts/`.

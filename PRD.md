@@ -2,11 +2,235 @@
 
 > Verified against disk: 2026-09-30 @ `dd83acd` + working tree
 
+## A43 — Resolve kecamatan to Mengantar areas without calling Mengantar
+
+**Status:** Proposed 2026-10-29. Pairs with A42: more origins mean more quotes,
+so each quote should spend as little as possible before the rate call.
+
+### What exists today (verified on disk)
+
+- The form searches the bundled 7,285-district index
+  (`src/data/indonesia-districts.ts`, Kepmendagri 2025) locally.
+- The chosen district + city is resolved to a Mengantar area id through
+  `/address/search` (`/api/locations?level=resolve`), cached in **KV for 24
+  hours** (`location-cache.ts`); free-text searches are cached in KV for 10
+  minutes. Every cache miss is a Mengantar round trip **and a KV write**, the
+  scarcest Free-plan resource (ADR-021, PRD A40).
+- The rate itself (`estimateRates`) is always live, and submit re-verifies the
+  courier, service, cost and weight before the order is written
+  (`MENGANTAR_INTEGRATION_SPEC.md`).
+
+### Goals
+
+- Resolving a kecamatan costs no Mengantar call and no KV write once it has
+  been resolved anywhere.
+- The rate stays live: what the buyer is charged is what Mengantar quotes.
+
+### Non-goals
+
+- Caching or precomputing **rates**. Prices, COD fees and courier coverage
+  change; a stored rate would be charged to the buyer and then differ from what
+  Mengantar bills at dispatch. Revisit only with A-330's measurement showing
+  the rate call is the bottleneck, and then as a short display-only cache that
+  submit still re-verifies.
+- Replacing the bundled district index or its source.
+
+### Requirements
+
+- **REQ-243** — A resolved district (district + city + province → Mengantar area
+  id and label) shall be stored permanently in D1, not for 24 hours in KV, and
+  read from there before Mengantar is asked.
+- **REQ-244** — A stored area that Mengantar later rejects (a rate or dispatch
+  answering "area not found") shall be dropped and resolved again, so a renamed
+  or retired area heals itself.
+- **REQ-245** — The free-text search cache shall stop writing KV on every
+  keystroke prefix; local district search already answers the form.
+- **REQ-246** — Optionally, once A-417's data shows area ids are stable, a
+  pre-resolved index for all 7,285 districts shall ship with the product, so a
+  new install never asks Mengantar to resolve at all.
+- **REQ-247** — The resolve result returned to the form shall be byte-identical
+  to today's for the same input.
+
+### Technical decisions
+
+- **Recommendation, in order:** (1) a per-install D1 table filled on first
+  resolve, with no expiry, replacing the KV write; (2) after enough installs
+  have filled it, compare their area ids for the same districts, and if they
+  agree, generate a bundled index (one more column on the district data,
+  about 100 KB raw) with a throttled, approved, read-only script. Step 1 is safe
+  and immediate; step 2 needs evidence that the ids are stable and approval for
+  about 7,300 read-only Mengantar calls.
+- **Why not a shared Cloudflare database for all stores:** each install is its
+  own Worker and D1 (ADR-001); a shared database would be a cross-store
+  dependency and a new binding. The bundled index gives every store the same
+  data with no binding at all.
+- **Protected surface.** `/api/locations` and the location modules are on the
+  forms' path. The change is limited to where a resolved area is looked up and
+  stored; the response shape is pinned by a test (REQ-247).
+
+## A42 — Multiple warehouses, each quote from the warehouse nearest the buyer
+
+**Status:** Proposed 2026-10-29. **Touches protected surfaces by design**
+(shipping quote, the rate and submit routes); each touch is listed and needs
+Paduka's approval as its own item before code.
+
+### What exists today (verified on disk)
+
+| Layer | State |
+| --- | --- |
+| Schema | Already multi: `warehouses` (name, `origin_area_id`, `pickup_address_id`, address, city, province, contact, `origin_label`), `orders.warehouse_id`, `pickup_schedules.warehouse_id`. |
+| Settings | `/admin/settings/warehouse` edits **one** warehouse (`save-warehouse` in `api/admin/settings.ts`), with `WarehouseOriginPicker` resolving a precise Mengantar sub-district and `ensurePickupAddress` registering the pickup address at Mengantar. |
+| Quote | `shipping-quote.ts` uses `SELECT … FROM warehouses ORDER BY id LIMIT 1`: the first warehouse, whoever the buyer is. |
+| Order | Stores `warehouse_id` from the quote (`quote.warehouse?.id`), as do headless checkout and lead conversion. |
+| Dispatch and pickup | Already per order: dispatch joins the order's warehouse for `pickup_address_id`; the shipping workspace lists up to 10 warehouses and schedules pickups per warehouse. |
+| Location data | The bundled district index has no coordinates; the buyer's district, city and province are known from the form. |
+
+So the order, dispatch and pickup already follow whichever warehouse the quote
+returns. The missing pieces are managing several warehouses, and the quote
+choosing one by the buyer's location.
+
+### Goals
+
+- An operator keeps several warehouses, each registered at Mengantar, in its own
+  settings screen.
+- Each quote, and so each order, ships from the warehouse nearest the buyer,
+  and the buyer is charged that warehouse's rate.
+- A store with one warehouse behaves exactly as today.
+
+### Non-goals
+
+- Splitting one order across warehouses, per-warehouse stock (ADR-023: stock
+  never gates a sale), or routing by courier.
+- GPS distance. No coordinates exist in the data; IP geolocation is too coarse
+  for this and the form already has the buyer's real district.
+
+### Requirements
+
+- **REQ-237** — Pengaturan → Gudang shall list the store's warehouses (at most
+  10, matching the shipping workspace) with add, edit, delete and **Jadikan
+  utama**. Exactly one is primary.
+- **REQ-238** — A warehouse can be saved only with a Mengantar origin resolved
+  to a precise sub-district and a pickup address registered at Mengantar
+  (`origin_area_id` and `pickup_address_id` both set), and the list shows each
+  warehouse's Mengantar status. A warehouse that is not ready is never chosen.
+- **REQ-239** — Each warehouse serves a set of provinces, defaulting to its own;
+  the operator can add provinces. The quote chooses: (1) a ready warehouse
+  serving the buyer's province; (2) else a ready warehouse on the same island
+  group; (3) else the primary. Ties go to the primary, then the lowest id.
+- **REQ-240** — The quote, the order's `warehouse_id`, the dispatch pickup
+  address and the pickup schedule shall all follow that one choice; submit
+  re-verifies the rate from the same warehouse it was quoted from.
+- **REQ-241** — Re-quoting an existing order from the admin (address edit) shall
+  use the order's own warehouse unless the operator changes it.
+- **REQ-242** — A store with one warehouse shall get byte-identical quotes,
+  orders and dispatches to today's, proven by tests run before and after.
+- **REQ-248** — A warehouse with orders cannot be deleted, only made inactive;
+  the primary cannot be made inactive.
+
+### Technical decisions
+
+- **Province coverage, not distance (recommendation).** It is deterministic,
+  costs no extra Mengantar call, uses data the form already has, and lets the
+  operator correct edge cases (a Jawa Barat warehouse serving DKI). Island
+  groups are a static map of the 38 province codes.
+- **Considered and deferred: cheapest of all warehouses.** Quote every ready
+  warehouse in parallel and take the cheapest. Most accurate to "ongkir from
+  the nearest", but N Mengantar calls per quote, slower forms and N× the rate
+  limit. Revisit after A-330/A43 measure the rate call, as a per-store mode.
+- **The protected touches, each its own approval:**
+  1. `shipping-quote.ts`: replace the first-warehouse read with the chooser and
+     accept `destinationProvince` in `ShippingQuoteInput`.
+  2. `/api/shipping-rates`, `/api/v1/geo/shipping-rates`, the three submit
+     routes, lead conversion and the admin re-quote: pass the buyer's province
+     (or, for a re-quote, the order's own warehouse). The rate route receives
+     only the destination id and city today, so the province is derived on the
+     server from the bundled district index (city → province) where that is
+     unambiguous.
+  3. The forms: none, if A-404 shows the server can derive the province; a form
+     change is a separate proposal only if it cannot.
+- **The chooser is a pure function** in `src/lib/warehouse-choice.ts`, tested
+  without D1; the quote only feeds it the ready warehouses.
+- **Schema:** `warehouses.is_primary`, `warehouses.is_active` and
+  `warehouses.served_provinces` (JSON array of codes) in one forward migration;
+  the first existing warehouse becomes primary and serves its own province.
+
+## A41 — Variant weight: required for new products, visible on every order
+
+**Status:** Proposed 2026-10-29. Most of the weight path already exists; this
+section closes the gaps and states what it does not change.
+
+### What exists today (verified on disk)
+
+| Layer | State |
+| --- | --- |
+| Schema | `product_variants.weight_grams integer DEFAULT 1000 NOT NULL` since `0000`. Every variant created without a weight weighs 1000 g; a product with two such variants is 1000 g **each**, not 500 g split. |
+| CMS form | `ProductForm.tsx` has a required "Berat (gram)" input per variant, but a new variant row starts prefilled with `1000`, so a new product never has to state its weight. |
+| Save API | `product-mutation.ts` turns a missing weight into `1000` (`parseInteger(...) ?? 1000`) and refuses zero or negative values. |
+| Shipping quote | `shipping-quote.ts` sends `weight_grams / 1000 × quantity` kg to Mengantar for the rate. |
+| Dispatch | `mengantar-dispatch.ts` sends the same per-item weight when it creates the Mengantar order, but reads the variant's weight **at dispatch time**, not the weight that was quoted at checkout. |
+| Order detail and invoice | Weight is shown nowhere: not per item, not as an order total. |
+
+### Goals
+
+- A product that is not live yet cannot be saved without an explicit weight
+  per variant, because that weight sets the Mengantar shipping cost.
+- A live product keeps its stored weight; one that never had one stays at the
+  1000 g per variant it already carries.
+- The operator sees the weight on the order: per item and in total, in grams
+  with the kg beside it.
+
+### Non-goals
+
+- Changing how the quote or the dispatch computes weight. `shipping-quote.ts`
+  and `mengantar-*.ts` are protected surfaces (TASKS, *Protected surfaces*).
+- Volumetric weight, package dimensions, or per-courier rounding.
+- Rewriting live stores' weights. The 1000 g default stays the rule for live
+  data; operators correct individual products in the CMS.
+
+### Requirements
+
+- **REQ-230** — Weight is stored per variant in whole grams. Live variants keep
+  their stored value; a variant that never had one is 1000 g, so two variants
+  are 1000 g each.
+- **REQ-231** — A **new** variant (no id yet) shall not be saved without an
+  explicit weight: the form starts it empty and required, and the save API
+  refuses a missing weight with a stated 422 instead of inventing 1000 g.
+- **REQ-232** — Saving an **existing** variant without a weight in the payload
+  shall keep its stored weight, never reset it to 1000 g.
+- **REQ-233** — The weight input shall state what it is for ("dipakai untuk
+  ongkir Mengantar") and show the kg equivalent as the operator types
+  (1250 → "1,25 kg").
+- **REQ-234** — The order detail page (the invoice) shall show each item's unit
+  weight and line weight and the order's total weight, in grams with kg, and
+  say whose weight it is (see REQ-235).
+- **REQ-235** — Until weight is recorded on the order, the page labels it as the
+  variant's **current** weight, because that is what dispatch will send to
+  Mengantar; it must not claim to be the weight that was quoted.
+- **REQ-236** — The live fleet's weights shall be read once, read-only, and
+  recorded: how many variants sit at the 1000 g default per store, so
+  operators know which products to check.
+
+### Technical decisions
+
+- **Grams, never kg, in storage and input.** The column is already grams and the
+  quote divides by 1000 in one place; the form shows kg only as a hint.
+- **"Missing" and "1000" are different.** The parser returns null for a missing
+  weight; a new variant with null is refused, and an update writes
+  `weight_grams = COALESCE(?, weight_grams)`. The DB default stays for rows
+  created by older code paths.
+- **No upper bound is invented.** Mengantar's maximum parcel weight is not
+  documented in this repository or its skill; the save keeps "positive
+  integer" until that limit is verified from Mengantar's own documentation.
+- **Snapshot is a proposal.** Recording `weight_grams` on `order_items` at
+  checkout would make dispatch send exactly the quoted weight, but it changes
+  the order write path, a protected surface. It is written up for Paduka's
+  approval (A-397) and not done here.
+
 ## A40 — Cloudflare fit: stay inside what the plan allows
 
 **Status:** Proposed 2026-10-29. Built from Cloudflare's own documentation and
 practitioner reports, not from inference; every fact below carries its source.
-Two items touch protected surfaces (TASKS, *Protected surfaces for A35–A39*) and
+Two items touch protected surfaces (TASKS, *Protected surfaces for A35–A43*) and
 are therefore proposals only.
 
 ### Evidence

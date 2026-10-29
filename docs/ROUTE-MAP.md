@@ -193,7 +193,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 ## Modules
 
-107 modules under `src/lib`; 7 without a sibling test.
+108 modules under `src/lib`; 7 without a sibling test.
 `used by` lists routes importing the module directly — a module used by nothing
 is either transitive (imported by another lib) or dead, and only reading tells which.
 
@@ -300,9 +300,10 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `tenant-content` | 3 | — | ✓ | `/` `/api/v1/storefront` |
 | `tenant-contract` | 3 | — | ✓ | — |
 | `tenant` | 12 | `stores` | ✓ | `/kebijakan-privasi` `/pengiriman` `/syarat-ketentuan` `/install` `/api/install` `/api/admin/settings` |
-| `thanks-whatsapp` | 5 | — | ✓ | `/thanks` |
+| `thanks-whatsapp` | 6 | — | ✓ | `/thanks` |
 | `traffic-source` | 3 | — | ✓ | — |
 | `ui-variants` | 5 | — | ✓ | `/thanks` |
 | `utils` | 0 | — | **none** | — |
 | `validation` | 7 | — | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/admin/settings/warehouse` `/api/admin/orders/[id]` |
 | `version` | 2 | — | **none** | — |
+| `whatsapp-numbers` | 10 | `stores` `whatsapp_numbers` | ✓ | — |

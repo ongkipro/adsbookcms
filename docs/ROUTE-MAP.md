@@ -268,7 +268,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `operational-alerts` | 10 | — | ✓ | `/api/admin/health` |
 | `operational-health` | 21 | `orders` `payment_transactions` | ✓ | `/api/admin/health` |
 | `order-instruction-hint` | 2 | — | ✓ | — |
-| `order-lifecycle` | 12 | `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
+| `order-lifecycle` | 13 | `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `order-persistence` | 14 | `order_items` `order_number_counters` `orders` `payment_transactions` `product_variants` `products` `seller_bank_accounts` `stores` | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/admin/orders/retention` |
 | `order-schema` | 3 | — | ✓ | `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/admin/orders/[id]` |
 | `order-status` | 4 | `order_items` `orders` `payment_transactions` | ✓ | `/api/order-status` `/api/v1/orders/status` |

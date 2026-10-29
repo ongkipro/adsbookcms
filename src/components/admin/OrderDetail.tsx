@@ -1,4 +1,5 @@
 import { formatIdr } from "@/lib/format-idr";
+import { isVoidOrder } from "@/lib/order-lifecycle";
 import { useConfirm } from "./useConfirm";
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from "@/lib/payment-fee-policy";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
@@ -105,6 +106,8 @@ type Order = {
   payment_method: string;
   payment_status: string;
   shipping_status: string;
+  /** Set once the order is void; see `isVoidOrder`. */
+  stock_restored_at?: string | null;
   confirmed_at: string | null;
   courier_code: string | null;
   courier_service: string | null;
@@ -1598,8 +1601,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
               {order.payment_method === "manual_transfer" &&
                 !paymentPaid &&
                 !paymentFailed &&
-                !paymentRefunded &&
-                paymentStatus !== "cancelled" && (
+                !isVoidOrder(order) && (
                   <Button
                     type="button"
                     onClick={() => void confirmManualTransfer()}

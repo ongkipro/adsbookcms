@@ -2332,6 +2332,14 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   = sent, others terminal) with a test. Also: Google has no requeue path and no
   retention purge for `failed` rows.
 - [ ] **A-285** — AutoLaris money edges (need provider evidence): the
+  **Live read 2026-10-29** (owner's AutoLaris account, read-only,
+  `05-autolaris.json`): `GET /api/h2h/list_payment` → `rc "00"`, 8 channels
+  (COD, QRIS 0.7%, VA BNI/Permata/Mandiri/BRI 3,000, VA BCA 6,500, OVO 3%).
+  `POST /api/h2h/advice` for an unknown `transaction_id` → HTTP 200
+  `{"rc":"02","ket":"NOT FOUND","data":[]}`. `rc "02"` is also PENDING, and
+  `inquirePayment` maps every `"02"` to pending, so a transaction AutoLaris
+  does not know stays pending forever. Fix needs `autolaris-*.ts` (protected):
+  treat `rc 02` + `ket "NOT FOUND"` + empty `data` as its own state.
   fee-bearer amount is stored but `grand_total` is always the order total; a
   payment retry clears the old `provider_transaction_id` so a late payment to
   the old VA is never matched, and two concurrent retries both create provider
@@ -3696,6 +3704,16 @@ the order write path.
   the variant weight, and the order detail label (A-395) then says "berat saat
   order".
 - [ ] **A-398** — **Partial 2026-10-29.** Limit: regular 50 kg, cargo 100 kg,
+  **Live read 2026-10-29** (owner's Mengantar account, read-only
+  `GET /order/estimate`, Surabaya → Tebet, `scratchpad/live/out/03-main.json`):
+  every weight 0.5–150 kg answered 200 `success:true`; no error text at any
+  weight. A courier past its limit stays listed `unsupported:true, price:0`.
+  J&T, AnterAja, SPX and Pos stop at 50 kg; JNE, SiCepat, SAP, iDexpress and
+  Lion quote regular service at 101 and 150 kg; cargo quotes at 150 kg (no
+  100 kg cap seen); iDlite stops above 0.5 kg. So 50 kg is a per-courier
+  limit, not a parcel limit: the product's 50 kg per-unit cap refuses
+  variants that several couriers ship. Create-order limits were not tested
+  (it would create an order).
   lite 0.5 kg. Source: `~/Projects/mengantar-documentation/docs/02-couriers-and-rules.md`
   §3.1 (local notes that cite the official Mengantar API docs plus live
   analysis; not re-checked against app.mengantar.com/docs). Applied as
@@ -4024,6 +4042,14 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
   -> REQ: REQ-245 · deps: [A-413] · Done when: the decision and its numbers are
   written here, and the search response is unchanged.
 - [ ] **A-415** — **Proposal** (quote and dispatch): when Mengantar answers
+  **Live read 2026-10-29** (read-only estimates, `04-unknown.json`): an
+  unknown or malformed destination **or origin** id answers HTTP 200
+  `{"success":false,"data":0}` with no `message`; an empty id answers 400
+  `"origin_id or destination_id is empty"`; an unknown search keyword answers
+  `success:true, data:[]`. There is no "area not found" text, and origin and
+  destination failures are identical, so A-415 must match
+  `success === false && data === 0 && !message` and drop the destination row
+  only when the same origin quotes another destination.
   "area not found" for a stored area, drop it so the next resolve heals it.
   Touches `shipping-quote.ts` and `mengantar-dispatch.ts`; write the change and
   its tests; change nothing until approved.

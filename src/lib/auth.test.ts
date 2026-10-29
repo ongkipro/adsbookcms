@@ -638,3 +638,12 @@ test('the admin gate holds against paths Astro normalizes before routing', async
     assert.equal(response.status, 302, `${pathname} must be sent to the login screen`);
   }
 });
+
+test('the WhatsApp rotator page and API are owner and admin only (PRD A35)', () => {
+  for (const pathname of ['/admin/settings/whatsapp', '/api/admin/whatsapp-numbers']) {
+    assert.equal(canAccessAdminRoute('owner', pathname), true, `owner ${pathname}`);
+    assert.equal(canAccessAdminRoute('admin', pathname), true, `admin ${pathname}`);
+    assert.equal(canAccessAdminRoute('advertiser', pathname), false, `advertiser ${pathname}`);
+    assert.equal(canAccessAdminRoute('customer_service', pathname), false, `cs ${pathname}`);
+  }
+});

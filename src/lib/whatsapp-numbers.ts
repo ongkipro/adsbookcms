@@ -39,6 +39,20 @@ export function normalizeWhatsappPhone(input: unknown): string | null {
   return /^62\d{8,13}$/.test(digits) ? digits : null;
 }
 
+/** "62812…" as an Indonesian reader writes it: 0812-3456-7890. */
+export function formatWhatsappDisplay(phone: string): string {
+  const local = String(phone).replace(/^62/, "0");
+  return local.replace(/^(\d{4})(\d{4})(\d+)$/, "$1-$2-$3");
+}
+
+/** The header line on the admin page: how /thanks splits COD orders. */
+export function whatsappShareSummary(activeCount: number): string {
+  if (activeCount <= 0) return "Belum ada nomor aktif — tombol WhatsApp di halaman terima kasih disembunyikan.";
+  if (activeCount === 1) return "1 nomor aktif · menerima semua order COD.";
+  const share = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 }).format(100 / activeCount);
+  return `${activeCount} nomor aktif · tiap nomor ±${share}% order COD, dibagi per order.`;
+}
+
 function cleanLabel(input: unknown): string {
   const label = String(input ?? "").trim();
   if (label.length > WHATSAPP_LABEL_MAX) {

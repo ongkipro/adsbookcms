@@ -2763,13 +2763,15 @@ A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
   it, the same order → the same number, 2 and 3 numbers over 1,000 sequential
   invoices land inside the measured tolerance around 50% and 33.3%, and an
   unusable number is never returned.
-- [ ] **A-333** — `getThanksWhatsappSettings` returns the active, usable numbers
+- [x] **A-333** — **Done 2026-10-29.** `getThanksWhatsappSettings` returns `{ phones, autoRedirect }` from `activeThanksNumbers` (legacy `support_whatsapp` fallback covered in `whatsapp-numbers.test.ts`).
+  `getThanksWhatsappSettings` returns the active, usable numbers
   (falling back to `support_whatsapp` for an empty list) instead of one phone;
   `thanks.astro` is its only caller.
   -> REQ: REQ-185, REQ-189 · deps: [A-331] · Done when: `public-store.test.ts`
   proves the list, the fallback, and a store with no number returning an empty
   list.
-- [ ] **A-334** — `/thanks` ships the list and picks per order in the module
+- [x] **A-334** — **Done 2026-10-29.** `thanks.astro` diff is 18 lines, all in the number hand-off; `MetaThanksTracker`, `ps:purchase-done`, the timing and the message are untouched (68 thanks, tracking and WhatsApp tests pass). Playwright on a local store with two active numbers: INV-10001/3/5 → 0898…, INV-10002/4/6 → 0812…, each stable across a reload, the invoice in every message, a deactivated third number never picked.
+  `/thanks` ships the list and picks per order in the module
   script; the button and the automatic hand-off both use the pick. The inline
   `data-phone` single value is removed.
   -> REQ: REQ-186, REQ-187, REQ-188 · deps: [A-332, A-333] · Done when: browser
@@ -2777,7 +2779,8 @@ A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
   numbers, a reload keeping the same one, and the COD hand-off URL carrying the
   picked number; with one number the page is identical to PRD A28. Closes the
   browser-evidence half of A-325.
-- [ ] **A-335** — `/api/admin/whatsapp-numbers` (GET, POST, PATCH, DELETE),
+- [x] **A-335** — **Done 2026-10-29.** `api/admin/whatsapp-numbers.ts`; `ADMIN_API_ROUTES` and `ADMIN_PAGE_ROUTES` entries; `auth.test.ts` proves owner and admin in, advertiser and customer service out.
+  `/api/admin/whatsapp-numbers` (GET, POST, PATCH, DELETE),
   for owner and admin only. Owner passes every route; admin is held to explicit
   lists, so add the endpoint to `ADMIN_API_ROUTES` and the page
   `/admin/settings/whatsapp` to `ADMIN_PAGE_ROUTES` in `auth.ts`. Advertiser and
@@ -2786,7 +2789,8 @@ A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
   admin reach both, advertiser and customer service get 403 on both, every
   refusal from A-331 reaches the client
   as a stated 4xx, and no response carries anything but label, number, state.
-- [ ] **A-336** — The page `/admin/settings/whatsapp` ("Nomor WhatsApp CS"), on
+- [x] **A-336** — **Done 2026-10-29.** `WhatsappNumbers.tsx` + `/admin/settings/whatsapp`. One responsive list (rows wrap on a phone) instead of a separate table and cards. Playwright: add, the browser-side phone refusal, the last-active guard (server 409 text), 3 active → "±33,3%", no overflow at 390 and 1280 px. Edit and delete through the UI not yet clicked in the evidence run.
+  The page `/admin/settings/whatsapp` ("Nomor WhatsApp CS"), on
   `AdminLayout` + `AdminPageHeader` (back to Pengaturan), one React island
   modelled on `SellerBankAccounts.tsx`:
   - header line: "2 nomor aktif · tiap nomor ±50% order COD" (1 → "semua
@@ -2805,14 +2809,16 @@ A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
   text for 1, 2 and 3 numbers, the 10-number limit, the guard message, no
   horizontal overflow and an empty console; `admin-controls.test.ts` and
   `admin-page-width.test.ts` pass.
-- [ ] **A-399** — Navigation: a "Nomor WhatsApp" child under Pengaturan in
+- [x] **A-399** — **Done 2026-10-29.** Pengaturan child "Nomor WhatsApp", palette keywords, and a card on `/admin/settings`; route map 117 routes.
+  Navigation: a "Nomor WhatsApp" child under Pengaturan in
   `admin-navigation.ts` (after "Toko & CS"), command-palette keywords
   (whatsapp, wa, cs, rotator, nomor), shown to owner and admin only, and a card
   on `/admin/settings`. `npm run route-map` after the page exists.
   -> REQ: REQ-184 · deps: [A-336] · Done when: the item opens the page for owner
   and admin, is absent for advertiser and customer service, and the route-map
   drift test passes.
-- [ ] **A-400** — Settings → Store: the "WhatsApp customer service" input
+- [x] **A-400** — **Done 2026-10-29.** The store form shows the first active number read-only with a link; the save no longer validates or writes `support_whatsapp` (`tenant.test.ts`).
+  Settings → Store: the "WhatsApp customer service" input
   becomes a read-only line showing the first active number with a link
   "Kelola nomor WhatsApp"; the PRD A28 redirect switch stays. The store PUT
   in `api/admin/settings.ts` no longer requires `support_whatsapp` and never
@@ -2825,7 +2831,8 @@ A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
   (schema 68, migration `0067`), `STATUS.md`, and the A-340 close-out.
   -> REQ: REQ-184 … REQ-189 · deps: [A-334, A-336, A-337, A-399, A-400] · Done
   when: the release notes name the migration and the Settings → Store change.
-- [ ] **A-337** — The installer inserts its number as the first
+- [x] **A-337** — **Done 2026-10-29.** The install batch adds the number into an empty list; `install.test.ts` proves the seeded row and the empty list (real SQLite). `dev:seed` installed with it end to end.
+  The installer inserts its number as the first
   `whatsapp_numbers` row, and an install given no number leaves the list empty.
   -> REQ: REQ-189 · deps: [A-331] · Done when: an `install.test.ts` case proves
   both, and the admin page opens empty without error.

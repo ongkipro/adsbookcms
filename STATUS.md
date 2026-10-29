@@ -2,6 +2,40 @@
 
 > Verified against disk: 2026-10-24 (1.7.13 on revenleather, zvarashop, taniniaga, agritani-shop, halotanishop, permatamall, numaskin-adbook, bavenshop, beranda-tani; zanobyshop on 1.7.2)
 
+## 2026-10-29 — D1 usage across the account (A-375)
+
+Read-only `wrangler d1 insights <db> --remote --time-period 30d --sort-by reads`
+over all 14 D1 databases in the account, summed per database and divided by 30.
+Free-plan allowance per account and day: 5,000,000 rows read, 100,000 rows
+written, enforced since 2026-09-01 (PRD A40 E1).
+
+| Database | Rows read / day | Rows written / day |
+| --- | ---: | ---: |
+| revenleather | 6,455,221 | 35,567 |
+| zvarashop | 3,985,578 | 10,512 |
+| taniniaga | 1,196,574 | 10,846 |
+| beranda-tani | 877,524 | 13,174 |
+| agritani-shop | 552,111 | 10,662 |
+| zanobyshop | 233,202 | 136 |
+| permatamall | 86,639 | 1,105 |
+| the other seven together | 143,069 | 1,416 |
+| **Account** | **13,529,918** | **83,419** |
+
+- Reads average **2.7×** the Free allowance and writes **83 %** of it. On Workers
+  Free every D1 query in the account would fail for part of every day, so either
+  the account is already on Paid or the fleet is failing daily. The OAuth token
+  here cannot read the plan; Paduka confirms it in the dashboard (ADR-031).
+- Heaviest reads, fleet-wide per day: the public landing-page list (2.75M, a
+  correlated subquery per row), the social-proof 24-hour order count (2.13M; its
+  `unixepoch(created_at)` predicate cannot use the index, so each run scans
+  `orders`), the storefront catalog's full `product_variants` and `products`
+  reads (2.02M and 1.61M), the CAPI outbox retention `DELETE` (1.98M, again a
+  `unixepoch(updated_at)` scan), the schema check on `d1_migrations` (0.83M),
+  `storefront_content` (0.60M), and the notification unread count (0.38M).
+- Heaviest writes: the CAPI outbox (insert plus two updates per event, about
+  58k a day together) and `rate_limits` (15k upserts and 3k purges).
+- Raw JSON is not committed. Tasks A-381 to A-387 in TASKS act on these.
+
 ## 2026-10-24 — 1.7.13: manual transfer confirmation sends the Purchase
 
 - Fleet on 1.7.13, all deployed 2026-10-24 with `placement: smart` now in every

@@ -1106,3 +1106,44 @@ PageView lost to a fast bounce is worth more than the score.
 several locations before it decides, and it can decline (`cf-placement`
 response header). A store whose traffic all comes from one colo gains nothing
 and loses nothing.
+
+---
+
+## ADR-031 — The fleet's account runs on Workers Paid; Workers Cache stays off
+
+**Date:** 2026-10-29 · **Status:** Accepted by Paduka 2026-10-29. The plan change
+itself is a dashboard action outside this repository; confirm it there.
+
+**Context.** Since 2026-09-01 D1 fails every query on a Workers Free account once
+the account passes 5M rows read or 100k rows written in a day, until 00:00 UTC
+([D1 changelog](https://developers.cloudflare.com/changelog/product/d1/)). The
+allowance is per account, and every install in the fleet shares one account. A
+30-day read of all 14 databases (`STATUS.md`, 2026-10-29) averaged 13.5M rows
+read and 83k rows written a day: 2.7× and 0.83× the Free allowance. Free also
+caps CPU at 10 ms per request and per cron run
+([Workers limits](https://developers.cloudflare.com/workers/platform/limits/));
+ADR-030 measured 80–220 ms. The same research found that a Workers Cache hit
+does not run the Worker ([Workers Cache](https://developers.cloudflare.com/workers/cache/)),
+while ADR-029 relies on the middleware running on every cached page view to
+write the click-id cookie.
+
+**Decision.**
+
+1. The account that hosts the fleet runs on **Workers Paid**. No install's
+   checkout may depend on staying under a Free allowance that the fleet already
+   exceeds on reads.
+2. Reads are still reduced at their source (TASKS A40, A-381 to A-387), because
+   on Paid they are billed past 25B a month, and because a scan that grows with
+   `orders` grows with every store's success.
+3. **Workers Cache is not adopted.** ADR-029's `caches.default` stays until a
+   later ADR first moves click-id capture out of the middleware under the
+   tracking contract.
+
+**Consequences.** A $5-a-month minimum for the account. The five-cron cap that
+left zanobyshop without a schedule (`STATUS.md`) lifts to 250, so it can be
+given its hourly cron again. A40's write discipline still applies: Paid removes
+the cliff, not the cost.
+
+**Rejected alternative.** Staying on Free and cutting reads under 5M a day. The
+largest single store already reads 6.5M a day, so no amount of query work in
+one install fixes an account-wide allowance.

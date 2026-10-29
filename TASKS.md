@@ -2681,3 +2681,562 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   detail), abandoned orders still abandoned after 30 min to its lead webhook,
   and the source landing path on every order. Migrations `0062`-`0065`.
   **Done 2026-10-19 (1.5.12).**
+
+## Protected surfaces for A35–A39 — read before any of those tasks
+
+Ad tracking, the three order forms, and the order flow and its processing are
+working and are **not** in scope for A35–A39. Every task below is held to this
+list; a task that cannot be done inside it stops and asks first.
+
+**Untouched — no edit, no reformat, no import change:**
+
+- Tracking: `src/components/storefront/tracking/*`, `meta-*.ts`,
+  `capi-outbox.ts`, `google-ads-offline.ts`, `paid-order-purchase.ts`,
+  `click-ids.ts`, `traffic-source.ts`, `meta-purchase-order.ts`.
+- Forms: `src/scripts/form-hybrid.ts`, `form-middle.ts`,
+  `src/components/storefront/forms/*`, `form-config.ts`, `form-mode.ts`,
+  `geo.ts`, `checkout-navigation.ts`.
+- Order flow and processing: `src/pages/api/submit-order.ts`,
+  `submit-middle-order.ts`, `src/pages/api/v1/checkout.ts`, `persistOrder` and
+  every order statement in `order-persistence.ts`, `order-lifecycle.ts`,
+  `order-status*.ts`, `order-schema.ts`, `mengantar-*.ts`, `autolaris-*.ts`,
+  the location and shipping-quote modules, `src/pages/api/admin/orders/*`.
+
+**Allowed, and only this much:**
+
+| Task | File | The whole change |
+| --- | --- | --- |
+| A-334 | `src/pages/thanks.astro` | The support number becomes a list and the module script picks one. `MetaThanksTracker`, `ps:purchase-done`, the redirect timing and the message stay byte-identical. |
+| A-344 | `src/pages/api/record-abandoned-order.ts` and the abandoned-lead upsert in `order-persistence.ts` | One bound `source_page_path` value read from `Referer`. The converted-lead and order statements are not edited. |
+| A-346 | `OrdersTable.tsx`, `AbandonedOrders.tsx` and their list APIs | A display chip and a read filter. No status, release or bulk action is edited. |
+| A-368 | `src/worker.ts` `scheduled()` | One snapshot write appended after the alert evaluation, inside the existing `housekeeping()` isolation. The CAPI drain, Google reconcile, payment reconciliation, plugins and receiver-score steps are untouched and keep their order. |
+
+**Gate on every task:**
+
+1. `git diff --name-only` lists no untouched file, and an allowed file's diff is
+   no larger than its row above.
+2. These suites pass unchanged, with no test edited to make them pass: every
+   `meta-*`, `capi-outbox`, `google-ads-offline`, `paid-order-purchase`,
+   `checkout-*`, `form-*`, `order-*`, `headless-checkout`, `mengantar-*` and
+   `thanks-whatsapp` test. Then the full `npm test`, `npm run check` and
+   `npm run build`.
+3. The A-338 and A-339 findings are reports. A change to a protected file is a
+   separate proposal, one finding at a time, made only on Paduka's approval.
+
+## A35 — Rotate the support WhatsApp number on the thank-you page
+
+Proposed 2026-10-29. Scope is `/thanks` only (PRD A35). Order: A-330 → A-332 →
+A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
+
+- [ ] **A-330** — Measure first: time the order-form submit (`/api/submit-*-order`
+  and what the buyer waits on after the click) and read the Mengantar kecamatan
+  path (`/api/locations`, `/address/search`, the exact-district estimate). Record
+  numbers, not impressions; list anything awaited that the buyer does not need.
+  -> REQ: REQ-190 · deps: [] · Done when: a written before-figure for submit
+  latency (local and one live read-only GET at most) and a list of awaited work,
+  with no provider write and no remote D1 command.
+- [ ] **A-331** — Migration `0067` creates `whatsapp_numbers` (id, label, phone,
+  is_active, created_at; unique on phone) and seeds one row from
+  `stores.support_whatsapp` where it is set. Add `src/lib/whatsapp-numbers.ts`
+  (list, add, update, remove; normalize to `62…`; reject unusable, duplicate, an
+  11th number, and removing or deactivating the last active one; sync the
+  `stores.support_whatsapp` mirror to the first active number).
+  -> REQ: REQ-184, REQ-185, REQ-189 · deps: [] · Done when: the migration applies
+  to an empty local D1 and to one holding a store number (one seeded row), and
+  focused tests prove each refusal and that the mirror follows the first active.
+- [ ] **A-332** — Add the pure picker `pickThanksWhatsapp(numbers, orderNumber,
+  random)` to `thanks-whatsapp.ts`: filter numbers `thanksWhatsappUrl` rejects,
+  `fnv1a(orderNumber) mod n`, random only when there is no order number, null for
+  an empty list.
+  -> REQ: REQ-186, REQ-187 · deps: [] · Done when: tests prove 1 number → always
+  it, the same order → the same number, 2 and 3 numbers over 1,000 sequential
+  invoices land inside the measured tolerance around 50% and 33.3%, and an
+  unusable number is never returned.
+- [ ] **A-333** — `getThanksWhatsappSettings` returns the active, usable numbers
+  (falling back to `support_whatsapp` for an empty list) instead of one phone;
+  `thanks.astro` is its only caller.
+  -> REQ: REQ-185, REQ-189 · deps: [A-331] · Done when: `public-store.test.ts`
+  proves the list, the fallback, and a store with no number returning an empty
+  list.
+- [ ] **A-334** — `/thanks` ships the list and picks per order in the module
+  script; the button and the automatic hand-off both use the pick. The inline
+  `data-phone` single value is removed.
+  -> REQ: REQ-186, REQ-187, REQ-188 · deps: [A-332, A-333] · Done when: browser
+  evidence with two numbers shows two different orders landing on different
+  numbers, a reload keeping the same one, and the COD hand-off URL carrying the
+  picked number; with one number the page is identical to PRD A28. Closes the
+  browser-evidence half of A-325.
+- [ ] **A-335** — `/api/admin/whatsapp-numbers` (GET, POST, PATCH, DELETE),
+  for owner and admin only. Owner passes every route; admin is held to explicit
+  lists, so add the endpoint to `ADMIN_API_ROUTES` and the page
+  `/admin/settings/whatsapp` to `ADMIN_PAGE_ROUTES` in `auth.ts`. Advertiser and
+  customer service get neither.
+  -> REQ: REQ-184, REQ-185 · deps: [A-331] · Done when: tests prove owner and
+  admin reach both, advertiser and customer service get 403 on both, every
+  refusal from A-331 reaches the client
+  as a stated 4xx, and no response carries anything but label, number, state.
+- [ ] **A-336** — Admin menu: `/admin/settings/whatsapp` with a child entry in
+  `admin-navigation.ts`, the active count and per-number share, and the last-
+  active guard message. Settings → Store replaces its number field with a link,
+  keeps the PRD A28 switch, and its PUT no longer requires or clears
+  `support_whatsapp`.
+  -> REQ: REQ-184, REQ-185, REQ-186, REQ-189 · deps: [A-335] · Done when: browser
+  evidence at 390px and 1280px proves add, deactivate, remove, the share text for
+  1, 2 and 3 numbers, the guard, no horizontal overflow and an empty console;
+  saving Settings → Store leaves the number list untouched.
+- [ ] **A-337** — The installer inserts its number as the first
+  `whatsapp_numbers` row, and an install given no number leaves the list empty.
+  -> REQ: REQ-189 · deps: [A-331] · Done when: an `install.test.ts` case proves
+  both, and the admin page opens empty without error.
+- [ ] **A-338** — Report on submit speed; change nothing. From A-330, list each
+  thing the buyer waits on that it need not (work that could move to
+  `waitUntil`, sequential D1 reads that could be one `batch`, a provider call
+  on the buyer's path), each with its measured cost, the file it lives in, and
+  the risk of changing it. The submit routes and `order-persistence.ts` are
+  protected surfaces.
+  -> REQ: REQ-190 · deps: [A-330] · Done when: the report is written in this
+  task's entry and no file outside `TASKS.md` changed. Any fix becomes its own
+  task, approved by Paduka one at a time.
+- [ ] **A-339** — Prove the Mengantar kecamatan path; change nothing. Run the
+  local district and location tests first; then only read-only provider calls
+  (`/address/search` and a rate estimate), after Paduka approves the live call,
+  for a sample of kecamatan that share a name across cities and for a plain one.
+  -> REQ: REQ-190 · deps: [A-330] · Done when: each sampled kecamatan is recorded
+  as resolved to a `destination_area_id` or failing with its reason, the
+  exact-district estimate (1.7.9) is exercised, nothing is dispatched or created
+  at the provider, and no source file changed. A failure becomes a proposed fix
+  (district + city resolution, `buildProviderDestinationSearches`), approved
+  separately.
+- [ ] **A-340** — Close out: `npm run route-map`, a short mention in
+  `ARCHITECTURE.md`, version and changelog per `RELEASE.md`, `STATUS.md`.
+  -> REQ: REQ-184 … REQ-189 · deps: [A-334, A-336, A-337] · Done when:
+  `npm test` (≥ 833 plus the new checks), `npm run check` and `npm run build`
+  pass and the doc headers cite the commit they were checked at. The rotator
+  does not wait on A-338 or A-339: those ship on their own, and A-339 waits on
+  an approval the rotator does not need.
+
+## A36 — Know where a lead came from
+
+Proposed 2026-10-29. Prerequisite of A37. Migration numbers are provisional
+(`0067` is A35's): take the next free one at merge.
+
+- [ ] **A-341** — Pure `sourceSlugFromPath(path)` (lower-case, strip query, hash
+  and trailing slash, last segment, ≤ 80 chars, `/` → `beranda`, nothing usable →
+  null) in `src/lib/source-slug.ts`.
+  -> REQ: REQ-191 · deps: [] · Done when: tests cover `/promo-a`, `/produk/x`,
+  `/PROMO/`, `/a?utm=1#h`, `/`, an empty string, a 500-character path, and an
+  encoded or non-ASCII segment.
+- [ ] **A-342** — Migration adds `orders.source_slug` as
+  `GENERATED ALWAYS AS (…) VIRTUAL` over `source_page_path`, plus
+  `INDEX (source_slug, created_at)`, then `PRAGMA optimize` (D1 recommends it
+  after creating an index; PRD A40 E7). No backfill and no write path: SQLite
+  computes it for every row. Proven in plain SQLite on 2026-10-29 (`/Promo-A/` →
+  `promo-a`, `/produk/kopi` → `kopi`, `/` → `beranda`, NULL → NULL, index used
+  for `=`); D1 is not yet proven.
+  -> REQ: REQ-191, REQ-193 · deps: [A-341] · Done when: it applies to an empty
+  local D1 and to a copy holding paths of every shape in A-341, the column reads
+  correctly on old rows, `EXPLAIN QUERY PLAN` shows the index, and a test feeds
+  the same paths through the SQL and the function and gets equal results. If
+  local D1 refuses a generated column, stop and bring the alternative to Paduka;
+  do not fall back to editing the order write path.
+- [x] **A-343** — Dropped 2026-10-29: the generated column (A-342) gives every
+  order its slug without touching `persistOrder` or the submit routes.
+- [ ] **A-344** — Capture the source on a lead without touching the forms.
+  `/api/record-abandoned-order` reads the page from the `Referer` header (the
+  form's `fetch` is same-origin and the store sends
+  `Referrer-Policy: strict-origin-when-cross-origin`, so it carries the full
+  URL), keeps its pathname clipped to 500 characters, and passes it to the
+  abandoned-lead insert; the 2-hour repeat keeps the first value
+  (`COALESCE(source_page_path, ?)`). Form scripts and the converted-lead and
+  order statements are not edited.
+  -> REQ: REQ-192 · deps: [A-342] · Done when: tests prove a captured lead has a
+  slug, a missing or foreign-origin `Referer` stores null, a repeat capture
+  inside two hours keeps the first page, conversion still leaves the order with
+  the submit page's path, and `git diff` shows `form-hybrid.ts` and
+  `form-middle.ts` unchanged.
+- [ ] **A-345** — Resolve a slug to a label: CMS landing title, native page name,
+  product name, else the slug. One batched read, reused by the lists and A37.
+  -> REQ: REQ-195 · deps: [A-342] · Done when: tests prove each kind, a product
+  page that a landing has claimed showing one name, and an unknown slug falling
+  back to itself.
+- [ ] **A-346** — Show and filter the source in the order list and the
+  abandoned-lead list. The slug is a chip beside the existing
+  `TrafficSourceBadge` (≤ 16 characters, the full path in `title`), not a new
+  column; a filter built from `FilterBar`/`FilterField` lists the present slugs
+  by frequency, and the API parameter sits behind it.
+  -> REQ: REQ-194, REQ-196 · deps: [A-342, A-345] · Done when: tests prove the
+  filter and an unknown slug returning no rows rather than all; browser evidence
+  at 390px and 1280px shows the chip, the filter, the table's width and a phone
+  card's height unchanged, no overflow, and `admin-controls.test.ts` still
+  passing.
+- [ ] **A-347** — Channel split, read-only. `traffic-source.ts` is a protected
+  surface, so it is called, not edited: a new `src/lib/ad-channel.ts` maps
+  `parseTrafficSource(ad_click_ids)` to a plain channel (meta, google, tiktok,
+  other paid, organic, direct). Check which keys of `CLICK_ID_KEYS` end up in
+  `ad_click_ids`, and write the SQL `CASE` the aggregation needs to match it.
+  -> REQ: REQ-203 · deps: [] · Done when: tests cover each channel from a real
+  stored value, a malformed value and null, and the SQL `CASE` and the function
+  agree on every one; the stored shape is written into the function's header
+  comment.
+
+## A37 — Analytics: which landing page wins, what sells, and where
+
+Proposed 2026-10-29. Measure before building: A-348 sets the budget that every
+later task is held to.
+
+- [ ] **A-348** — Seed a realistic local D1 (≥ 20,000 orders over 90 days, 40
+  slugs, 30 products, 300 cities) and measure `meta.rows_read` and time for the
+  queries the dashboard runs today. Every new A37 or A38 query is checked
+  with `EXPLAIN QUERY PLAN`: no `SCAN orders` and no `USE TEMP B-TREE` where an
+  index could serve, with a covering index tried before a plan is accepted
+  (PRD A40 E2). Write the figure and the budget (a ceiling of
+  rows read per screen) into the PRD's A37 technical decisions.
+  -> REQ: REQ-198, REQ-208 · deps: [] · Done when: the figures are recorded, the
+  seed script is committed under `scripts/` and never touches a remote database.
+- [ ] **A-349** — Move `RELEASED_ORDER` and the "abandoned is a lead" rule out of
+  `api/admin/analytics.ts` into one `src/lib` module and import it there.
+  -> REQ: REQ-206 · deps: [] · Done when: `admin-analytics.test.ts` is unchanged
+  and green, and a grep finds the expression in one place.
+- [ ] **A-350** — Shared period handling for the new routes: required start and
+  end, 90-day ceiling with a stated 400, the dashboard's `'+7 hours'` expression,
+  zero-filled day series. Reuse `admin-date-filter.ts`; add no second parser.
+  -> REQ: REQ-198 · deps: [A-349] · Done when: tests prove a missing end, an
+  inverted range, a 91-day range and a valid one, and a day with no orders
+  returned as zero.
+- [ ] **A-351** — Landing ranking: `GET /api/admin/insights/landing` returns, per
+  source, leads, orders, revenue, average order value, closing rate, delivered
+  and return share and channel split, in one `D1.batch`, labels joined, with a
+  `(tidak tercatat)` row and the default sort on delivered revenue.
+  -> REQ: REQ-199, REQ-203, REQ-205, REQ-206, REQ-207 · deps: [A-344, A-345,
+  A-347, A-350] · Done when: tests on a seeded fixture prove the arithmetic by
+  hand (including a page with many orders that all returned ranking below a
+  smaller page that was delivered), leads counted per source, no personal field
+  in the response, and `rows_read` under the A-348 ceiling. Role access is
+  A-356's.
+- [ ] **A-352** — Trend: `GET /api/admin/insights/trend` returns daily orders,
+  leads and revenue for the period, optionally for one source or product, plus
+  the previous period's total.
+  -> REQ: REQ-200 · deps: [A-350] · Done when: tests prove zero-filled days, the
+  filtered series summing to the unfiltered total across all sources, and the
+  previous period being the same length ending the day before.
+- [ ] **A-353** — Product ranking: `GET /api/admin/insights/products` returns
+  units, revenue, variant split and return share per product (`order_items` ⋈
+  `product_variants`), live orders only.
+  -> REQ: REQ-201, REQ-206 · deps: [A-350] · Done when: tests prove units × price
+  equals revenue on a fixture, a released order excluded, and a deleted variant
+  not failing the query.
+- [ ] **A-354** — Location ranking: `GET /api/admin/insights/locations` returns
+  provinces, then a province's cities on request, top 20 and top 50 plus
+  `Lainnya`, each with orders, revenue and return share.
+  -> REQ: REQ-202 · deps: [A-350] · Done when: tests prove the cut-off and that
+  `Lainnya` makes the total equal the unfiltered total; the city param is bound,
+  never interpolated; and a province spelled two ways in old rows is reported
+  (the finding recorded, merged only if the catalogue defines the alias).
+- [ ] **A-355** — Order time heatmap: `GET /api/admin/insights/times` returns
+  orders by weekday × hour in Asia/Jakarta, and the lead follow-up funnel is
+  folded into A-351's response.
+  -> REQ: REQ-204, REQ-205 · deps: [A-350] · Done when: tests prove an order at
+  Sunday 23:30 WIB (16:30 UTC) lands in Sunday 23:00, and one at Monday 00:10 WIB
+  (Sunday 17:10 UTC) lands in Monday 00:00.
+- [ ] **A-356** — Route policy in `auth.ts`: add `/api/admin/insights` to
+  `ADMIN_API_ROUTES` and the advertiser API list, and `/admin/analytics` to
+  `ADMIN_PAGE_ROUTES` and the advertiser page list. Only owner passes by
+  default; admin is held to its lists. Customer service gets neither. Do not put
+  the endpoints under `/api/admin/analytics`: `matchesRoute` is a prefix match
+  and customer service holds that entry.
+  -> REQ: REQ-207 · deps: [A-351] · Done when: the policy tests prove owner, admin
+  and advertiser reach every `/api/admin/insights/*` path and `/admin/analytics`,
+  customer service gets 403 on all of them, and the dashboard's own
+  `/api/admin/analytics` access is unchanged for every role.
+- [ ] **A-357** — Navigation and shell: an **Analitik** item in
+  `admin-navigation.ts` with children (Ringkasan, Landing page, Produk, Lokasi,
+  Waktu beli), one `/admin/analytics/*` page each on `AdminLayout`,
+  `AdminPageHeader`, the shared period control, no page-level width of its own.
+  -> REQ: REQ-197, REQ-198, REQ-208 · deps: [A-350] · Done when: the menu item
+  opens each page, the period survives switching screens, the limits notice
+  (REQ-208) is on every page, and `admin-page-width.test.ts` still passes.
+- [ ] **A-358** — Landing screen: a sortable table (delivered revenue default)
+  with a closing-rate bar, a channel mini-split, the `(tidak tercatat)` row, and
+  a link to the order list filtered by that source (A-346).
+  -> REQ: REQ-199, REQ-203 · deps: [A-351, A-357] · Done when: browser evidence at
+  390px (cards) and 1280px (table) shows sorting, the link, an empty state and no
+  overflow; the console is empty.
+- [ ] **A-359** — Trend and product screens: a daily chart with the previous
+  period beside it, a source or product selector, and the product table with
+  variant split. Lazy island per screen.
+  -> REQ: REQ-200, REQ-201 · deps: [A-352, A-353, A-357] · Done when: browser
+  evidence shows the chart, the selector changing it, tooltips, the empty state
+  and both widths; the network panel shows the chart code loading only on these
+  screens.
+- [ ] **A-360** — Location and time screens: province table opening to cities,
+  return share highlighted above a stated threshold, and the weekday × hour
+  heatmap with a legible scale in both themes.
+  -> REQ: REQ-202, REQ-204 · deps: [A-354, A-355, A-357] · Done when: browser
+  evidence at both widths proves drill-down, `Lainnya`, the heatmap in light and
+  dark, and keyboard reach for every control.
+- [ ] **A-361** — Island render safety: add each new data island to
+  `admin-islands-render.test.ts`, or keep the branch logic in `src/lib` where
+  the runner reaches it.
+  -> REQ: REQ-197 · deps: [A-358, A-359, A-360] · Done when: the render test fails
+  if an island throws on empty and on populated data.
+- [ ] **A-362** — Weight gate and close-out: re-run the A-348 measurement against
+  the finished screens, record the figures, `npm run route-map`, document the menu
+  in `ARCHITECTURE.md`, version and changelog per `RELEASE.md`.
+  -> REQ: REQ-198, REQ-208 · deps: [A-361] · Done when: every screen is under its
+  A-348 ceiling, `npm test` (≥ 833 plus the new checks), `npm run check` and
+  `npm run build` pass, and the doc headers cite the commit they were checked at.
+
+### Deferred — needs a decision before any task
+
+- **Visits and visit-to-order rate.** Not buildable honestly from D1 without a
+  write per visit. Options to weigh in an ADR when wanted: Workers Analytics
+  Engine, a sampled counter, or reading the ad platforms' own landing views.
+- **Customer repeat rate** (needs an index on `customer_phone`).
+- **Rollup table** (`analytics_daily`), only if A-362 shows a screen past its
+  ceiling on a real store.
+
+## A38 — Dashboard: best landing pages, best sellers and recent buyers
+
+Proposed 2026-10-29. Needs A36 (slug) and A-351/A-353 (the shared queries).
+
+- [ ] **A-363** — Recent buyers read: `recentBuyers(db, 8)` in `src/lib/` — the 8
+  latest non-abandoned orders, then their first items in one bound query, name
+  shortened to first name plus initial, no phone or address selected.
+  -> REQ: REQ-211 · deps: [] · Done when: tests prove leads are excluded, an order
+  with three items shows the first plus "+2", a one-word name, and that the
+  returned object has no phone, address or full-name field.
+- [ ] **A-364** — `GET /api/admin/dashboard-panels` returning only the sections
+  the role may see, from one `D1.batch`, landing and product via the A37 query
+  functions with `limit = 5`. Add it to `ADMIN_API_ROUTES` and to the advertiser
+  and customer-service API lists in `auth.ts`, and check the role per section in
+  the handler.
+  -> REQ: REQ-210, REQ-212, REQ-213 · deps: [A-351, A-353, A-363] · Done when:
+  tests prove owner and admin get three sections, advertiser two and customer
+  service one, a section outside the role is a 403 and not an empty list, and the
+  period parameter is capped at 31 days.
+- [ ] **A-365** — Draw the row: three equal panels under the trend and payment
+  mix, loaded after them, skeletons of final size, empty states, the "Lihat
+  semua" links carrying the period, rows linking to the order.
+  -> REQ: REQ-209, REQ-210, REQ-211, REQ-213, REQ-214 · deps: [A-364] · Done when:
+  browser evidence at 390px, 1024px and 1280px shows one, two and three columns,
+  equal heights, no layout shift when the row arrives, an empty store, each role,
+  and the KPI cards and chart painted before the row's request is sent.
+- [ ] **A-366** — Consistency check: the dashboard panel and its Analitik screen
+  agree for the same period and role.
+  -> REQ: REQ-215 · deps: [A-358, A-365] · Done when: a test or a recorded manual
+  comparison on a seeded store shows identical orders and revenue for the top 5
+  rows, including `(tidak tercatat)`.
+
+## A39 — Operational status beside the notification bell, with its own page
+
+Proposed 2026-10-29. Independent of A36 to A38; it can ship first.
+
+- [ ] **A-367** — Migration `ops_health_snapshot` (single row) and
+  `src/lib/health-snapshot.ts`: write, read, and the staleness rule (older than
+  120 minutes reports the stalled state), plus a pure `statusIconState()` for the
+  precedence in REQ-217.
+  -> REQ: REQ-217, REQ-222 · deps: [] · Done when: the migration applies to an
+  empty local D1, and tests prove the precedence (degraded beats setup beats
+  healthy beats unknown), that "belum ada data" alone is not red, that a 3-hour-
+  old healthy snapshot reads as a problem, and that no row reads as neutral.
+- [ ] **A-368** — The hourly run upserts the snapshot after it collects health,
+  including the required-setup-left count; alert evaluation stays where it is.
+  The write is the last step of `scheduled()`, inside `housekeeping()`, so its
+  failure is logged and nothing else.
+  -> REQ: REQ-217, REQ-223 · deps: [A-367] · Done when: a scheduled-handler test
+  proves one row after a run, a second run replaces it, a failing collection
+  leaves the old snapshot rather than a blank one, a throwing snapshot write
+  leaves the CAPI drain and payment reconciliation results unchanged, and the
+  diff of `worker.ts` is only the appended step.
+- [ ] **A-369** — API: `GET /api/admin/health/status` (the snapshot, with the
+  staleness applied, `private, max-age=60`), `POST /api/admin/health/check`
+  (live collection, writes the snapshot, 15-second reuse, no alerts), and remove
+  `evaluateOperationalAlerts` from `GET /api/admin/health`.
+  -> REQ: REQ-216, REQ-223 · deps: [A-367] · Done when: tests prove owner and admin
+  succeed and advertiser and customer service get 403, a GET no longer writes KV
+  or calls the webhook, a second check inside 15 seconds returns the stored one,
+  and the cron path still fires an alert on a stalled outbox.
+- [ ] **A-370** — `health-actions.ts`: the map from signal and reason to its
+  button (a route, or a setting name to copy), written from the reasons
+  `OperationalHealth.tsx` already words.
+  -> REQ: REQ-220 · deps: [] · Done when: a test fails for any reason in the
+  component's table that has neither an action nor an explicit "none", and every
+  route in the map is a real page in the route map.
+- [ ] **A-371** — The icon: a link beside `NotificationBell` in `AdminShell`,
+  owner and admin only, tone and count from the snapshot, `sessionStorage` for
+  five minutes, a re-check on focus, no interval; accessible name in words.
+  -> REQ: REQ-216, REQ-217, REQ-218 · deps: [A-369] · Done when: browser evidence at
+  390px and 1280px proves each of the four states, the name read by the
+  accessibility tree, no overflow in the top bar, no request for the other two
+  roles, and the network panel showing one request per load and none after.
+- [ ] **A-372** — `/admin/status`: the header with **Periksa ulang**, **Perlu
+  tindakan**, **Setup toko** (the checklist and its `readSetupFacts`, moved from
+  the dashboard), and **Semua sinyal**; the copyable setting names for causes
+  outside the admin. Add `/admin/status` to `ADMIN_PAGE_ROUTES` (the API is
+  already covered: `/api/admin/health` is in `ADMIN_API_ROUTES`, and
+  `matchesRoute` reaches its sub-paths).
+  -> REQ: REQ-219, REQ-220 · deps: [A-369, A-370] · Done when: browser evidence
+  proves a degraded, an unknown-only, a fully healthy and a fresh-install state,
+  each button landing on the page it names, **Periksa ulang** refreshing the
+  icon, and both widths without overflow.
+- [ ] **A-373** — Dashboard: delete the health card and keep one slim line while
+  a required setup step is left.
+  -> REQ: REQ-221 · deps: [A-372] · Done when: the dashboard no longer imports
+  `OperationalHealth`, the line shows with a required step left and not without,
+  and the dashboard's request count is lower than before.
+- [ ] **A-374** — Close-out: update `OBSERVABILITY.md` §4 item 4, `ARCHITECTURE.md`
+  and the command-palette keywords (status, kesehatan, health, setup);
+  `npm run route-map`; version and changelog per `RELEASE.md`.
+  -> REQ: REQ-216 … REQ-223 · deps: [A-373] · Done when: `npm test` (≥ 833 plus the
+  new checks), `npm run check` and `npm run build` pass and the doc headers cite
+  the commit they were checked at.
+
+## A40 — Cloudflare fit: stay inside what the plan allows
+
+Proposed 2026-10-29. Evidence in PRD A40. Nothing here deploys, and nothing runs
+`--remote` without Paduka's approval (`AGENTS.md` §5).
+
+- [x] **A-375** — Read the account's D1 usage. **Done 2026-10-29** with Paduka's
+  approval: `wrangler d1 insights --remote --time-period 30d` over all 14
+  databases, read-only. Account average 13.5M rows read and 83k written a day
+  (`STATUS.md`). **Not met:** the worst single day, because insights returns
+  30-day totals per query; and KV writes, which no command here reads. Both
+  come from the dashboard's D1 and KV metrics.
+  -> REQ: REQ-224 · deps: [] · Done when: `STATUS.md` holds the figures with
+  their date and the worst day of the 30.
+- [ ] **A-376** — Count the D1 writes each storefront request makes, locally:
+  page view, kecamatan search, browser Meta event, abandoned capture, order
+  submit. Multiply by one install's daily traffic and by the fleet's.
+  -> REQ: REQ-224, REQ-226 · deps: [] · Done when: a table of writes per request
+  type and an estimated daily total against the 100k Free allowance, measured
+  with a counting proxy on `OMS_DB` that is never committed (ADR-030's method).
+- [x] **A-377** — ADR: Workers Free or Paid. **Done 2026-10-29:** ADR-031,
+  Workers Paid, accepted by Paduka. The A-375 reads alone decide it (2.7× the
+  Free allowance), so it did not wait on A-376. The plan change is Paduka's
+  dashboard action.
+  -> REQ: REQ-225 · deps: [A-375, A-376] · Done when: the ADR is in
+  `DECISIONS.md` with its status and the decision is Paduka's.
+- [ ] **A-378** — Proposal only: options to cut the `rate_limits` writes (WAF
+  rate-limiting rule, threshold counting, coarser window), each with its write
+  saving from A-376 and its risk to the form and tracking paths.
+  -> REQ: REQ-227 · deps: [A-376] · Done when: the options are written in this
+  entry; no file under the protected surfaces changed.
+- [ ] **A-379** — Move the scheduler heartbeat into the A39 snapshot row and
+  delete the KV write (`recordSchedulerRun`, `SCHEDULER_HEARTBEAT_KEY`); the
+  `scheduler` signal reads the D1 value. Written at the start of `scheduled()`
+  inside `housekeeping()`, so a later failing step still records the run.
+  -> REQ: REQ-228 · deps: [A-367, A-368] · Done when: tests prove the signal reads
+  the D1 heartbeat, a missing row reads as "never ran", the stale threshold is
+  unchanged, and a grep finds no KV write left in the scheduled path apart from
+  alert state.
+- [x] **A-380** — Record the Workers Cache finding (E6). **Done 2026-10-29:**
+  ADR-031 decision 3, with the Workers Cache URL.
+  -> REQ: REQ-229 · deps: [] · Done when: `DECISIONS.md` carries it with the
+  Workers Cache URL, and no code changed.
+
+### Measured read reductions (from A-375)
+
+Each figure is the fleet's 30-day average from `STATUS.md` 2026-10-29. "Free to
+do" means outside the protected surfaces; "proposal" means it touches one and
+waits for Paduka's approval of that item alone.
+
+- [x] **A-381** — **Done 2026-10-29** (worktree `feat/a35-a40-analytics-fit`).
+  Every writer of `orders.created_at` uses `toISOString()`
+  (`order-persistence.ts` insert and abandoned upsert). A real-SQLite test
+  shows the new predicate and the old `unixepoch` one give the same count at
+  the 24-hour edge, and that the plan uses `idx_orders_created_at`. Fleet
+  rows-read effect is measured only after a release reaches the stores.
+  Free to do. `recentOrderCount` (`src/lib/social-proof.ts`):
+  replace `unixepoch(created_at) >= unixepoch('now', '-24 hours')` with
+  `created_at >= ?` bound to the ISO time 24 hours ago, so
+  `idx_orders_created_at` serves it. 2.13M rows read a day, about 470 per run.
+  -> REQ: REQ-226 · deps: [] · Done when: a test proves the same count on
+  fixtures straddling the 24-hour edge, `EXPLAIN QUERY PLAN` shows the index,
+  and the stored `created_at` format (`toISOString`) is confirmed on every
+  writer of `orders.created_at`, so string order equals time order.
+- [x] **A-382** — **Done 2026-10-29.** The cost was not the subquery but the
+  join: `CAST(p.id AS TEXT) = lp.product_id` made SQLite scan every landing page
+  once per active product (`SEARCH p … SCAN lp`). The join now adds
+  `p.id = CAST(lp.product_id AS INTEGER)` and keeps the text equality, so each
+  product is a primary-key lookup and the matches are unchanged. A plan test
+  fails on the old join and passes on the new one; the 25 existing tests pass
+  unchanged. No migration needed.
+  Free to do. The public landing-page list
+  (`src/lib/landing-pages.ts`, the query selecting `AS product_image`) runs a
+  correlated subquery per row: 2.75M rows read a day, about 1,700 per run.
+  Rewrite it as a join or a second batched query; same output.
+  -> REQ: REQ-226 · deps: [] · Done when: `landing-pages.test.ts` passes
+  unchanged, a test proves identical output on a fixture, and `meta.rows_read`
+  on a seeded 40-page store drops, figures recorded here.
+- [x] **A-383** — **Closed 2026-10-29, no change.** The plan is already
+  fully indexed: a rowid range over `notifications` above the operator's floor
+  and a covering-index probe into `notification_reads`. Its cost is the number
+  of retained notifications, which no index removes. A per-operator read
+  watermark would, but that changes read-state semantics; not worth 2.8 % of
+  fleet reads now.
+  Free to do. The notification unread count
+  (`src/lib/notifications.ts`), polled every 30 seconds by the bell: 375k rows a
+  day, about 450 per run. Check its plan and add the index it needs.
+  -> REQ: REQ-226 · deps: [] · Done when: `EXPLAIN QUERY PLAN` shows an index
+  search, the notification tests pass unchanged, and the per-run rows read on a
+  seeded store are recorded before and after.
+- [ ] **A-384** — **Proposal** (tracking). The CAPI and Google outbox retention
+  `DELETE`s (`capi-outbox.ts`, `google-ads-offline.ts`) compare
+  `unixepoch(updated_at)`, so each hourly run scans the outbox: 1.98M rows a
+  day, about 11,750 per run. Option: `updated_at < ?` with the ISO cut-off and
+  an index on `(status, updated_at)`. Write the option with its test plan;
+  change nothing until Paduka approves this item.
+  -> REQ: REQ-226 · deps: [] · Done when: the proposal is written in this entry.
+- [ ] **A-385** — **Proposal** (forms). The storefront catalog reads every
+  `products` and `product_variants` row per request: 3.6M rows a day together,
+  about 27k runs each. Option: an in-isolate memo with a short lifetime for
+  storefront rendering only, never for checkout pricing (`AGENTS.md` §3: price
+  comes from D1). Write the option, its staleness, and how checkout is kept off
+  it; change nothing until approved.
+  -> REQ: REQ-226 · deps: [] · Done when: the proposal is written in this entry.
+- [ ] **A-386** — **Proposal** (tracking). The CAPI outbox writes about 58k rows
+  a day: one insert and two updates per event. Write what each update is for and
+  whether one can be folded, with its risk to delivery and dedup; change nothing
+  until approved.
+  -> REQ: REQ-226 · deps: [] · Done when: the proposal is written in this entry.
+- [ ] **A-387** — Read-only investigation. `SELECT name FROM d1_migrations` runs
+  12.8k times a day (0.83M rows): find why the schema check runs that often per
+  isolate (`schema-version.ts`) without weakening the AGENTS §3 rule that the
+  chain applies on the first database-backed request after a deploy.
+  -> REQ: REQ-226 · deps: [] · Done when: the cause and an option are written
+  here; a change is its own approved task.
+
+### Dependencies and security
+
+- [x] **A-388** — In-range dependency update and `npm audit fix`. **Done
+  2026-10-29.** `npm update` within the existing semver ranges (no
+  `package.json` change): astro 7.2.0 → 7.4.4, @astrojs/cloudflare 14.2.0 →
+  14.4.3, react/react-dom 19.2.8 → 19.3.1, recharts 3.8 → 3.10.1, radix-ui,
+  @base-ui/react, lucide-react, tailwind-merge, wrangler 4.120 → 4.155, and
+  others. `npm audit`: 26 vulnerabilities (2 critical, among them astro ≤ 7.3.2)
+  → 4 (3 low, 1 high). recharts 3.10 deprecates `verticalAlign`, so
+  `ChartLegendContent` (unused in the app) reads it untyped and `astro check` is
+  back to 0 hints. Evidence: `npm test` 880/880, `npm run check` 0/0/0,
+  `npm run build` passes. `npm run dev:seed` on a fresh local store passed
+  install, login, 11 products, 6 orders (COD, QRIS, transfer), payment settle,
+  cron, Mengantar dispatch and cancel. A Playwright run at 390 and 1280 px
+  showed home, a product page with its form island (6 inputs, 1 submit),
+  dashboard, order list and order detail, all 200, no console error, no
+  horizontal overflow.
+  **Not upgraded (major versions):** @astrojs/react 7, TypeScript 7, zod 4,
+  @types/node 26. **Install scripts:** npm now blocks the `esbuild` and
+  `workerd` postinstall scripts until approved (`npm install-scripts approve`);
+  the build and local Worker ran without them.
+- [ ] **A-389** — **Proposal** (checkout validation). The remaining high
+  advisory is zod < 4.6.6 (GHSA-mrhx-c7xc-m3w5: memory exhaustion on oversized
+  *constrained collections*). `order-schema.ts` validates only bounded strings
+  and numbers, so checkout exposure looks low. Other zod users are admin-only
+  or authenticated, and their arrays are not yet reviewed. The fix is zod 4, a
+  major version touching `order-schema.ts`, a protected surface. Write the
+  migration plan and its test coverage; change nothing until approved.
+  -> REQ: REQ-226 · deps: [] · Done when: the plan is written here.
+- [ ] **A-390** — Remaining low advisory `deepmerge` comes through the `shadcn`
+  CLI (a development tool, not in the Worker bundle); its fix is shadcn 1.0
+  (a downgrade path npm proposes under `--force`). Leave it and recheck at the
+  next shadcn release.
+  -> REQ: REQ-226 · deps: [] · Done when: rechecked after a shadcn update.

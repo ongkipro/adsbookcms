@@ -47,6 +47,7 @@ const ADMIN_PAGE_ROUTES = [
   '/admin/settings/crm',
   '/admin/settings/plugins',
   '/admin/settings/whatsapp',
+  '/admin/status',
 ] as const;
 
 const ADMIN_API_ROUTES = [

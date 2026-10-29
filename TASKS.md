@@ -3201,7 +3201,7 @@ Proposed 2026-10-29. Needs A36 (slug) and A-351/A-353 (the shared queries).
 
 Proposed 2026-10-29. Independent of A36 to A38; it can ship first.
 
-- [ ] **A-367** — Migration `ops_health_snapshot` (single row) and
+- [x] **A-367** — Migration `ops_health_snapshot` (single row) and
   `src/lib/health-snapshot.ts`: write, read, and the staleness rule (older than
   120 minutes reports the stalled state), plus a pure `statusIconState()` for the
   precedence in REQ-217.
@@ -3209,7 +3209,21 @@ Proposed 2026-10-29. Independent of A36 to A38; it can ship first.
   empty local D1, and tests prove the precedence (degraded beats setup beats
   healthy beats unknown), that "belum ada data" alone is not red, that a 3-hour-
   old healthy snapshot reads as a problem, and that no row reads as neutral.
-- [ ] **A-368** — The hourly run upserts the snapshot after it collects health,
+  **Done 2026-10-29:** `0069_ops_health_snapshot.sql` (0068 until the A-419 renumber) applied to an empty
+  local D1 (workerd via `getPlatformProxy`, through `ensureSchemaUpgraded`'s
+  claim-plus-statements batch; `CHECK (id = 1)` enforced); precedence,
+  "belum ada data", 3-hour-stale and no-row tests in `health-snapshot.test.ts`.
+  Review fix: staleness is measured from `scheduler_ran_at`, not `taken_at`,
+  so a manual **Periksa ulang** cannot hide a dead cron (test "a manual check
+  does not reset staleness", fails without the fix). Second review fix
+  (finding 18): stale when **either** `scheduler_ran_at` or `taken_at` is over
+  120 minutes (`staleReason`), so a snapshot write that keeps failing behind a
+  fresh heartbeat turns the icon and `/admin/status` red ("status tidak
+  diperbarui"); test "a snapshot write that keeps failing turns the icon
+  stale", mutation-checked. Finding 19: `OperationalStatus` is in
+  `admin-islands-render.test.ts`, and an unknown stored signal state or icon
+  tone degrades to "Belum ada data" instead of throwing.
+- [x] **A-368** — The hourly run upserts the snapshot after it collects health,
   including the required-setup-left count; alert evaluation stays where it is.
   The write is the last step of `scheduled()`, inside `housekeeping()`, so its
   failure is logged and nothing else.
@@ -3218,7 +3232,11 @@ Proposed 2026-10-29. Independent of A36 to A38; it can ship first.
   leaves the old snapshot rather than a blank one, a throwing snapshot write
   leaves the CAPI drain and payment reconciliation results unchanged, and the
   diff of `worker.ts` is only the appended step.
-- [ ] **A-369** — API: `GET /api/admin/health/status` (the snapshot, with the
+  **Done 2026-10-29:** scheduled-handler tests (one row, replaced on a second
+  run, failing collection keeps the old snapshot, throwing write leaves the
+  drain and reconciliation results unchanged, last-step source check). The
+  `worker.ts` diff also carries the A-379 heartbeat move.
+- [x] **A-369** — API: `GET /api/admin/health/status` (the snapshot, with the
   staleness applied, `private, max-age=60`), `POST /api/admin/health/check`
   (live collection, writes the snapshot, 15-second reuse, no alerts), and remove
   `evaluateOperationalAlerts` from `GET /api/admin/health`.
@@ -3226,20 +3244,37 @@ Proposed 2026-10-29. Independent of A36 to A38; it can ship first.
   succeed and advertiser and customer service get 403, a GET no longer writes KV
   or calls the webhook, a second check inside 15 seconds returns the stored one,
   and the cron path still fires an alert on a stalled outbox.
-- [ ] **A-370** — `health-actions.ts`: the map from signal and reason to its
+  **Done 2026-10-29**, tests in `health-snapshot.test.ts`. **Deviation:** no
+  `private, max-age=60` — the middleware sends `no-store` on every admin
+  response, so the five-minute reuse lives in the icon's `sessionStorage`.
+- [x] **A-370** — `health-actions.ts`: the map from signal and reason to its
   button (a route, or a setting name to copy), written from the reasons
   `OperationalHealth.tsx` already words.
   -> REQ: REQ-220 · deps: [] · Done when: a test fails for any reason in the
   component's table that has neither an action nor an explicit "none", and every
   route in the map is a real page in the route map.
-- [ ] **A-371** — The icon: a link beside `NotificationBell` in `AdminShell`,
+  **Done 2026-10-29:** `health-actions.ts` + `health-actions.test.ts`.
+- [x] **A-371** — The icon: a link beside `NotificationBell` in `AdminShell`,
   owner and admin only, tone and count from the snapshot, `sessionStorage` for
   five minutes, a re-check on focus, no interval; accessible name in words.
   -> REQ: REQ-216, REQ-217, REQ-218 · deps: [A-369] · Done when: browser evidence at
   390px and 1280px proves each of the four states, the name read by the
   accessibility tree, no overflow in the top bar, no request for the other two
   roles, and the network panel showing one request per load and none after.
-- [ ] **A-372** — `/admin/status`: the header with **Periksa ulang**, **Perlu
+  **Built 2026-10-29** (`OperationalStatusIcon.tsx`, `AdminShell.tsx`);
+  role gating covered by tests. **Done 2026-10-29**, browser evidence (local
+  dev, snapshot row written in local D1, playwright-core + Chrome, 390x844 and
+  1280x800): healthy, setup (amber, count 1), problem (red, count 2), stale
+  scheduler ("pemeliharaan berhenti"), stale snapshot ("status tidak
+  diperbarui"), unknown-only and no-row (neutral, no badge). In every state the
+  accessible name is in words and is the link's name in the Chrome AX tree, the
+  top bar has no overflow, the first load sends one
+  `GET /api/admin/health/status`, and the next admin page plus a `focus` event
+  inside five minutes send none. Advertiser and customer service: no icon, no
+  `/api/admin/health*` request, `/admin/status` redirects to the dashboard, the
+  API answers 403. Screenshots: `a371-<state>-dashboard-{390,1280}.png`,
+  `a371-role-{advertiser,customer_service}-{390,1280}.png`.
+- [x] **A-372** — `/admin/status`: the header with **Periksa ulang**, **Perlu
   tindakan**, **Setup toko** (the checklist and its `readSetupFacts`, moved from
   the dashboard), and **Semua sinyal**; the copyable setting names for causes
   outside the admin. Add `/admin/status` to `ADMIN_PAGE_ROUTES` (the API is
@@ -3249,17 +3284,60 @@ Proposed 2026-10-29. Independent of A36 to A38; it can ship first.
   proves a degraded, an unknown-only, a fully healthy and a fresh-install state,
   each button landing on the page it names, **Periksa ulang** refreshing the
   icon, and both widths without overflow.
+  **Built 2026-10-29** (`src/pages/admin/status.astro`, `OperationalStatus.tsx`,
+  `/admin/status` in `ADMIN_PAGE_ROUTES`). **Browser evidence 2026-10-29**
+  (390x844 and 1280x800, no console errors, no 4xx/5xx, no overflow of the page
+  or `#admin-main`): degraded, unknown-only, fully healthy, setup-needed, both
+  stale reasons, and a no-row fresh state; **Periksa ulang** sends one
+  `POST /api/admin/health/check` (200), rewrites the header and turns the icon
+  from neutral to amber without a GET; **Salin nama** copies `triggers.crons`.
+  Screenshots: `a372-<state>-status[-full]-{390,1280}.png`,
+  `a372-no-snapshot-after-recheck-{390,1280}.png`. **Remaining (bug):** the
+  **Setup toko** step "Aktifkan minimal satu kurir" links `/admin/couriers`
+  (`setup-checklist.ts`, since 86a0fb5), which redirects to `/admin/shipping`;
+  couriers are enabled on `/admin/expeditions`. **Fixed 2026-10-29:** the step
+  links `/admin/expeditions` (`setup-checklist.test.ts` asserts it; the link
+  was not re-clicked in a browser). Every other button lands on
+  the page it names (`/admin/ads/meta`, `/admin/profile`,
+  `/admin/settings/store`). Observation: with no snapshot row the header reads
+  "Belum ada data" even while a required setup step is left (the icon rule
+  says no row is neutral; the page follows it).
 - [ ] **A-373** — Dashboard: delete the health card and keep one slim line while
   a required setup step is left.
   -> REQ: REQ-221 · deps: [A-372] · Done when: the dashboard no longer imports
   `OperationalHealth`, the line shows with a required step left and not without,
   and the dashboard's request count is lower than before.
+  **Built 2026-10-29:** the dashboard no longer imports the health panel and
+  shows the slim setup line only while a required step is left.
+  **Measured 2026-10-29** (owner, 1280x800, local dev): the slim line shows
+  with one required step left and is absent with none; no health card
+  (`a371-setup-needed-dashboard-*.png`, `a371-healthy-dashboard-*.png`). Cold
+  load: 55 requests, 3 of them fetches (`/api/admin/notifications`,
+  `/api/admin/health/status`, `/api/admin/analytics`); a second load inside
+  five minutes: 54, 2 fetches (the status answer comes from sessionStorage).
+  Base `be00fee` was not measured (no second build allowed); from its source
+  the dashboard fetched `/api/admin/notifications`, `/api/admin/analytics` and
+  `GET /api/admin/health` (the full eight-signal collection plus alert
+  evaluation) once each. **Remaining:** the cold-load fetch count is equal to
+  base, not lower (3 vs 3; the replaced request is a one-row read instead of
+  the collection); lower only on a warm load (2). Decide whether that meets
+  "lower than before", or measure base directly.
 - [ ] **A-374** — Close-out: update `OBSERVABILITY.md` §4 item 4, `ARCHITECTURE.md`
   and the command-palette keywords (status, kesehatan, health, setup);
   `npm run route-map`; version and changelog per `RELEASE.md`.
   -> REQ: REQ-216 … REQ-223 · deps: [A-373] · Done when: `npm test` (≥ 833 plus the
   new checks), `npm run check` and `npm run build` pass and the doc headers cite
   the commit they were checked at.
+  **Partly done 2026-10-29:** `OBSERVABILITY.md` (§3 schema row, §4, §6 and the
+  two `scheduled-*-failed` labels), `ARCHITECTURE.md` (`ops_health_snapshot`),
+  palette keywords (`statusNavItem`), route map regenerated; `npm test` 915/915.
+  **Remaining:** version bump and changelog per `RELEASE.md`; re-stamp the
+  headers at the real commit. **Follow-up:** `GET /api/admin/health` has no UI
+  consumer left (the dashboard panel was its only one; the icon and page read
+  `/status` and `/check`). Callers today: its own test, the `auth.ts` route
+  list, and the unauthenticated-`401` smoke probe in `STATUS.md` /
+  `BUILD-LOG.md`. Kept on purpose; decide whether to retire it or keep it as
+  the probe (REQ-83).
 
 ## A40 — Cloudflare fit: stay inside what the plan allows
 
@@ -3291,7 +3369,7 @@ Proposed 2026-10-29. Evidence in PRD A40. Nothing here deploys, and nothing runs
   saving from A-376 and its risk to the form and tracking paths.
   -> REQ: REQ-227 · deps: [A-376] · Done when: the options are written in this
   entry; no file under the protected surfaces changed.
-- [ ] **A-379** — Move the scheduler heartbeat into the A39 snapshot row and
+- [x] **A-379** — Move the scheduler heartbeat into the A39 snapshot row and
   delete the KV write (`recordSchedulerRun`, `SCHEDULER_HEARTBEAT_KEY`); the
   `scheduler` signal reads the D1 value. Written at the start of `scheduled()`
   inside `housekeeping()`, so a later failing step still records the run.
@@ -3299,6 +3377,10 @@ Proposed 2026-10-29. Evidence in PRD A40. Nothing here deploys, and nothing runs
   the D1 heartbeat, a missing row reads as "never ran", the stale threshold is
   unchanged, and a grep finds no KV write left in the scheduled path apart from
   alert state.
+  **Done 2026-10-29** (s2-a39): `recordSchedulerRun` writes
+  `ops_health_snapshot.scheduler_ran_at` inside `housekeeping("scheduled-heartbeat-failed")`;
+  tests prove the D1 read, never-ran, the unchanged 150-minute threshold, no
+  `SCHEDULER_HEARTBEAT_KEY`, and that the cron's only KV writes are alert state.
 - [x] **A-380** — Record the Workers Cache finding (E6). **Done 2026-10-29:**
   ADR-031 decision 3, with the Workers Cache URL.
   -> REQ: REQ-229 · deps: [] · Done when: `DECISIONS.md` carries it with the

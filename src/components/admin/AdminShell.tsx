@@ -35,6 +35,7 @@ import {
 import { AppSidebar } from "./AppSidebar";
 import { ChangelogModal } from "./ChangelogModal";
 import { NotificationBell } from "./NotificationBell";
+import { OperationalStatusIcon } from "./OperationalStatusIcon";
 import { CMS_VERSION } from "@/lib/version";
 import {
   ADMIN_ACCENT,
@@ -42,6 +43,7 @@ import {
   getVisibleNavGroups,
   isAdminNavHrefActive,
   profileNavItem,
+  statusNavItem,
   type AdminRole,
 } from "./admin-navigation";
 
@@ -84,7 +86,7 @@ export function AdminShell({
   const groups = mustChangePassword ? [] : getVisibleNavGroups(adminRole);
   const searchItems = mustChangePassword ? [] : getSearchableNavItems(adminRole);
   const allItems = groups.flatMap((group) => group.items);
-  const currentItem = [...allItems, profileNavItem].find(
+  const currentItem = [...allItems, profileNavItem, statusNavItem].find(
     (item) => item.id === activeMenu,
   );
   const mobilePrimaryIds = adminRole === "advertiser"
@@ -250,6 +252,10 @@ export function AdminShell({
               {/* A first-run session may only rotate its password; the bell
                   hides itself for roles the endpoint refuses. */}
               {!mustChangePassword && <NotificationBell />}
+              {/* Owner and admin only: the other roles send no status request (A39). */}
+              {!mustChangePassword && (adminRole === "owner" || adminRole === "admin") && (
+                <OperationalStatusIcon active={activeMenu === "status"} />
+              )}
               <a
                 href="/admin/profile"
                 aria-current={activeMenu === "profile" ? "page" : undefined}

@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import type { AdminRole } from "../../lib/auth";
 export type { AdminRole } from "../../lib/auth";
 import {
+  Activity,
   BadgeDollarSign,
   Boxes,
   CircleUserRound,
@@ -170,6 +171,17 @@ export const profileNavItem: AdminNavItem = {
   keywords: "profile akun password mengantar autolaris api domain",
 };
 
+/** Off the sidebar on purpose: the status icon beside the bell is its entry
+ *  (PRD A39); the command palette finds it for owner and admin. */
+export const statusNavItem: AdminNavItem = {
+  id: "status",
+  href: "/admin/status",
+  label: "Status operasional",
+  description: "Kesehatan sinyal dan setup toko",
+  icon: Activity,
+  keywords: "status kesehatan health setup operasional cron capi alert",
+};
+
 /** Menu items whose sub-pages are the item itself: each plugin's settings page
  *  lives under the plugin list (ADR-028). Every other item matches exactly. */
 const NESTED_NAV_HREFS = new Set(["/admin/settings/plugins"]);
@@ -228,6 +240,7 @@ export function getSearchableNavItems(role: AdminRole) {
         })),
       ]),
     ),
+    ...(role === "owner" || role === "admin" ? [{ ...statusNavItem, group: "Akun" }] : []),
     { ...profileNavItem, group: "Akun" },
   ];
 }

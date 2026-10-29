@@ -2,6 +2,7 @@ import { formatIdr } from "@/lib/format-idr";
 import { useConfirm } from "./useConfirm";
 import { paymentInstructionHint } from "../../lib/order-instruction-hint";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
+import { SourceSlugChip } from "./SourceSlugChip";
 import { CrmActionGroup } from "./CrmActionGroup";
 import type { CrmStepKey } from "./CrmActionButton";
 import { useEffect, useMemo, useState } from "react";
@@ -12,6 +13,7 @@ import {
   type CrmOrderItem,
 } from "../../lib/crm-template";
 import { ADMIN_CUSTOM_DATE_FILTER } from "../../lib/admin-date-filter";
+import { SOURCE_SLUG_NONE_FILTER, SOURCE_SLUG_NONE_LABEL } from "../../lib/source-slug";
 import {
   AdminDateRangeFilter,
   type AdminDateSelection,
@@ -63,6 +65,7 @@ import {
   ShieldAlert,
   CreditCard,
   Megaphone,
+  PanelsTopLeft,
   RotateCcw,
 } from "lucide-react";
 
@@ -110,6 +113,8 @@ export type OrderItem = {
   providerDispatchError: string | null;
   providerOrderId: string | null;
   adClickIds?: string | null;
+  sourcePath?: string | null;
+  sourceLabel?: string | null;
 };
 
 type OrderRow = {
@@ -146,6 +151,8 @@ type OrderRow = {
   provider_dispatch_error?: string | null;
   provider_order_id?: string | null;
   ad_click_ids?: string | null;
+  source_page_path?: string | null;
+  source_label?: string | null;
 };
 
 type OrdersPagination = {
@@ -217,6 +224,8 @@ const mapOrder = (row: OrderRow): OrderItem => ({
   providerDispatchError: row.provider_dispatch_error || null,
   providerOrderId: row.provider_order_id || null,
   adClickIds: row.ad_click_ids || null,
+  sourcePath: row.source_page_path || null,
+  sourceLabel: row.source_label || null,
 });
 
 const shippingLabels = SHIPPING_STATUS_LABELS;
@@ -562,19 +571,23 @@ function PaymentBadge({ status }: { status: string }) {
   );
 }
 
-export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) {
+export function OrdersTable({
+  initialOrders,
+  initialQuery = "",
+}: {
+  initialOrders?: OrderItem[];
+  // The page's own query string, from `Astro.url.search`. Filters start from
+  // it rather than `window.location`, so the server-rendered first paint and
+  // the hydrating client agree (a mismatch is React error #418).
+  initialQuery?: string;
+}) {
+  const [initialParams] = useState(() => new URLSearchParams(initialQuery));
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [orders, setOrders] = useState<OrderItem[]>(initialOrders || []);
-  const [searchTerm, setSearchTerm] = useState(() =>
-    typeof window === "undefined"
-      ? ""
-      : new URLSearchParams(window.location.search).get("search") || "",
+  const [searchTerm, setSearchTerm] = useState(() => initialParams.get("search") || "");
+  const [shippingFilter, setShippingFilter] = useState(
+    () => initialParams.get("status") || initialParams.get("shipping_status") || "all",
   );
-  const [shippingFilter, setShippingFilter] = useState(() => {
-    if (typeof window === "undefined") return "all";
-    const params = new URLSearchParams(window.location.search);
-    return params.get("status") || params.get("shipping_status") || "all";
-  });
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [dateSelection, setDateSelection] = useState<AdminDateSelection>({
     filter: "all",
@@ -582,6 +595,12 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
     end: "",
   });
   const [sourceFilter, setSourceFilter] = useState("all");
+  // The landing page filter (PRD A36). Opened from Analitik with
+  // `?source_slug=`, so it starts from the URL.
+  const [sourceSlugFilter, setSourceSlugFilter] = useState(
+    () => initialParams.get("source_slug") || "all",
+  );
+  const [sourceSlugOptions, setSourceSlugOptions] = useState<FilterOption<string>[] | null>(null);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<OrdersPagination>({
     page: 1,
@@ -642,6 +661,8 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
           }
         }
         if (sourceFilter !== "all") query.set("source", sourceFilter);
+        if (sourceSlugFilter !== "all") query.set("source_slug", sourceSlugFilter);
+        if (!sourceSlugOptions) query.set("source_options", "1");
         const response = await fetch(`/api/admin/orders?${query}`, {
           headers: { Accept: "application/json" },
           signal: controller.signal,
@@ -657,6 +678,14 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
             ...current,
             ...payload.crm_templates,
           }));
+        }
+        if (Array.isArray(payload.source_options)) {
+          setSourceSlugOptions(
+            (payload.source_options as Array<{ value: string; label: string; count: number }>).map((option) => ({
+              value: String(option.value),
+              label: `${option.label} (${Number(option.count) || 0})`,
+            })),
+          );
         }
         setOrders(nextOrders);
         setSelectedOrderIds((current) =>
@@ -711,6 +740,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
     shippingFilter,
     dateSelection,
     sourceFilter,
+    sourceSlugFilter,
   ]);
 
   const filteredOrders = orders;
@@ -727,7 +757,8 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
     dateSelection.filter !== "all" ||
     shippingFilter !== "all" ||
     paymentFilter !== "all" ||
-    sourceFilter !== "all";
+    sourceFilter !== "all" ||
+    sourceSlugFilter !== "all";
   const handleShippingStatusChange = async (
     orderId: string,
     shippingStatus: string,
@@ -953,6 +984,7 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
     setPaymentFilter("all");
     setDateSelection({ filter: "all", start: "", end: "" });
     setSourceFilter("all");
+    setSourceSlugFilter("all");
     setPage(1);
   };
   const markStepClicked = (orderId: string, step: string) => {
@@ -1298,6 +1330,27 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                 options={SOURCE_FILTER_OPTIONS}
               />
             </FilterField>
+            <FilterField label="Halaman sumber" htmlFor="filter-source-page" size="sm">
+              <FilterSelect
+                id="filter-source-page"
+                icon={PanelsTopLeft}
+                value={sourceSlugFilter}
+                onValueChange={(value) => {
+                  setSourceSlugFilter(value);
+                  setPage(1);
+                }}
+                options={[
+                  { value: "all", label: "Semua halaman" },
+                  ...(sourceSlugOptions ?? []),
+                  ...(sourceSlugFilter !== "all" &&
+                  sourceSlugFilter !== SOURCE_SLUG_NONE_FILTER &&
+                  !(sourceSlugOptions ?? []).some((option) => option.value === sourceSlugFilter)
+                    ? [{ value: sourceSlugFilter, label: sourceSlugFilter }]
+                    : []),
+                  { value: SOURCE_SLUG_NONE_FILTER, label: SOURCE_SLUG_NONE_LABEL },
+                ]}
+              />
+            </FilterField>
             <Button variant="outline" onClick={resetFilters} disabled={!hasFilters}>
               <RotateCcw aria-hidden="true" /> Reset
             </Button>
@@ -1345,8 +1398,9 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                     <p className="mt-1 text-xs text-slate-400">
                       {formatDateTime(order.createdAt)}
                     </p>
-                    <div className="mt-1">
-                      <TrafficSourceBadge adClickIds={order.adClickIds} size="xs" />
+                    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
+                      <TrafficSourceBadge adClickIds={order.adClickIds} size="xs" className="shrink-0" />
+                      <SourceSlugChip label={order.sourceLabel} path={order.sourcePath} />
                     </div>
                   </div>
                   <RiskBadge
@@ -1538,8 +1592,12 @@ export function OrdersTable({ initialOrders }: { initialOrders?: OrderItem[] }) 
                       <p className="mt-1 text-xs text-slate-400">
                         {formatDateTime(order.createdAt)}
                       </p>
-                      <div className="mt-1">
-                        <TrafficSourceBadge adClickIds={order.adClickIds} size="xs" />
+                      {/* `w-0 min-w-full`: the row takes the column's width and never sets
+                          it, so a source chip wraps under the badge instead of
+                          widening the invoice column. */}
+                      <div className="mt-1 flex w-0 min-w-full flex-wrap items-center gap-1">
+                        <TrafficSourceBadge adClickIds={order.adClickIds} size="xs" className="shrink-0" />
+                        <SourceSlugChip label={order.sourceLabel} path={order.sourcePath} />
                       </div>
                     </TableCell>
                     <TableCell className="max-w-[210px] px-4 py-4">

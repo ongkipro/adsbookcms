@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + s1-a36-a38 working tree
 
 ## A21 — A landing page may become the product page
 
@@ -2868,13 +2868,15 @@ A-333 → A-334 can run before the admin screen; A-335 and A-336 follow A-331.
 Proposed 2026-10-29. Prerequisite of A37. Migration numbers are provisional
 (`0067` is A35's): take the next free one at merge.
 
-- [ ] **A-341** — Pure `sourceSlugFromPath(path)` (lower-case, strip query, hash
+- [x] **A-341** — Pure `sourceSlugFromPath(path)` (lower-case, strip query, hash
   and trailing slash, last segment, ≤ 80 chars, `/` → `beranda`, nothing usable →
   null) in `src/lib/source-slug.ts`.
   -> REQ: REQ-191 · deps: [] · Done when: tests cover `/promo-a`, `/produk/x`,
   `/PROMO/`, `/a?utm=1#h`, `/`, an empty string, a 500-character path, and an
   encoded or non-ASCII segment.
-- [ ] **A-342** — Migration adds `orders.source_slug` as
+  **Done 2026-10-29:** `source-slug.ts`; "sourceSlugFromPath covers every
+  A-341 shape" in `source-slug.test.ts`.
+- [x] **A-342** — Migration adds `orders.source_slug` as
   `GENERATED ALWAYS AS (…) VIRTUAL` over `source_page_path`, plus
   `INDEX (source_slug, created_at)`, then `PRAGMA optimize` (D1 recommends it
   after creating an index; PRD A40 E7). No backfill and no write path: SQLite
@@ -2887,9 +2889,24 @@ Proposed 2026-10-29. Prerequisite of A37. Migration numbers are provisional
   the same paths through the SQL and the function and gets equal results. If
   local D1 refuses a generated column, stop and bring the alternative to Paduka;
   do not fall back to editing the order write path.
+  **Done 2026-10-29** as `0068_order_source_slug.sql`. **Local D1 result:**
+  the chain `0000`–`0067` applied to an empty local D1 (workerd through
+  wrangler's `getPlatformProxy`, never `--remote`) via `ensureSchemaUpgraded`,
+  six orders of every A-341 shape seeded, then `0068` applied in the Worker's
+  own claim-plus-statements `batch` — `ALTER TABLE … ADD … GENERATED ALWAYS AS
+  (…) VIRTUAL`, the index and `PRAGMA optimize` all accepted, claim row
+  written (`upgraded: 1`). The pre-existing rows read `/kopi` → `kopi`,
+  `/produk/kopi/` → `kopi`, `/lp/Promo-Kopi?utm=fb#x` → `promo-kopi`,
+  `/` → `beranda`, NULL and `''` → NULL; `table_xinfo` shows `hidden = 2`
+  (virtual); `EXPLAIN QUERY PLAN` is `SEARCH orders USING INDEX
+  idx_orders_source_slug_created (source_slug=? AND created_at>?)`. SQL and
+  function agree in "the generated column and the function agree on every
+  path, old rows included". No migration change was needed. **Not proven:**
+  remote D1 (its statement allowlist may differ from workerd's local SQLite);
+  the first install that deploys it is the proof.
 - [x] **A-343** — Dropped 2026-10-29: the generated column (A-342) gives every
   order its slug without touching `persistOrder` or the submit routes.
-- [ ] **A-344** — Capture the source on a lead without touching the forms.
+- [x] **A-344** — Capture the source on a lead without touching the forms.
   `/api/record-abandoned-order` reads the page from the `Referer` header (the
   form's `fetch` is same-origin and the store sends
   `Referrer-Policy: strict-origin-when-cross-origin`, so it carries the full
@@ -2902,22 +2919,67 @@ Proposed 2026-10-29. Prerequisite of A37. Migration numbers are provisional
   inside two hours keeps the first page, conversion still leaves the order with
   the submit page's path, and `git diff` shows `form-hybrid.ts` and
   `form-middle.ts` unchanged.
-- [ ] **A-345** — Resolve a slug to a label: CMS landing title, native page name,
+  **Done 2026-10-29:** `sourcePathFromReferer`, the `COALESCE` repeat in
+  `recordAbandonedOrder`; four tests in `source-slug.test.ts`; both form
+  scripts unchanged in `git status`.
+- [x] **A-345** — Resolve a slug to a label: CMS landing title, native page name,
   product name, else the slug. One batched read, reused by the lists and A37.
   -> REQ: REQ-195 · deps: [A-342] · Done when: tests prove each kind, a product
   page that a landing has claimed showing one name, and an unknown slug falling
   back to itself.
-- [ ] **A-346** — Show and filter the source in the order list and the
+  **Done 2026-10-29:** `resolveSourceLabels` (one `sourceLabelsStatement`
+  read); the labels test in `source-slug.test.ts`. **Deliberate collision:**
+  the slug is the last segment, so `/produk/kopi` and a landing at `/kopi` are
+  one source, `kopi`; the label resolves it (landing title, then native page,
+  then product title, then the slug). See `ARCHITECTURE.md` §4,
+  "`orders.source_slug`".
+- [x] **A-346** — Show and filter the source in the order list and the
   abandoned-lead list. The slug is a chip beside the existing
   `TrafficSourceBadge` (≤ 16 characters, the full path in `title`), not a new
   column; a filter built from `FilterBar`/`FilterField` lists the present slugs
   by frequency, and the API parameter sits behind it.
   -> REQ: REQ-194, REQ-196 · deps: [A-342, A-345] · Done when: tests prove the
   filter and an unknown slug returning no rows rather than all; browser evidence
-  at 390px and 1280px shows the chip, the filter, the table's width and a phone
-  card's height unchanged, no overflow, and `admin-controls.test.ts` still
+  at 390px and 1280px shows the chip, the filter, the table's width unchanged and
+  a phone card without a chip unchanged (a card with one may wrap the chip to
+  its own line — Paduka 2026-10-29: readable over one-line), no overflow, and `admin-controls.test.ts` still
   passing.
-- [ ] **A-347** — Channel split, read-only. `traffic-source.ts` is a protected
+  **Built 2026-10-29:** `SourceSlugChip`, the source filter on `OrdersTable`
+  and `AbandonedOrders` (both rows now `FilterBar`/`FilterField`; the
+  abandoned-lead row was a hand-built label/div until the review), the
+  `source_slug` / `source_options` API parameters; "the order and lead lists
+  filter by source; an unknown slug returns no rows, not all" and
+  `admin-controls.test.ts` pass. **Browser evidence 2026-10-29 (local dev,
+  `scratchpad/evidence/s1/`, script `pw/s1-admin.mjs`, 52/55 checks):** real
+  data from the storefront — a partial fill on `/contoh-landing` and
+  `/produk/madu-hutan-dummy` recorded leads with the page from `Referer`
+  (`a344-lead-partial-form-*-390.png`); COD orders from
+  `/produk/kaos-katun-dummy` and `/full-form` (`a346-order-thanks-full-form-390.png`).
+  Passing at 390 and 1280: chip with label and full path in `title`, ≤ 16
+  characters, seeded rows without a source show none (`a346-orders-chip-*`,
+  `a346-leads-chip-*`); options by frequency plus "(tidak tercatat)"
+  (`a346-*-filter-open-*`); a slug filter returns only its rows
+  (`a346-orders-filtered-kaos-*`, `a346-leads-filtered-madu-*`); none
+  returns the 12 sourceless orders and the empty state on leads
+  (`a346-*-filtered-none-*`); an unknown slug returns 0 rows, not all
+  (`a346-*-unknown-slug-*`); no page overflow; phone-card badge row 22px with
+  and without the chip; leads list console clean. **Not met, so not ticked:**
+  (1) at 1280 the chip widens the order table's invoice column 180 → 296px
+  (table 1363 → 1479px inside its scroll wrapper) — the table width is not
+  unchanged; (2) `/admin/orders?source_slug=<any>` throws React #418 (hydration
+  text mismatch): the island is server-rendered with "Semua halaman" while the
+  `useState` initializer reads `window.location`; the leads list (no SSR) is
+  clean. Also seen: on a 390px order card the chip shrinks to one letter
+  ("K…") beside the RTS badge.
+  **Fixed and done 2026-10-29** (`pw/s1-hyd-fixed.mjs`, `pw/s1-admin-fixed.mjs`,
+  54/54, `*-fixed` screenshots): both islands take `initialQuery` from
+  `Astro.url.search`, so no `useState` reads `window.location` (test in
+  `admin-islands-render.test.ts`, mutation-checked; `?search=`/`?status=` had
+  the same mismatch and are fixed with it); no console error with any
+  `source_slug`; at 1280 the table stays 1363px and the invoice column 180px
+  with or without chips; the chip reads in full and wraps to its own line when
+  it does not fit (card 574 → 600px only when a chip is present).
+- [x] **A-347** — Channel split, read-only. `traffic-source.ts` is a protected
   surface, so it is called, not edited: a new `src/lib/ad-channel.ts` maps
   `parseTrafficSource(ad_click_ids)` to a plain channel (meta, google, tiktok,
   other paid, organic, direct). Check which keys of `CLICK_ID_KEYS` end up in
@@ -2926,6 +2988,8 @@ Proposed 2026-10-29. Prerequisite of A37. Migration numbers are provisional
   stored value, a malformed value and null, and the SQL `CASE` and the function
   agree on every one; the stored shape is written into the function's header
   comment.
+  **Done 2026-10-29:** `ad-channel.ts` + `ad-channel.test.ts` (each channel,
+  malformed, null; SQL `CASE` agreement); `traffic-source.ts` unchanged.
 
 ## A37 — Analytics: which landing page wins, what sells, and where
 

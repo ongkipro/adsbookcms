@@ -21,6 +21,13 @@ import {
   isAdminDateFilter,
   parseAdminDateSelection,
 } from '../../../../lib/admin-date-filter.ts';
+import {
+  sourceFacetStatement,
+  sourceFilterOptions,
+  sourceLabelsFromRows,
+  sourceLabelsStatement,
+  sourceSlugPredicate,
+} from '../../../../lib/source-slug.ts';
 
 /** The order lines the CRM templates list (`{{rincian_pesanan}}`). */
 function parseItemsJson(raw: string | null) {
@@ -81,6 +88,8 @@ type OrderRow = {
   receiver_risk_label: string | null;
   receiver_refused_at: string | null;
   ad_click_ids: string | null;
+  source_page_path: string | null;
+  source_slug: string | null;
   created_at: string;
 };
 
@@ -201,6 +210,12 @@ export const GET: APIRoute = async ({ url, locals }) => {
       whereParts.push("date(created_at, '+7 hours') BETWEEN ? AND ?");
       params.push(resolution.start, resolution.end);
     }
+    // The landing page the order came from (PRD A36). A read filter only.
+    const sourceSlug = sourceSlugPredicate(url.searchParams.get('source_slug'));
+    if (sourceSlug) {
+      whereParts.push(sourceSlug.sql);
+      params.push(...sourceSlug.params);
+    }
     if (sourceFilter === 'meta') {
       whereParts.push("(ad_click_ids LIKE '%fbclid%' OR ad_click_ids LIKE '%_fbc%' OR ad_click_ids LIKE '%meta%' OR ad_click_ids LIKE '%facebook%' OR ad_click_ids LIKE '%instagram%')");
     } else if (sourceFilter === 'google') {
@@ -307,13 +322,16 @@ export const GET: APIRoute = async ({ url, locals }) => {
           CASE WHEN json_valid(receiver_performance_json)
             THEN json_extract(receiver_performance_json, '$.at') END AS receiver_refused_at,
           ad_click_ids,
+          source_page_path,
+          source_slug,
           created_at
         FROM orders
         ${whereClause}
         ORDER BY id DESC
         LIMIT ? OFFSET ?
       `).bind(...params, limit, offset);
-    const [countResult, rowResult, summaryResult, crmResult, statusCountResult] = await db.batch([
+    const withSourceOptions = url.searchParams.get('source_options') === '1';
+    const [countResult, rowResult, summaryResult, crmResult, statusCountResult, labelResult, facetResult] = await db.batch([
       countStmt,
       ordersStmt,
       // Scoped to the active filters. These cards used to answer for the whole
@@ -334,7 +352,21 @@ export const GET: APIRoute = async ({ url, locals }) => {
         FROM orders${chipWhereClause}
         GROUP BY shipping_status
       `).bind(...chipParams),
+      // Names for the source chip, bounded by the catalogue.
+      sourceLabelsStatement(db),
+      // The source filter's menu, asked for once per list load.
+      withSourceOptions
+        ? sourceFacetStatement(db, 'orders')
+        : db.prepare('SELECT NULL AS slug, 0 AS count WHERE 0'),
     ]);
+    const facets = (facetResult?.results ?? []) as Array<{ slug: string; count: number }>;
+    const sourceLabels = sourceLabelsFromRows(
+      [
+        ...((rowResult.results ?? []) as OrderRow[]).map((row) => row.source_slug),
+        ...facets.map((row) => row.slug),
+      ],
+      (labelResult?.results ?? []) as Parameters<typeof sourceLabelsFromRows>[1],
+    );
 
     const totalItems = Number((countResult.results?.[0] as { total_items?: number | string } | undefined)?.total_items ?? 0);
     const totalPages = totalItems > 0 ? Math.ceil(totalItems / limit) : 0;
@@ -405,9 +437,13 @@ export const GET: APIRoute = async ({ url, locals }) => {
           receiver_delivery_rate: row.receiver_delivery_rate,
           receiver_risk_label: row.receiver_risk_label,
           ad_click_ids: row.ad_click_ids,
+          source_page_path: row.source_page_path,
+          source_slug: row.source_slug,
+          source_label: row.source_slug ? sourceLabels.get(row.source_slug)?.label ?? row.source_slug : null,
           created_at: row.created_at,
         };
       }),
+      ...(withSourceOptions ? { source_options: sourceFilterOptions(facets, sourceLabels) } : {}),
       crm_templates: crmTemplates,
       pagination: {
         page,

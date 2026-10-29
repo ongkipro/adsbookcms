@@ -157,3 +157,28 @@ test("RateCheckTools renders without a warehouse", async () => {
   const html = await renderIsland("RateCheckTools.tsx", "default", { defaultOrigin: null, warehouseName: "" });
   assert.match(html, /Cek tarif kurir/);
 });
+
+// A36 / A-346: `?source_slug=` once initialised the filter from
+// `window.location`, so the server painted "Semua halaman" and the client
+// hydrated the slug — React error #418 on every filtered link from Analitik.
+// The filters now start from the `initialQuery` prop the Astro page passes,
+// which the server and the client both see.
+test("OrdersTable starts its filters from initialQuery on the server", async () => {
+  const html = await renderIsland("OrdersTable.tsx", "OrdersTable", {
+    initialOrders: [],
+    initialQuery: "?source_slug=promo-kaos&search=Budi",
+  });
+  assert.match(html, /promo-kaos/);
+  assert.doesNotMatch(html, /Semua halaman/);
+  assert.match(html, /value="Budi"/);
+});
+
+// AbandonedOrders paints a skeleton until its first fetch, so its filters are
+// not in the server HTML; the source check below keeps it off `window`.
+
+test("order and lead lists never read window.location to initialise state", async () => {
+  for (const file of ["OrdersTable.tsx", "AbandonedOrders.tsx"]) {
+    const source = await fs.readFile(path.resolve("src/components/admin", file), "utf8");
+    assert.doesNotMatch(source, /useState\([^;]*window\.location/s, file);
+  }
+});

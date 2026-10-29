@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + s1-a36-a38 working tree
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -102,6 +102,30 @@ Trigger `product_variants_stock_nonnegative` (migration `0003`) still exists and
 numbering after three different `0051` files appeared across the fleet). The Worker bundle contains the exact checked-in SQL and applies any missing suffix automatically before serving a database-backed request. Each migration's SQL statements and `d1_migrations` claim row execute in one D1 batch; concurrent requests serialize on the claim, re-read history, and continue without double-applying. `wrangler d1 migrations apply OMS_DB` remains an optional operator preflight, not the runtime correctness boundary. Migration `0040` adds provider status text, provider event time, and synchronization time to `orders`.
 
 **Migrations are hand-authored.** There is no generator to keep in sync, which is deliberate: the schema contains data-integrity triggers, ordered indexes, CHECK constraints, and data migrations that a schema generator cannot represent safely.
+
+### `orders.source_slug` — where an order or a lead came from (A36)
+
+`orders.source_slug` (migration `0068_order_source_slug.sql`, number provisional
+until merge) is a `VIRTUAL` generated column over `source_page_path`: the last
+path segment, query and hash cut, trailing `/` stripped, ASCII lower-cased, at
+most 80 characters; `/` is `beranda`, empty or NULL stays NULL and reads
+"(tidak tercatat)". SQLite computes it on read, so rows older than the
+migration have it too and no order or lead write path fills it. Index
+`idx_orders_source_slug_created (source_slug, created_at)` serves the source
+filter on `/admin/orders` and the abandoned-lead list. `src/lib/source-slug.ts`
+mirrors the expression for labels, and `source-slug.test.ts` runs the SQL and
+the function over the same paths. Applied on local D1 through the Worker's own
+claim-plus-statements batch on 2026-10-29, `PRAGMA optimize` included; remote D1
+not yet exercised.
+
+**The slug is the last segment only, so `/produk/kopi` and a landing page at
+`/kopi` are one source, `kopi`.** That is deliberate: a product page a landing
+has claimed is the same offer, and one name per offer is what the lists and A37
+rank by. `resolveSourceLabels` resolves the name, landing title first, then a
+native page, then the product title, then the slug itself, so the operator
+sees one label rather than two rows for the same slug. Two genuinely different
+pages that share a last segment are counted together; the full path stays in
+`source_page_path` and the chip's `title`.
 
 ---
 

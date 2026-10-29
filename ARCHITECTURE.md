@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + a35 working tree
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -75,7 +75,7 @@ Runs on every request, in order: canonical host redirect (`www` → apex), ad cl
 | Checkout forms | `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`. `/form-hybrid`, `/form-middle`, `/form-full` are query-preserving 308 redirects that **do** exist |
 | Feeds | `/sitemap.xml`, `/feed/google-catalog.xml`, `/feed/meta-catalog.xml`, `/robots.txt` (dynamic, `src/pages/robots.txt.ts`) |
 | Media | `/assets/[...key]` (R2 `uploads/` prefix), `/media/[...key]` (R2 `content/` prefix) |
-| Admin | `/hello` (login), `/admin/*` — 28 pages |
+| Admin | `/hello` (login), `/admin/*` — 31 pages |
 | Public API | `/api/*` — checkout, locations, shipping rates, payment methods, order status, Meta events |
 | Headless API | `/api/v1/*` — storefront descriptor, products, geo, shipping rates, checkout, tracking events |
 | Admin payment reconciliation | `/api/admin/payment-reconciliation` |
@@ -88,9 +88,9 @@ The headless `/api/v1/*` family is **implemented and shipping**, authenticated b
 
 D1 is the only persistent store for operational state. **All runtime data access is raw `D1Database.prepare()` / `.batch()`**. There is no ORM and no schema-generation step: Drizzle was removed on 2026-08-16 (ADR-005), so `src/db/migrations/*.sql` is the only description of the schema in the tree.
 
-### Tables (29)
+### Tables (31)
 
-`stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `order_number_counters` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `admin_sessions` · `rate_limits` · `payment_transactions` · `payment_reconciliation_audits` · `autolaris_callbacks` · `storefront_content` · `storefront_templates` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `google_ads_conversion_outbox` · `developer_api_keys` · `developer_api_key_usage` · `headless_api_audit_events` · `landing_pages` · `landing_sections` · `notifications` · `notification_reads` · `install_secrets`
+`stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `order_number_counters` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `admin_sessions` · `rate_limits` · `payment_transactions` · `payment_reconciliation_audits` · `autolaris_callbacks` · `storefront_content` · `storefront_templates` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `google_ads_conversion_outbox` · `developer_api_keys` · `developer_api_key_usage` · `headless_api_audit_events` · `landing_pages` · `landing_sections` · `notifications` · `notification_reads` · `install_secrets` · `plugins` · `whatsapp_numbers`
 
 `stores` is a single-row table that carries the runtime-editable half of the configuration: provider keys and base URLs, tracking IDs, fee-bearer policy, payment toggles, CRM templates, embed origins, AI content instructions, and COD province exclusions.
 

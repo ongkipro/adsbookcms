@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-10-13 @ `7644b63` + changelog-1.5 working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + a35 working tree
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -121,7 +121,7 @@ can reach it.
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **880 passing** (0 skipped, 2026-10-29), 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints. A change that reduces this baseline is not done.
+Current verified working-tree baseline: **891 passing** (0 skipped, 2026-10-29), 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints (475 files). A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 
@@ -143,7 +143,7 @@ A permitted command is not an approved one. The tooling here runs with broad per
 
 ## 6. Code discipline
 
-Smallest change that is correct. Reuse what exists before adding; the codebase already has 100 non-test lib modules and duplicating one is the most common failure mode.
+Smallest change that is correct. Reuse what exists before adding; the codebase already has 108 non-test lib modules and duplicating one is the most common failure mode.
 
 Before adding a dependency, check whether the platform already provides it. Two headless UI libraries already ship side by side (`radix-ui` and `@base-ui/react`) — do not add a third.
 

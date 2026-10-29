@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + a35 working tree
 
 ## A21 — A landing page may become the product page
 
@@ -2664,15 +2664,16 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   `ALLOW_NATIVE_LANDING_REMOVAL=1` allows an intended removal. Verified
   read-only on production: taniniaga passed (14 registered), and zvarashop
   refused with 55 slugs.
-- [ ] **A-327** — permatamall and zanobyshop deploy from GitHub Actions with a
+- [x] **A-327** — permatamall and zanobyshop deployed from GitHub Actions with a
   bare `wrangler deploy`, which skips `preflight:deploy` and all four of its
-  refusals. Move both workflows onto `npm run deploy`, with D1 read access
-  for the token. **2026-10-19: both workflows moved** (permatamall
-  `46aaaab`, zanobyshop `9d944fd`), plus a strict step that fails the run when
-  the preflight cannot read production D1. zanobyshop deployed through it,
-  preflight complete (ledger 62). permatamall's run stopped at the strict step
-  without deploying: its `CLOUDFLARE_API_TOKEN` cannot read D1. Open until
-  that token gets Account › D1 › Read and the run is re-run green.
+  refusals. **2026-10-19: both workflows moved** onto `npm run deploy`
+  (permatamall `46aaaab`, zanobyshop `9d944fd`), plus a strict step that fails
+  the run when the preflight cannot read production D1. zanobyshop deploys
+  through it, preflight complete (ledger 62). permatamall's token could not
+  read D1, so every run failed; **2026-10-24** its `deploy.yml` was removed
+  (permatamall `5499583`) and it deploys by hand with `npm run deploy` like
+  every other install (STATUS 2026-10-24). **Closed:** nothing remains in this
+  repository, which deploys nothing (ADR-012).
 - [x] **A-328** — Script-carrier images in merchant html (`<img src="x"
   onerror>`) no longer request `/x` on every view; the placeholder becomes
   `data:,`. **Done 2026-10-19 (1.5.11).**
@@ -2681,6 +2682,63 @@ tests, `astro check` 0/0/0, build complete; browser checks in `STATUS.md`.
   detail), abandoned orders still abandoned after 30 min to its lead webhook,
   and the source landing path on every order. Migrations `0062`-`0065`.
   **Done 2026-10-19 (1.5.12).**
+
+## Releases 1.6.0–1.7.13
+
+Shipped without task ids; one line per release, from the commit subjects
+(`0e080be..3e73f04`) and BUILD-LOG entries 181–183. Fleet state per release
+is owned by `STATUS.md`.
+
+- [x] **1.6.0** — First-party plugins installed per store; Kelola CRM becomes
+  the first (`5b9cb1b`).
+- [x] **1.6.1** — Kelola failure count turns red; Plugin stays lit on plugin
+  settings (`0e1c87d`).
+- [x] **1.6.2** — Receiver score retries a stored refusal at any age; the
+  refusal names its key (`ff9cc5f`).
+- [x] **1.6.3** — CRM templates name variant, quantity and unit price; real
+  strike price only; scheduler heartbeat (`29c884f`).
+- [x] **1.6.4** — `/thanks` hands a middle-form COD order to WhatsApp; clearer
+  buyer-number note (`8a6baf3`).
+- [x] **1.6.5** — HTTP to HTTPS in the Worker; `PUBLIC_ALIAS_HOSTS` sends older
+  domains to the canonical one (`13157d5`).
+- [x] **1.7.0** — Two-minute edge cache for anonymous storefront HTML; Inter
+  preloaded (`a1ae4fd`).
+- [x] **1.7.1** — Inter latin faces use `font-display: optional` (`905b9a9`).
+- [x] **1.7.2** — Inter declared only as optional faces, so no swap face can
+  reflow text (`4ae3ebf`).
+- [x] **1.7.3** — Uploaded images kept a day in the Workers cache, answered
+  before D1 and R2 (`01dc44d`).
+- [x] **1.7.4** — Product and landing pages cached per province in the Workers
+  Cache API (`eac81ac`).
+- [x] **1.7.5** — Optional store brand mark in the header (`a14b08a`).
+- [x] **1.7.6** — No dangling separator in the home h1 and brand title
+  (`4837478`).
+- [x] **1.7.7** — Optional store-wide noindex via `PUBLIC_SITE_NOINDEX`
+  (`f42b627`).
+- [x] **1.7.8** — Never host-redirect a bare IP address (`9df9fb4`).
+- [x] **1.7.9** — COD city fallback on a failed estimate; clearer transfer
+  options (`b3ff8cd`).
+- [x] **1.7.10** — Gates report install drift and owe a courier in setup
+  (`86a0fb5`).
+- [x] **1.7.11** — Storefront runs beside D1 and reads the catalogue once per
+  request (`ca7331d`).
+- [x] **1.7.12** — Canonical-elsewhere landing slugs kept out of the sitemap;
+  the store named once in titles (`69999a2`, BUILD-LOG 181).
+- [x] **1.7.13** — "Transfer Diterima" confirms a manual transfer and sends its
+  Meta Purchase (`8849a28`, BUILD-LOG 183).
+- [ ] **A-421** — A void order never sends a Purchase. **Built 2026-10-29
+  (uncommitted, a35). Exception, approved by Paduka 2026-10-29** (protected:
+  `paid-order-purchase.ts`, `order-lifecycle.ts`,
+  `src/pages/api/admin/orders/[id].ts`). 1.7.13 let a manual-transfer order
+  whose shipping was cancelled or returned be marked paid and enqueue a Meta
+  Purchase. `isVoidOrder()` in `order-lifecycle.ts` (the admin guard's own
+  expression) now gates `enqueuePurchaseForPaidOrder`, read after the edit is
+  saved; "Transfer Diterima" hides for a void order. Marking it paid stays
+  allowed, since the money arrived and must be refunded. Test:
+  `paid-order-purchase.test.ts` "a paid but void order never enqueues a
+  Purchase" (its mock returns only the columns the query names, so dropping
+  one from the SELECT fails it; mutation-checked). Open: browser evidence;
+  release entry.
 
 ## Protected surfaces for A35–A43 — read before any of those tasks
 

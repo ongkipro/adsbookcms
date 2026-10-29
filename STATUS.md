@@ -1020,9 +1020,9 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **891 / 891 passing** (2026-10-29, 1.7.13 + a35 working tree) |
+| `npm test` | **997 / 997 passing** (2026-10-29, A-419 integration branch; not released) |
 | `npm run check` | 0 errors · 0 warnings · 0 hints |
-| `npm run build` | Cloudflare server bundle complete; 68 bundled migrations (2026-10-29) |
+| `npm run build` | Cloudflare server bundle complete; 73 bundled migrations, `0000`–`0072` (2026-10-29, A-419 integration branch) |
 | PageSpeed Insights, mobile, official API (2026-08-24) | taniniaga 96 · carukesi 95 · permatamall 94 · zanobyshop 92 · skincarebpom 89 · zvara 85 — CLS 0.00 on every store |
 | Lighthouse accessibility, `/payment` & `/thanks` (2026-08-24) | 100, zero failed audits, on both pages on every install |
 | Browser smoke | A fresh isolated install exposed all ten default couriers through `/api/admin/expeditions`. `/admin/orders/abandoned` rendered its shadcn Card/Badge/Button/Dialog composition at 390, 768, and 1280 CSS px with zero overflow, no stuck busy state, no failed request, and no console error. A populated lead opened the conversion Dialog, focused the invalid address, and returned focus after `Escape`. A separate isolated owner session on `/admin/balance` rendered pending and locked AutoLaris rows, blocked blank manual-confirmation submission with focused inline errors, and an already-confirmed payment redirected `/payment` to `/thanks` with zero console errors. No live provider request, deployment, or remote D1 mutation occurred. |

@@ -88,9 +88,9 @@ The headless `/api/v1/*` family is **implemented and shipping**, authenticated b
 
 D1 is the only persistent store for operational state. **All runtime data access is raw `D1Database.prepare()` / `.batch()`**. There is no ORM and no schema-generation step: Drizzle was removed on 2026-08-16 (ADR-005), so `src/db/migrations/*.sql` is the only description of the schema in the tree.
 
-### Tables (32)
+### Tables (33)
 
-`stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `order_number_counters` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `admin_sessions` · `rate_limits` · `payment_transactions` · `payment_reconciliation_audits` · `autolaris_callbacks` · `storefront_content` · `storefront_templates` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `google_ads_conversion_outbox` · `developer_api_keys` · `developer_api_key_usage` · `headless_api_audit_events` · `landing_pages` · `landing_sections` · `notifications` · `notification_reads` · `install_secrets` · `plugins` · `whatsapp_numbers` · `ops_health_snapshot`
+`stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `order_number_counters` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `admin_sessions` · `rate_limits` · `payment_transactions` · `payment_reconciliation_audits` · `autolaris_callbacks` · `storefront_content` · `storefront_templates` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `google_ads_conversion_outbox` · `developer_api_keys` · `developer_api_key_usage` · `headless_api_audit_events` · `landing_pages` · `landing_sections` · `notifications` · `notification_reads` · `install_secrets` · `plugins` · `whatsapp_numbers` · `ops_health_snapshot` · `mengantar_areas`
 
 `order_items.weight_grams` (migration `0070`) is the unit weight a line was quoted with, copied from `product_variants` at checkout and at CS lead conversion. Every reader of an order's shipped weight — Mengantar dispatch, the order detail API, the Kelola plugin — reads `COALESCE(oi.weight_grams, pv.weight_grams)`; NULL means a line written before the column existed. Catalogue and quote readers still use `product_variants.weight_grams`.
 
@@ -104,15 +104,14 @@ Trigger `product_variants_stock_nonnegative` (migration `0003`) still exists and
 
 ### Migration chain
 
-69 files, `0000`–`0068` (ADR-024 gave the product sole ownership of the
+73 files, `0000`–`0072` (ADR-024 gave the product sole ownership of the
 numbering after three different `0051` files appeared across the fleet). The Worker bundle contains the exact checked-in SQL and applies any missing suffix automatically before serving a database-backed request. Each migration's SQL statements and `d1_migrations` claim row execute in one D1 batch; concurrent requests serialize on the claim, re-read history, and continue without double-applying. `wrangler d1 migrations apply OMS_DB` remains an optional operator preflight, not the runtime correctness boundary. Migration `0040` adds provider status text, provider event time, and synchronization time to `orders`.
 
 **Migrations are hand-authored.** There is no generator to keep in sync, which is deliberate: the schema contains data-integrity triggers, ordered indexes, CHECK constraints, and data migrations that a schema generator cannot represent safely.
 
 ### `orders.source_slug` — where an order or a lead came from (A36)
 
-`orders.source_slug` (migration `0068_order_source_slug.sql`, number provisional
-until merge) is a `VIRTUAL` generated column over `source_page_path`: the last
+`orders.source_slug` (migration `0068_order_source_slug.sql`) is a `VIRTUAL` generated column over `source_page_path`: the last
 path segment, query and hash cut, trailing `/` stripped, ASCII lower-cased, at
 most 80 characters; `/` is `beranda`, empty or NULL stays NULL and reads
 "(tidak tercatat)". SQLite computes it on read, so rows older than the

@@ -139,6 +139,6 @@ if (database?.prepare) {
         <a href="/admin/shipping" class="btn-primary">Pengiriman</a>
       </div>
     </AdminPageHeader>
-    <OrdersTable initialOrders={initialOrders} client:load />
+    <OrdersTable initialOrders={initialOrders} initialQuery={Astro.url.search} client:load />
   </div>
 </AdminLayout>

@@ -3288,7 +3288,10 @@ Proposed 2026-10-29. PRD A41. The quote and dispatch already use
 `weight_grams`; nothing here edits `shipping-quote.ts`, `mengantar-*.ts` or
 the order write path.
 
-- [ ] **A-391** — Read-only, needs Paduka's approval for `--remote`: per live
+- [x] **A-391** — **Done 2026-10-29** with Paduka's approval; figures in
+  `STATUS.md`. zanobyshop (34 of 34 active products) and skincarebpom (11 of 13)
+  still sit entirely at the 1000 g default.
+  Read-only, needs Paduka's approval for `--remote`: per live
   store, `SELECT weight_grams, COUNT(*) FROM product_variants GROUP BY 1`, and
   the active products whose variants are all at 1000 g. Record the counts in
   `STATUS.md`; nothing is written to any store.
@@ -3427,11 +3430,15 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
 
 - [ ] **A-412** — Migration: `mengantar_areas` (key `district|city|province`
   normalised as `location-cache.ts` already does, `area_id`, `label`,
-  `resolved_at`, `last_used_at`), and `src/lib/mengantar-areas.ts` (read,
-  store, drop).
-  -> REQ: REQ-243 · deps: [] · Done when: it applies to an empty local D1, and
-  tests prove a stored area is read back, a second store of the same key
-  replaces it, and drop removes it.
+  `source` ('order-history' or 'resolve'), `resolved_at`), seeded in the same
+  migration from `orders` (distinct district, city, province with the most
+  frequent `destination_area_id`), and `src/lib/mengantar-areas.ts` (read,
+  store, drop). Check first how the order editor's precision mode marks its
+  orders, so the seed can leave them out.
+  -> REQ: REQ-243 · deps: [] · Done when: it applies to an empty local D1 and to
+  a copy with orders (one row per district, the majority id), and tests prove a
+  stored area is read back, a second store of the same key replaces it, and
+  drop removes it.
 - [ ] **A-413** — **Exception** (`/api/locations` resolve): read `mengantar_areas`
   before Mengantar; on a miss resolve as today and store in D1 instead of the
   24-hour KV entry.
@@ -3454,11 +3461,12 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
   fleet figures (`STATUS.md`).
   -> REQ: REQ-243 · deps: [A-413] · Done when: the before and after figures are
   recorded here.
-- [ ] **A-417** — Stability study, read-only, needs approval for `--remote`:
-  after a few weeks of A-413 in production, compare the stored area id for the
-  same district across installs.
-  -> REQ: REQ-246 · deps: [A-413] · Done when: the share of districts whose id
-  agrees across stores is recorded, which decides A-418.
+- [ ] **A-417** — Stability study from order history, read-only, needs approval
+  for `--remote`: for each district|city|province, the `destination_area_id`
+  values across all 14 databases' orders, with counts. No waiting for A-413.
+  -> REQ: REQ-246 · deps: [] · Done when: the share of districts whose majority
+  id agrees across stores, and the districts that disagree, are recorded in
+  `STATUS.md`, which decides A-418.
 - [ ] **A-418** — Only if A-417 shows stable ids: a throttled, read-only script
   resolves all 7,285 districts once (about 7,300 Mengantar searches, needs
   approval) and adds the area id to the bundled district data, with the D1

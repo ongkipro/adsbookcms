@@ -2,6 +2,32 @@
 
 > Verified against disk: 2026-10-24 (1.7.13 on revenleather, zvarashop, taniniaga, agritani-shop, halotanishop, permatamall, numaskin-adbook, bavenshop, beranda-tani; zanobyshop on 1.7.2)
 
+## 2026-10-29 — Variant weights across the fleet (A-391)
+
+Read-only `wrangler d1 execute --remote` (one `SELECT` per database). A variant
+"at 1000 g" carries the schema default unless an operator chose exactly 1 kg.
+
+| Store | Variants | At 1000 g | Active products, every variant at 1000 g | Other weights in use (sample) |
+| --- | ---: | ---: | --- | --- |
+| zanobyshop | 64 | 63 | **34 of 34** | 981 |
+| skincarebpom | 23 | 21 | **11 of 13** | 30 |
+| revenleather | 208 | 9 | 3 of 79 | 400 … 1600 |
+| halotanishop | 10 | 7 | 2 of 5 | 500 |
+| taniniaga | 10 | 7 | 2 of 5 | 500 |
+| zvarashop | 171 | 9 | 1 of 70 | 50 … 300 |
+| agritani-shop | 13 | 4 | 0 of 4 | 250, 500, 2000 |
+| beranda-tani | 8 | 4 | 0 of 4 | 500 |
+| bavenshop | 67 | 4 | 0 of 27 | 100 … 450 |
+| permatamall | 12 | 1 | 0 of 6 | 50 … 2000 |
+| numaskin-adbook | 55 | 0 | 0 of 49 | 80 … 240 |
+| cekat-shop, klikinaja | 0 | 0 | none | — |
+| agritani-d1 | not an AdsBookCMS schema | | | |
+
+- zanobyshop and skincarebpom quote almost every order at 1 kg per item. For
+  skincare that is likely heavier than the parcel, so buyers there may be
+  paying more shipping than the parcel costs. Their operators should confirm
+  the real weights in the CMS; nothing was changed by this read.
+
 ## 2026-10-29 — D1 usage across the account (A-375)
 
 Read-only `wrangler d1 insights <db> --remote --time-period 30d --sort-by reads`

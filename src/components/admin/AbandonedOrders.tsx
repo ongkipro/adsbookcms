@@ -341,6 +341,8 @@ function ConversionDialog({
       variant_id: form.variantId,
       quantity: form.quantity || "1",
     });
+    // The warehouse follows the buyer's province, as the conversion does (PRD A42).
+    if (form.province) params.set("province", form.province);
     setRatesLoading(true);
     void fetch(`/api/shipping-rates?${params}`, {
         headers: { Accept: "application/json" },
@@ -361,7 +363,7 @@ function ConversionDialog({
         if (!controller.signal.aborted) setRatesLoading(false);
       });
     return () => controller.abort();
-  }, [form.destinationAreaId, form.quantity, form.variantId, lead]);
+  }, [form.destinationAreaId, form.province, form.quantity, form.variantId, lead]);
 
   const selectedRate = rates.find(
     (rate) => String(rate.courier_service_id) === form.courierServiceId,

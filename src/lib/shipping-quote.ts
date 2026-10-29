@@ -5,7 +5,13 @@ import {
 import { getEnvValue, getRuntimeEnv } from "./env.ts";
 import { MengantarClient, type CourierRateResult } from "./mengantar-client.ts";
 import { getProviderConfig } from "./provider-config.ts";
+import { normalizeProvinceCode } from "./province.ts";
 import { buildCityAverageFallbackRate } from "./shipping-fallback.ts";
+import {
+  chooseWarehouse,
+  provinceCodeForCity,
+  type WarehouseCandidate,
+} from "./warehouse-choice.ts";
 
 export type ShippingQuoteInput = {
   destinationId: string;
@@ -15,6 +21,25 @@ export type ShippingQuoteInput = {
   originId?: string;
   fallbackWeightKg?: number;
   quantity?: number;
+  /**
+   * The buyer's province, code or name. When absent it is derived from
+   * `destinationCity`, so the rate route and submit, which both carry only the
+   * city, choose the same warehouse (PRD A42, REQ-240).
+   */
+  destinationProvince?: string;
+  /**
+   * Quote from this warehouse: an admin re-quote of an existing order
+   * (REQ-241) or a headless checkout echoing its rate call's `warehouse_id`.
+   * Honoured only while it is active and ready (or the primary); otherwise the
+   * warehouse is chosen as if it had not been given.
+   */
+  warehouseId?: number;
+  /**
+   * Only choose the warehouse: no variant read, no Mengantar call, `rates: []`.
+   * Lets headless checkout learn whether a city would leave the primary
+   * before it pays for a second rate call (audit finding 23).
+   */
+  warehouseOnly?: boolean;
 };
 
 export class ShippingQuoteError extends Error {
@@ -57,7 +82,66 @@ const normalizeCity = (value: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-
+/**
+ * The warehouse a quote ships from (PRD A42). A store with one active
+ * warehouse makes exactly the one read it made before A42 and gets the same
+ * row (REQ-242); only a store with several reads its candidates and lets
+ * `chooseWarehouse` pick by the buyer's province.
+ */
+async function readQuoteWarehouse(
+  database: D1Database,
+  input: ShippingQuoteInput,
+): Promise<QuotedWarehouse | undefined> {
+  if (input.warehouseId) {
+    // Only a warehouse the chooser could pick: active, and ready or the
+    // primary. `warehouse_id` reaches here from public routes, so an inactive
+    // or unregistered one is never quoted from; the request then falls
+    // through to the normal choice, as for an id that does not exist.
+    const own = await database
+      .prepare(
+        `SELECT id, origin_area_id, pickup_address_id FROM warehouses
+        WHERE id = ? AND is_active = 1
+          AND (is_primary = 1 OR (TRIM(COALESCE(origin_area_id, '')) <> ''
+            AND TRIM(COALESCE(pickup_address_id, '')) <> ''))
+        LIMIT 1`,
+      )
+      .bind(input.warehouseId)
+      .first<QuotedWarehouse>();
+    if (own) return own;
+  }
+  const primary = await database
+    .prepare(
+      `SELECT id, origin_area_id, pickup_address_id,
+        (SELECT COUNT(*) FROM warehouses WHERE is_active = 1) AS active_count
+      FROM warehouses ORDER BY is_primary DESC, id LIMIT 1`,
+    )
+    .first<QuotedWarehouse & { active_count?: number }>();
+  if (!primary) return undefined;
+  const fallback: QuotedWarehouse = {
+    id: primary.id,
+    origin_area_id: primary.origin_area_id,
+    pickup_address_id: primary.pickup_address_id,
+  };
+  if (!(Number(primary.active_count) > 1)) return fallback;
+  const province =
+    normalizeProvinceCode(input.destinationProvince) ||
+    provinceCodeForCity(input.destinationCity);
+  if (!province) return fallback;
+  const candidates = await database
+    .prepare(
+      `SELECT id, is_primary, is_active, origin_area_id, pickup_address_id, province, served_provinces
+      FROM warehouses WHERE is_active = 1 ORDER BY id`,
+    )
+    .all<WarehouseCandidate>();
+  const chosen = chooseWarehouse(candidates.results ?? [], province)?.warehouse;
+  return chosen
+    ? {
+        id: chosen.id,
+        origin_area_id: String(chosen.origin_area_id ?? ""),
+        pickup_address_id: String(chosen.pickup_address_id ?? ""),
+      }
+    : fallback;
+}
 
 export async function resolveEligibleShippingRates(
   database: D1Database,
@@ -71,6 +155,10 @@ export async function resolveEligibleShippingRates(
       "DESTINATION_NOT_RESOLVED",
       422,
     );
+  }
+  if (input.warehouseOnly) {
+    const warehouse = await readQuoteWarehouse(database, input);
+    return { originId: warehouse?.origin_area_id?.trim() || "", rates: [], warehouse };
   }
 
   const quantity =
@@ -119,12 +207,7 @@ export async function resolveEligibleShippingRates(
     };
   }
 
-  const warehouse =
-    (await database
-      .prepare(
-        "SELECT id, origin_area_id, pickup_address_id FROM warehouses ORDER BY id LIMIT 1",
-      )
-      .first<QuotedWarehouse>()) || undefined;
+  const warehouse = await readQuoteWarehouse(database, input);
 
   let originId =
     input.originId?.trim() || warehouse?.origin_area_id?.trim() || "";

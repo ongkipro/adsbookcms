@@ -191,7 +191,7 @@ async function getSettingsRow(database: D1Database) {
         w.province
       FROM stores s
       LEFT JOIN warehouses w ON w.store_id = s.id
-      ORDER BY s.id, w.id
+      ORDER BY s.id, w.is_primary DESC, w.id
       LIMIT 1
     `,
       )
@@ -231,6 +231,7 @@ async function getSettingsRow(database: D1Database) {
         w.province
       FROM stores s
       LEFT JOIN warehouses w ON w.store_id = s.id
+      -- A schema this old predates is_primary; its first row is the primary.
       ORDER BY s.id, w.id
       LIMIT 1
     `,
@@ -867,8 +868,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
             `
           INSERT INTO warehouses (
             store_id, name, contact_name, contact_phone, origin_area_id,
-            origin_label, pickup_address_id, address, city, province
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            origin_label, pickup_address_id, address, city, province, is_primary
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         `,
           )
           .bind(

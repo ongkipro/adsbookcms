@@ -71,6 +71,7 @@ const ADMIN_API_ROUTES = [
   '/api/admin/payment-reconciliation',
   '/api/admin/notifications',
   '/api/admin/whatsapp-numbers',
+  '/api/admin/warehouses',
   '/api/admin/profile',
   '/api/admin/plugins',
   '/api/admin/logout',

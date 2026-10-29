@@ -3621,14 +3621,38 @@ Proposed 2026-10-29. PRD A42. Tasks marked **Exception** edit a protected
 surface; each needs Paduka's approval as its own item, and each must keep a
 one-warehouse store byte-identical (REQ-242).
 
-- [ ] **A-402** — Migration: `warehouses.is_primary` (the first existing row
+Status 2026-10-29 (worktree `adsbookcms-s5-a42`, uncommitted): A-402 to A-405
+done; A-407 and A-408 built and tested but their Exception approval is **not
+recorded** in this file; A-406, A-409 and A-410 closed with browser and
+stand-in evidence the same day (below); A-411 docs written, closing now
+unblocked. Verification on that tree:
+`npm test` 926 pass / 0 fail, `npm run check` 0 errors / 0 warnings / 0 hints,
+`npm run build` complete.
+
+**Upgrade risk (read before any deploy).** An install that already holds more
+than one `warehouses` row changes behaviour on the deploy that carries the
+migration: until now every quote and dispatch used the lowest-id row; after it,
+every other ready row serves buyers in its own province. Count rows per install
+(`SELECT COUNT(*) FROM warehouses`, a `--remote` read that needs approval)
+before deploying, and have the operator confirm or deactivate extra rows first.
+One-row installs are unchanged (REQ-242). Recorded in `RELEASE.md` §3 and
+ADR-032. No install was read or touched.
+
+- [x] **A-402** — **Done 2026-10-29.** `src/db/migrations/0072_multi_warehouse.sql` (0068 until the A-419 renumber)
+  (renumbered at integration; tests find it by suffix). `warehouses.test.ts`:
+  "A-402: the migration applies to an empty store" and "the first existing
+  warehouse becomes primary; a second primary is refused by the index".
+  Migration: `warehouses.is_primary` (the first existing row
   becomes 1), `is_active` (default 1), `served_provinces` (JSON array of
   province codes, NULL meaning "its own province"); a partial unique index so
   only one row can be primary.
   -> REQ: REQ-237, REQ-239 · deps: [] · Done when: it applies to an empty local
   D1 and to one holding a warehouse (which becomes primary), and a second
   primary is refused by the index.
-- [ ] **A-403** — Pure chooser `chooseWarehouse(warehouses, buyerProvinceCode)`
+- [x] **A-403** — **Done 2026-10-29.** `warehouse-choice.test.ts` covers one
+  warehouse, coverage, island, primary, unknown province, ties, not-ready and
+  inactive skipped, and all 38 codes in exactly one group.
+  Pure chooser `chooseWarehouse(warehouses, buyerProvinceCode)`
   in `src/lib/warehouse-choice.ts`, plus the static island-group map of the 38
   province codes. Order: ready and serving the province, then same island
   group, then primary; ties to primary, then lowest id; not-ready and
@@ -3636,13 +3660,25 @@ one-warehouse store byte-identical (REQ-242).
   -> REQ: REQ-239 · deps: [] · Done when: tests cover one warehouse (always it),
   coverage, island fallback, primary fallback, an unknown province, a not-ready
   warehouse skipped, and every province code mapped to exactly one group.
-- [ ] **A-404** — Buyer province on the server: derive the province code from
+- [x] **A-404** — **Done 2026-10-29.** `provinceCodeForCity` in
+  `warehouse-choice.ts`. Every city in the index resolves to one province except
+  **`banjar`** (Kota Banjar, Jawa Barat / Kabupaten Banjar, Kalimantan Selatan),
+  pinned by the A-404 test. **Decision: no form change.** The rate route and
+  every submit route already carry the city; an unknown or ambiguous city
+  quotes from the primary on both the rate call and submit, so they agree.
+  Buyer province on the server: derive the province code from
   the destination the rate route already receives (city, and district where
   given) using the bundled district index. Report ambiguous city names.
   -> REQ: REQ-239 · deps: [] · Done when: a test resolves every city in the index
   to one province or lists the ambiguous ones, and the result decides whether a
   form change is needed (if it is, that becomes a separate proposal).
-- [ ] **A-405** — Warehouse management: `src/lib/warehouses.ts` and
+- [x] **A-405** — **Done 2026-10-29.** `src/lib/warehouses.ts`,
+  `/api/admin/warehouses` (in `ADMIN_API_ROUTES`, owner/admin only).
+  `warehouses.test.ts` proves each rule with `ensurePickup` stubbed; no test
+  reaches Mengantar. Screens that show one warehouse (expeditions, `/admin/check`,
+  settings GET + `save-warehouse`, lead conversion) now read the primary, not
+  `ORDER BY id LIMIT 1`, with a test guarding it.
+  Warehouse management: `src/lib/warehouses.ts` and
   `/api/admin/warehouses` (list, add, edit, delete, set primary). Saving needs a
   precise Mengantar origin and a pickup address from `ensurePickupAddress`, as
   the current single form does; at most 10; deleting a warehouse with orders is
@@ -3652,7 +3688,31 @@ one-warehouse store byte-identical (REQ-242).
   Mengantar client stubbed prove each rule, that a warehouse without
   `origin_area_id` or `pickup_address_id` is stored as not ready, and that no
   test calls Mengantar.
-- [ ] **A-406** — Pengaturan → Gudang becomes a list: each warehouse with name,
+- [x] **A-406** — **Done 2026-10-29.** `Warehouses.tsx` replaces the single
+  form on `/admin/settings/warehouse`. Browser evidence (local `dev:local`
+  store, headless Chrome via playwright-core, screenshots in the session's
+  `evidence/s5/`, each at 390px and 1280px): add "Gudang Surabaya" (origin
+  Gubeng, Jawa Timur) through the editor (`a406-04-added-two-*`); edit saved
+  (`a406-05-edit-390`, "Gudang tersimpan."); validation — empty submit stops
+  at the browser's required check, missing origin shows "Pilih kecamatan
+  origin…" (`a406-02-validation-origin-390`), a short phone shows the server's
+  "Telepon PIC harus berisi 9-15 digit." (`a406-03-validation-phone-1280`);
+  deactivate shows "Nonaktif", `aria-checked=false`, "Jadikan utama" disabled
+  (`a406-06-inactive-settled-*`); primary switch both ways, the primary loses
+  its delete button and its switch is disabled (`a406-07-primary-switched-*`);
+  delete guard on a warehouse with an order shows "Gudang ini sudah dipakai
+  order…" (`a406-09-delete-confirm-390`, `a406-10-delete-guard-*`); 10-row
+  limit — "10 dari 10 gudang", "Tambah gudang" disabled, notice shown, an 11th
+  POST answers 409 "Maksimal 10 gudang." (`a406-11-ten-limit-*`; the eight
+  fixtures were added through `/api/admin/warehouses`); not-ready — "Belum
+  lengkap" with the pickup message and "Jadikan utama" disabled
+  (`a406-12-not-ready-*`; fixture: one test row's `pickup_address_id` blanked
+  in local D1, because the stand-in always registers a pickup); deleting an
+  unused row works (`a406-13-deleted-unused-390`); "Tambah gudang" opens the
+  editor from the keyboard. Horizontal overflow 0 on every capture. Console:
+  no JS or hydration errors; the only entries are Chrome's resource-load lines
+  for the deliberately provoked 422 and 409 answers.
+  Pengaturan → Gudang becomes a list: each warehouse with name,
   city, Mengantar status (siap / belum lengkap), primary badge, served
   provinces; an editor reusing `WarehouseOriginPicker`, the PIC fields and a
   province multi-select; "Jadikan utama", deactivate, delete with confirm.
@@ -3661,7 +3721,13 @@ one-warehouse store byte-identical (REQ-242).
   -> REQ: REQ-237, REQ-238 · deps: [A-405] · Done when: browser evidence at 390px
   and 1280px proves add, edit, primary switch, the not-ready state, the 10-row
   limit and the delete guard, with no overflow and an empty console.
-- [ ] **A-407** — **Exception** (`shipping-quote.ts`): replace the
+- [x] **A-407** — **Done 2026-10-29. Exception, approved by Paduka
+  2026-10-29** (recorded after the build, at the review of the protected-file
+  edits; `docs/AUDIT-2026-10-29.md` §5). `warehouse-quote.test.ts`: the one-warehouse
+  results recorded before the change pass unchanged; a two-warehouse store
+  quotes from the chosen one with exactly one rate call. An explicit
+  `warehouseId` is honoured only while active and ready (or the primary).
+  **Exception** (`shipping-quote.ts`): replace the
   first-warehouse read with one read of ready warehouses fed to
   `chooseWarehouse`, and accept `destinationProvince` in `ShippingQuoteInput`.
   `input.originId` still wins when given.
@@ -3669,7 +3735,40 @@ one-warehouse store byte-identical (REQ-242).
   existing quote tests pass unchanged, a one-warehouse fixture returns the
   identical result, a two-warehouse fixture quotes from the chosen one, and
   the quote makes still exactly one rate call.
-- [ ] **A-408** — **Exception** (rate and submit routes): `/api/shipping-rates`,
+- [x] **A-408** — **Done 2026-10-29. Exception, approved by Paduka
+  2026-10-29**, including the headless change in `src/lib/headless-checkout.ts`
+  and `/api/v1/geo/shipping-rates` (checkout re-quotes from the echoed
+  `warehouse_id` or the primary). Audit finding 23 closed 2026-10-29: a
+  checkout with `city` and no `warehouse_id` also quotes the way the rate route
+  would for that city, and answers 409 `SHIPPING_QUOTE_CHANGED` when that
+  warehouse is not the primary and the chosen courier's price differs, so a
+  client that sent `city` to rates is never silently charged the primary's
+  price (`headless-checkout.test.ts`, mutation-checked). It first asks which
+  warehouse the city picks (`warehouseOnly`, no rate call) and quotes that
+  warehouse only when it is not the primary, so a one-warehouse store makes
+  the one Mengantar call it made before A42 and is charged exactly as before;
+  a failed extra quote fails the checkout (`warehouse-quote.test.ts`). `headless-client.ts` now echoes the rate
+  call's `warehouse_id`.
+  Tests: submit re-verifies from the warehouse the form was quoted from (409
+  `SHIPPING_QUOTE_CHANGED` on the primary's price); the admin re-quote keeps the
+  order's warehouse while it is active, else chooses by the order's province,
+  and OrderDetail previews with the same two values; `/api/shipping-rates`
+  ignores an inactive or not-ready `warehouse_id`. Headless: the rate route
+  returns `warehouse_id` and `/api/v1/checkout` re-quotes from the echoed one
+  (primary when absent, 409 when no longer quotable), so a client that quotes
+  without `city` is never charged another warehouse's price
+  (`STOREFRONT_INTEGRATION.md` §4.6–4.7, OpenAPI). `submit-middle-order` makes
+  no quote and stores no warehouse. `headless-client.ts` does not send `city`
+  to rates, so it quotes from the primary and echoes that `warehouse_id`.
+  Re-review 2026-10-29: a store with no warehouse rows (env origin) also makes
+  one rate call (`?? null` comparison; test "headless checkout on a store with
+  no warehouse rows (env origin) makes one rate call", mutation-checked).
+  Behaviour change to record in the release: a headless COD checkout whose
+  Mengantar estimate fails no longer falls back to the city average and
+  answers 422 `SHIPPING_RATE_NOT_FOUND`; it now fails as a provider error
+  (500 `CHECKOUT_PROCESSING_ERROR`). The v1 rate route never offered the
+  city average, so no correct client was charged it.
+  **Exception** (rate and submit routes): `/api/shipping-rates`,
   `/api/v1/geo/shipping-rates`, `submit-order`, `submit-middle-order`,
   `v1/checkout`, lead conversion in `abandoned-orders`, and the admin re-quote
   pass the buyer province (or, for a re-quote, the order's `warehouse_id` as the
@@ -3678,19 +3777,61 @@ one-warehouse store byte-identical (REQ-242).
   re-verifies from the same warehouse the form was quoted from, an admin
   re-quote keeps the order's warehouse, and every protected suite listed in the
   gate passes unchanged.
-- [ ] **A-409** — Show the warehouse where it matters: the order detail and the
+- [x] **A-409** — **Done 2026-10-29.** The order detail shows "Gudang
+  Pengirim"; the shipping workspace shows "Dari <gudang>" per shipment when a
+  store has more than one. Browser evidence: INV-10005 (buyer in Malang,
+  Jawa Timur) shows "Gudang Pengirim: Gudang Surabaya" before and after
+  dispatch (`a409-order-detail-INV-10005-surabaya-{390,1280}`,
+  `…-dispatched-1280`); INV-10006 and INV-10008 show "Gudang Dummy Jakarta";
+  `/admin/shipping` shows "Dari Gudang Surabaya" on INV-10005 and "Dari Gudang
+  Dummy Jakarta" on the others, in the table (1280) and the cards (390)
+  (`a409-shipping-dari-{1280,390}`). No overflow, empty console.
+  Show the warehouse where it matters: the order detail and the
   shipping workspace name the warehouse each order ships from (the workspace
   already groups pickups per warehouse).
   -> REQ: REQ-240 · deps: [A-407] · Done when: browser evidence shows the
   warehouse name on an order shipped from the second warehouse.
-- [ ] **A-410** — End-to-end on a local store: two warehouses on the local
+- [x] **A-410** — **Done 2026-10-29** on a local `dev:local` store (Mengantar
+  and AutoLaris stand-ins on 127.0.0.1; nothing reached a real account). Two
+  warehouses: primary "Gudang Dummy Jakarta" (origin `dev-area-1974`, pickup
+  `dev-pickup-mvtfdqbj1`) and "Gudang Surabaya" (origin `dev-area-3931`,
+  pickup `dev-pickup-mvtfhjdq7`). Orders placed through `/full-form` in the
+  browser (the product page renders the middle form locally, which makes no
+  quote); dispatched with "Push Order ke Mengantar"; payloads read from the
+  stand-in's memory over a local Node inspector
+  (`a410-standin-dispatch-payloads.json`, `…-aceh.json`):
+  - Jawa Timur, INV-10005 (Klojen, Malang, COD): `/api/shipping-options`
+    answered `origin_id: dev-area-3931`; `orders.warehouse_id = 2`; dispatch
+    `pickup.address_id = dev-pickup-mvtfhjdq7` (`a410-jatim-*`).
+  - DKI Jakarta, INV-10006 (Tebet, COD): origin `dev-area-1974`;
+    `warehouse_id = 1`; pickup `dev-pickup-mvtfdqbj1` (`a410-dki-*`).
+  - Aceh, INV-10008 (Kuta Alam, Banda Aceh; QRIS because Aceh is COD-disabled
+    by default, settled on the stand-in): origin `dev-area-1974`;
+    `warehouse_id = 1`; pickup `dev-pickup-mvtfdqbj1` (`a410-aceh-*`).
+  - Contrast: with Surabaya deactivated the same Malang quote came from
+    `dev-area-1974` (J&T 15,000 against 18,000), and from `dev-area-3931`
+    again once reactivated (`a410-quote-contrast.json`).
+  - One warehouse: the four seed orders placed before the second warehouse
+    existed (INV-10001…10004, a Jawa Timur buyer among them) all carry
+    `warehouse_id = 1`. Their dispatch payloads were not captured; the
+    byte-identical one-warehouse result rests on the A-407 tests.
+  Mengantar's create-order payload carries no origin field, so the origin is
+  proven by the rate answer and the pickup by the payload. **Still owed
+  before any deploy:** the per-install row count above.
+  End-to-end on a local store: two warehouses on the local
   Mengantar stand-in (`dev-providers`), a buyer in Jawa Timur quoted and
   dispatched from the Surabaya warehouse, one in Aceh from the primary, and a
   one-warehouse store unchanged.
   -> REQ: REQ-239, REQ-240, REQ-242 · deps: [A-408, A-406] · Done when: the
   dispatch payload's pickup address and origin match the chosen warehouse in
   each case, recorded here; nothing reaches a real Mengantar account.
-- [ ] **A-411** — ADR for the choice rule (province coverage over distance or
+- [ ] **A-411** — **Partial 2026-10-29.** ADR-032 in `DECISIONS.md`;
+  `ARCHITECTURE.md` (§4 warehouse model, §7 quote origin and dispatch),
+  `MENGANTAR_INTEGRATION_SPEC.md` (§3 origin and pickup per warehouse),
+  `RELEASE.md` §3 (upgrade risk), `STOREFRONT_INTEGRATION.md` (headless
+  `city`/`warehouse_id`). Route map current. Remaining: changelog and version
+  (only `schemaVersion` is bumped), and closing after A-410.
+  ADR for the choice rule (province coverage over distance or
   cheapest-of-all), `MENGANTAR_INTEGRATION_SPEC.md`, `ARCHITECTURE.md`, route
   map, version and changelog.
   -> REQ: REQ-237 … REQ-242, REQ-248 · deps: [A-410] · Done when: the docs match

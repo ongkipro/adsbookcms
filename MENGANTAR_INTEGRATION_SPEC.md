@@ -59,6 +59,19 @@ Status distinguishes three separate things: whether the **transport method** exi
 
 The local district index improves public search relevance; it is not a replacement for the provider identity required by rates and dispatch.
 
+**Quote origin and pickup, per warehouse (ADR-032).** A store keeps up to ten
+warehouses, each with its own Mengantar `origin_area_id` (a precise
+sub-district) and its own `pickup_address_id` registered through `POST /address`
+(`ensurePickupAddress`). A warehouse missing either is "not ready" and is never
+chosen. Each quote sends `/order/estimate` exactly one `origin_id`: the chosen
+warehouse's — the active, ready one serving the buyer's province, else one on
+the same island group, else the primary. The order stores that warehouse's id;
+dispatch sends `POST /order` the pickup address of `orders.warehouse_id`, and
+`/time` schedules pickups per warehouse. No extra provider call is made to
+choose, and a store with one warehouse sends the same origin and pickup as
+before A42. An explicit `warehouse_id` (admin re-quote, headless checkout) is
+honoured only while that warehouse is active and ready, or the primary.
+
 **Courier catalogue.** Mengantar removed Ninja from its public API on
 2026-09-01. Migration `0056` disabled its rule and `0061` removes it; the code
 no longer names it. No install had an order with it; an order that did would

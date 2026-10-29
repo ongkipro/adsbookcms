@@ -157,3 +157,61 @@ test("RateCheckTools renders without a warehouse", async () => {
   const html = await renderIsland("RateCheckTools.tsx", "default", { defaultOrigin: null, warehouseName: "" });
   assert.match(html, /Cek tarif kurir/);
 });
+
+// OperationalStatus renders a stored JSON snapshot, which an older or newer
+// build may have written: a signal state or icon tone this build does not know
+// must degrade, not throw (an SSR throw is a blank 200 on /admin/status).
+function statusSignal(id: string, state: string) {
+  return { id, state, reason: "x", lastAt: null, ageMinutes: null, metrics: {} };
+}
+
+function statusSnapshot(signals: unknown[]) {
+  const takenAt = new Date(Date.UTC(2026, 9, 29, 7, 0)).toISOString();
+  return {
+    overall: "healthy",
+    degradedCount: 0,
+    health: { checkedAt: takenAt, overall: "healthy", signals },
+    setupRequiredLeft: 0,
+    takenAt,
+    schedulerRanAt: takenAt,
+  };
+}
+
+const STATUS_NOW = Date.UTC(2026, 9, 29, 7, 30);
+
+test("OperationalStatus renders a healthy snapshot and the setup checklist", async () => {
+  const html = await renderIsland("OperationalStatus.tsx", "default", {
+    snapshot: statusSnapshot([statusSignal("capi-outbox", "healthy"), statusSignal("scheduler", "degraded")]),
+    icon: { tone: "healthy", count: 0, label: "Status operasional sehat", stale: false, takenAt: null },
+    setupSteps: [{ id: "product", label: "Tambah produk", hint: "h", href: "/admin/products", required: true, done: true }],
+    now: STATUS_NOW,
+  });
+  assert.match(html, /Semua sinyal sehat/);
+  assert.match(html, /Setup toko/);
+  assert.match(html, /Bermasalah/);
+});
+
+test("OperationalStatus degrades an unknown signal state and icon tone instead of throwing", async () => {
+  const html = await renderIsland("OperationalStatus.tsx", "default", {
+    snapshot: statusSnapshot([
+      statusSignal("capi-outbox", "paused"),
+      { id: "meta-capi", state: "healthy", reason: "x", lastAt: null, ageMinutes: null },
+      null,
+    ]),
+    icon: { tone: "maintenance", count: 0, label: "?", stale: false, takenAt: null },
+    setupSteps: null,
+    now: STATUS_NOW,
+  });
+  assert.match(html, /Belum ada data/);
+});
+
+test("OperationalStatus names a failing snapshot write apart from a stopped scheduler", async () => {
+  const props = (staleReason: string) => ({
+    snapshot: statusSnapshot([statusSignal("capi-outbox", "healthy")]),
+    icon: { tone: "problem", count: 1, label: "1 masalah operasional", stale: true, staleReason, takenAt: null },
+    setupSteps: null,
+    now: STATUS_NOW,
+  });
+  assert.match(await renderIsland("OperationalStatus.tsx", "default", props("snapshot")), /Status tidak diperbarui/);
+  assert.match(await renderIsland("OperationalStatus.tsx", "default", props("scheduler")), /Pemeliharaan berhenti/);
+});

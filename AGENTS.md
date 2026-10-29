@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-10-13 @ `7644b63` + changelog-1.5 working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + s2-a39 working tree
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -113,9 +113,9 @@ A React island is only partly covered. A component that throws during SSR
 answers `200` with an **empty body** — a blank white page that every static
 check calls healthy; 1.3.4 shipped a one-line island change to every install and
 left the admin order list blank for a day. `src/lib/admin-islands-render.test.ts`
-now bundles and server-renders the six admin islands that carry data
+now bundles and server-renders the seven admin islands that carry data
 (`OrdersTable`, `OrderDetail`, `PaymentReconciliationQueue`, `ProductForm`,
-`LandingPageEditor`, `RateCheckTools`); any other island, and every client-side script, is still
+`LandingPageEditor`, `RateCheckTools`, `OperationalStatus`); any other island, and every client-side script, is still
 proven only by opening the page. Put branch logic in `src/lib/` where the runner
 can reach it.
 

@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + s2-a39 working tree
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -88,17 +88,19 @@ The headless `/api/v1/*` family is **implemented and shipping**, authenticated b
 
 D1 is the only persistent store for operational state. **All runtime data access is raw `D1Database.prepare()` / `.batch()`**. There is no ORM and no schema-generation step: Drizzle was removed on 2026-08-16 (ADR-005), so `src/db/migrations/*.sql` is the only description of the schema in the tree.
 
-### Tables (29)
+### Tables (32)
 
-`stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `order_number_counters` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `admin_sessions` · `rate_limits` · `payment_transactions` · `payment_reconciliation_audits` · `autolaris_callbacks` · `storefront_content` · `storefront_templates` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `google_ads_conversion_outbox` · `developer_api_keys` · `developer_api_key_usage` · `headless_api_audit_events` · `landing_pages` · `landing_sections` · `notifications` · `notification_reads` · `install_secrets`
+`stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `order_number_counters` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `admin_sessions` · `rate_limits` · `payment_transactions` · `payment_reconciliation_audits` · `autolaris_callbacks` · `storefront_content` · `storefront_templates` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `google_ads_conversion_outbox` · `developer_api_keys` · `developer_api_key_usage` · `headless_api_audit_events` · `landing_pages` · `landing_sections` · `notifications` · `notification_reads` · `install_secrets` · `plugins` · `whatsapp_numbers` · `ops_health_snapshot`
 
 `stores` is a single-row table that carries the runtime-editable half of the configuration: provider keys and base URLs, tracking IDs, fee-bearer policy, payment toggles, CRM templates, embed origins, AI content instructions, and COD province exclusions.
+
+`ops_health_snapshot` (A39) is a single-row (`CHECK (id = 1)`) operational status row. The hourly cron writes the snapshot columns last (`writeHealthSnapshot`, `src/lib/health-snapshot.ts`) and stamps `scheduler_ran_at` first (`recordSchedulerRun`, `src/lib/operational-health.ts`; it replaced a KV write per hour, A-379); `POST /api/admin/health/check` rewrites the snapshot but never the heartbeat. The admin status icon and `/admin/status` read this one row and never collect health per page view; staleness is either clock older than 120 minutes (`staleReason`): `scheduler_ran_at` ("pemeliharaan berhenti"), so a manual check cannot mask a stopped cron, or `taken_at` ("status tidak diperbarui"), so a failing snapshot write behind a fresh heartbeat cannot pass old signals off as current.
 
 Trigger `product_variants_stock_nonnegative` (migration `0003`) still exists and would raise `INSUFFICIENT_STOCK` on a negative stock write, but it is inert: since ADR-023 nothing reads, reserves, decrements or restores stock, so nothing can trip it.
 
 ### Migration chain
 
-59 files, `0000`–`0058` (ADR-024 gave the product sole ownership of the
+69 files, `0000`–`0068` (ADR-024 gave the product sole ownership of the
 numbering after three different `0051` files appeared across the fleet). The Worker bundle contains the exact checked-in SQL and applies any missing suffix automatically before serving a database-backed request. Each migration's SQL statements and `d1_migrations` claim row execute in one D1 batch; concurrent requests serialize on the claim, re-read history, and continue without double-applying. `wrangler d1 migrations apply OMS_DB` remains an optional operator preflight, not the runtime correctness boundary. Migration `0040` adds provider status text, provider event time, and synchronization time to `orders`.
 
 **Migrations are hand-authored.** There is no generator to keep in sync, which is deliberate: the schema contains data-integrity triggers, ordered indexes, CHECK constraints, and data migrations that a schema generator cannot represent safely.

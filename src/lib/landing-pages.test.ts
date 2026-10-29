@@ -509,6 +509,29 @@ test("the public listing links a claimed page to the product URL it answers on",
   assert.equal((await listPublicLandingPages(locals)).some((page) => page.slug === orphan.slug), false);
 });
 
+test("the public listing finds each product by primary key, not by scanning landing pages per product", async () => {
+  const { database, locals } = createLocals();
+  await createLandingPage(locals, { slug: "promo-plan", title: "Promo Plan", product_id: "20001" });
+  const seen: string[] = [];
+  const recording = {
+    prepare(sql: string) {
+      seen.push(sql);
+      return database.prepare(sql);
+    },
+  } as unknown as D1Database;
+  await listPublicLandingPages({ OMS_DB: recording } as unknown as App.Locals);
+  const listing = seen.find((sql) => sql.includes("AS product_image"));
+  assert.ok(listing, "the listing query ran");
+  const plan = await database.prepare(`EXPLAIN QUERY PLAN ${listing}`).all<{ detail: string }>();
+  const details = (plan.results ?? []).map((row) => row.detail);
+  // 2.75M rows read a day across the fleet came from `SCAN lp` nested under
+  // every active product (STATUS 2026-10-29).
+  assert.ok(
+    details.some((detail) => /SEARCH p USING INTEGER PRIMARY KEY/.test(detail)),
+    `expected a primary-key lookup on products, got ${details.join(" | ")}`,
+  );
+});
+
 /**
  * The public checkout schema bounds every field it accepts. This path bounded
  * none of them: `title`, `meta_title` and `meta_description` were written

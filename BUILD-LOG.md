@@ -6920,3 +6920,22 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   §16.3 (the request, the baseline, how to read it), and the owner's decisions:
   no fabricated match keys, and an optional email field deferred.
 
+
+### Entry 185: Kelola plugin backfills orders older than the retry window
+
+- An order taken before the Kelola plugin was switched on, or one that kept
+  failing past 24 h, was never pushed: the hourly drain only looks inside its
+  window and the per-order resend needs one click per order. Found on
+  penyembuhan.com, where 11 orders from before the push existed never reached
+  Kelola.
+- `drainKelolaOrders(…, now = null)` drops the window, one batch of 50 per
+  call; abandoned and voided orders are still skipped. `kelolaSyncStatus` now
+  reports `unsynced_older`, counted with a LEFT JOIN because such an order has
+  no `plugin_kelola_orders` row.
+- The plugin settings page shows the count with a "Kirim order lama" button
+  (`action: "backfill"` on `PUT /api/admin/plugins/kelola`). Kelola keys on the
+  order number, so a repeat click cannot create a second sale.
+- Test in `src/plugins/kelola/sync.test.ts`: the windowed drain leaves the old
+  order alone, the backfill sends it once and skips abandoned and voided rows.
+  879 passing, `astro check` clean, build green. The settings page change was
+  not opened in a browser.

@@ -168,7 +168,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     (await request.json().catch(() => null)) as ProductMutationPayload | null,
     false,
   );
-  if ("error" in parsed) return jsonError(parsed.error, 400);
+  if ("error" in parsed) return jsonError(parsed.error, parsed.status ?? 400);
   try {
     const db = database as D1Database;
     const storeRow = (await db
@@ -305,7 +305,7 @@ export const PATCH: APIRoute = async ({ request, locals }) => {
 
   const body = rawBody as ProductMutationPayload | null;
   const parsed = parseProductMutationPayload(body, true);
-  if ("error" in parsed) return jsonError(parsed.error, 400);
+  if ("error" in parsed) return jsonError(parsed.error, parsed.status ?? 400);
   try {
     const db = database as D1Database;
     const currentProductRows = await loadProducts(db, parsed.value.id);
@@ -406,7 +406,7 @@ export const PATCH: APIRoute = async ({ request, locals }) => {
             .prepare(
               `
             UPDATE product_variants
-            SET sku = ?, title = ?, price = ?, compare_price = ?, weight_grams = ?, stock = ?
+            SET sku = ?, title = ?, price = ?, compare_price = ?, weight_grams = COALESCE(?, weight_grams), stock = ?
             WHERE id = ? AND product_id = ?
           `,
             )

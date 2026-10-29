@@ -90,7 +90,7 @@ function conversionDatabase() {
             if (owns) state.item = null;
             results.push({ results: [], meta: { changes: owns ? 1 : 0 } });
           } else if (sql.includes("INSERT INTO order_items")) {
-            const owns = state.order.submit_token === args[4];
+            const owns = state.order.submit_token === args[5];
             if (owns) {
               state.item = {
                 variantId: Number(args[0]),

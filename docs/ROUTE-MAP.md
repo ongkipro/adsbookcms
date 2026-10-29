@@ -198,7 +198,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 ## Modules
 
-112 modules under `src/lib`; 7 without a sibling test.
+113 modules under `src/lib`; 7 without a sibling test.
 `used by` lists routes importing the module directly — a module used by nothing
 is either transitive (imported by another lib) or dead, and only reading tells which.
 
@@ -282,7 +282,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `payment-brand` | 6 | — | ✓ | `/payment` `/api/payment-methods` |
 | `payment-dispatch-policy` | 5 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `payment-fee-policy` | 11 | — | ✓ | `/api/payment-methods` `/admin/payments` `/api/admin/orders/[id]` |
-| `product-mutation` | 9 | `order_items` `product_variants` `products` `storefront_content` | ✓ | `/api/admin/products` |
+| `product-mutation` | 10 | `order_items` `product_variants` `products` `storefront_content` | ✓ | `/api/admin/products` |
 | `provider-config` | 6 | `stores` | ✓ | `/api/locations` `/api/payment-methods` `/api/submit-order` `/api/v1/checkout` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` |
 | `province` | 12 | — | ✓ | `/api/submit-middle-order` `/api/v1/checkout` `/api/admin/expeditions` |
 | `public-store` | 2 | `stores` | ✓ | `/thanks` `/kontak` `/[slug]` |
@@ -315,4 +315,5 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `utils` | 0 | — | **none** | — |
 | `validation` | 7 | — | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/admin/settings/warehouse` `/api/admin/orders/[id]` |
 | `version` | 2 | — | **none** | — |
+| `weight` | 9 | — | ✓ | — |
 | `whatsapp-numbers` | 12 | `stores` `whatsapp_numbers` | ✓ | `/api/admin/whatsapp-numbers` |

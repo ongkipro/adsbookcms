@@ -76,7 +76,8 @@ type ParsedVariant = {
   title: string;
   price: number;
   compare_price: number | null;
-  weight_grams: number;
+  /** Null only for an existing variant saved without a weight: keep its stored one. */
+  weight_grams: number | null;
   stock: number;
 };
 
@@ -90,7 +91,27 @@ type ParsedProduct = {
   variants: ParsedVariant[];
 };
 
-type ParseResult<T> = { value: T } | { error: string };
+type ParseResult<T> = { value: T } | { error: string; status?: number };
+
+// Mengantar's per-service weight limits: regular 50 kg, cargo 100 kg, lite
+// 0.5 kg. Source: the local notes in ~/Projects/mengantar-documentation,
+// docs/02-couriers-and-rules.md §3.1 (and the glossary in docs/07-reference.md),
+// which say they summarise the official Mengantar API docs plus live
+// observation; not re-checked against app.mengantar.com/docs here.
+// This CMS never sends `cargo: true`, so one unit heavier than the regular
+// limit can never be dispatched.
+// lazy: the cap is per unit, not per parcel — quantity × weight above 50 kg
+// passes here and is left to the quote/Mengantar to refuse. Upgrade path: check
+// the line's total weight against the service limit at quote and conversion.
+export const MAX_VARIANT_WEIGHT_GRAMS = 50_000;
+
+function isMissing(value: unknown) {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === "string" && value.trim() === "")
+  );
+}
 
 function clean(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
@@ -206,7 +227,12 @@ export function parseProductMutationPayload(
       rawVariant.compare_price === ""
         ? null
         : parseInteger(rawVariant.compare_price);
-    const weightGrams = parseInteger(rawVariant.weight_grams) ?? 1000;
+    // Missing and 1000 are different (PRD A41): a missing weight is never
+    // invented. A new variant must state it; an existing one keeps its own.
+    const weightMissing = isMissing(rawVariant.weight_grams);
+    const weightGrams = weightMissing
+      ? null
+      : parseInteger(rawVariant.weight_grams);
     const stock = parseInteger(rawVariant.stock);
 
     if (variantId !== undefined && (!variantId || variantId <= 0)) {
@@ -224,8 +250,16 @@ export function parseProductMutationPayload(
     if (!price || price <= 0) {
       return { error: `Harga varian ${sku} harus integer positif.` };
     }
-    if (!weightGrams || weightGrams <= 0) {
+    if (weightMissing) {
+      if (variantId === undefined) {
+        return { error: `Berat varian ${sku} wajib diisi (gram).`, status: 422 };
+      }
+    } else if (!weightGrams || weightGrams <= 0) {
       return { error: `Berat varian ${sku} harus integer positif.` };
+    } else if (weightGrams > MAX_VARIANT_WEIGHT_GRAMS) {
+      return {
+        error: `Berat varian ${sku} maksimal 50.000 gram (batas layanan reguler Mengantar).`,
+      };
     }
     if (comparePrice !== null && comparePrice < 0) {
       return { error: `Harga coret varian ${sku} harus nol atau lebih.` };

@@ -215,7 +215,7 @@ export async function pushOrderToKelola(
     const { results: items } = await database
       .prepare(
         `SELECT pv.sku, p.title || CASE WHEN pv.title = p.title THEN '' ELSE ' - ' || pv.title END AS name,
-                oi.quantity, oi.unit_price, pv.weight_grams
+                oi.quantity, oi.unit_price, COALESCE(oi.weight_grams, pv.weight_grams) AS weight_grams
          FROM order_items oi
          JOIN product_variants pv ON pv.id = oi.variant_id
          JOIN products p ON p.id = pv.product_id

@@ -18,13 +18,16 @@ const migrationText = (name: string) =>
 /** Found by suffix, never by number: integration renumbers the chain. */
 const SLUG_MIGRATION = readdirSync(MIGRATIONS_DIR).find((name) => name.endsWith("_order_source_slug.sql"));
 
-/** Every migration before and including the slug one, applied in order. */
+/**
+ * The whole checked-in chain, in order: these tests run today's code, which
+ * writes columns later migrations add (A41's `order_items.weight_grams`).
+ * The pre-slug rows test below stops before the slug migration on its own.
+ */
 function migratedSqlite() {
   assert.ok(SLUG_MIGRATION, "the source-slug migration exists");
   const sqlite = new DatabaseSync(":memory:");
   for (const name of readdirSync(MIGRATIONS_DIR).filter((file) => file.endsWith(".sql")).sort()) {
     sqlite.exec(migrationText(name));
-    if (name === SLUG_MIGRATION) break;
   }
   return sqlite;
 }

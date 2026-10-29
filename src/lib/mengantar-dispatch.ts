@@ -194,7 +194,7 @@ export async function dispatchOrderToMengantar(
     .prepare(
       `SELECT
         oi.quantity, oi.unit_price,
-        MAX(0.001, CAST(pv.weight_grams AS REAL) / 1000) AS unit_weight_kg,
+        MAX(0.001, CAST(COALESCE(oi.weight_grams, pv.weight_grams) AS REAL) / 1000) AS unit_weight_kg,
         pv.title AS variant_title, p.title AS product_title
       FROM order_items oi
       INNER JOIN product_variants pv ON pv.id = oi.variant_id

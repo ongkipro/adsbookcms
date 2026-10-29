@@ -1,6 +1,6 @@
 # Mengantar Integration — Technical Contract and Gap Register
 
-> Verified against disk: 2026-09-30 @ `0ef2813` + retire-ninja-default-jne-jt working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + s3-a41 working tree
 
 This document is the technical source of truth for AdsBookCMS behavior at the Mengantar boundary. It separates repository-observed transport code, locally verified application behavior, operator-gated live mutations, and provider contracts that remain unknown.
 
@@ -141,6 +141,7 @@ Behavior:
 ### A. Intake
 
 - Every checkout endpoint persists the order and its items atomically in D1. Stock is not read or written (ADR-023).
+- Each order line records the variant's weight at that moment in `order_items.weight_grams` (migration `0070`): checkout copies it in the insert, and CS conversion of an abandoned lead copies it the same way.
 - New orders use `shipping_status = pending` and remain in Order Management.
 - COD, an eligible quote, and an authenticated AutoLaris paid transition do not call Mengantar automatically.
 
@@ -159,6 +160,7 @@ An explicit Push action in Order Management is the provider boundary. Selection 
 ### C. Sequential dispatch from Order Management
 
 - The backend validates ownership, pending status, payment eligibility, destination, warehouse, courier/service, and existing provider state again.
+- The parcel weight sent to `/order` is the order's recorded weight, `COALESCE(order_items.weight_grams, product_variants.weight_grams)` per line: the weight the order was quoted with, falling back to the variant's current weight only for lines written before migration `0070`. Editing a variant after checkout does not change what dispatch sends. The Kelola plugin reads weight the same way. AutoLaris is a payment gateway only and is not changed.
 - Each `/order` request is awaited before the next begins. Parallel calls and guessed fixed delays are prohibited.
 - Every selected order returns an independent `success`, `unpaid`, `skipped`, or `failed` result with an actionable reason.
 - Accepted siblings remain committed when another order fails.

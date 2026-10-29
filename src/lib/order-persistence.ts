@@ -723,8 +723,8 @@ export async function persistOrder(
     statements.push(
       database
         .prepare(
-          `INSERT INTO order_items (order_id, variant_id, quantity, unit_price)
-           SELECT id, ?, ?, ?
+          `INSERT INTO order_items (order_id, variant_id, quantity, unit_price, weight_grams)
+           SELECT id, ?, ?, ?, (SELECT weight_grams FROM product_variants WHERE id = ?)
            FROM orders
            WHERE ${identityPredicate}`,
         )
@@ -732,6 +732,7 @@ export async function persistOrder(
           variant.id,
           input.quantity,
           unitPrice,
+          variant.id,
           ...identityBindings,
         ),
       database

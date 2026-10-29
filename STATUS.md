@@ -2,6 +2,14 @@
 
 > Verified against disk: 2026-10-24 (1.7.13 on revenleather, zvarashop, taniniaga, agritani-shop, halotanishop, permatamall, numaskin-adbook, bavenshop, beranda-tani; zanobyshop on 1.7.2)
 
+## 2026-10-29 — 1.7.14: Kelola plugin backfills old orders
+
+- The Kelola webhook and hourly drain only cover the last 24 h, so orders taken
+  before the plugin was switched on never reached Kelola. **1.7.14** adds
+  "Kirim order lama" to `/admin/settings/plugins/kelola` (BUILD-LOG Entry 185).
+  Not deployed to any install yet; the settings page has not been opened in a
+  browser.
+
 ## 2026-10-24 — 1.7.13: manual transfer confirmation sends the Purchase
 
 - Fleet on 1.7.13, all deployed 2026-10-24 with `placement: smart` now in every

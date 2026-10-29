@@ -140,7 +140,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | `/admin/landing-pages` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/index.astro` | — | — | — |
 | `/admin/landing-pages/[id]/edit` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/[id]/edit.astro` | — | — | — |
 | `/admin/landing-pages/new` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/new.astro` | — | — | — |
-| `/admin/orders` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/index.astro` | `env` | `order_items` `orders` `payment_transactions` `product_variants` `products` `stores` | `env.test.ts` |
+| `/admin/orders` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/index.astro` | `admin-orders-initial` `env` | `order_items` `orders` `payment_transactions` `product_variants` `products` `stores` | `admin-orders-initial.test.ts` `env.test.ts` |
 | `/admin/orders/[invoice]` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/[invoice].astro` | — | — | — |
 | `/admin/orders/abandoned` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/abandoned.astro` | — | — | — |
 | `/admin/payments` | GET | admin session | owner, admin | `src/pages/admin/payments.astro` | `autolaris-client` `payment-fee-policy` | — | `autolaris-client.test.ts` `payment-fee-policy.test.ts` |
@@ -199,7 +199,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 ## Modules
 
-115 modules under `src/lib`; 7 without a sibling test.
+116 modules under `src/lib`; 7 without a sibling test.
 `used by` lists routes importing the module directly — a module used by nothing
 is either transitive (imported by another lib) or dead, and only reading tells which.
 
@@ -211,6 +211,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `ad-taxonomy` | 4 | — | ✓ | `/admin/ads/google` |
 | `admin-credentials` | 12 | `admin_credentials` | ✓ | `/hello` `/api/admin/access` `/api/admin/profile` |
 | `admin-date-filter` | 25 | — | ✓ | `/api/admin/orders` `/api/admin/shipping` |
+| `admin-orders-initial` | 1 | — | ✓ | `/admin/orders` |
 | `admin-session` | 6 | `admin_credentials` `admin_sessions` | ✓ | `/[slug]` `/hello` `/api/admin/access` `/api/admin/logout` `/api/admin/profile` |
 | `ai-content-instructions` | 2 | — | ✓ | `/api/admin/content` |
 | `api` | 3 | — | ✓ | `/api/form-config` `/api/record-abandoned-order` `/api/webhooks/autolaris` `/api/admin/abandoned-orders` `/api/admin/access` `/api/admin/analytics` `/api/admin/check` `/api/admin/expeditions` `/api/admin/health` `/api/admin/health/check` `/api/admin/health/status` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` `/api/admin/media` `/api/admin/notifications` `/api/admin/ongkir` `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/orders/retention` `/api/admin/payment-reconciliation` `/api/admin/plugins` `/api/admin/plugins/kelola` `/api/admin/products` `/api/admin/profile` `/api/admin/rules` `/api/admin/seller-bank-accounts` `/api/admin/settings` `/api/admin/settings/developer` `/api/admin/shipping` `/api/admin/upload-r2` `/api/admin/warehouses` `/api/admin/whatsapp-numbers` |
@@ -318,5 +319,5 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `version` | 2 | — | **none** | — |
 | `warehouse-choice` | 9 | — | ✓ | `/api/v1/geo/shipping-rates` |
 | `warehouses` | 12 | `orders` `pickup_schedules` `stores` `warehouses` | ✓ | `/api/admin/warehouses` |
-| `weight` | 9 | — | ✓ | — |
+| `weight` | 10 | — | ✓ | — |
 | `whatsapp-numbers` | 12 | `stores` `whatsapp_numbers` | ✓ | `/api/admin/whatsapp-numbers` |

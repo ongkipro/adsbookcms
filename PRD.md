@@ -1,6 +1,6 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + s4-a43 working tree
 
 ## A43 — Resolve kecamatan to Mengantar areas without calling Mengantar
 
@@ -56,7 +56,11 @@ so each quote should spend as little as possible before the rate call.
 - **Recommendation, in order:** (1) a per-install D1 table, keyed by the
   catalogue's own district|city|province triple (the form can only offer
   those, so the key space is the 7,285 catalogue rows), with no expiry,
-  replacing the KV write; (2) **seed it from the store's order history** in the
+  replacing the KV write (*amended 2026-10-29:* rows answer for 30 days from
+  `resolved_at`, then resolve again, until REQ-244's drop-on-rejection is
+  approved as A-415 — a never-expiring row with no drop path would keep a
+  wrong id for good; fallback answers are not stored);
+  (2) **seed it from the store's order history** in the
   same migration: every past order already carries `destination_area_id` with
   its district, city and province, so each district a store has ever shipped
   to is resolved on day one with no Mengantar call; (3) the same order history,

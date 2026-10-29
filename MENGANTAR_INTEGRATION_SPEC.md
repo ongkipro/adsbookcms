@@ -1,6 +1,6 @@
 # Mengantar Integration — Technical Contract and Gap Register
 
-> Verified against disk: 2026-09-30 @ `0ef2813` + retire-ninja-default-jne-jt working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + s4-a43 working tree
 
 This document is the technical source of truth for AdsBookCMS behavior at the Mengantar boundary. It separates repository-observed transport code, locally verified application behavior, operator-gated live mutations, and provider contracts that remain unknown.
 
@@ -53,7 +53,7 @@ Status distinguishes three separate things: whether the **transport method** exi
 
 1. `GET /api/locations?search=<prefix>` searches the bundled 7,285-district index (`src/data/indonesia-districts.ts`, derived from Kepmendagri No. 300.2.2-2138 Tahun 2025) without exposing provider credentials.
 2. The customer selects one district plus city; public checkout does not require village selection.
-3. The server resolves a representative Mengantar destination area identity through `/address/search` using the selected district plus city, not the ambiguous district name alone. Exact district representatives rank ahead of village rows.
+3. The server resolves a representative Mengantar destination area identity through `/address/search` using the selected district plus city, not the ambiguous district name alone. Exact district representatives rank ahead of village rows. The answer is kept in D1 (see *Stored area resolution* below), so a district already resolved costs no Mengantar call.
 4. `/api/shipping-options` requests eligible rates from `/order/estimate`.
 5. Order submission re-fetches and verifies courier, service, cost, weight, active variant, and destination before persistence.
 
@@ -100,8 +100,21 @@ cannot reroute a paid online order, so it could never have shipped.
 - `search` is required and must be at least two characters after trimming; anything shorter returns an empty list.
 - `level` is **not an enum**. The handler branches on exactly one value: `level === 'resolve'`. Any other value — including no value at all — takes the same default path. There is no `level=district` mode; passing it is indistinguishable from omitting the parameter.
 - `level=resolve` **with** a `city` value builds multi-attempt provider searches (`buildProviderDestinationSearches`), stops early once a district/city match resolves, and returns `resolved` rows with `alternatives` as fallback. The default path instead runs one provider search and applies `sortLocationResults`.
-- Without a D1 binding or without a configured Mengantar API key, the handler degrades to the bundled district catalog only.
+- `level=resolve` with a `city` reads `mengantar_areas` first and answers a stored row with no Mengantar call; only a miss runs the provider searches above.
+- Without a D1 binding, the handler degrades to the bundled district catalog only. Without a configured Mengantar API key, a stored district still answers from `mengantar_areas`; anything else degrades to the catalog.
+- Free-text (non-resolve) provider searches are not cached; before PRD A43 they wrote a 10-minute KV entry per query.
 - Results are de-duplicated by ID and capped at 50 rows.
+
+### Stored area resolution (PRD A43)
+
+`src/lib/mengantar-areas.ts` owns D1 table `mengantar_areas` (migration `_mengantar_areas.sql`); nothing else reads or writes it. It replaced the 24-hour KV entry (`location-cache.ts`, deleted).
+
+- **Key.** `district|city|province`, each part trimmed and lower-cased.
+- **Sources.** `order-history`: seeded once by the migration from the store's own orders, the most frequent `destination_area_id` per district (ties: the most recent order), with `agreeing_orders` / `total_orders`. An order cannot tell an exact match from a fallback the form accepted, so a seeded row is dated by the newest order on its id, not by the migration: a district last ordered more than the bound ago starts stale and is resolved again on first use. A hit is composed from the request's district, city and province plus the stored id and postal code. `resolve`: a live resolve, whose exact response body is replayed byte for byte.
+- **What is stored.** Only an exact district/city match (`resolveProviderDestinations` non-empty). A fallback answer — Mengantar does not know the catalogue district and offers a migrated kelurahan or same-city alternative, e.g. Jakabaring → Seberang Ulu I, 8 Ulu — and an empty answer are returned to the form but not stored, so they are asked again on the next resolve.
+- **Bounded age.** A row answers for `MENGANTAR_AREA_MAX_AGE_DAYS` (30) from `resolved_at`; an older row is a miss and is resolved again: an exact answer replaces it, a fallback or empty answer deletes it, so a stale row (a seeded fallback included) never lingers. This bounds how long a retired or renamed area id can be served.
+- **Drop on rejection (REQ-244).** `dropMengantarArea(areaId)` exists but has no caller: wiring it to an "area not found" answer from `/order/estimate` or dispatch touches `shipping-quote.ts` and `mengantar-dispatch.ts`, a protected surface held as TASKS A-415's proposal until approved.
+- **Failure.** A D1 read or write failure is logged (`mengantar-area-read-failed` / `mengantar-area-write-failed`) and the resolve continues through Mengantar.
 
 ### Admin warehouse and order editing
 
@@ -291,6 +304,7 @@ Relevant implementation owners:
 - `src/lib/mengantar-dispatch.ts`;
 - `src/lib/payment-dispatch-policy.ts` — payment eligibility for dispatch;
 - `src/lib/location-search.ts` and `src/lib/district-catalog.ts` — area resolution helpers;
+- `src/lib/mengantar-areas.ts` — stored kecamatan → area resolution (`mengantar_areas`);
 - `src/data/indonesia-districts.ts` — the bundled 7,285-district index;
 - `src/pages/api/admin/orders/[id].ts`;
 - `src/pages/api/admin/shipping.ts` — pickup scheduling and the 90-minute rule;

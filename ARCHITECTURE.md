@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-09-30 @ `dd83acd` + working tree
+> Verified against disk: 2026-10-29 @ `be00fee` + s4-a43 working tree
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -18,7 +18,7 @@ An AdsBookCMS install is one Cloudflare Worker with its own private resources:
 | --- | --- | --- |
 | Worker | — | one per install, named by that install |
 | D1 database | `OMS_DB` | one per install |
-| KV namespace | `SESSION` | caches only — location lookups, COD-province policy, alert transition state; every write is best-effort (ADR-021) |
+| KV namespace | `SESSION` | caches only — COD-province policy, alert transition state; every write is best-effort (ADR-021). Kecamatan → Mengantar area lookups moved to D1 `mengantar_areas` (PRD A43) |
 | R2 bucket | `ASSET_BUCKET` | product uploads + CMS media |
 | Workers AI | `AI` | optional platform binding; not used by the public content workflow |
 | Static assets | `ASSETS` | `dist/client`, served by the Cloudflare adapter |
@@ -88,9 +88,9 @@ The headless `/api/v1/*` family is **implemented and shipping**, authenticated b
 
 D1 is the only persistent store for operational state. **All runtime data access is raw `D1Database.prepare()` / `.batch()`**. There is no ORM and no schema-generation step: Drizzle was removed on 2026-08-16 (ADR-005), so `src/db/migrations/*.sql` is the only description of the schema in the tree.
 
-### Tables (29)
+### Tables (32)
 
-`stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `order_number_counters` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `admin_sessions` · `rate_limits` · `payment_transactions` · `payment_reconciliation_audits` · `autolaris_callbacks` · `storefront_content` · `storefront_templates` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `google_ads_conversion_outbox` · `developer_api_keys` · `developer_api_key_usage` · `headless_api_audit_events` · `landing_pages` · `landing_sections` · `notifications` · `notification_reads` · `install_secrets`
+`stores` · `warehouses` · `products` · `product_variants` · `orders` · `order_items` · `order_number_counters` · `courier_rules` · `pickup_schedules` · `admin_credentials` · `admin_sessions` · `rate_limits` · `payment_transactions` · `payment_reconciliation_audits` · `autolaris_callbacks` · `storefront_content` · `storefront_templates` · `provider_dispatch_locks` · `seller_bank_accounts` · `capi_event_outbox` · `google_ads_conversion_outbox` · `developer_api_keys` · `developer_api_key_usage` · `headless_api_audit_events` · `landing_pages` · `landing_sections` · `notifications` · `notification_reads` · `install_secrets` · `plugins` · `whatsapp_numbers` · `mengantar_areas`
 
 `stores` is a single-row table that carries the runtime-editable half of the configuration: provider keys and base URLs, tracking IDs, fee-bearer policy, payment toggles, CRM templates, embed origins, AI content instructions, and COD province exclusions.
 
@@ -176,7 +176,7 @@ including the normalized-path shapes that once walked past it.
 
 1. **Catalog** — `products` + `product_variants` in D1 carry identity, price, weight, and stock. `src/lib/catalog.ts` merges those operational rows with published presentation JSON from `storefront_content`.
 2. **Form** — `/hybrid-form` resolves COD eligibility from trusted Cloudflare geo; a known eligible province routes to the middle form, a disabled or unknown province routes to the full form (`src/lib/form-mode.ts`).
-3. **Rates** — `/api/shipping-rates` quotes Mengantar for the resolved destination, filtered by `courier_rules` and store-level COD province exclusions.
+3. **Rates** — the form's district is resolved to a Mengantar area by `/api/locations?level=resolve`, which answers from `mengantar_areas` (`src/lib/mengantar-areas.ts`) before asking Mengantar: one row per district|city|province, seeded from the store's own orders and filled by live resolves (exact district matches only), each answering for 30 days from `resolved_at` before it is resolved again. A stored row answers even when Mengantar is not configured. `/api/shipping-rates` then quotes Mengantar live for that destination, filtered by `courier_rules` and store-level COD province exclusions; rates are never stored.
 4. **Submit** — `/api/submit-order` persists order and items atomically. It is rate-limited, honeypot-guarded, and idempotent via `submit_token`. **Checkout never dispatches to the courier.**
 Stock is not part of this flow: a variant is sellable when it is active and priced, and no step reads, reserves, or returns a counter (ADR-023).
 

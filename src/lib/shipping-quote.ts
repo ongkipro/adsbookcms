@@ -283,10 +283,15 @@ export async function resolveEligibleShippingRates(
   // the store's default origin. The order records whichever warehouse quoted
   // (`quote.warehouse`), so dispatch and pickup follow it; a rate route and a
   // submit that land on different sides of an outage disagree on price, and
-  // submit already refuses that with SHIPPING_QUOTE_CHANGED.
+  // submit already refuses that with SHIPPING_QUOTE_CHANGED. A named warehouse
+  // (`warehouseId`: the admin re-quote and its preview, a headless echo) is
+  // never swapped: the admin save compares no price with its preview, so a
+  // silent swap would write another warehouse's cost (REQ-241). It fails, and
+  // the operator retries or changes the warehouse.
   let primaryFallbackFrom: number | undefined;
   if (
     warehouse &&
+    !input.warehouseId &&
     !input.noPrimaryFallback &&
     !input.originId?.trim() &&
     eligible(rates).length === 0
@@ -312,7 +317,11 @@ export async function resolveEligibleShippingRates(
         pickup_address_id: primary.pickup_address_id,
       };
       originId = primaryOrigin;
+      const branchError = rateError;
       ({ rates, error: rateError } = await estimate(originId));
+      // The primary had nothing either: surface the branch's own provider
+      // error, as before the fallback, rather than an empty list.
+      if (!rateError && eligible(rates).length === 0) rateError = branchError;
     }
   }
   // A failed exact-district estimate used to end a COD checkout even though

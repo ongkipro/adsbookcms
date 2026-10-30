@@ -67,8 +67,8 @@ chosen. Each quote sends `/order/estimate` one `origin_id`: the chosen
 warehouse's — the active, ready one serving the buyer's province, else one on
 the same island group, else the primary. When a non-primary warehouse's
 estimate fails or returns no usable rate, the quote sends one more estimate
-from the primary and uses it (REQ-270, ADR-032 amendment); headless checkout
-does not. The order stores the warehouse that quoted;
+from the primary and uses it (REQ-270, ADR-032 amendment); a warehouse named
+by `warehouse_id` and headless checkout do not. The order stores the warehouse that quoted;
 dispatch sends `POST /order` the pickup address of `orders.warehouse_id`, and
 `/time` schedules pickups per warehouse. No extra provider call is made to
 choose, and a store with one warehouse sends the same origin and pickup as

@@ -534,16 +534,35 @@ for (const mode of ["error", "empty"] as const) {
   });
 }
 
-test("an admin re-quote whose own warehouse fails is re-made from the primary", async (context) => {
+test("a named warehouse (admin re-quote, its preview) that fails is never swapped for the primary (REQ-241)", async (context) => {
+  const { requests, warnings } = breakSurabaya(context, "error");
+  const { database } = createTwoWarehouseStore();
+  await assert.rejects(
+    resolveEligibleShippingRates(database, locals, {
+      destinationId: "area-aceh-0",
+      paymentMethod: "cod",
+      warehouseId: 2,
+    }),
+    /network down/,
+  );
+  assert.deepEqual(estimateOrigins(requests), ["area-surabaya"]);
+  assert.equal(warnings.length, 0);
+});
+
+test("a failing branch whose primary has no rate either surfaces the branch's error", async (context) => {
   breakSurabaya(context, "error");
   const { database } = createTwoWarehouseStore();
-  const quote = await resolveEligibleShippingRates(database, locals, {
-    destinationId: "area-aceh-0",
-    paymentMethod: "cod",
-    warehouseId: 2,
-  });
-  assert.equal(quote.warehouse?.id, 1);
-  assert.equal(quote.primaryFallbackFrom, 2);
+  const stubbed = globalThis.fetch;
+  globalThis.fetch = async (input, init) =>
+    String(input).includes("origin_id=area-bandung") ? Response.json({ success: true, data: {} }) : stubbed(input, init);
+  await assert.rejects(
+    resolveEligibleShippingRates(database, locals, {
+      destinationId: "area-sby-0",
+      destinationCity: "Kota Surabaya",
+      paymentMethod: "manual_transfer",
+    }),
+    /network down/,
+  );
 });
 
 test("when the primary fails too, prepaid fails loudly and COD takes the primary's city average", async (context) => {
@@ -569,7 +588,7 @@ test("when the primary fails too, prepaid fails loudly and COD takes the primary
   assert.deepEqual(estimateOrigins(requests), ["area-surabaya", "area-bandung", "area-bandung", "area-bandung"]);
 });
 
-test("the primary itself failing is not retried, and one warehouse makes no extra call", async (context) => {
+test("a primary chosen by the quote is not retried when it fails", async (context) => {
   const { requests, warnings } = breakSurabaya(context, "error");
   const { database, sqlite } = createTwoWarehouseStore();
   sqlite.exec("UPDATE warehouses SET is_primary = 0 WHERE id = 1; UPDATE warehouses SET is_primary = 1 WHERE id = 2;");

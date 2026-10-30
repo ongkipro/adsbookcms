@@ -1215,5 +1215,7 @@ default a failing branch rotates to, rather than a buyer being refused while
 the primary could ship. *Consequence:* at most two Mengantar rate calls on that
 path, one on every other; a rate call and a submit on different sides of an
 outage price differently and submit answers `SHIPPING_QUOTE_CHANGED`, as it
-already did for any price change. Point 5 is unchanged: headless checkout
+already did for any price change. Point 4 is unchanged: a named warehouse
+(the admin re-quote and its preview) is never swapped, since the admin save
+compares no price with its preview. Point 5 is unchanged: headless checkout
 opts out (`noPrimaryFallback`) because it compares no submitted price.

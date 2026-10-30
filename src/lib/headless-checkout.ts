@@ -23,6 +23,7 @@ type QuoteResolver = (input: {
   warehouseId?: number;
   destinationProvince?: string;
   warehouseOnly?: boolean;
+  noPrimaryFallback?: boolean;
 }) => Promise<{
   rates: Array<{
     courier_code: string;

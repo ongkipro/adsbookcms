@@ -144,10 +144,13 @@ choosing one by the buyer's location.
   chosen warehouse is not the primary and its Mengantar rate call fails or
   returns no usable rate, then the quote shall be re-made once from the primary
   (the store's default warehouse), and the order shall record the primary as
-  its warehouse. The primary is never retried; a prepaid quote then fails as
-  before and a COD quote with a city takes the city average from the primary.
-  Headless checkout, which compares no submitted shipping cost, opts out and
-  fails closed.
+  its warehouse. The primary is never retried; when it has no rate either, the
+  branch's own error surfaces as before (a COD quote with a city takes the
+  city average from the primary). Only a warehouse the quote *chose* is
+  swapped: a named one (`warehouseId` — the admin re-quote and its preview,
+  REQ-241) fails instead, because the admin save compares no price with its
+  preview. Headless checkout, which compares no submitted shipping cost,
+  opts out and fails closed.
   - Acceptance: Given a Surabaya branch whose rate call fails, When a Surabaya
     buyer is quoted, Then the rates and `warehouse` are the primary's, a
     `shipping-quote-primary-fallback` warning names both ids, and submitting

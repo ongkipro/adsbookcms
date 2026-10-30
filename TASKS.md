@@ -3935,17 +3935,27 @@ ADR-032. No install was read or touched.
   (`resolveEligibleShippingRates` in `src/lib/shipping-quote.ts`; result field
   `primaryFallbackFrom`; `console.warn("shipping-quote-primary-fallback", …)`
   with both ids and `error`/`no_rates`). Headless checkout sets
-  `noPrimaryFallback`. Protected surface (the quote path), changed at Paduka's
-  explicit request.
-  Evidence: `warehouse-quote.test.ts` +6 — failing and empty branch for COD and
-  prepaid, admin re-quote of the order's own warehouse, primary failing too
-  (prepaid throws, COD city average from the primary), primary never retried,
-  rate route → submit at the fallback price accepted; the REQ-242 golden tests
-  and "headless checkout fails closed" unchanged and passing. Mutation: fallback
-  disabled → 5 fail; headless opt-out removed → 1 fails. `npm test` 1048 pass,
+  `noPrimaryFallback`; a named `warehouseId` is never swapped. Protected
+  surface (the quote path), changed at Paduka's explicit request.
+  Independent review (2026-10-30): one medium — the admin re-quote with the
+  order's own `warehouseId` was swapped to the primary at save with no price
+  compare against its preview, against REQ-241 — fixed by never swapping a
+  named warehouse; lows fixed: the branch's provider error is surfaced when
+  the primary has no rate either, `noPrimaryFallback` added to the headless
+  resolver type, a misnamed test renamed. Not fixed (pre-existing, low): lead
+  conversion's preview and save also compare no price.
+  Evidence: `warehouse-quote.test.ts` +7 — failing and empty branch for COD and
+  prepaid, a named warehouse never swapped, primary with no rate surfaces the
+  branch error, primary failing too (prepaid throws, COD city average from
+  the primary), a chosen primary never retried, rate route → submit at the
+  fallback price accepted (the persisted `warehouse_id` is inferred from
+  `quote.warehouse`: the fixture has no order tables); the REQ-242 golden
+  tests and "headless checkout fails closed" unchanged and passing. Mutation:
+  fallback disabled → 5 fail; headless opt-out removed → 1; named-warehouse
+  guard removed → 1; branch-error restore removed → 1. `npm test` 1049 pass,
   `npm run check` 0 errors (524 files), `npm run build` complete. Not run: a
   browser or live Mengantar outage.
-  -> REQ: REQ-270 (constraints REQ-240, REQ-242) · deps: [] · Done when: the
+  -> REQ: REQ-270 (constraints REQ-240, REQ-241, REQ-242) · deps: [] · Done when: the
   tests above pass and the full suite, check and build are green.
 
 ## A43 — Resolve kecamatan to Mengantar areas without calling Mengantar

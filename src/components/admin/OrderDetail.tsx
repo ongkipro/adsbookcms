@@ -114,6 +114,9 @@ type Order = {
   cod_service_fee_vat: number;
   cod_fee_bearer: "buyer" | "seller";
   payment_method: string;
+  /** Set when the buyer moved this order off COD from the invoice page. */
+  payment_switched_from?: string | null;
+  payment_switched_at?: string | null;
   payment_status: string;
   shipping_status: string;
   /** Set once the order is void; see `isVoidOrder`. */
@@ -1645,6 +1648,12 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 </span>
               </div>
 
+              {order.payment_switched_at && (
+                <p className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
+                  Diganti pembeli dari {String(order.payment_switched_from || "cod").toUpperCase()} pada {formatDate(order.payment_switched_at)}.
+                </p>
+              )}
+
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-medium">Status Pembayaran</span>
                 <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium ${paymentStatusStyle}`}>
@@ -1769,10 +1778,19 @@ export function OrderDetail({ invoice }: { invoice: string }) {
               </CardHeader>
               <CardContent className="p-5 sm:p-6 space-y-3 text-xs">
                 {order.kelola.synced_at ? (
-                  <p className="flex items-center gap-2 font-medium text-emerald-700">
-                    <Check className="size-4" aria-hidden="true" />
-                    Terkirim {formatDate(order.kelola.synced_at)}
-                  </p>
+                  <>
+                    <p className="flex items-center gap-2 font-medium text-emerald-700">
+                      <Check className="size-4" aria-hidden="true" />
+                      Terkirim {formatDate(order.kelola.synced_at)}
+                    </p>
+                    {/* Kelola answers a resend of the same order code as a
+                        duplicate, so a switch after the push cannot reach it. */}
+                    {order.payment_switched_at && order.payment_switched_at > order.kelola.synced_at && (
+                      <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 font-medium text-amber-900">
+                        Pembeli mengganti pembayaran ke {paymentMethodLabels[order.payment_method] || order.payment_method} setelah order terkirim. Kelola masih mencatat COD — perbarui pembayaran dan nilai COD di Kelola secara manual.
+                      </p>
+                    )}
+                  </>
                 ) : order.kelola.voided ? (
                   <p className="text-slate-500">Order dibatalkan, tidak dikirim ke Kelola.</p>
                 ) : (

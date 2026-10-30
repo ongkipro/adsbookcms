@@ -81,6 +81,8 @@ type OrderRow = {
   cod_service_fee_vat: number;
   cod_fee_bearer: string;
   payment_method: string;
+  payment_switched_from: string | null;
+  payment_switched_at: string | null;
   payment_status: string;
   shipping_status: string;
   confirmed_at: string | null;
@@ -170,6 +172,8 @@ async function loadOrder(database: D1Database, rawOrderKey: string) {
       o.cod_service_fee_vat,
       o.cod_fee_bearer,
       o.payment_method,
+      o.payment_switched_from,
+      o.payment_switched_at,
       o.payment_status,
       o.shipping_status,
       o.confirmed_at,
@@ -300,6 +304,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
         cod_service_fee_vat: order.cod_service_fee_vat,
         cod_fee_bearer: order.cod_fee_bearer === 'seller' ? 'seller' : 'buyer',
         payment_method: order.payment_method,
+        payment_switched_from: order.payment_switched_from,
+        payment_switched_at: order.payment_switched_at,
         payment_status: order.payment_status,
         shipping_status: order.shipping_status,
         stock_restored_at: order.stock_restored_at,

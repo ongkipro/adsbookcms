@@ -7097,3 +7097,21 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
 - Verification and browser evidence: TASKS A37 review note. `astro dev` from
   this worktree fails on a symlinked `node_modules` (Vite denies files outside
   the root); the Wrangler demo on the Tailscale address is the working path.
+
+### Entry 191: Buyer switches a COD order to prepaid on /thanks (A44, REQ-250)
+
+- Merged PR #102 into main (`cbcadbf`) and deleted `feat/s1-a36-a38`; new work
+  on `feat/invoice-payment-switch`.
+- The demo Worker had served `/_astro` 404s after a rebuild underneath it
+  (Pengiriman and Pembayaran blank); a restart fixed it. Restart after every
+  build.
+- COD → manual transfer or AutoLaris VA/QRIS from `/thanks`, through
+  `POST /api/order-status` `switch_payment`. Refused once fulfilment touched
+  the order or while its address/courier is not final (middle form before
+  completion, `ICO`). Total drops the COD fee; the write repeats every guard
+  and the read total. Migration `0074` adds `payment_switched_from/_at`;
+  `schemaVersion` 75.
+- Kelola cannot be updated (resend = duplicate), so the admin order tells the
+  operator to correct it by hand when the switch came after the push.
+- Evidence: TASKS A-421.
+

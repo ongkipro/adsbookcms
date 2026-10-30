@@ -4043,6 +4043,33 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
   size (target under 150 KB raw), a new install resolves a sampled district
   with no Mengantar call, and the generator is committed under `scripts/`.
 
+## A44 — Buyer switches a COD order to prepaid on the invoice page
+
+Added 2026-10-30 on request ("di halaman inv misal cod bisa ganti transfer atau
+va jika api autolaris aktif dan tersedia"). Direction chosen with the owner:
+COD → prepaid only. Kelola: the owner asked for a resend if Kelola could update
+an order; its order webhook keys on the order code and answers a resend as a
+duplicate (`src/plugins/kelola/sync.ts`), and no update route is known, so the
+order is flagged for a manual Kelola correction instead.
+
+- [x] **A-421** — `src/lib/payment-switch.ts`, a `switch_payment` branch on
+  `POST /api/order-status` (per-address damping shared with the retry, 3 per
+  order per 10 minutes), `payment_switch` on the public status, the `/thanks`
+  chooser, migration `0074` (`payment_switched_from/_at`), and the admin
+  order notices.
+  -> REQ: REQ-250 · deps: [] · Done when: tests prove the COD-fee drop, the
+  refusals, the failed-provider path and the guarded write (mutation-checked);
+  a browser run takes a full-form COD order to VA BCA and to QRIS at 1366 and
+  390 px and the admin order shows the switch and the Kelola notice.
+  Done 2026-10-30: `payment-switch.test.ts` 5/5; removing the dispatch guard
+  or keeping the COD fee each fails one test. Demo (Wrangler, AutoLaris mock):
+  INV-10019 COD Rp83.698 → VA BCA, order total Rp81.000; INV-10020 → QRIS
+  Rp81.000 + Rp567. Admin INV-10019 shows "Diganti pembeli dari COD" and,
+  with Kelola enabled locally and a pre-switch sync row, the manual-correction
+  notice. Not run in a browser: manual transfer (the demo store has no seller
+  account; covered by the endpoint test). The mock's VA BCA fee (Rp4.000)
+  differs from the policy label (Rp6.500); that is the mock's figure.
+
 ## Integration — parallel streams and one release
 
 Added 2026-10-29 after the plan review. A36–A43 run as parallel streams on

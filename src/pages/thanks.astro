@@ -346,6 +346,31 @@ const productCatalog = products.map((item) => ({
       </div>
     </section>
 
+    <!-- COD → prepaid (src/lib/payment-switch.ts). Rendered hidden and opened
+         by the module script below only when /api/order-status says this order
+         can still switch and the store has a prepaid method live. -->
+    <section id="payment-switch" class="border-t border-[#E5E5E5] px-5 py-5" hidden>
+      <h2 class="text-[15px] font-semibold tracking-[-0.02em] text-[#111111]">Mau bayar sekarang?</h2>
+      <p class="mt-1 text-[13px] leading-6 text-[#555555]">
+        Ganti COD ke pembayaran di bawah dan biaya COD tidak dikenakan. Pesanan dikirim setelah pembayaran terkonfirmasi.
+      </p>
+      <fieldset class="mt-3">
+        <legend class="sr-only">Pilih metode pembayaran pengganti</legend>
+        <div id="payment-switch-options" class="divide-y divide-[#E5E5E5] border border-[#E5E5E5]"></div>
+      </fieldset>
+      <div class="mt-3 flex items-center justify-between gap-3 bg-[#F5F5F5] px-4 py-3 text-[13px]">
+        <span class="text-[#555555]">Total tanpa biaya COD</span>
+        <strong id="payment-switch-total" class="text-[15px] font-bold text-[#111111]">—</strong>
+      </div>
+      <p id="payment-switch-error" role="alert" class="mt-3 border border-[#f2c4c4] bg-[#fdf1f1] p-3 text-[13px] leading-5 text-[#a12626]" hidden></p>
+      <button
+        id="payment-switch-submit"
+        type="button"
+        disabled
+        class="mt-3 flex min-h-12 w-full items-center justify-center rounded-none bg-[#111111] px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-white transition-colors hover:bg-[#000000] disabled:cursor-not-allowed disabled:bg-[#767676]"
+      >Ganti &amp; bayar sekarang</button>
+    </section>
+
     <section id="whatsapp-section" class="px-5 py-6 text-center" data-motion="cta">
       <p class="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#767676]">Langkah berikutnya</p>
       <h2 id="cta-title" class="mt-1.5 text-[20px] font-semibold tracking-[-0.03em] text-[#111111]">
@@ -770,6 +795,10 @@ const productCatalog = products.map((item) => ({
         .then(async (res) => {
           const data = await res.json().catch(() => ({}));
           if (!res.ok || data?.success === false) return;
+          // The payment-switch module script reads the same answer instead of
+          // asking again; it may run before or after this resolves.
+          window.__PS_ORDER_STATUS__ = data;
+          window.dispatchEvent(new CustomEvent('ps:order-status', { detail: data }));
           if (data?.payment_status && !isCod)
             document.getElementById('step-two-copy').textContent =
               `Status pembayaran: ${String(data.payment_status).replace(/_/g, ' ')}`;
@@ -946,5 +975,125 @@ const productCatalog = products.map((item) => ({
         });
       }
     }
+  </script>
+  <script>
+    /* COD → prepaid switch (src/lib/payment-switch.ts). Opens only when the
+       server says the order can still switch and the store has a prepaid
+       method live; the server re-checks everything when the buyer submits. */
+    import { formatIdr } from '../lib/format-idr';
+
+    type OrderStatus = { payment_switch?: { total_amount: number } | null };
+    type Method = {
+      code: string;
+      payment_method: string;
+      channel_code: string | null;
+      seller_bank_account_id?: number;
+      name: string;
+      fee_description?: string;
+      is_active: boolean;
+    };
+
+    const section = document.getElementById('payment-switch');
+    const options = document.getElementById('payment-switch-options');
+    const submit = document.getElementById('payment-switch-submit') as HTMLButtonElement | null;
+    const errorEl = document.getElementById('payment-switch-error');
+    let started = false;
+
+    const readState = (): Record<string, unknown> => {
+      try {
+        return JSON.parse(sessionStorage.getItem('thanks_state') || '{}') || {};
+      } catch {
+        return {};
+      }
+    };
+
+    const start = async (status: OrderStatus | undefined) => {
+      if (started || !section || !options || !submit || !errorEl || !status?.payment_switch) return;
+      started = true;
+      const state = readState();
+      const orderPk = String(state.order_pk || '');
+      const statusToken = String(state.status_token || '');
+      if (!orderPk || !statusToken) return;
+      const response = await fetch('/api/payment-methods', { cache: 'no-store' }).catch(() => null);
+      const body = (await response?.json().catch(() => null)) as { data?: Method[] } | null;
+      const methods = (body?.data || []).filter((method) => method.is_active && method.payment_method !== 'cod');
+      if (!methods.length) return;
+
+      document.getElementById('payment-switch-total')!.textContent = formatIdr(status.payment_switch.total_amount);
+      let chosen: Method | null = null;
+      for (const method of methods) {
+        const label = document.createElement('label');
+        label.className = 'flex min-h-12 cursor-pointer items-start gap-3 px-4 py-3 text-[13px]';
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = 'payment-switch';
+        input.value = method.code;
+        input.className = 'mt-1 size-4 shrink-0 accent-[#2c6ecb]';
+        input.addEventListener('change', () => {
+          chosen = method;
+          submit.disabled = false;
+        });
+        const copy = document.createElement('span');
+        const name = document.createElement('span');
+        name.className = 'block font-semibold text-[#111111]';
+        name.textContent = method.name;
+        copy.append(name);
+        if (method.fee_description) {
+          const fee = document.createElement('span');
+          fee.className = 'mt-0.5 block text-[12px] text-[#555555]';
+          fee.textContent = method.fee_description;
+          copy.append(fee);
+        }
+        label.append(input, copy);
+        options.append(label);
+      }
+      section.hidden = false;
+
+      submit.addEventListener('click', async () => {
+        if (!chosen) return;
+        submit.disabled = true;
+        submit.textContent = 'Memproses…';
+        errorEl.hidden = true;
+        try {
+          const result = await fetch('/api/order-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
+            body: JSON.stringify({
+              order_pk: orderPk,
+              status_token: statusToken,
+              switch_payment: chosen.payment_method === 'manual_transfer'
+                ? { payment_method: 'manual_transfer', seller_bank_account_id: chosen.seller_bank_account_id }
+                : { payment_method: chosen.payment_method, payment_channel: chosen.channel_code },
+            }),
+          });
+          const data = await result.json().catch(() => ({}));
+          if (!result.ok || data?.success === false) throw new Error(data?.error || 'Pembayaran belum dapat diganti.');
+          // /payment renders from the server; the local copy only has to stop
+          // saying COD, or the page it returns to once paid would.
+          try {
+            sessionStorage.setItem('thanks_state', JSON.stringify({
+              ...readState(),
+              payment_method: data.payment_method,
+              payment_status: data.payment_status,
+              total_payment: data.payment?.total_amount ?? data.total_amount,
+              payment_channel: data.payment?.channel_code || '',
+            }));
+          } catch {
+            // Without storage the fragment carries the order to /payment.
+          }
+          window.location.assign(`/payment#o=${encodeURIComponent(orderPk)}&t=${encodeURIComponent(statusToken)}`);
+        } catch (error) {
+          errorEl.hidden = false;
+          errorEl.textContent = error instanceof Error ? error.message : 'Pembayaran belum dapat diganti.';
+          submit.disabled = false;
+          submit.textContent = 'Ganti & bayar sekarang';
+        }
+      });
+    };
+
+    const ready = (window as unknown as { __PS_ORDER_STATUS__?: OrderStatus }).__PS_ORDER_STATUS__;
+    if (ready) void start(ready);
+    else window.addEventListener('ps:order-status', (event) => void start((event as CustomEvent<OrderStatus>).detail), { once: true });
   </script>
 </BaseLayout>

@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-30 @ `7f59daf` + A37 backend working tree (Entries 185–188; earlier entries retain their historical evidence)
+> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (Entry 191; earlier entries retain their historical evidence)
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -7097,3 +7097,20 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
 - Verification and browser evidence: TASKS A37 review note. `astro dev` from
   this worktree fails on a symlinked `node_modules` (Vite denies files outside
   the root); the Wrangler demo on the Tailscale address is the working path.
+
+### Entry 191: A failing branch warehouse rotates the quote to the primary (A-444)
+
+- Paduka asked that the main warehouse be the default, and that a quote whose
+  other warehouse errors go to the main one. A42 already fell back to the
+  primary when no warehouse covered the buyer, but a covering branch whose
+  Mengantar rate call failed ended a prepaid checkout and sent COD to the city
+  average from that same failing origin.
+- `resolveEligibleShippingRates` now re-quotes once from the primary when the
+  chosen non-primary warehouse fails or returns no usable rate; the order stores
+  the primary. Headless checkout opts out to stay fail-closed (it compares no
+  submitted price). ADR-032 amended, PRD REQ-270, TASKS A-444.
+- Numbering: branched from `main` at `cbcadbf`; PR #103 also adds an Entry 191
+  and PR #104 uses REQ-251–REQ-269 and A-422–A-443. Whichever merges later
+  renumbers its entry.
+- Verification: `npm test` 1048 pass / 0 fail, `npm run check` 0 errors,
+  `npm run build` complete, mutation-checked (TASKS A-444).

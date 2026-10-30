@@ -1,6 +1,6 @@
 # Architecture Decision Record — AdsBookCMS
 
-> Verified against disk: 2026-10-29 @ be00fee + s5-a42 working tree
+> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree
 
 Append-only. One decision per entry. A decision is recorded here only when it constrains future work; implementation detail belongs in `ARCHITECTURE.md`, remaining work in `UNIMPLEMENTED_SPECS.md`.
 
@@ -1206,3 +1206,14 @@ the order's province.
 - *Cheapest of all warehouses.* Most accurate to "ongkir from the nearest", but
   N Mengantar calls per quote, slower forms and N times the rate limit.
   Revisit as a per-store mode once A-330/A43 measure the rate call.
+
+**Amendment 2026-10-30 (REQ-270, A-444).** Point 3 gains a fallback: when the
+chosen warehouse is not the primary and its rate call fails or returns no
+usable rate, the quote is re-made once from the primary, and that is the
+warehouse the order stores. *Why:* Paduka wants the main warehouse to be the
+default a failing branch rotates to, rather than a buyer being refused while
+the primary could ship. *Consequence:* at most two Mengantar rate calls on that
+path, one on every other; a rate call and a submit on different sides of an
+outage price differently and submit answers `SHIPPING_QUOTE_CHANGED`, as it
+already did for any price change. Point 5 is unchanged: headless checkout
+opts out (`noPrimaryFallback`) because it compares no submitted price.

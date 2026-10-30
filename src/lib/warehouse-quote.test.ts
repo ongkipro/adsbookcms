@@ -485,6 +485,120 @@ test("submit re-verifies the rate from the warehouse the form was quoted from (R
   assert.equal(refused.body.code, "SHIPPING_QUOTE_CHANGED");
 });
 
+/** Surabaya's rate call fails (`"error"`) or answers with no rate at all (`"empty"`). */
+function breakSurabaya(context: { after: (fn: () => void) => void }, mode: "error" | "empty", alsoBandung = false) {
+  const requests = stubMengantar(context);
+  const stubbed = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    const broken = url.includes("origin_id=area-surabaya") || (alsoBandung && url.includes("origin_id=area-bandung"));
+    if (broken && url.includes("/order/estimate")) {
+      requests.push(url.replace(/\/api\/public\/[^/]+/, "/api/public/<key>"));
+      if (mode === "error") throw new TypeError("network down");
+      return Response.json({ success: true, data: {} });
+    }
+    return stubbed(input, init);
+  };
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => void warnings.push(args);
+  context.after(() => {
+    console.warn = originalWarn;
+  });
+  return { requests, warnings };
+}
+
+for (const mode of ["error", "empty"] as const) {
+  test(`a branch warehouse whose rate call is ${mode === "error" ? "failing" : "empty"} hands the quote to the primary`, async (context) => {
+    const { requests, warnings } = breakSurabaya(context, mode);
+    const { database } = createTwoWarehouseStore();
+    for (const paymentMethod of ["cod", "manual_transfer"]) {
+      requests.length = 0;
+      const quote = await resolveEligibleShippingRates(database, locals, {
+        destinationId: "area-sby-0",
+        destinationCity: "Kota Surabaya",
+        paymentMethod,
+        variantKey: "7",
+      });
+      assert.deepEqual(quote.warehouse, { id: 1, origin_area_id: "area-bandung", pickup_address_id: "pickup-bandung" });
+      assert.equal(quote.originId, "area-bandung");
+      assert.equal(quote.primaryFallbackFrom, 2);
+      assert.equal(quote.fallbackUsed, undefined, "real primary rates, not the city average");
+      assert.equal(quote.rates[0]?.price, 12 * 1_000 + 500);
+      assert.deepEqual(estimateOrigins(requests), ["area-surabaya", "area-bandung"]);
+    }
+    assert.deepEqual(warnings[0], [
+      "shipping-quote-primary-fallback",
+      { warehouse_id: 2, primary_id: 1, reason: mode === "error" ? "error" : "no_rates" },
+    ]);
+  });
+}
+
+test("an admin re-quote whose own warehouse fails is re-made from the primary", async (context) => {
+  breakSurabaya(context, "error");
+  const { database } = createTwoWarehouseStore();
+  const quote = await resolveEligibleShippingRates(database, locals, {
+    destinationId: "area-aceh-0",
+    paymentMethod: "cod",
+    warehouseId: 2,
+  });
+  assert.equal(quote.warehouse?.id, 1);
+  assert.equal(quote.primaryFallbackFrom, 2);
+});
+
+test("when the primary fails too, prepaid fails loudly and COD takes the primary's city average", async (context) => {
+  const { requests } = breakSurabaya(context, "error", true);
+  const { database } = createTwoWarehouseStore();
+  await assert.rejects(
+    resolveEligibleShippingRates(database, locals, {
+      destinationId: "area-sby-0",
+      destinationCity: "Kota Surabaya",
+      paymentMethod: "manual_transfer",
+    }),
+    /network down/,
+  );
+  requests.length = 0;
+  const quote = await resolveEligibleShippingRates(database, locals, {
+    destinationId: "area-sby-0",
+    destinationCity: "Kota Surabaya",
+    paymentMethod: "cod",
+  });
+  assert.equal(quote.warehouse?.id, 1);
+  assert.equal(quote.primaryFallbackFrom, 2);
+  // Rate calls: Surabaya, Bandung, then the city samples, all from Bandung.
+  assert.deepEqual(estimateOrigins(requests), ["area-surabaya", "area-bandung", "area-bandung", "area-bandung"]);
+});
+
+test("the primary itself failing is not retried, and one warehouse makes no extra call", async (context) => {
+  const { requests, warnings } = breakSurabaya(context, "error");
+  const { database, sqlite } = createTwoWarehouseStore();
+  sqlite.exec("UPDATE warehouses SET is_primary = 0 WHERE id = 1; UPDATE warehouses SET is_primary = 1 WHERE id = 2;");
+  await assert.rejects(
+    resolveEligibleShippingRates(database, locals, { destinationId: "area-aceh-0", paymentMethod: "manual_transfer" }),
+    /network down/,
+  );
+  assert.deepEqual(estimateOrigins(requests), ["area-surabaya"]);
+  assert.equal(warnings.length, 0);
+});
+
+test("the form quoted from the primary after a branch failure submits at that price", async (context) => {
+  const { requests } = breakSurabaya(context, "error");
+  const { database } = createTwoWarehouseStore();
+  const shown = await rateRoute(database, "location_id=area-sby-0&variant_unique_id=7&payment_method=cod&city=Kota+Surabaya");
+  assert.equal(shown.origin_id, "area-bandung");
+  const price = shown.items.find((item) => item.courier_code === "SiCepat")?.shipping_cost;
+  assert.ok(price);
+  requests.length = 0;
+  const originalError = console.error;
+  console.error = () => {};
+  context.after(() => {
+    console.error = originalError;
+  });
+  const accepted = await submit(database, price);
+  assert.notEqual(accepted.body.code, "SHIPPING_QUOTE_CHANGED");
+  assert.equal(accepted.body.code, "ORDER_PERSIST_FAILED");
+});
+
 const headlessOrder = {
   customer_name: "Pembeli Surabaya",
   customer_phone: "081234567890",

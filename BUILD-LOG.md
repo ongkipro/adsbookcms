@@ -7148,3 +7148,41 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   against REQ-241) — a named warehouse is now never swapped; three lows fixed.
 - Verification: `npm test` 1049 pass / 0 fail, `npm run check` 0 errors,
   `npm run build` complete, mutation-checked (TASKS A-444).
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+### Entry 193: Operations API v1, read (A-422 to A-427)
+
+- PRD A45 keeps the storefront headless API as it is and adds `/api/ops/v1`
+  beside it for server-to-server tooling, on the same keys, quotas and audit
+  trail (`validateOpsRequest` reuses what `headless-api.ts` now exports). No
+  CORS headers, no origin allowlist, every response `no-store`.
+- Six `ops:` scopes, never granted by default. A key is created or changed only
+  with an explicit scope list (an omitted list on PATCH used to reset an ops key
+  to the storefront defaults), and only the owner issues, changes or revokes a
+  key holding an `ops:` scope. A storefront scope never satisfies an operations
+  route, nor the reverse.
+- Migration `0075` (schema 76): `orders.updated_at`, backfilled from
+  `created_at`, kept by insert/update triggers so the dozen order write paths
+  need no change; index `(updated_at, id)`.
+- `GET /api/ops/v1/orders` (filters, opaque cursor, `updated_since`) and
+  `GET /api/ops/v1/orders/{number}`, serialized by `src/lib/ops-order.ts`; a
+  key without `ops:orders:read_pii` gets no name, phone, email, street address
+  or click-id value. `scripts/measure-ops-orders.ts` on 20k orders: a 90-day
+  page read 399 rows (37,930 when ordered by id), every page under 1,240.
+- Verification: `npm test` 1065 pass / 0 fail, `npm run check` 0 errors
+  (533 files), `npm run build` complete (TASKS A-422 to A-427).
+### Entry 194: Operations API contract and OpenAPI (A-431)
+
+- `docs/OPS-API.md` owns the operations contract (row added to AGENTS.md §2):
+  calling rules, the six scopes and which are live, operations, sync vs browse
+  paging, errors.
+- `GET /api/ops/v1/openapi.json` serves `src/lib/ops-openapi.ts` to a key with
+  `ops:orders:read`; registered in `OPS_OPERATIONS` like every ops route.
+  `// lazy:` a catalogue-only key (A-441) cannot read it until the route
+  accepts any ops scope.
+- `ops-openapi.test.ts`: the document and `OPS_OPERATIONS` agree on name, path,
+  method and scope in both directions; every `$ref` resolves; every field
+  `serializeOpsOrder` writes (with PII) is named in the Order schema.
+  Mutation-checked: a changed scope, a removed table entry and a removed schema
+  field each fail it.
+- Verification: `npm test` 1069 pass / 0 fail, `npm run check` 0 errors
+  (536 files), `npm run docs:check` passed, `npm run build` complete.

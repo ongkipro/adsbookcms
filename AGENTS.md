@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (baseline 1055)
+> Verified against disk: 2026-10-30 @ `e7ecc53` + feat/a45-ops-api working tree (baseline 1069)
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -37,6 +37,7 @@ Exactly one document owns each subject. Do not restate another document's truth;
 | `BUILD-LOG.md` | Chronological history. Append-only |
 | `DESIGN-SYSTEM.md` | Visual contract |
 | `STOREFRONT_INTEGRATION.md` | Headless `/api/v1/*` contract |
+| `docs/OPS-API.md` | Operations `/api/ops/v1/*` contract: scopes, operations, errors. The OpenAPI document it names is generated from `src/lib/ops-openapi.ts` |
 | `MENGANTAR_INTEGRATION_SPEC.md` | Courier provider boundary |
 | `TRACKING_SPECS.md` | Ad signal contract |
 | `PRD-ADMIN-LOGIN.md` | Admin login, first-run access, session |
@@ -121,7 +122,7 @@ can reach it.
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **1055 passing** (0 skipped, 2026-10-30, `fix/warehouse-primary-fallback` with main `e33a6dd` merged), 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints (527 files). A change that reduces this baseline is not done.
+Current verified working-tree baseline: **1069 passing** (0 skipped, 2026-10-30, `feat/a45-ops-api` on main `e7ecc53`), 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints (536 files). A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 

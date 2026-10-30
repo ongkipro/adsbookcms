@@ -7,13 +7,14 @@ import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { getPlatformProxy } from 'wrangler';
 import { splitMigrationStatements } from '../src/lib/schema-version.ts';
-import { landingStatements, trendStatements, productStatements, locationStatements, timeStatements } from '../src/lib/insights.ts';
+import { landingStatements, trendStatements, productStatements, locationStatements, timeStatements, utmStatements } from '../src/lib/insights.ts';
 import { GET as dashboard } from '../src/pages/api/admin/analytics.ts';
 import { GET as landingRoute } from '../src/pages/api/admin/insights/landing.ts';
 import { GET as trendRoute } from '../src/pages/api/admin/insights/trend.ts';
 import { GET as productsRoute } from '../src/pages/api/admin/insights/products.ts';
 import { GET as locationsRoute } from '../src/pages/api/admin/insights/locations.ts';
 import { GET as timesRoute } from '../src/pages/api/admin/insights/times.ts';
+import { GET as utmRoute } from '../src/pages/api/admin/insights/utm.ts';
 import type { InsightsPeriod } from '../src/lib/insights-period.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'adsbook-insights-'));
@@ -67,7 +68,7 @@ async function seed() {
         CASE (x/997)%7 WHEN 0 THEN 'cancelled' WHEN 1 THEN 'refunded' WHEN 2 THEN 'failed' WHEN 3 THEN 'paid' ELSE 'unpaid' END,
         CASE (x/90)%10 WHEN 0 THEN 'abandoned' WHEN 1 THEN 'returned' WHEN 2 THEN 'cancelled' WHEN 3 THEN 'pending' ELSE 'delivered' END,
         strftime('%Y-%m-%dT%H:%M:%fZ', '2026-07-31T17:00:00Z', '+'||(x%90)||' days', '+'||(x%24)||' hours'),
-        '/source-'||(1+((x/7)%40)), CASE (x/13)%3 WHEN 0 THEN '{"fbclid":"synthetic"}' WHEN 1 THEN '{"gclid":"synthetic"}' ELSE NULL END
+        '/source-'||(1+((x/7)%40)), CASE (x/13)%3 WHEN 0 THEN '{"fbclid":"synthetic","utm_source":"facebook","utm_medium":"paid_social","utm_campaign":"Promo-'||(x%5)||' ","utm_content":"ad-'||(x%7)||'"}' WHEN 1 THEN '{"gclid":"synthetic"}' ELSE NULL END
       FROM n`),
     db.prepare(`INSERT INTO order_items (order_id, variant_id, quantity, unit_price, weight_grams)
       SELECT id, 10001+((id/11)%30), 1, 100000, 500 FROM orders`),
@@ -123,7 +124,7 @@ try {
     expected.revenue += units * 100000;
   }
   const routeResults: Record<string, any> = {};
-  for (const [name, route] of Object.entries({ landing: landingRoute, trend: trendRoute, products: productsRoute, locations: locationsRoute, times: timesRoute })) {
+  for (const [name, route] of Object.entries({ landing: landingRoute, trend: trendRoute, products: productsRoute, locations: locationsRoute, times: timesRoute, utm: utmRoute })) {
     const response = await route({
       locals: { runtimeEnv: { OMS_DB: db } },
       url: new URL(`http://localhost/api/admin/insights/${name}?date_filter=custom&date_start=${period.start}&date_end=${period.end}`),
@@ -141,6 +142,8 @@ try {
   assert.deepEqual(routeResults.products.totals, { units: expected.units, revenue: expected.revenue });
   assert.deepEqual(routeResults.locations.totals, { orders: expected.orders, revenue: expected.revenue });
   assert.equal(routeResults.times.total, expected.orders);
+  assert.deepEqual(routeResults.utm.totals, { leads: expected.leads, orders: expected.orders, revenue: expected.revenue });
+  assert.equal(routeResults.utm.rows.length, 6, 'five normalised campaigns plus (tanpa UTM)');
   const response = await dashboard({
     locals: { runtimeEnv: { OMS_DB: recorder } },
     url: new URL('http://localhost/api/admin/analytics?startDate=2026-10-01&endDate=2026-10-29'),
@@ -155,13 +158,14 @@ try {
     ['products-90d', productStatements(recorder, period)],
     ['locations-90d', locationStatements(recorder, period)],
     ['times-90d', timeStatements(recorder, period)],
+    ['utm-90d', utmStatements(recorder, period)],
     ['landing-1d', landingStatements(recorder, { start: '2026-10-29', end: '2026-10-29', days: 1 })],
   ] as unknown as Array<[string, Query[]]>;
   // Regression budgets for this exact 20k-order/27k-line fixture, not fleet SLAs.
   const ceilings: Record<string, number> = {
     'landing-90d': 90000, 'trend-90d': 60000, 'trend-source-90d': 2000,
     'trend-product-90d': 110000, 'products-90d': 190000,
-    'locations-90d': 60000, 'times-90d': 45000, 'landing-1d': 2000,
+    'locations-90d': 60000, 'times-90d': 45000, 'utm-90d': 90000, 'landing-1d': 2000,
   };
   const before = [];
   for (const [name, statements] of screens) before.push(await measure(name, statements, ceilings[name]));
@@ -174,7 +178,7 @@ try {
   await db.prepare('DROP INDEX benchmark_covering_orders').run();
   console.log(JSON.stringify({
     environment: 'ephemeral local workerd D1; synthetic data; no remote bindings',
-    counts, products: 30, orderItems: 27000, period, expected, routeSmoke: 'five routes passed against local D1', baseline, before, covering,
+    counts, products: 30, orderItems: 27000, period, expected, routeSmoke: 'six routes passed against local D1', baseline, before, covering,
   }, null, 2));
 } finally {
   await platform.dispose();

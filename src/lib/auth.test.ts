@@ -658,6 +658,8 @@ test('the Analitik menu is owner, admin and advertiser; customer service gets 40
     '/api/admin/insights/products',
     '/api/admin/insights/locations',
     '/api/admin/insights/times',
+    '/admin/analytics/utm',
+    '/api/admin/insights/utm',
   ];
   for (const pathname of insightPaths) {
     for (const role of ['owner', 'admin', 'advertiser'] as const) {

@@ -116,15 +116,16 @@ export const adminNavGroups: AdminNavGroup[] = [
         id: "analytics",
         href: "/admin/analytics",
         label: "Analitik",
-        description: "Sumber pesanan, produk, dan wilayah",
+        description: "Sumber pesanan, produk, wilayah, dan kampanye",
         icon: ChartNoAxesCombined,
-        keywords: "analitik analytics laporan trend produk lokasi waktu",
+        keywords: "analitik analytics laporan trend produk lokasi waktu utm kampanye campaign",
         children: [
           { href: "/admin/analytics", label: "Ringkasan" },
           { href: "/admin/analytics/landing", label: "Landing page" },
           { href: "/admin/analytics/products", label: "Produk" },
           { href: "/admin/analytics/locations", label: "Lokasi" },
           { href: "/admin/analytics/times", label: "Waktu beli" },
+          { href: "/admin/analytics/utm", label: "UTM" },
         ],
       },
       {

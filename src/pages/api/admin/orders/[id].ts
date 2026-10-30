@@ -112,6 +112,8 @@ type OrderItemRow = {
   variant_title: string;
   variant_sku: string;
   variant_compare_price: number | null;
+  weight_grams: number | null;
+  weight_recorded: number;
   product_id: number;
   product_title: string;
 };
@@ -231,6 +233,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
         pv.title AS variant_title,
         pv.sku AS variant_sku,
         pv.compare_price AS variant_compare_price,
+        COALESCE(oi.weight_grams, pv.weight_grams) AS weight_grams,
+        oi.weight_grams IS NOT NULL AS weight_recorded,
         p.id AS product_id,
         p.title AS product_title
       FROM order_items oi
@@ -298,6 +302,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
         payment_method: order.payment_method,
         payment_status: order.payment_status,
         shipping_status: order.shipping_status,
+        stock_restored_at: order.stock_restored_at,
         confirmed_at: order.confirmed_at,
         courier_code: order.courier_code,
         courier_service: order.courier_service,
@@ -335,6 +340,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
           variant_title: item.variant_title,
           variant_sku: item.variant_sku,
           variant_compare_price: item.variant_compare_price,
+          weight_grams: item.weight_grams,
+          weight_recorded: Boolean(item.weight_recorded),
           product_id: item.product_id,
           product_title: item.product_title,
         })),
@@ -572,19 +579,34 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
       ) {
         return jsonError('Kecamatan, kurir, dan layanan pengiriman wajib dipilih.', 422);
       }
+      // A-397: an existing order is re-quoted at the weight recorded on its
+      // line, the exact expression dispatch sends (mengantar-dispatch.ts), not
+      // the variant's current weight — an edit to the variant after checkout
+      // would otherwise bill one weight and ship another. It reaches the quote
+      // as an explicit weight with no variant read, the same path OrderDetail's
+      // preview takes (`weight=` on /api/shipping-rates), so preview, save and
+      // dispatch agree.
       const item = await db.prepare(`
-        SELECT variant_id, quantity
-        FROM order_items
-        WHERE order_id = ?
-        ORDER BY id
+        SELECT oi.quantity,
+          MAX(0.001, CAST(COALESCE(oi.weight_grams, pv.weight_grams) AS REAL) / 1000) AS unit_weight_kg
+        FROM order_items oi
+        INNER JOIN product_variants pv ON pv.id = oi.variant_id
+        WHERE oi.order_id = ?
+        ORDER BY oi.id
         LIMIT 1
-      `).bind(current.id).first<{ variant_id: number; quantity: number }>();
+      `).bind(current.id).first<{ quantity: number; unit_weight_kg: number }>();
       if (!item) return jsonError('Item order tidak ditemukan.', 409);
       const quote = await resolveEligibleShippingRates(db, locals, {
         destinationId: resolvedDestinationAreaId,
         paymentMethod: current.payment_method,
-        variantKey: String(item.variant_id),
+        fallbackWeightKg: Number(item.unit_weight_kg),
         quantity: Number(item.quantity),
+        // The order keeps its own warehouse (REQ-241) while it is still
+        // active; one without (a middle-form order) or whose warehouse was
+        // made inactive is chosen by its province. OrderDetail previews the
+        // rates with the same two values.
+        warehouseId: current.warehouse_id || undefined,
+        destinationProvince: nextProvince ?? current.province,
       });
       const selectedRate = selectQuotedRate(
         quote.rates,
@@ -798,6 +820,7 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
         cod_fee_bearer: updated.cod_fee_bearer,
         payment_status: updated.payment_status,
         shipping_status: updated.shipping_status,
+        stock_restored_at: updated.stock_restored_at,
         confirmed_at: updated.confirmed_at,
         courier_code: updated.courier_code,
         courier_service: updated.courier_service,

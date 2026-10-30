@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { Input } from "../ui/input";
 import { catalogProductIdOrNull } from "../../lib/catalog-feed";
+import { formatKg } from "../../lib/weight";
 import {
   CARD_IMAGE_EDGE,
   MAX_ENCODED_BYTES,
@@ -29,7 +30,9 @@ type ProductPayload = {
     title: string;
     price: number;
     compare_price?: number;
-    weight_grams: number;
+    // Null only when the operator left it empty; the server refuses that for a
+    // new variant and keeps the stored weight for an existing one.
+    weight_grams: number | null;
     stock: number;
   }>;
 };
@@ -57,7 +60,9 @@ const emptyVariant = (key: string): Variant => ({
   title: "",
   price: "",
   compare_price: "",
-  weight_grams: "1000",
+  // Empty, not 1000: the weight sets the Mengantar shipping cost, so a new
+  // variant must state it (PRD A41, REQ-231).
+  weight_grams: "",
   stock: "1000",
 });
 const slugify = (value: string) =>
@@ -211,6 +216,13 @@ export function ProductForm({ productId }: { productId?: string }) {
   ) => {
     event.preventDefault();
     const form = event.currentTarget;
+    const missingWeight = variants.find((variant) => !variant.weight_grams.trim());
+    if (missingWeight) {
+      setStatusTone("error");
+      setStatus(
+        `Berat varian ${missingWeight.sku.trim().toUpperCase() || "baru"} wajib diisi (gram).`,
+      );
+    }
     if (!form.reportValidity()) return;
     setSaving(true);
     setStatusTone("idle");
@@ -223,7 +235,9 @@ export function ProductForm({ productId }: { productId?: string }) {
       ...(variant.compare_price
         ? { compare_price: Number(variant.compare_price) }
         : {}),
-      weight_grams: Number(variant.weight_grams),
+      weight_grams: variant.weight_grams.trim()
+        ? Number(variant.weight_grams)
+        : null,
       stock: Number(variant.stock),
     }));
 
@@ -523,12 +537,24 @@ export function ProductForm({ productId }: { productId?: string }) {
                       inputMode="numeric"
                       min="1"
                       step="1"
+                      max="50000"
+                      placeholder="Contoh: 250"
+                      aria-describedby={`variant-weight-hint-${variant.key}`}
                       value={variant.weight_grams}
                       onChange={(event) =>
                         updateVariant(index, "weight_grams", event.target.value)
                       }
                       className="admin-input-flat focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
                     />
+                    <span
+                      id={`variant-weight-hint-${variant.key}`}
+                      className="mt-1 block text-xs text-slate-400"
+                    >
+                      Dipakai untuk ongkir Mengantar
+                      {Number(variant.weight_grams) > 0
+                        ? ` · ${formatKg(Number(variant.weight_grams))}`
+                        : ""}
+                    </span>
                   </label>
                 </div>
                 <button

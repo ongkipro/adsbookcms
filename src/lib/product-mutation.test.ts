@@ -178,3 +178,87 @@ test("product validation never synthesizes a missing slug", () => {
     { error: "Judul dan slug produk wajib diisi." },
   );
 });
+
+// A41: a missing weight is never invented as 1000 g.
+function variantWithWeight(weight: unknown, id?: number) {
+  return validMutationPayload({
+    ...(id === undefined ? {} : { id: 10001 }),
+    variants: [
+      {
+        ...(id === undefined ? {} : { id }),
+        sku: "MERCHANT-1",
+        title: "1 Liter",
+        price: 125000,
+        ...(weight === undefined ? {} : { weight_grams: weight }),
+      },
+    ],
+  });
+}
+
+test("a new variant without a weight is refused with a 422", () => {
+  for (const weight of [undefined, null, "", "  "]) {
+    assert.deepEqual(parseProductMutationPayload(variantWithWeight(weight), false), {
+      error: "Berat varian MERCHANT-1 wajib diisi (gram).",
+      status: 422,
+    });
+  }
+  // A new variant added to an existing product is held to the same rule.
+  const added = parseProductMutationPayload(
+    { ...variantWithWeight(undefined), id: 10001 },
+    true,
+  );
+  assert.deepEqual(added, {
+    error: "Berat varian MERCHANT-1 wajib diisi (gram).",
+    status: 422,
+  });
+});
+
+test("a new variant saves the weight it states", () => {
+  const parsed = parseProductMutationPayload(variantWithWeight(250), false);
+  assert.ok("value" in parsed);
+  assert.equal(parsed.value.variants[0].weight_grams, 250);
+  const fromString = parseProductMutationPayload(variantWithWeight("250"), false);
+  assert.ok("value" in fromString);
+  assert.equal(fromString.value.variants[0].weight_grams, 250);
+});
+
+test("an existing variant saved without a weight keeps its stored one", async () => {
+  const parsed = parseProductMutationPayload(variantWithWeight(undefined, 20001), true);
+  assert.ok("value" in parsed);
+  assert.equal(parsed.value.variants[0].weight_grams, null);
+
+  // The route's own UPDATE turns that null into "keep", not 1000.
+  const { readFileSync } = await import("node:fs");
+  const { DatabaseSync } = await import("node:sqlite");
+  const route = readFileSync(
+    new URL("../pages/api/admin/products.ts", import.meta.url),
+    "utf8",
+  );
+  const update = route.match(/UPDATE product_variants[\s\S]*?WHERE id = \? AND product_id = \?/)?.[0];
+  assert.ok(update, "the variant UPDATE is where the route keeps it");
+  const sqlite = new DatabaseSync(":memory:");
+  sqlite.exec(`CREATE TABLE product_variants (
+    id INTEGER PRIMARY KEY, product_id INTEGER, sku TEXT, title TEXT, price INTEGER,
+    compare_price INTEGER, weight_grams INTEGER NOT NULL DEFAULT 1000, stock INTEGER
+  );
+  INSERT INTO product_variants VALUES (20001, 10001, 'MERCHANT-1', '1 Liter', 125000, NULL, 750, 0);`);
+  const variant = parsed.value.variants[0];
+  sqlite.prepare(update).run(variant.sku, variant.title, variant.price, variant.compare_price, variant.weight_grams, variant.stock, 20001, 10001);
+  const stored = sqlite.prepare("SELECT weight_grams FROM product_variants WHERE id = 20001").get() as { weight_grams: number };
+  assert.equal(stored.weight_grams, 750);
+});
+
+test("zero, negative, fractional and non-numeric weights are refused", () => {
+  for (const weight of [0, -5, 2.5, "abc"]) {
+    assert.deepEqual(parseProductMutationPayload(variantWithWeight(weight), false), {
+      error: "Berat varian MERCHANT-1 harus integer positif.",
+    }, `weight ${String(weight)}`);
+  }
+});
+
+test("a variant over Mengantar's regular 50 kg limit is refused", () => {
+  assert.ok("value" in parseProductMutationPayload(variantWithWeight(50_000), false));
+  assert.deepEqual(parseProductMutationPayload(variantWithWeight(50_001), false), {
+    error: "Berat varian MERCHANT-1 maksimal 50.000 gram (batas layanan reguler Mengantar).",
+  });
+});

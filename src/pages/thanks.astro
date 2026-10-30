@@ -15,7 +15,7 @@ if (
 Astro.response.headers.set('Cache-Control', 'no-store');
 
 const products = await getStorefrontProducts(Astro.locals);
-const { phone: csPhone, autoRedirect: thanksWhatsappRedirect } = await getThanksWhatsappSettings(Astro.locals);
+const { phones: csPhones, autoRedirect: thanksWhatsappRedirect } = await getThanksWhatsappSettings(Astro.locals);
 // This store's own logo. It used to be a hardcoded `/images/logo.webp` — the
 // demo store's wordmark — so every install's confirmation page carried another
 // merchant's brand at the moment the customer trusts it most.
@@ -479,7 +479,7 @@ const productCatalog = products.map((item) => ({
     }
   </style>
 
-  <script is:inline define:vars={{ csPhone, productCatalog, storeLogo }}>
+  <script is:inline define:vars={{ csPhones, productCatalog, storeLogo }}>
     const fmt = (n) =>
       `Rp${Math.round(Number(n || 0))
         .toLocaleString('id-ID')
@@ -743,8 +743,10 @@ const productCatalog = products.map((item) => ({
     // (src/lib/thanks-whatsapp.ts) and, when the store enabled it, hands a COD
     // buyer over once the Purchase has gone out.
     const wa = document.getElementById('wa-confirm');
-    if (csPhone) {
-      wa.dataset.phone = String(csPhone);
+    // Every active support number; the module script picks one per order
+    // (PRD A35, pickThanksWhatsapp).
+    if (csPhones.length) {
+      wa.dataset.phones = JSON.stringify(csPhones);
       wa.dataset.orderNumber = orderId;
       wa.dataset.customerName = activeState?.name || '';
       wa.dataset.productName = productName || '';
@@ -824,15 +826,25 @@ const productCatalog = products.map((item) => ({
     import {
       buildThanksWhatsappMessage,
       shouldAutoRedirectToWhatsapp,
+      pickThanksWhatsapp,
       thanksWhatsappUrl,
       THANKS_WHATSAPP_REDIRECT,
     } from '../lib/thanks-whatsapp';
 
     const wa = document.getElementById('wa-confirm') as HTMLAnchorElement | null;
-    if (wa?.dataset.phone) {
+    if (wa?.dataset.phones) {
       const d = wa.dataset;
+      let phones: string[] = [];
+      try {
+        phones = JSON.parse(d.phones || '[]');
+      } catch {
+        phones = [];
+      }
+      // One fixed number per order: a reload keeps the buyer with the same agent.
+      const phone = pickThanksWhatsapp(phones, d.orderNumber || '');
+      if (phone) d.phone = phone;
       const url = thanksWhatsappUrl(
-        d.phone || '',
+        phone || '',
         buildThanksWhatsappMessage({
           storeName: d.storeName || '',
           orderNumber: d.orderNumber || '',

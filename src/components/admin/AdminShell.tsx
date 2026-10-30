@@ -35,13 +35,16 @@ import {
 import { AppSidebar } from "./AppSidebar";
 import { ChangelogModal } from "./ChangelogModal";
 import { NotificationBell } from "./NotificationBell";
+import { OperationalStatusIcon } from "./OperationalStatusIcon";
 import { CMS_VERSION } from "@/lib/version";
+import { withInsightsPeriod } from "@/lib/insights-view";
 import {
   ADMIN_ACCENT,
   getSearchableNavItems,
   getVisibleNavGroups,
   isAdminNavHrefActive,
   profileNavItem,
+  statusNavItem,
   type AdminRole,
 } from "./admin-navigation";
 
@@ -84,7 +87,7 @@ export function AdminShell({
   const groups = mustChangePassword ? [] : getVisibleNavGroups(adminRole);
   const searchItems = mustChangePassword ? [] : getSearchableNavItems(adminRole);
   const allItems = groups.flatMap((group) => group.items);
-  const currentItem = [...allItems, profileNavItem].find(
+  const currentItem = [...allItems, profileNavItem, statusNavItem].find(
     (item) => item.id === activeMenu,
   );
   const mobilePrimaryIds = adminRole === "advertiser"
@@ -158,7 +161,7 @@ export function AdminShell({
                 value={`${item.label} ${item.description} ${item.keywords} ${item.group}`}
                 onSelect={() => {
                   handleSearchOpenChange(false);
-                  window.location.assign(item.href);
+                  window.location.assign(withInsightsPeriod(item.href, window.location.pathname, window.location.search));
                 }}
                 className="min-h-14 px-3 py-2.5"
               >
@@ -250,6 +253,10 @@ export function AdminShell({
               {/* A first-run session may only rotate its password; the bell
                   hides itself for roles the endpoint refuses. */}
               {!mustChangePassword && <NotificationBell />}
+              {/* Owner and admin only: the other roles send no status request (A39). */}
+              {!mustChangePassword && (adminRole === "owner" || adminRole === "admin") && (
+                <OperationalStatusIcon active={activeMenu === "status"} />
+              )}
               <a
                 href="/admin/profile"
                 aria-current={activeMenu === "profile" ? "page" : undefined}

@@ -3,6 +3,7 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { OrdersTable, type OrderItem } from '../../../components/admin/OrdersTable';
 import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
 import { getRuntimeEnv } from '../../../lib/env';
+import { initialOrderListWhere } from '../../../lib/admin-orders-initial';
 
 export const prerender = false;
 
@@ -30,6 +31,8 @@ let initialOrders: OrderItem[] | undefined;
 
 if (database?.prepare) {
   try {
+    // The filters the island starts from, so a deep link paints its own rows.
+    const where = initialOrderListWhere(Astro.url.searchParams);
     const result = await database
       .prepare(`
         SELECT
@@ -110,10 +113,11 @@ if (database?.prepare) {
           orders.provider_order_id AS providerOrderId,
           orders.ad_click_ids AS adClickIds
         FROM orders
-        WHERE orders.shipping_status <> 'abandoned'
+        WHERE ${where.sql}
         ORDER BY orders.id DESC
         LIMIT 20
       `)
+      .bind(...where.params)
       .all<InitialOrderDatabaseRow>();
 
     initialOrders = result.results.map(
@@ -139,6 +143,6 @@ if (database?.prepare) {
         <a href="/admin/shipping" class="btn-primary">Pengiriman</a>
       </div>
     </AdminPageHeader>
-    <OrdersTable initialOrders={initialOrders} client:load />
+    <OrdersTable initialOrders={initialOrders} initialQuery={Astro.url.search} client:load />
   </div>
 </AdminLayout>

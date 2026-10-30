@@ -221,6 +221,20 @@ test("push marks the order synced; a failure is recorded and retried by the drai
   assert.equal(calls.length, 2);
 });
 
+test("the Kelola payload carries the order's recorded weight, not the variant's current one", async () => {
+  const { sqlite, database } = migratedStore();
+  const orderId = insertOrder(sqlite, "INV-WEIGHT-1", new Date().toISOString());
+  sqlite.prepare("UPDATE order_items SET weight_grams = 150 WHERE order_id = ?").run(orderId);
+  sqlite.exec("UPDATE product_variants SET weight_grams = 900 WHERE id = 1");
+  let body = "";
+  const fetcher = (async (_url: string, init: RequestInit) => {
+    body = String(init.body);
+    return new Response('{"ok":true}', { status: 201 });
+  }) as unknown as typeof fetch;
+  assert.equal(await pushOrderToKelola(database, config, orderId, fetcher), true);
+  assert.equal(JSON.parse(body).berat, 300);
+});
+
 test("drain skips abandoned, voided and out-of-window orders", async () => {
   const { sqlite, database } = migratedStore();
   const now = new Date();

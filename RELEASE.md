@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-10-09 @ `8213409` + deploy-builds-first working tree
+> Verified against disk: 2026-10-29 @ be00fee + s5-a42 working tree
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -157,6 +157,16 @@ Migration-specific notes:
   from `orders` and `stores`. That is destructive by design; on 2026-10-20 those
   columns were empty on every store. Kelola's own table
   (`plugin_kelola_orders`) is created on activation, not by the chain.
+- **`*_multi_warehouse`** (A42, ADR-032; numbered at integration) adds
+  `warehouses.is_primary`, `is_active` and `served_provinces`, and makes the
+  lowest-id row the primary. Additive, but **not behaviour-neutral for an
+  install that already holds more than one `warehouses` row**: before it, every
+  quote and dispatch used the lowest-id row; after it, each other ready row
+  serves buyers in its own province, so those buyers are quoted and dispatched
+  from it. Before deploying this to an install, count its rows
+  (`SELECT COUNT(*) FROM warehouses` — a `--remote` read, approval required)
+  and, where it is above one, have the operator confirm or deactivate the
+  extra rows first. A one-row install is unchanged (REQ-242).
 
 ---
 

@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-16 @ `fd652b4`
+> Verified against disk: 2026-10-30 @ `7f59daf` + A37 backend working tree (Entries 185–188; earlier entries retain their historical evidence)
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -6920,7 +6920,6 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   §16.3 (the request, the baseline, how to read it), and the owner's decisions:
   no fabricated match keys, and an optional email field deferred.
 
-
 ### Entry 185: Kelola plugin backfills orders older than the retry window
 
 - An order taken before the Kelola plugin was switched on, or one that kept
@@ -6939,3 +6938,162 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   order alone, the backfill sends it once and skips abandoned and voided rows.
   879 passing, `astro check` clean, build green. The settings page change was
   not opened in a browser.
+
+### Entry 186: Resume the unfinished Analitik backend (A-348–A-356)
+
+- Resumed existing uncommitted s1 work without replacing it. Kept all protected
+  order, tracking and form modules and their tests unchanged. No migration added.
+- Repaired legacy orphan fixture setup while asserting the normal FK constraint
+  still rejects deletion. Corrected its RTS arithmetic to 5 / (2 + 5) = 71.43%.
+  City labels now prefer a stable stored mixed-case spelling, independent of SQL
+  row order. Product id zero/invalid values are rejected before querying.
+- Added empty/error response and Jakarta boundary cases. Insights uses no-store
+  consistently with existing middleware; the PRD's ineffective browser-cache
+  proposal was corrected, not implemented by weakening the middleware.
+- Added `scripts/measure-insights.ts`: isolated ephemeral workerd D1, full schema,
+  synthetic 20,000 orders/27,000 items, five real route handlers, independent
+  expected aggregates, response minimization, indexed date-bound plans, actual
+  D1 rows-read ceilings, and a disposable covering-index comparison. No remote
+  bindings, real install config, customer data, credentials or live provider calls.
+  Exact results and limits belong to PRD A37; unit fake metadata is not cost proof.
+- Verification: full `npm test` 1024/1024, zero skipped; `npm run check` 511 files,
+  zero errors/warnings/hints; `npm run build` succeeds (local INSTALL_TOKEN warning).
+  Focused insights/dashboard/auth: 39/39. Generated route map: 126 routes.
+  Local D1 route smoke: 2069 leads, 17931 orders, 12238 live units and
+  1,223,800,000 revenue, agreeing across applicable endpoints.
+- Independent review: Codex gpt-5.6-luna, attached-source fallback because its
+  read-only sandbox could not start commands. Requested mixed payment states,
+  independent route aggregate assertions and stricter index-range plan checks;
+  implemented and reran them. Follow-up verdict APPROVE for those fixes and
+  backend/measurement packet; UI/auth files outside that packet were not reviewed.
+  Parent-run real middleware role tests remain the auth evidence.
+- Remaining: A-348 explicitly requires a commit, not authorized here; A-357–A-362
+  UI/browser and final-screen measurement, A38 panels, s2 recent-buyers integration,
+  A-419 integration and A-420 release. No browser proof or release-ready claim.
+  No Git stage/commit/merge/push, deployment or remote database operation.
+  Logs: `scratchpad/evidence/analytics-resume/` (ignored, local evidence).
+
+### Entry 187: Analitik screen implementation; browser gate blocked
+
+- Added five `/admin/analytics` pages through InsightsPage and a coordinated
+  InsightsReport island, using AdminLayout/AdminPageHeader, FilterBar/FilterField,
+  the shared date picker and installed shadcn primitives. Analitik appears only
+  for owner/admin/advertiser. Date query helpers preserve period on screen and
+  command-palette navigation; direct source links remain permission-gated.
+- Added sortable landing table/phone cards, closing bars, channel/follow-up
+  details, product summaries/expandable variants, geography drill-down and
+  numeric hour/weekday heatmap. Trend chart is a separate dynamic import, has
+  one selected unit at a time, previous-period totals and a daily data table.
+- Independent source review (Codex gpt-5.6-luna) found missing lazy-chunk
+  recovery and a permissive absent-context link fallback; both fixed. Focusable
+  table regions now own their horizontal scroll rather than nesting scrollers.
+  Final review APPROVE is code-level only. Province click is explicitly a
+  drill-down on the applied filters, not an unapplied toolbar change.
+- Verification: 1033 passing tests / zero skipped; check 521 files with zero
+  errors, warnings or hints; build complete. Route map regenerated: 131 routes.
+  SSR tests cover all report loading/empty states and populated non-chart views;
+  helper tests cover sorting, period links and safely encoded source drill-down.
+- Browser tool failed before launching: `agent-browser` missing from PATH;
+  `pi-agent-browser-doctor` also unavailable. No alternative runtime was installed.
+  Local dev server at 8795 started successfully and was stopped by its owned
+  process group. No browser login, seed, screenshot or geometry report exists.
+  Responsive, keyboard, hydration, themes, tooltip and live lazy-loading remain
+  UNVERIFIED; A-357–A-360 stay open. Product desktop table refinement, final-screen
+  query budget (including trend selector catalogue reads), A38 and release remain.
+- No dependency, migration, protected checkout/tracking/order-flow change, Git
+  stage/commit/merge/push, deploy or remote data operation. Logs:
+  `scratchpad/evidence/analytics-ui/`. This is not release completion.
+
+### Entry 188: Browser restored, isolated demo, and upstream integration review
+
+- Installed agent-browser 0.38.1 with owner approval; native doctor, local form
+  interaction, keyboard, and light/dark screenshot smoke passed. This supersedes
+  Entry 187's tooling blocker, not its outstanding acceptance criteria.
+- Built the existing analytics worktree and seeded a fresh ignored local state
+  through `scripts/dev-seed.ts`: 11 products, 17 active variants, 18 orders.
+  Existing local store state was preserved. The demo binds to the rich Tailscale
+  interface on port 8795; provider stand-ins stay on loopback port 8796.
+  Login and five reports render, with no observed page errors. Landing screenshots
+  at 390/1366px are in `.wrangler/`; historical/lead/return coverage is not implied.
+- Fetched upstream without merge: collaborator PR #101 adds Kelola historical
+  backfill (`c85fe5b`); `be08fc6` releases 1.7.14. Merge-tree simulations retain
+  A41 recorded weights and schema 73; STATUS and generated route maps conflict.
+  The upstream BUILD-LOG Entry 185 must be reconciled with the local numbering
+  (done at the merge, Entry 190: local entries became 186–189).
+- In an isolated scratch tree, 14 plugin tests passed. Two behavioral probes
+  established that the unbounded backfill also sends recent orders, and that 50
+  old itemless rows block a valid later row across repeated calls. A-419 tracks
+  these acceptance follow-ups; no live Kelola action was performed.
+- At the owner's request the GitHub repository became public, and CI run
+  40884103654 was rerun: check/tests/build passed for upstream 1.7.14. Its earlier
+  failed job had no steps and cited billing/spending limits. This does not verify
+  the unmerged analytics work. No local commit, merge, push or deploy occurred.
+
+### Entry 189: First analytics acceptance pass and desktop product ranking
+
+- Synced STATUS and TASKS with recovered browser tooling, upstream CI and merge
+  follow-ups. Preserved earlier entries as historical evidence.
+- Native browser checks: all five report routes had zero document overflow at
+  390/1366/1536px; sampled controls follow the repo's 44px phone / 40px desktop
+  geometry. Explicit Apply does not change the URL until submitted; the applied
+  seven-day period survives sidebar navigation. Province drill-down works with
+  focus + Enter. No page errors observed in the normal report traversal.
+- Replaced desktop product cards with a shared-primitives ranking table, keeping
+  phone cards and reusable variant details. Keyboard Enter opens the variant
+  detail. Desktop/mobile captures reviewed: columns readable, amounts aligned;
+  expanded variants increase row height deliberately. Phone toolbar channel
+  text can truncate; this is not final visual acceptance.
+- Added a named focusable Landing scroll region; ArrowRight moves the table at
+  1280px without document overflow. No global primitive was changed.
+- Products empty state tested against an empty historical interval, Reset filter
+  restored data; aborting only its insights API request produced the error UI.
+  After removing the browser-only network rule, Coba lagi restored data and kept
+  the seven-day query. The expected aborted request is not a server defect.
+- Verification: 1033 tests pass, none skipped; check 521 files 0/0/0; build and
+  docs:check pass; route map regenerated (131 routes); diff whitespace check clean.
+  `scripts/measure-insights.ts` passes all eight existing local fixture budgets:
+  79670/53971/1361/95660/172118/51791/37931/1121 rows read respectively for landing,
+  trend, source trend, product trend, products, locations, times and one-day landing.
+- Evidence: `.wrangler/analytics-qa-*.json`, `.wrangler/qa-products-{desktop,mobile}.png`,
+  `.wrangler/qa-landing-scroll.png`; command logs `/tmp/analytics-qa-{tests,check,build,measure}.log`.
+  The first geometry collection hit the tool's 25-call cap; a second bounded pass
+  covered the remaining widths. Generic admin-geometry contract report is not
+  executed; scoped native measurements do not substitute for that full report.
+- Remaining: richer historical/source/lead/return fixtures, all-role browser
+  matrix, themes, chart tooltip/lazy-load proof, multi-row sorting/deep links,
+  full screen/selector query budgets, A38, upstream integration and release.
+  Demo Worker restarted against the new build; provider process/data retained.
+  No commit/merge/push/deploy or remote data writes.
+
+### Entry 190: Review fixes, follow-up persistence, date panel and main merged
+
+- Resumed `feat/s1-a36-a38`. The follow-up endpoint test fixture lacked
+  NOT NULL address columns, and the endpoint sent `cache-control` twice
+  (`json()` already sets it); both fixed.
+- A high-effort review of the working tree reported ten findings. All were
+  addressed: province drill-down sends the row key (empty or unmatched
+  provinces open), non-JSON error bodies keep the 401/403/5xx states, a
+  follow-up 409 reloads the stage list, a URL source/product filter on a
+  screen without its control is shown as "Filter aktif" and kept, the period
+  reaches Analitik links on pointerdown/focus and in the palette, both layout
+  instances of an order's follow-up stay in step, shared constants replace
+  literals, and the follow-up route reuses `orderRowSql()` and answers 404 for
+  an order that vanishes mid-save. Closing rate keeps every lead in the
+  denominator; the PRD was amended to match.
+- The period panel opens rightward from the trigger's left edge when it fits,
+  right-aligns otherwise, and spans the content inside a 16px gutter on phones.
+- Merged origin/main (`be08fc6`, 1.7.14 Kelola backfill). Its Entry 185 kept
+  its number; the local Analitik entries became 186–189. Route maps
+  regenerated, not hand-merged. The upstream backfill was integrated, not
+  re-reviewed: TASKS still lists its open questions.
+- Lokasi opens a city to its districts (province › city › kecamatan, breadcrumb).
+  An order counts under a place only once its address form is complete
+  (district filled, the checkout rule); a middle-form order before an operator
+  completes it is one `Alamat belum dilengkapi` row, not credited to its
+  IP-guessed province. Same single grouped read: 51,791 rows on the
+  locations-90d fixture, unchanged, under its 60,000 ceiling. Weight was
+  confirmed already handled: every form records `order_items.weight_grams`
+  through `persistOrder`, and dispatch, re-quote and Kelola read it.
+- Verification and browser evidence: TASKS A37 review note. `astro dev` from
+  this worktree fails on a symlinked `node_modules` (Vite denies files outside
+  the root); the Wrangler demo on the Tailscale address is the working path.

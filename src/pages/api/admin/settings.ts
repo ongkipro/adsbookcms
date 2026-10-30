@@ -191,7 +191,7 @@ async function getSettingsRow(database: D1Database) {
         w.province
       FROM stores s
       LEFT JOIN warehouses w ON w.store_id = s.id
-      ORDER BY s.id, w.id
+      ORDER BY s.id, w.is_primary DESC, w.id
       LIMIT 1
     `,
       )
@@ -231,6 +231,7 @@ async function getSettingsRow(database: D1Database) {
         w.province
       FROM stores s
       LEFT JOIN warehouses w ON w.store_id = s.id
+      -- A schema this old predates is_primary; its first row is the primary.
       ORDER BY s.id, w.id
       LIMIT 1
     `,
@@ -700,10 +701,11 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 
     if (body.action === "save-store") {
       const storeName = clean(body.store_name, 120);
-      const supportWhatsapp = normalizePhone(body.support_whatsapp);
       if (!storeName) return jsonError("Nama store wajib diisi.", 400);
-      if (!PHONE_PATTERN.test(supportWhatsapp))
-        return jsonError("Nomor WhatsApp harus berisi 9–15 digit.", 400);
+      // support_whatsapp is no longer written here: Pengaturan → Nomor WhatsApp
+      // owns it through src/lib/whatsapp-numbers.ts (PRD A35), which keeps it
+      // on the first active number. Writing it from this form too would let
+      // a stale field overwrite the list's choice.
       // Identity beyond the name became editable when it moved into D1
       // (ADR-003). Before that these were baked into the bundle, so the only
       // way to change a store's address or tagline was a rebuild.
@@ -764,7 +766,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
       await db
         .prepare(
           `UPDATE stores
-              SET name = ?, support_whatsapp = ?, site_url = ?, description = ?,
+              SET name = ?, site_url = ?, description = ?,
                   tagline = ?, logo = ?, storefront_template = ?,
                   theme_color = ?, locale = ?, admin_name = ?,
                   thanks_whatsapp_redirect = ?
@@ -772,7 +774,6 @@ export const PUT: APIRoute = async ({ request, locals }) => {
         )
         .bind(
           storeName,
-          supportWhatsapp,
           siteUrl || null,
           clean(body.store_description, 300) || null,
           clean(body.store_tagline, 120) || null,
@@ -867,8 +868,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
             `
           INSERT INTO warehouses (
             store_id, name, contact_name, contact_phone, origin_area_id,
-            origin_label, pickup_address_id, address, city, province
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            origin_label, pickup_address_id, address, city, province, is_primary
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         `,
           )
           .bind(

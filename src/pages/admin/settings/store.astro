@@ -21,16 +21,16 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
           <span class="mb-1.5 block text-xs font-semibold text-slate-700">Nama store</span>
           <input id="storeName" required maxlength="120" autocomplete="organization" class="admin-input-flat" />
         </label>
-        <label class="block">
+        <div class="block">
           <span class="mb-1.5 block text-xs font-semibold text-slate-700">WhatsApp customer service</span>
-          <input id="supportWhatsapp" required inputmode="tel" maxlength="16" autocomplete="tel" placeholder="081234567890" class="admin-input-flat font-mono" />
-          <span class="mt-1.5 block text-xs text-slate-500">Gunakan 9–15 digit; awalan + diperbolehkan.</span>
-        </label>
+          <p id="supportWhatsapp" class="admin-input-flat flex items-center font-mono text-slate-700">—</p>
+          <span class="mt-1.5 block text-xs text-slate-500">Nomor pertama yang aktif. <a href="/admin/settings/whatsapp" class="font-semibold text-slate-900 underline underline-offset-2">Kelola nomor WhatsApp</a> untuk menambah atau membagi pembeli ke beberapa CS.</span>
+        </div>
         <label class="flex items-start gap-2.5">
           <input id="thanksWhatsappRedirect" type="checkbox" class="mt-0.5 size-4 shrink-0" />
           <span>
             <span class="block text-xs font-semibold text-slate-700">Arahkan pembeli COD ke WhatsApp setelah order</span>
-            <span class="mt-0.5 block text-xs text-slate-500">Halaman terima kasih membuka chat ke nomor di atas dalam ±3 detik, setelah pixel Purchase terkirim, dengan pesan berisi nomor invoice, nama, dan produk. Pembeli QRIS/VA/transfer tetap di halaman pembayaran.</span>
+            <span class="mt-0.5 block text-xs text-slate-500">Halaman terima kasih membuka chat ke nomor CS (dibagi rata bila lebih dari satu) dalam ±3 detik, setelah pixel Purchase terkirim, dengan pesan berisi nomor invoice, nama, dan produk. Pembeli QRIS/VA/transfer tetap di halaman pembayaran.</span>
           </span>
         </label>
         <label class="block">
@@ -146,7 +146,7 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
   <script>
     const form = document.getElementById('storeForm') as HTMLFormElement | null;
     const name = document.getElementById('storeName') as HTMLInputElement | null;
-    const phone = document.getElementById('supportWhatsapp') as HTMLInputElement | null;
+    const phone = document.getElementById('supportWhatsapp') as HTMLElement | null;
     const thanksRedirect = document.getElementById('thanksWhatsappRedirect') as HTMLInputElement | null;
     const siteUrl = document.getElementById('storeSiteUrl') as HTMLInputElement | null;
     const tagline = document.getElementById('storeTagline') as HTMLInputElement | null;
@@ -254,7 +254,7 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
       return payload.data.store;
     }).then(data => {
       if (name) name.value = data.name || '';
-      if (phone) phone.value = data.support_whatsapp || '';
+      if (phone) phone.textContent = data.support_whatsapp || 'Belum ada nomor';
       if (thanksRedirect) thanksRedirect.checked = data.thanks_whatsapp_redirect === true;
       if (siteUrl) siteUrl.value = data.site_url || '';
       if (tagline) tagline.value = data.tagline || '';
@@ -297,7 +297,6 @@ import NativeSelect from '../../../components/ui/NativeSelect.astro';
           body: JSON.stringify({
             action: 'save-store',
             store_name: name?.value,
-            support_whatsapp: phone?.value,
             thanks_whatsapp_redirect: thanksRedirect?.checked === true,
             site_url: siteUrl?.value,
             store_tagline: tagline?.value,

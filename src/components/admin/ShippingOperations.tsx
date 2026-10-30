@@ -886,6 +886,11 @@ export function ShippingOperations() {
                       <p className="mt-1 break-words text-xs text-slate-500">
                         {shipment.customerName} · {shipment.city}
                       </p>
+                      {data.warehouses.length > 1 && (
+                        <p className="mt-1 break-words text-xs text-slate-500">
+                          Dari {shipment.warehouseName || "—"}
+                        </p>
+                      )}
                     </div>
                     <StatusBadge status={shipment.shippingStatus} />
                   </div>
@@ -1050,6 +1055,11 @@ export function ShippingOperations() {
                         <p className="mt-1 text-xs text-slate-500">
                           {shipment.province}
                         </p>
+                        {data.warehouses.length > 1 && (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Dari {shipment.warehouseName || "—"}
+                          </p>
+                        )}
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         <p className="font-semibold text-slate-900">

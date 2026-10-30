@@ -1,4 +1,5 @@
 import { formatIdr } from "@/lib/format-idr";
+import { isVoidOrder } from "@/lib/order-lifecycle";
 import { useConfirm } from "./useConfirm";
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from "@/lib/payment-fee-policy";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
@@ -18,6 +19,14 @@ import { courierServiceLabel } from "@/lib/courier-names";
 import { DistrictCombobox, type DistrictOption } from "@/components/admin/DistrictCombobox";
 import { FilterSelect } from "@/components/admin/filter-bar";
 import { etaLabel } from "@/lib/rate-check";
+import {
+  CURRENT_WEIGHT_LABEL,
+  RECORDED_WEIGHT_LABEL,
+  formatGrams,
+  formatWeight,
+  quoteUnitWeightKg,
+  summarizeOrderWeight,
+} from "@/lib/weight";
 import { cn } from "@/lib/utils";
 import { groupLocationResults } from "../../lib/location-search";
 import {
@@ -48,6 +57,8 @@ type OrderItem = {
   variant_title: string | null;
   variant_sku: string | null;
   variant_compare_price?: number | null;
+  weight_grams?: number | null;
+  weight_recorded?: boolean;
   product_title: string | null;
 };
 
@@ -105,6 +116,8 @@ type Order = {
   payment_method: string;
   payment_status: string;
   shipping_status: string;
+  /** Set once the order is void; see `isVoidOrder`. */
+  stock_restored_at?: string | null;
   confirmed_at: string | null;
   courier_code: string | null;
   courier_service: string | null;
@@ -296,9 +309,20 @@ function EditCustomerDialog({
     const params = new URLSearchParams({
       destination_id: formData.destination_area_id,
       payment_method: order.payment_method || "cod",
-      variant_id: String(firstItem?.variant_id || 1),
       quantity: String(firstItem?.quantity || 1),
     });
+    // The weight recorded on the order line, not the variant's current one:
+    // the save re-quotes and dispatch ships at this weight (A-397). Sent in kg,
+    // which the rate route reads as kg up to 100 kg a unit.
+    // lazy: a unit over 100 kg would be read as grams; the save caps variants
+    // at 50 kg (A-398). Upgrade path: an explicit unit on the rate route.
+    const unitWeightKg = quoteUnitWeightKg(firstItem.weight_grams);
+    if (unitWeightKg === null) params.set("variant_id", String(firstItem.variant_id || 1));
+    else params.set("weight", String(unitWeightKg));
+    // The same warehouse the save re-quotes from (PRD A42, REQ-241): the
+    // order's own while it is active, else the one chosen by province.
+    if (order.warehouse_id) params.set("warehouse_id", String(order.warehouse_id));
+    if (formData.province) params.set("province", formData.province);
     setRatesLoading(true);
     void fetch(`/api/shipping-rates?${params}`, {
       headers: { Accept: "application/json" },
@@ -338,7 +362,9 @@ function EditCustomerDialog({
   }, [
     firstItem,
     formData.destination_area_id,
+    formData.province,
     open,
+    order.warehouse_id,
     order.courier_code,
     order.courier_service,
     courierEditable,
@@ -789,7 +815,6 @@ export function OrderDetail({ invoice }: { invoice: string }) {
   const [crmTemplates, setCrmTemplates] = useState({ ...defaultCrmTemplates });
   const [crmSellerName, setCrmSellerName] = useState("");
   const [crmBankAccounts, setCrmBankAccounts] = useState("");
-  const [clickedSteps, setClickedSteps] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1232,6 +1257,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
       : ["processing", "shipped", "delivered", "returned", "cancelled"];
 
   const items = Array.isArray(order.items) ? order.items : [];
+  const weight = summarizeOrderWeight(items);
   const formattedAddress = [
     order.address,
     order.district,
@@ -1446,7 +1472,9 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                   Rincian item produk belum tersedia.
                 </div>
               ) : (
-                items.map((item) => (
+                items.map((item, index) => {
+                  const itemWeight = weight.items[index];
+                  return (
                   <div key={item.id} className="p-4 sm:p-5 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
                     <div className="min-w-0">
                       <h3 className="font-semibold text-sm text-slate-950 truncate">
@@ -1455,6 +1483,20 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                       <p className="mt-0.5 text-xs text-slate-500 font-medium">
                         {item.variant_title || "Standard"}
                         {item.variant_sku ? ` · SKU: ${item.variant_sku}` : ""}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        Berat:{" "}
+                        {itemWeight?.unit != null && itemWeight.line != null ? (
+                          <>
+                            {item.quantity > 1 ? `${item.quantity} x ${formatGrams(itemWeight.unit)} = ` : ""}
+                            <span className="font-semibold text-slate-700">
+                              {formatWeight(itemWeight.line)}
+                            </span>
+                            {` · ${itemWeight.recorded ? RECORDED_WEIGHT_LABEL : CURRENT_WEIGHT_LABEL}`}
+                          </>
+                        ) : (
+                          "tidak diketahui (varian sudah dihapus)"
+                        )}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
@@ -1466,7 +1508,23 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                       </p>
                     </div>
                   </div>
-                ))
+                  );
+                })
+              )}
+              {items.length > 0 && (
+                <div className="p-4 sm:px-5 bg-slate-50/50">
+                  <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+                    <span className="font-medium text-slate-600">Total berat</span>
+                    <span className="font-semibold text-slate-950">
+                      {weight.total != null ? formatWeight(weight.total) : "Tidak diketahui"}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {weight.recorded
+                      ? "Berat saat order, dipakai saat kirim ke Mengantar."
+                      : "Berat varian saat ini, dipakai saat kirim ke Mengantar."}
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1598,8 +1656,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
               {order.payment_method === "manual_transfer" &&
                 !paymentPaid &&
                 !paymentFailed &&
-                !paymentRefunded &&
-                paymentStatus !== "cancelled" && (
+                !isVoidOrder(order) && (
                   <Button
                     type="button"
                     onClick={() => void confirmManualTransfer()}
@@ -1758,9 +1815,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
             <CardContent className="p-4 sm:p-5">
               <CrmActionGroup
                 crmUrls={allCrmUrls}
-                clickedSteps={clickedSteps}
-                onStepClick={(stepKey) => setClickedSteps((current) => ({ ...current, [stepKey]: true }))}
-                size="md"
+                orderId={order.id}
               />
               <div className="mt-4 border-t border-slate-100 pt-4">
                 <p className="mb-2 text-xs text-slate-500">

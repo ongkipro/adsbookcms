@@ -23,6 +23,7 @@ type QuoteResolver = (input: {
   warehouseId?: number;
   destinationProvince?: string;
   warehouseOnly?: boolean;
+  noPrimaryFallback?: boolean;
 }) => Promise<{
   rates: Array<{
     courier_code: string;
@@ -85,6 +86,9 @@ export async function resolveTrustedHeadlessShipping(
     variantKey: data.variant_id,
     quantity: data.quantity,
     warehouseId,
+    // Nothing here compares a submitted shipping cost, so a quote must never
+    // move to the primary behind the buyer's back.
+    noPrimaryFallback: true,
   };
   // With no `warehouse_id` echoed, checkout cannot tell whether the rate call
   // carried `city` (warehouse chosen by province) or not (primary). Ask which

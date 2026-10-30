@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-30 @ `7f59daf` + A37 backend working tree (Entries 185–188; earlier entries retain their historical evidence)
+> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (Entries 191–192; earlier entries retain their historical evidence)
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -7131,4 +7131,20 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
 - Demo smoke after restart: 17 pages 200 with every island asset served;
   admin order APIs 200; expected refusals 400/401/404/409; a COD re-quote on
   INV-10013 (JNE→J&T) still recomputes the COD total; no console errors.
+### Entry 192: A failing branch warehouse rotates the quote to the primary (A-444)
 
+- Paduka asked that the main warehouse be the default, and that a quote whose
+  other warehouse errors go to the main one. A42 already fell back to the
+  primary when no warehouse covered the buyer, but a covering branch whose
+  Mengantar rate call failed ended a prepaid checkout and sent COD to the city
+  average from that same failing origin.
+- `resolveEligibleShippingRates` now re-quotes once from the primary when the
+  chosen non-primary warehouse fails or returns no usable rate; the order stores
+  the primary. Headless checkout opts out to stay fail-closed (it compares no
+  submitted price). ADR-032 amended, PRD REQ-270, TASKS A-444.
+- Numbering: renumbered from 191 when PR #103 (Entry 191) merged first.
+- Independent review: one medium (an admin re-quote with the order's own
+  warehouse was swapped to the primary at save, unseen by the operator and
+  against REQ-241) — a named warehouse is now never swapped; three lows fixed.
+- Verification: `npm test` 1049 pass / 0 fail, `npm run check` 0 errors,
+  `npm run build` complete, mutation-checked (TASKS A-444).

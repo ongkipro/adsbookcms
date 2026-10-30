@@ -1,6 +1,6 @@
 # Mengantar Integration — Technical Contract and Gap Register
 
-> Verified against disk: 2026-10-29 @ A-419 integration (`feat/a35-a40-analytics-fit`)
+> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (§3 warehouse origin; other sections retain their recorded evidence)
 
 This document is the technical source of truth for AdsBookCMS behavior at the Mengantar boundary. It separates repository-observed transport code, locally verified application behavior, operator-gated live mutations, and provider contracts that remain unknown.
 
@@ -63,9 +63,12 @@ The local district index improves public search relevance; it is not a replaceme
 warehouses, each with its own Mengantar `origin_area_id` (a precise
 sub-district) and its own `pickup_address_id` registered through `POST /address`
 (`ensurePickupAddress`). A warehouse missing either is "not ready" and is never
-chosen. Each quote sends `/order/estimate` exactly one `origin_id`: the chosen
+chosen. Each quote sends `/order/estimate` one `origin_id`: the chosen
 warehouse's — the active, ready one serving the buyer's province, else one on
-the same island group, else the primary. The order stores that warehouse's id;
+the same island group, else the primary. When a non-primary warehouse's
+estimate fails or returns no usable rate, the quote sends one more estimate
+from the primary and uses it (REQ-270, ADR-032 amendment); a warehouse named
+by `warehouse_id` and headless checkout do not. The order stores the warehouse that quoted;
 dispatch sends `POST /order` the pickup address of `orders.warehouse_id`, and
 `/time` schedules pickups per warehouse. No extra provider call is made to
 choose, and a store with one warehouse sends the same origin and pickup as

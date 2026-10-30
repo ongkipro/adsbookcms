@@ -1,6 +1,6 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-10-30 @ `7f59daf` + A37 backend working tree (A37 measurements and cache boundary; other sections retain their recorded evidence)
+> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (A42 REQ-270; other sections retain their recorded evidence)
 
 ## A43 — Resolve kecamatan to Mengantar areas without calling Mengantar
 
@@ -140,6 +140,21 @@ choosing one by the buyer's location.
   orders and dispatches to today's, proven by tests run before and after.
 - **REQ-248** — A warehouse with orders cannot be deleted, only made inactive;
   the primary cannot be made inactive.
+- **REQ-270** (Must, unwanted; added 2026-10-30 at Paduka's request) — If the
+  chosen warehouse is not the primary and its Mengantar rate call fails or
+  returns no usable rate, then the quote shall be re-made once from the primary
+  (the store's default warehouse), and the order shall record the primary as
+  its warehouse. The primary is never retried; when it has no rate either, the
+  branch's own error surfaces as before (a COD quote with a city takes the
+  city average from the primary). Only a warehouse the quote *chose* is
+  swapped: a named one (`warehouseId` — the admin re-quote and its preview,
+  REQ-241) fails instead, because the admin save compares no price with its
+  preview. Headless checkout, which compares no submitted shipping cost,
+  opts out and fails closed.
+  - Acceptance: Given a Surabaya branch whose rate call fails, When a Surabaya
+    buyer is quoted, Then the rates and `warehouse` are the primary's, a
+    `shipping-quote-primary-fallback` warning names both ids, and submitting
+    the shown price is accepted.
 
 ### Technical decisions
 

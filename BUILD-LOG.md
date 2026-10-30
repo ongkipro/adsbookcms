@@ -7401,3 +7401,36 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   notes (stale since 0066, audit M-10) do not yet describe 0067–0076.
 - Verification: `npm test` 1090 pass / 0 fail, `npm run check` 0 errors /
   0 hints (548 files).
+### Entry 203: Analitik and mobile polish; browser Purchase gated on server state
+
+- **Tracking (audit 2026-10-31 tracking H-1, L-2, L-6).** `/thanks` opened in
+  a fresh tab had empty `sessionStorage` and defaulted to COD, so unpaid
+  QRIS/VA and cancelled orders fired a Purchase to the Pixel, Google Ads and
+  GTM, and Google got no `transaction_id`. `MetaThanksTracker` now takes the
+  method and state from `/api/order-status` (void → nothing, unpaid prepaid →
+  nothing) and uses the server's `INV-` number as `transaction_id`;
+  `isMetaPurchaseOrderEligible` accepts `settled` and `success` as paid.
+  `meta-purchase-dedup.test.ts` runs the real tracker for a fresh tab
+  (mutation-checked). TRACKING_SPECS §2, §15 item 8 and §16.1 corrected.
+- **Analitik.** `--chart-1` was the shadcn default grey (13% contrast), so the
+  trend line and the purchase-time heatmap were barely visible; the chart
+  tokens are now blue-led (light and dark). Phones fold every filter but the
+  period behind "Filter (n)"; the two-line period/disclaimer block is one
+  line that still names Asia/Jakarta; KPI figures no longer break mid-number;
+  empty totals read "–".
+- **Order list on phones.** The card was ~640 px: a framed RTS block with bar
+  and guidance, a grey info grid, a "WhatsApp CRM" label, a full-width
+  "pilih untuk aksi bulk" box and a separate actions row. It is now ~346 px:
+  checkbox, invoice, actions in one header; a compact RTS pill on the date
+  line; customer, goods/total and delivery/courier as plain lines; the chips.
+  Filters other than search fold behind "Filter (n)". Page height for 12
+  orders 8,809 → 4,909 px; first card at 751 px (was 929).
+- **Products on phones.** Product names wrap to two lines instead of
+  truncating beside the status badge and toggle.
+- **Mobile sweep.** 30 admin pages at 390 px: HTTP 200, no horizontal
+  overflow, no clipped control, no page error (headless Chromium).
+- **Docs.** RELEASE.md migration notes 0067–0076 (0071 and 0075 read/write
+  every order on first request) and schema 77 (audit M-10); the open audit
+  findings are rows in UNIMPLEMENTED_SPECS §1.
+- Verification: `npm test` 1091 pass / 0 fail, `npm run check` 0 errors /
+  0 hints, `npm run build` complete.

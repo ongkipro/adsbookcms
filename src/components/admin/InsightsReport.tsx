@@ -57,6 +57,8 @@ export function InsightsReport({ report, initialQuery = '', sources = [], produc
   const [status, setStatus] = useState(0);
   const [retry, setRetry] = useState(0);
   const [metric, setMetric] = useState<'orders' | 'leads' | 'revenue'>('revenue');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilters = [channel, source, product].filter(Boolean).length;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -123,12 +125,19 @@ export function InsightsReport({ report, initialQuery = '', sources = [], produc
     <div className={sectionClass}>
       <FilterBar>
         <FilterField label="Periode · WIB" size="lg"><AdminDateRangeFilter value={date} onChange={setDate} maxCustomRangeDays={INSIGHTS_MAX_RANGE_DAYS} hiddenPresets={['all', '180d']} /></FilterField>
+        {/* Phones: the period stays, the rest folds behind "Filter" so the
+            report starts on the first screen; `contents` keeps them flex items. */}
+        {report !== 'landing' && <Button type="button" variant="outline" className="md:hidden" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(!filtersOpen)}>
+          <Filter aria-hidden="true" />Filter{activeFilters ? ` (${activeFilters})` : ''}
+        </Button>}
+        <div className={cn('contents', !filtersOpen && 'max-md:hidden')}>
         {report !== 'landing' && <FilterField label="Kanal" htmlFor="insights-channel"><FilterSelect id="insights-channel" icon={Filter} value={channel} options={INSIGHTS_CHANNEL_OPTIONS} onValueChange={setChannel} /></FilterField>}
         {report === 'trend' && <>
           <FilterField label="Halaman" htmlFor="insights-source"><FilterSelect id="insights-source" icon={ChartNoAxesCombined} value={source} options={sourceOptions} onValueChange={(value) => { setSource(value); setProduct(''); }} /></FilterField>
           <FilterField label="Produk" htmlFor="insights-product"><FilterSelect id="insights-product" icon={Package} value={product} options={productOptions} onValueChange={(value) => { setProduct(value); setSource(''); }} /></FilterField>
           <FilterField label="Slug historis (opsional)" htmlFor="insights-slug" size="lg"><SearchInput id="insights-slug" value={source === SOURCE_SLUG_NONE_FILTER ? '' : source} onValueChange={(value) => { setSource(value.trim()); setProduct(''); }} placeholder="Contoh: promo-kopi" /></FilterField>
         </>}
+        </div>
         <Button onClick={apply} disabled={busy}>Terapkan</Button><Button variant="outline" onClick={reset}>Reset</Button>
       </FilterBar>
     </div>
@@ -136,8 +145,9 @@ export function InsightsReport({ report, initialQuery = '', sources = [], produc
       Filter aktif: {source ? `Halaman ${sourceOptions.find((item) => item.value === source)?.label ?? source}` : `Produk ${productOptions.find((item) => item.value === product)?.label ?? product}`}
       <Button variant="outline" onClick={() => { setSource(''); setProduct(''); const params = new URLSearchParams(query); params.delete('source'); params.delete('product_id'); changeQuery(params); }}>Hapus filter</Button>
     </p>}
-    <p className="text-sm" aria-live="polite">Periode diterapkan: {appliedDate.start || '—'} – {appliedDate.end || '—'}</p>
-    <p className="text-xs text-muted-foreground">Asia/Jakarta (WIB) · Maksimal {INSIGHTS_MAX_RANGE_DAYS} hari · Sumber pesanan lama mungkin tidak tercatat. Tidak ada data kunjungan; closing rate bukan konversi pengunjung.</p>
+    <p className="text-xs text-muted-foreground" aria-live="polite">
+      <span className="font-medium text-foreground">{appliedDate.start || '—'} – {appliedDate.end || '—'}</span> · Asia/Jakarta (WIB) · dari data pesanan, bukan kunjungan; sumber pesanan lama bisa tidak tercatat.
+    </p>
     {busy ? <Loading /> : error ? <div role="alert" className={sectionClass}>
       <h3 className="text-base font-semibold">{status === 403 ? 'Akses laporan ditolak' : status === 401 ? 'Sesi berakhir' : 'Laporan belum dapat dimuat'}</h3>
       <p className="my-3 text-sm">{error}</p>
@@ -271,7 +281,7 @@ function TrendView({ data, metric, setMetric }: { data: Trend; metric: 'orders' 
   const format = metric === 'revenue' ? money : number;
   return <section className={sectionClass}>
     <FilterBar><FilterField label="Metrik" htmlFor="trend-metric"><FilterSelect id="trend-metric" icon={ChartNoAxesCombined} value={metric} options={Object.entries(metricLabels).map(([value, label]) => ({ value: value as typeof metric, label }))} onValueChange={setMetric} /></FilterField></FilterBar>
-    <div className="my-4 grid grid-cols-2 gap-4"><div><p className="text-xs text-muted-foreground">Periode terpilih</p><p className="break-words text-2xl font-semibold tabular-nums">{format(data.total[metric])}</p></div><div><p className="text-xs text-muted-foreground">Sebelumnya · {data.previous.start} – {data.previous.end}</p><p className="break-words text-2xl font-semibold tabular-nums">{format(data.previous[metric])}</p></div></div>
+    <div className="my-4 grid grid-cols-2 gap-4"><div><p className="text-xs text-muted-foreground">Periode terpilih</p><p className="whitespace-nowrap text-xl font-semibold tabular-nums sm:text-2xl">{format(data.total[metric])}</p></div><div><p className="text-xs text-muted-foreground">Sebelumnya · {data.previous.start} – {data.previous.end}</p><p className="whitespace-nowrap text-xl font-semibold tabular-nums sm:text-2xl">{format(data.previous[metric])}</p></div></div>
     {data.total.orders + data.total.leads === 0 && <p className="mb-3 text-sm">Tidak ada pesanan atau lead pada periode ini.</p>}
     <figure><Suspense fallback={<Skeleton className="h-64 w-full" />}><Chart series={data.series} metric={metric} /></Suspense><figcaption className="mt-2 text-xs text-muted-foreground">{metricLabels[metric]} per hari · WIB. Hari tanpa data ditampilkan nol. Omset bukan konfirmasi pembayaran.</figcaption></figure>
     <details className="mt-4"><summary className="cursor-pointer py-2 text-sm">Lihat data harian</summary><Table><TableHeader><TableRow><TableHead>Tanggal</TableHead><TableHead>Pesanan</TableHead><TableHead>Lead</TableHead><TableHead>Omset</TableHead></TableRow></TableHeader><TableBody>{data.series.map((day) => <TableRow key={day.date}><TableCell>{day.date}</TableCell><TableCell>{number(day.orders)}</TableCell><TableCell>{number(day.leads)}</TableCell><TableCell>{money(day.revenue)}</TableCell></TableRow>)}</TableBody></Table></details>
@@ -332,7 +342,7 @@ function TimesView({ data }: { data: Times }) {
           })}
           <TableCell className={cn(numCell, 'py-1 font-medium', !total && 'text-muted-foreground')}>{total ? number(total) : '–'}</TableCell>
         </TableRow>)}
-        <TableRow className="border-t border-border"><TableCell className={cn(pinned, "px-3 py-1 font-medium")}>Total</TableCell>{dayTotals.map((total, weekday) => <TableCell key={WEEKDAYS[weekday]} className={cn(cellCls, 'font-medium')}>{number(total)}</TableCell>)}<TableCell className={cn(numCell, 'py-1 font-semibold')}>{number(data.total)}</TableCell></TableRow>
+        <TableRow className="border-t border-border"><TableCell className={cn(pinned, "px-3 py-1 font-medium")}>Total</TableCell>{dayTotals.map((total, weekday) => <TableCell key={WEEKDAYS[weekday]} className={cn(cellCls, 'font-medium', !total && 'text-muted-foreground')}>{total ? number(total) : '–'}</TableCell>)}<TableCell className={cn(numCell, 'py-1 font-semibold')}>{number(data.total)}</TableCell></TableRow>
       </TableBody>
     </Table></div>
   </section>;

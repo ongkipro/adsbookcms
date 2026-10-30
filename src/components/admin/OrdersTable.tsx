@@ -60,6 +60,7 @@ import {
   ChevronDown,
   Eye,
   Truck,
+  Filter,
   Trash2,
   AlertCircle,
   CheckCircle2,
@@ -445,9 +446,12 @@ const crmSteps = ["welcome", "1", "2", "3", "4", "5", "6", "7", "8", "9"] as con
 function RiskBadge({
   level,
   deliveryRate,
+  compact = false,
 }: {
   level?: RiskLevel | string | null;
   deliveryRate?: number | null;
+  /** One small pill for the phone card; the guidance moves to its title. */
+  compact?: boolean;
 }) {
   const safeLevel: RiskLevel =
     level === "HIGH" || level === "MEDIUM" || level === "LOW" ? level : "UNKNOWN";
@@ -480,6 +484,17 @@ function RiskBadge({
 
   const hasValidRate =
     typeof deliveryRate === "number" && Number.isFinite(deliveryRate) && deliveryRate >= 0;
+
+  if (compact) {
+    return (
+      <span
+        title={styles.guidance}
+        className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-semibold ${styles.badge}`}
+      >
+        RTS {styles.label}{hasValidRate ? ` · ${deliveryRate}%` : ""}
+      </span>
+    );
+  }
 
   return (
     <div
@@ -638,6 +653,7 @@ export function OrdersTable({
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [dispatching, setDispatching] = useState(false);
   const [pushIds, setPushIds] = useState<string[] | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [bulkStatusTarget, setBulkStatusTarget] = useState("");
   const [statusCounts, setStatusCounts] = useState<StatusCounts>({
@@ -766,6 +782,13 @@ export function OrdersTable({
     pagination.totalItems === 0
       ? 0
       : firstVisibleOrder + filteredOrders.length - 1;
+  const activeFilterCount = [
+    dateSelection.filter !== "all",
+    shippingFilter !== "all",
+    paymentFilter !== "all",
+    sourceFilter !== "all",
+    sourceSlugFilter !== "all",
+  ].filter(Boolean).length;
   const hasFilters =
     searchTerm.trim() !== "" ||
     dateSelection.filter !== "all" ||
@@ -1282,6 +1305,12 @@ export function OrdersTable({
                 }}
               />
             </FilterField>
+            {/* Phones: search stays, the rest folds behind "Filter" so the first
+                order shows on the first screen; `contents` keeps them flex items. */}
+            <Button type="button" variant="outline" className="md:hidden" aria-expanded={filtersOpen} onClick={() => setFiltersOpen(!filtersOpen)}>
+              <Filter aria-hidden="true" />Filter{activeFilterCount ? ` (${activeFilterCount})` : ""}
+            </Button>
+            <div className={filtersOpen ? "contents" : "contents max-md:hidden"}>
             <FilterField label="Periode order" htmlFor="filter-date" size="sm">
               <AdminDateRangeFilter
                 value={dateSelection}
@@ -1348,6 +1377,7 @@ export function OrdersTable({
                 ]}
               />
             </FilterField>
+            </div>
             <Button variant="outline" onClick={resetFilters} disabled={!hasFilters}>
               <RotateCcw aria-hidden="true" /> Reset
             </Button>
@@ -1383,94 +1413,15 @@ export function OrdersTable({
             {filteredOrders.map((order) => {
               const selected = selectedOrderIds.includes(order.id);
               return (
+              // Phone card (Paduka, 2026-10-31): one header row with the
+              // selector, invoice and RTS pill; two plain lines for goods and
+              // delivery; the follow-up chips; actions in the header. It was
+              // ~640 px per order.
               <article
                 key={order.id}
-                className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-colors"
+                className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs transition-colors"
               >
-
-
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <a
-                      href={`/admin/orders/${encodeURIComponent(order.orderNumber)}`}
-                      className="break-all font-semibold text-slate-950 hover:text-blue-600 hover:underline"
-                    >
-                      <HighlightSearchMatch
-                        text={order.orderNumber}
-                        query={searchTerm}
-                      />
-                    </a>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {formatDateTime(order.createdAt)}
-                    </p>
-                    <OrderPaymentLine order={order} className="mt-2" />
-                    <OrderSourceLine order={order} className="mt-1" />
-                  </div>
-                  <RiskBadge
-                    level={order.receiverRiskLabel}
-                    deliveryRate={order.receiverDeliveryRate}
-                  />
-                </div>
-                    <div className="mt-4 border-t border-slate-100 pt-4">
-                  <a
-                    href={`/admin/orders/${encodeURIComponent(order.orderNumber)}`}
-                    className="break-words font-semibold text-slate-900 hover:underline"
-                  >
-                    {order.customerName}
-                  </a>
-                  <p className="mt-1 font-mono text-xs text-slate-500">
-                    {order.customerPhone}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {[order.district, order.city, order.province]
-                      .filter(Boolean)
-                      .join(", ") || "Alamat belum lengkap"}
-                  </p>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 text-xs">
-                  <div>
-                    <p className="text-slate-500">Produk & Total</p>
-                    {order.productName && (
-                      <p className="mt-1 text-xs font-semibold text-slate-900 truncate">
-                        {order.productName}
-                      </p>
-                    )}
-                    {order.variantName && (
-                      <p className="text-xs text-slate-500 truncate">
-                        {order.variantName}
-                      </p>
-                    )}
-                    <p className="mt-1 font-semibold text-slate-950 text-sm">
-                      {formatCurrency(order.totalAmount)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">Pengiriman</p>
-                    <p className={`mt-1 font-semibold ${deliveryStatus(order).tone}`}>
-                      {deliveryStatus(order).label}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-slate-500">Kurir / resi</p>
-                    <p className="mt-1 break-all font-semibold text-slate-950">
-                      {order.courierCode}
-                      {order.cnoteNo ? ` · ${order.cnoteNo}` : ""}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    WhatsApp CRM
-                  </p>
-                  {renderCrmActions(order)}
-                </div>
-                {order.providerDispatchError && (
-                  <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
-                    <p className="font-semibold mb-1">Kendala Push ke Mengantar:</p>
-                    <p>{order.providerDispatchError}</p>
-                  </div>
-                )}
-                <label className="mt-3 flex min-h-11 items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-900">
+                <div className="flex items-start gap-2.5">
                   <Checkbox
                     checked={selected}
                     onCheckedChange={(checked) =>
@@ -1481,12 +1432,24 @@ export function OrdersTable({
                       )
                     }
                     aria-label={`Pilih order ${order.orderNumber}`}
-                    className="size-5 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
+                    className="mt-0.5 size-5 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
                   />
-                  Pilih order untuk aksi bulk
-                </label>
-                <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-                  <span className="text-xs font-semibold text-slate-500">Aksi & Ekspedisi</span>
+                  <div className="min-w-0 flex-1">
+                    <a
+                      href={`/admin/orders/${encodeURIComponent(order.orderNumber)}`}
+                      className="break-all font-semibold text-slate-950 hover:text-blue-600 hover:underline"
+                    >
+                      <HighlightSearchMatch text={order.orderNumber} query={searchTerm} />
+                    </a>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-xs text-slate-400">{formatDateTime(order.createdAt)}</span>
+                      <RiskBadge level={order.receiverRiskLabel} deliveryRate={order.receiverDeliveryRate} compact />
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                      <OrderPaymentLine order={order} />
+                      <OrderSourceLine order={order} />
+                    </div>
+                  </div>
                   <OrderActionMenu
                     order={order}
                     updatingOrderId={updatingOrderId}
@@ -1497,6 +1460,37 @@ export function OrdersTable({
                     onRefreshScoring={(id) => void handleRefreshScoring(id)}
                   />
                 </div>
+
+                <div className="mt-3 border-t border-slate-100 pt-3 text-sm">
+                  <p className="flex min-w-0 items-baseline justify-between gap-2">
+                    <a href={`/admin/orders/${encodeURIComponent(order.orderNumber)}`} className="min-w-0 truncate font-semibold text-slate-900 hover:underline">
+                      {order.customerName}
+                    </a>
+                    <span className="shrink-0 font-mono text-xs text-slate-500">{order.customerPhone}</span>
+                  </p>
+                  <p className="truncate text-xs text-slate-500">
+                    {[order.district, order.city, order.province].filter(Boolean).join(", ") || "Alamat belum lengkap"}
+                  </p>
+                  <p className="mt-2 flex min-w-0 items-baseline justify-between gap-2">
+                    <span className="min-w-0 truncate text-xs text-slate-700">
+                      {[order.productName, order.variantName].filter(Boolean).join(" · ") || "Produk"}
+                    </span>
+                    <span className="shrink-0 font-semibold tabular-nums text-slate-950">{formatCurrency(order.totalAmount)}</span>
+                  </p>
+                  <p className="mt-0.5 flex min-w-0 items-baseline justify-between gap-2 text-xs">
+                    <span className={`min-w-0 truncate font-semibold ${deliveryStatus(order).tone}`}>{deliveryStatus(order).label}</span>
+                    <span className="shrink-0 font-mono text-slate-500">
+                      {order.courierCode || "—"}{order.cnoteNo ? ` · ${order.cnoteNo}` : ""}
+                    </span>
+                  </p>
+                </div>
+
+                {order.providerDispatchError && (
+                  <p className="mt-2 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs text-rose-800">
+                    <span className="font-semibold">Kendala push:</span> {order.providerDispatchError}
+                  </p>
+                )}
+                <div className="mt-3">{renderCrmActions(order)}</div>
               </article>
             ); })}
           </div>

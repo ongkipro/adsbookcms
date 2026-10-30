@@ -4,6 +4,9 @@ import { join } from "node:path";
 import { registerHooks } from "node:module";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { mkdtempSync, statSync as statPath } from "node:fs";
+import { tmpdir } from "node:os";
+import { credentialsPath, runAdsbookCli } from "./adsbook-cli.ts";
 import { hashApiKeySecret } from "./developer-api-keys.ts";
 import { validateHeadlessRequest } from "./headless-api.ts";
 import { OPS_OPERATIONS } from "./ops-api.ts";
@@ -434,4 +437,89 @@ test("REQ-254: a period is the Jakarta day of creation, as in the admin", async 
     );
   assert.deepEqual(await day("2026-10-01"), [late]);
   assert.deepEqual(await day("2026-10-02"), [next]);
+});
+
+/** The CLI over the real route handlers: `fetch` dispatches to them in-process. */
+function cli(locals: App.Locals) {
+  const home = mkdtempSync(join(tmpdir(), "adsbook-cli-"));
+  const fetchRoutes = (async (input: string | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    const url = new URL(request.url);
+    const detail = url.pathname.match(/^\/api\/ops\/v1\/orders\/([^/]+)$/);
+    const route =
+      url.pathname === "/api/ops/v1/orders" ? listRoute
+      : url.pathname === "/api/ops/v1/openapi.json" ? openApiRoute
+      : detail ? detailRoute
+      : null;
+    if (!route) return new Response("{}", { status: 404 });
+    const params = detail ? { number: decodeURIComponent(detail[1]) } : {};
+    return route({ request, url, locals, params } as unknown as Parameters<typeof listRoute>[0]);
+  }) as typeof fetch;
+  const run = async (argv: string[], secret = "") => {
+    let stdout = "";
+    let stderr = "";
+    const code = await runAdsbookCli({
+      argv,
+      home,
+      fetch: fetchRoutes,
+      stdout: (text) => (stdout += text),
+      stderr: (text) => (stderr += text),
+      readSecret: async () => secret,
+    });
+    return { code, stdout, stderr };
+  };
+  return { home, run };
+}
+
+test("REQ-260: the CLI logs in, lists and shows orders equal to the API, and never prints the key", async () => {
+  const { locals, addKey, addOrder } = store();
+  const secret = "adsbook_live_cli-secret-value";
+  await addKey(secret, "ops:orders:read");
+  addOrder({ shipping_status: "pending" });
+  addOrder({ shipping_status: "pending" });
+  addOrder({ shipping_status: "delivered" });
+  const { home, run } = cli(locals);
+  const outputs: string[] = [];
+  const record = <T extends { stdout: string; stderr: string }>(result: T) => {
+    outputs.push(result.stdout, result.stderr);
+    return result;
+  };
+
+  assert.equal(record(await run(["orders", "list"])).code, 1, "no login yet");
+  assert.equal(record(await run(["login", "--url", "http://toko.test"], secret)).code, 1, "plain http refused");
+  const wrong = record(await run(["login", "--url", "https://toko.test"], "not-a-key"));
+  assert.equal(wrong.code, 1);
+  assert.match(wrong.stderr, /401/);
+  assert.throws(() => statPath(credentialsPath(home)), "a refused key is not stored");
+
+  const login = record(await run(["login", "--url", "toko.test/admin"], `${secret}\n`));
+  assert.equal(login.code, 0, login.stderr);
+  assert.equal(statPath(credentialsPath(home)).mode & 0o777, 0o600);
+  assert.equal(JSON.parse(readFileSync(credentialsPath(home), "utf8")).url, "https://toko.test");
+
+  const list = record(await run(["orders", "list", "--json", "--status", "pending"]));
+  assert.equal(list.code, 0, list.stderr);
+  const api = await call(listRoute, locals, "/api/ops/v1/orders?status=pending", secret);
+  assert.deepEqual(JSON.parse(list.stdout), api.body.data);
+  assert.equal(JSON.parse(list.stdout).length, 2);
+
+  const paged = record(await run(["orders", "list", "--limit", "1"]));
+  assert.match(paged.stdout, /^NOMOR/);
+  assert.match(paged.stdout, /2026-10-01 07:00 WIB/, "times read in the store's day, not UTC");
+  assert.match(paged.stderr, /--cursor \S+/);
+
+  const number = api.body.data[0].number as string;
+  const show = record(await run(["orders", "show", number.toLowerCase(), "--json"]));
+  const detail = await call(detailRoute, locals, `/api/ops/v1/orders/${number}`, secret, { number });
+  assert.deepEqual(JSON.parse(show.stdout), detail.body.data);
+  assert.match(record(await run(["orders", "show", number])).stdout, /Total\s+120\.000/);
+  const missing = record(await run(["orders", "show", "INV-99999"]));
+  assert.equal(missing.code, 1);
+  assert.match(missing.stderr, /404 \[ORDER_NOT_FOUND\]/);
+  assert.equal(record(await run(["orders", "list", "--limit", "500"])).code, 1);
+
+  for (const text of outputs) assert.ok(!text.includes(secret), "the key reached stdout or stderr");
+
+  assert.equal((await run(["logout"])).code, 0);
+  assert.throws(() => statPath(credentialsPath(home)));
 });

@@ -4166,7 +4166,8 @@ report query.
   -> REQ: REQ-255 · deps: [A-423, A-425] · Done when: a test reads a fixture
   order and its totals equal the admin GET's; unknown number is 404 with an
   audit row.
-- [ ] **A-428** — `adsbook` CLI (`scripts/adsbook.ts`, `npm run adsbook --`):
+- [x] **A-428** — **Done locally 2026-10-30.** Logic in `src/lib/adsbook-cli.ts`, entry `scripts/adsbook.ts`, contract in `docs/OPS-API.md` §5. The test drives the CLI through the real route handlers: `--json` equals the API page and detail, the file is 0600, a 401 key is not stored, no output carries the key (mutation-checked for the mode and a leak). The entry was smoke-run through `npm run -s adsbook` with a piped key, and the hidden prompt inside a pseudo-terminal (`script`): the key was not echoed.
+  `adsbook` CLI (`scripts/adsbook.ts`, `npm run adsbook --`):
   `login`, `logout`, `orders list|show`, `--json`; credentials at
   `~/.config/adsbook/credentials.json` mode 0600; plain `fetch`.
   -> REQ: REQ-260 · deps: [A-426, A-427] · Done when: a test runs the CLI

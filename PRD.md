@@ -1346,6 +1346,365 @@ triggered by follow-up writes. Advertisers cannot read/write order follow-up.
   sent keeps its event id (the order number), so the paid Purchase that
   follows deduplicates against it.
 
+## A45 — Operations API and `adsbook` CLI, beside the storefront headless API
+
+**Status:** Accepted 2026-10-30 (Paduka: "lanjutkan development task yang
+belum"). Revised the same day: the storefront headless API stays (Paduka:
+"headless tidak perlu di hapus"), so A45 adds an operations API beside it and
+retires nothing; A-432 and A-433 are cancelled. Supersedes the A36 non-goal
+"UTM campaign reports".
+
+### Overview
+
+Operators, the owner's own systems (Kelola, scripts), AI agents and named third
+parties need to read and act on a store's orders without a browser session.
+Today the only machine surface is `/api/v1`, built for a headless storefront
+(catalogue, quote, checkout, tracking, token-scoped order status). Its
+foundation — hashed per-install keys (`developer_api_keys`), scopes, per-key
+rate limit and daily quota, and a D1 audit trail (`headless_api_audit_events`,
+`developer_api_key_usage`) — is reusable; its endpoints serve a storefront,
+not operations.
+
+A45 builds an operations API on that foundation under its own prefix,
+`/api/ops/v1`, with its own `ops:` scopes, and leaves the storefront contract
+(`STOREFRONT_INTEGRATION.md` §4) as it is, plus an `adsbook` CLI in this repository that is a thin
+client of the same API. It also turns the UTM tags every order already stores
+(`orders.ad_click_ids`, TRACKING_SPECS §3) into a campaign report and a link
+builder.
+
+The same CLI carries the native Astro landing page workflow
+(`docs/LANDING-PAGES.md`, `docs/NATIVE_LANDING_PAGE_SPEC.md`) into the install
+repository where those pages are written: `adsbook lp new` scaffolds a page that
+passes the suite on its first build, and `adsbook lp check` decides every item
+of the spec's checklist a machine can decide, asking the store over the API
+whether the product is live and the slug is free. Building and deploying stay
+the install's own release path; the CLI never does either.
+
+### Users and current workaround
+
+| Role | Job to be done | Current workaround |
+| --- | --- | --- |
+| Owner / operator | Check and act on orders from a terminal or script | Admin pages only, one order at a time |
+| Owner's systems (Kelola, scripts) | Pull new or changed orders; react to paid/shipped | Kelola gets a one-shot push at creation; nothing else |
+| AI agent (Claude, Codex) | Answer "which orders are stuck", act on request | Scrapes nothing; asks the operator |
+| Third party (agency, partner) | Read orders and campaign results for one store | Screenshots and spreadsheets from the owner |
+| Advertiser role | Compare campaigns by UTM | Channel split only (REQ-203); no campaign level |
+| Developer / AI terminal in an install repo | Ship a native landing page that sells one product | Copies `contoh-landing.astro` by hand, reads the spec's checklist, checks `/admin/landing-pages` for the slug by eye |
+
+### Goals
+
+- Every order an operator can see in admin is readable by a key with the
+  matching scope, with its attribution (source slug, traffic source, UTM).
+- An order action taken through the API or CLI obeys exactly the rules the
+  admin page obeys, because it calls the same code.
+- A campaign's orders, revenue and closing rate are visible per UTM tag, and
+  links carrying those tags are built consistently.
+- A storefront key never reads or acts on operations data, and an operations
+  key never reaches a storefront route, whatever the key's age.
+- A native landing page starts from a scaffold that already obeys the tracking,
+  catalogue-identity and form-mode invariants, is checked against the live
+  store before it ships, and survives every install update.
+
+### Success measure
+
+Read once A45's v1 milestone ships on one live install:
+- the owner's Kelola/script integration pulls orders through `updated_since`
+  instead of relying on the creation push alone;
+- the UTM report attributes ≥ 90% of orders that carry any `utm_campaign`
+  to a named campaign row (the rest are malformed tags, reported as such);
+- the next native landing page built in an install passes `npm test`,
+  `npm run check` and `npm run build` with no edit to scaffold-generated
+  structure, and `adsbook lp check` reports no failure before its deploy.
+
+### Non-goals
+
+- A buyer-facing or storefront API. Checkout stays the install's own forms.
+- Multi-store keys or a cross-install fleet API: one key belongs to one install
+  (1 installer = 1 Worker = 1 store).
+- OAuth, per-user tokens or a developer portal. Keys are issued by the owner in
+  admin.
+- Product, page or settings writes through the API.
+- A published npm package for the CLI (in-repo first; revisit if a third party
+  needs it).
+- Visit counts or conversion rate against sessions (PRD A37 deferral stands).
+- Changing how UTM tags are captured or merged (TRACKING_SPECS §3 owns that).
+- The CLI building, previewing on a live store, or deploying a landing page,
+  or writing a landing page through the API. A native page is application code
+  released from the install repository (NATIVE_LANDING_PAGE_SPEC §7).
+- Generating landing page copy, claims or imagery. The scaffold writes the
+  structure; the sections and their evidence are the author's.
+- Converting a CMS landing page into a native one, or the reverse.
+
+### Core features
+
+| Feature | Priority | Requirements |
+| --- | --- | --- |
+| Key foundation: explicit scopes, PII split, audit, quotas | Must | REQ-251, REQ-252, REQ-253, REQ-265 |
+| Orders read: list, sync, detail, attribution | Must | REQ-254, REQ-255, REQ-256 |
+| `adsbook` CLI (read) | Must | REQ-260 |
+| UTM campaign report | Must | REQ-261 |
+| Storefront headless API stays, isolated by scope | Must | REQ-263 |
+| Contract document and OpenAPI | Must | REQ-264 |
+| Order actions (v2) | Must (v2) | REQ-257 |
+| Reports read | Should | REQ-258 |
+| UTM link builder | Should | REQ-262 |
+| Outbound signed webhooks | Should | REQ-259 |
+| Native landing page survives install updates | Must | REQ-269 |
+| Catalogue read for tooling | Should | REQ-268 |
+| `adsbook lp check` | Should | REQ-267 |
+| `adsbook lp new` | Should | REQ-266 |
+
+### Requirements
+
+- **REQ-251** (Must, ubiquitous) — The system shall serve the operations API
+  under `/api/v1`, authenticated by `Authorization: Bearer <key>` against
+  `developer_api_keys`, every route registered in one operation table with one
+  minimum scope, and every call recorded in the existing audit and usage
+  tables with the key id as actor.
+  - Acceptance: Given a revoked, malformed or absent key, When any operations
+    route is called, Then it answers 401 (no audit row: no key is identified,
+    and the audit table references a key); Given a valid key without the
+    route's scope, Then 403 and an audit row. Operations calls are
+    server-to-server: no CORS headers, no storefront origin allowlist.
+- **REQ-252** (Must, unwanted) — If a key was issued without an explicit scope
+  list, then it shall keep the storefront scopes it always had and the system
+  shall grant it no operations scope. New keys shall name their scopes. The
+  operations scopes are namespaced so they never collide with the storefront's
+  own `orders:read` and `catalog:read`: `ops:orders:read`,
+  `ops:orders:read_pii`, `ops:orders:write`, `ops:shipping:write`,
+  `ops:reports:read`, `ops:catalog:read`.
+  - Acceptance: Given a key created before A45 with a null scope list, When it
+    calls `GET /api/ops/v1/orders`, Then 403, and its storefront routes still
+    answer.
+- **REQ-253** (Must, state) — While a key lacks `ops:orders:read_pii`, the system
+  shall omit buyer name, phone, email and street address from every order it
+  returns (city, district and province remain).
+  - Acceptance: Given a key with `ops:orders:read` only, When it reads an order,
+    Then the payload has no `customer_name`, `customer_phone`, `customer_email`
+    or `address` field.
+- **REQ-254** (Must, event) — When a key with `ops:orders:read` lists orders, the
+  system shall return orders (never abandoned leads unless asked by `kind`)
+  filtered by status, payment method/status, period (the admin period rules),
+  source slug and UTM campaign, ordered and paged by an opaque cursor, at most
+  100 per page, and by `updated_since` for incremental sync. Orders gain an
+  `updated_at` maintained on every write path.
+  - Acceptance: Given 250 orders, When a client pages with the returned cursor,
+    Then it receives each order exactly once; Given an order edited after
+    `t`, When listed with `updated_since=t`, Then it is included.
+- **REQ-255** (Must, event) — When a key with `ops:orders:read` reads one order by
+  its number, the system shall return the order, its items with recorded weight
+  and unit price, payment (method, status, channel, amounts, instruction state),
+  shipping (courier, service, resi, provider status) and the
+  `payment_switched_*` record; 404 for an unknown number.
+  - Acceptance: Given INV-10014, When read, Then totals equal the admin order
+    page's totals for the same order.
+- **REQ-256** (Must, ubiquitous) — Every order the API returns shall carry its
+  attribution: `source_slug`, the traffic source type the admin badge shows,
+  and the five UTM tags as stored; click-id values only with
+  `ops:orders:read_pii`.
+  - Acceptance: Given an order stored with `utm_campaign=promo-okt` and a
+    `gclid`, When read with `ops:orders:read`, Then `utm.campaign` is `promo-okt`
+    and no `gclid` value is present.
+- **REQ-257** (Must, v2, event) — When a key with `ops:orders:write` (or
+  `ops:shipping:write` for dispatch and pickup) requests an order action — confirm,
+  change shipping status, cancel, switch COD payment (REQ-250), mark a manual
+  transfer received, dispatch to Mengantar — the system shall run the same
+  library function the admin page runs (`order-lifecycle.ts`,
+  `payment-switch.ts`, `mengantar-dispatch.ts`, the manual-transfer path that
+  sends the Meta Purchase), require an `Idempotency-Key` header, and answer a
+  repeated key with the first result without acting twice.
+  - Acceptance: Given the same dispatch request sent twice with one
+    `Idempotency-Key`, Then Mengantar is called once and both responses carry
+    the same result.
+- **REQ-258** (Should, event) — When a key with `ops:reports:read` asks for a
+  report, the system shall return the Analitik aggregates (summary, landing,
+  products, locations, times, UTM) for a period, aggregates only, using the
+  same order definition (`orderRowSql()`) and period rules as the screens.
+- **REQ-259** (Should, event) — When an order is created, becomes paid, is
+  dispatched or changes shipping status, the system shall deliver a JSON event
+  signed HMAC-SHA256 over `{timestamp}.{body}` to each endpoint the owner
+  registered in admin (no API key can register one), retrying with backoff from the hourly cron and keeping
+  a delivery log; a slow or failing endpoint never delays the order write.
+- **REQ-260** (Must, ubiquitous) — The repository shall ship an `adsbook` CLI
+  (Node, no new dependency, `npm run adsbook --` / `bin`) that is a client of
+  the operations API only: `login` (store URL + key, stored in
+  `~/.config/adsbook/credentials.json`, mode 0600, never echoed), `orders
+  list|show`, `report`, `utm`, `lp new|check` (REQ-266, REQ-267), human
+  tables by default and `--json` for agents;
+  v2 actions require `--yes` or an interactive confirmation and support
+  `--dry-run`.
+  - Acceptance: Given a stored login, When `adsbook orders list --json --status
+    pending` runs, Then stdout is a JSON array equal to the API's page and the
+    credentials file is mode 0600.
+- **REQ-261** (Must, event) — When an operator opens Analitik › UTM for a
+  period, the system shall show orders, revenue, delivered, returned and
+  closing rate grouped by `utm_source` / `utm_medium` / `utm_campaign` (drill
+  to `utm_content`), with a "(tanpa UTM)" row, values normalised (trim,
+  lower-case) and the same order definition and period rules as the other
+  Analitik screens.
+  - Acceptance: Given two orders tagged `Promo-Okt ` and `promo-okt`, When the
+    report renders, Then they count in one `promo-okt` row.
+- **REQ-262** (Should, event) — When an operator builds a link in admin, the
+  system shall compose a landing or product URL with UTM tags from a fixed
+  source/medium list (meta/paid, google/cpc, tiktok/paid, whatsapp/chat, …)
+  and a campaign name normalised to lower-case hyphenated ASCII, and copy it;
+  nothing is stored.
+- **REQ-263** (Must, ubiquitous; revised 2026-10-30, Paduka: headless stays) —
+  The storefront headless API (`/api/v1/*`, STOREFRONT_INTEGRATION §4) shall
+  stay as it is. Operations routes shall live only under `/api/ops/v1` and
+  accept only `ops:` scopes; a storefront scope shall never satisfy an
+  operations route, nor an `ops:` scope a storefront route.
+  - Acceptance: Given a key holding every storefront scope, When it calls any
+    operations route, Then 403; Given a key holding only `ops:` scopes, When it
+    calls `/api/v1/products`, Then 403.
+- **REQ-264** (Must, ubiquitous) — The operations contract shall be owned by
+  one document, `docs/OPS-API.md` (added to the AGENTS.md ownership table),
+  and served as OpenAPI 3.1 at `GET /api/ops/v1/openapi.json`, with a test that
+  fails when a registered operation and the OpenAPI paths disagree.
+- **REQ-265** (Must, ubiquitous) — Rate limit and daily quota stay per key
+  (defaults 120/min, 10,000/day); the developer settings page shows each key's
+  scopes, last use and usage, and lets the owner revoke it. Only the `owner`
+  role issues or revokes keys.
+- **REQ-266** (Should, event) — When a developer runs `adsbook lp new <slug>
+  --product <product-slug>` in an install's working tree, the CLI shall write
+  `src/pages/<slug>.astro`, `src/styles/landing-pages/<slug>.css` and the
+  slug's entry in `src/data/native-landing-pages.ts` (`isActive: false`), from
+  one product-owned template in the shape `contoh-landing.astro` demonstrates:
+  `BaseLayout`, the product resolved by `getStorefrontProduct` for the named
+  slug with a rewrite to `/404`, `MetaLandingTracker` keyed by
+  `defaultCatalogContentId`, a canonical from `nativeLandingCanonicalPath`, and
+  `GeoIpResolvedForm mode="hybrid"`. It shall refuse, writing nothing, a slug
+  that `validateNativeLandingPages` rejects, one `isReservedLandingSlug`
+  already names, or a file that exists; and, with a stored login, a product the
+  store reports missing or inactive, or a slug an active CMS landing page holds
+  (REQ-268). Without a login it writes and says the store-side checks did not
+  run. It never builds, deploys or calls a provider.
+  - Acceptance: Given slug `promo-okt` and an active product, When it runs in a
+    clean install tree, Then exactly those three paths change, `npm test`,
+    `npm run check` and `npm run build` pass with no further edit, and
+    `/promo-okt` answers 200 in `wrangler dev --local`. Given an existing
+    `src/pages/promo-okt.astro`, Then it exits non-zero and nothing changes.
+- **REQ-267** (Should, event) — When a developer runs `adsbook lp check
+  [<slug>]`, the CLI shall report, per registered native page or the one named,
+  each NATIVE_LANDING_PAGE_SPEC §6 item a machine can decide as `pass`,
+  `fail`, `warn` or `not checked`, and exit non-zero on any `fail`:
+  - fail: a register entry without its route file; a top-level route file that
+    renders `GeoIpResolvedForm` or `MetaLandingTracker` and is neither
+    registered nor named by `RESERVED_LANDING_SLUGS` or `installRouteSlugs`
+    (so the product's own form and sample routes are not orphans); an entry
+    `validateNativeLandingPages` rejects; a page not rendering through
+    `BaseLayout`; no `MetaLandingTracker`; a `GeoIpResolvedForm` count other
+    than one, or a mode other than `hybrid` without a
+    `lp-check: form-mode <reason>` comment; any `fbq(` call (AGENTS.md §3, one
+    init per pixel); any strict `catalogProductId(` call;
+  - warn: a rupiah literal in markup (price belongs to D1); `noindex` on an
+    entry that is active; an entry still `isActive: false`;
+  - with a stored login (REQ-268): fail when the product is missing or
+    inactive, or an active CMS landing page holds the slug; report which page
+    holds the product's page (A21);
+  - always `not checked`, by name: the 390 px and desktop render, keyboard and
+    form handoff, and the evidence behind every claim — the author proves those
+    in a browser.
+  `--json` prints the same report for agents. The checks are one pure library
+  function the test suite also runs, so `contoh-landing.astro` and the
+  scaffold's output are held to them on every `npm test`.
+  - Acceptance: Given `contoh-landing.astro` copied to a new slug with one
+    `catalogProductId(` call added, When checked, Then it fails naming the file
+    and line; Given a register entry with no route file, Then it fails; Given
+    the unmodified scaffold output, Then no item fails; Given the product tree
+    as shipped (empty register), When `lp check` runs, Then nothing fails —
+    `hybrid-form.astro`, `contoh-landing.astro` and the other reserved routes
+    are not reported as orphans.
+- **REQ-268** (Should, event) — When a key with `ops:catalog:read` asks, the system
+  shall return one product by slug (`id`, `slug`, `title`, `active`, the
+  catalogue content id or null, variant count, lowest price) and the landing
+  page list (`slug`, `title`, `kind` cms or native, published, product slug,
+  whether it holds its product's page); 404 for an unknown product slug. No
+  buyer data and no section bodies. The storefront `/api/v1/products*` routes
+  serve storefront keys and are untouched.
+  - Acceptance: Given a key with `ops:catalog:read` only, When it calls
+    `GET /api/ops/v1/orders`, Then 403; Given an inactive product, When read, Then
+    200 with `active: false`.
+- **REQ-269** (Must, ubiquitous) — The install-update manifest
+  (`docs/UPDATE-PATH-OWNERSHIP.md`) shall name where a native landing page
+  lives so no update erases one: each registered slug's
+  `src/pages/<slug>.astro`, `src/styles/landing-pages/<slug>.css` and
+  `src/components/storefront/landing-pages/<slug>/` are install-owned;
+  `src/data/native-landing-pages.ts` is merged by hand (the install's
+  `nativeLandingPages` and `installRouteSlugs` kept, the product's type and
+  comments taken); and the root `scripts/**`, which `package.json` scripts and
+  the CLI run from, is product-owned.
+  - Acceptance: Given an install with a registered native page `promo-okt`,
+    When it is updated by RELEASE.md §7 from a release whose register is empty,
+    Then the page, its CSS and its register entry remain and `npm test` passes.
+
+### Open questions
+
+| # | Question | Owner | Blocks |
+| --- | --- | --- | --- |
+| Q1 | Does any live install call the storefront endpoints? **Resolved 2026-10-30 (Paduka): moot** — the storefront API stays, so no usage read is needed. | Paduka | — |
+| Q2 | Does the embed form (`/embed/form`, REQ-107) depend on `/api/v1`? **Resolved 2026-10-30: no.** Nothing under `src/pages/embed`, `src/scripts` or `src/components` calls `/api/v1`; only `api/v1/checkout.ts` imports `headless-checkout.ts`. | Agent | — |
+| Q3 | Fixed source/medium list for the link builder. **Resolved 2026-10-30 (Paduka delegated):** sources `facebook`, `instagram`, `google`, `tiktok`, `whatsapp`; mediums `paid_social`, `cpc`, `social`, `chat`; matches the Meta heuristics in `traffic-source.ts`. | Agent | — |
+| Q4 | Webhook consumers. **Resolved 2026-10-30 (Paduka delegated):** endpoints are registered by the owner in admin only; no `webhooks:manage` scope. Kelola keeps its plugin push. | Agent | — |
+| Q5 | Do the CLI's landing commands belong to A45? **Resolved 2026-10-30 (Paduka):** yes — `lp new` and `lp check` (REQ-266, REQ-267) on an `ops:catalog:read` scope (REQ-268). Found while scoping: (a) `docs/LANDING-PAGES.md` §2's snippet called the strict `catalogProductId`, which `catalog-identity.test.ts` refuses in `src/pages` — corrected in the same change to the `contoh-landing.astro` shape; (b) the update manifest never named the native page paths, so a wholesale `src/**` copy would replace an install's register with the product's empty one and unlist its pages — REQ-269. | Agent | — |
+
+### Stack & constraints
+
+- Astro endpoints on the Worker; D1 only; no new dependency (CLI on `node:`
+  built-ins and `fetch`). The CLI uses `fetch`; `src/lib/headless-client.ts` stays the storefront's client.
+- One install = one store: a key is bound to its install, so tenant isolation
+  is the install boundary; no store id is accepted from the client.
+- `adsbook lp` writes only inside the working tree it runs in, only the three
+  paths REQ-266 names, never overwrites, and touches no Cloudflare resource.
+  Its template and checks live in `src/lib`, so they reach installs with the
+  product and are covered by `npm test`; `scripts/adsbook.ts` stays a thin
+  argument parser.
+- The D1 budget (PRD A40) applies: list and report queries are bounded by
+  period or cursor and measured with `rows_read` before acceptance.
+- PII: third-party keys are issued without `ops:orders:read_pii` by default in the
+  UI; buyer data never appears in logs or audit rows.
+
+### Technical decisions
+
+- **Decision:** extend the existing key/scope/audit foundation rather than add
+  a second auth system. **Why:** hashed keys, quotas and audit already exist
+  and are tested (`headless-api.test.ts`, `developer-api-keys.test.ts`).
+  **Consequence:** operations scopes are namespaced `ops:`; old keys keep their
+  storefront scopes and gain none (REQ-252), so the owner issues an operations
+  key.
+- **Decision:** the API calls the admin's own library functions for every
+  action. **Why:** one rule set; AGENTS.md §3 forbids order writes around
+  `order-lifecycle.ts`. **Consequence:** an action missing a library entry
+  point gets one extracted from its admin route first.
+- **Decision (revised 2026-10-30):** operations routes under `/api/ops/v1`.
+  **Why:** the storefront API stays at `/api/v1` with its origin allowlist and
+  CORS, built for browsers; operations calls are server-to-server and must
+  inherit neither, and `/api/v1/orders/status` is taken. **Consequence:** two
+  OpenAPI documents, one per surface.
+- **Decision (revised 2026-10-30):** the storefront contract is not retired;
+  REQ-107's headless surface and STOREFRONT_INTEGRATION §4 stand.
+- **Decision:** the scaffold is a template in `src/lib`, not a copy of
+  `contoh-landing.astro` at run time. **Why:** the sample binds to the first
+  active product and is `noindex` on purpose; a real page names its product
+  and is indexable. **Consequence:** the sample and the template are both run
+  through `lp check` in `npm test`, so neither drifts from the invariants.
+- **Decision:** register entries are created `isActive: false`. **Why:** the
+  CMS lists and links an active entry as soon as it deploys; the author flips
+  it when the page is proven. **Consequence:** `lp check` warns on an inactive
+  entry so it is not forgotten.
+
+### Milestones
+
+- [ ] **v1 (read):** A-422 → A-431: foundation, `updated_at`, attribution,
+  orders read, CLI read, UTM report, contract doc.
+  STATUS checkpoint.
+- [ ] **v1.1:** A-434 link builder (A-432/A-433 cancelled); native
+  landing pages: A-440 manifest (Must, no dependency — can ship first),
+  A-441 catalogue read, A-442 `lp check`, A-443 `lp new`.
+- [ ] **v2 (act):** A-435 → A-437 order and shipping actions with
+  idempotency, CLI actions. STATUS checkpoint.
+- [ ] **v2.1:** A-438 reports API, A-439 outbound webhooks.
+
 ## 11. Traceability
 
 `TASKS.md` is the execution log. New tasks reference the requirement IDs in this document. Historical tasks reference the superseded scheme described in §0 and are not retro-fitted; their evidence lives in `BUILD-LOG.md`.

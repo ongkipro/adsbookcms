@@ -1308,6 +1308,239 @@ in its existing fields and analytics cohort, but opening WA and marking contacte
 become separate actions. No order/payment/shipping transitions or ad events are
 triggered by follow-up writes. Advertisers cannot read/write order follow-up.
 
+## A45 — Operations API and `adsbook` CLI, replacing the storefront headless API
+
+**Status:** Proposed 2026-10-30. Docs first; no code until Paduka accepts this
+section. Supersedes the storefront headless contract
+(`STOREFRONT_INTEGRATION.md` §4) once REQ-263's usage check passes, and the
+A36 non-goal "UTM campaign reports".
+
+### Overview
+
+Operators, the owner's own systems (Kelola, scripts), AI agents and named third
+parties need to read and act on a store's orders without a browser session.
+Today the only machine surface is `/api/v1`, built for a headless storefront
+(catalogue, quote, checkout, tracking, token-scoped order status). The owner
+reports no install uses it. Its foundation — hashed per-install keys
+(`developer_api_keys`), scopes, per-key rate limit and daily quota, and a D1
+audit trail (`headless_api_audit_events`, `developer_api_key_usage`) — is
+reusable; its storefront endpoints are not what anyone needs.
+
+A45 keeps that foundation, retires the storefront endpoints, and builds an
+operations API on it, plus an `adsbook` CLI in this repository that is a thin
+client of the same API. It also turns the UTM tags every order already stores
+(`orders.ad_click_ids`, TRACKING_SPECS §3) into a campaign report and a link
+builder.
+
+### Users and current workaround
+
+| Role | Job to be done | Current workaround |
+| --- | --- | --- |
+| Owner / operator | Check and act on orders from a terminal or script | Admin pages only, one order at a time |
+| Owner's systems (Kelola, scripts) | Pull new or changed orders; react to paid/shipped | Kelola gets a one-shot push at creation; nothing else |
+| AI agent (Claude, Codex) | Answer "which orders are stuck", act on request | Scrapes nothing; asks the operator |
+| Third party (agency, partner) | Read orders and campaign results for one store | Screenshots and spreadsheets from the owner |
+| Advertiser role | Compare campaigns by UTM | Channel split only (REQ-203); no campaign level |
+
+### Goals
+
+- Every order an operator can see in admin is readable by a key with the
+  matching scope, with its attribution (source slug, traffic source, UTM).
+- An order action taken through the API or CLI obeys exactly the rules the
+  admin page obeys, because it calls the same code.
+- A campaign's orders, revenue and closing rate are visible per UTM tag, and
+  links carrying those tags are built consistently.
+- No storefront headless endpoint remains once it is proven unused.
+
+### Success measure
+
+Read once A45's v1 milestone ships on one live install:
+- the owner's Kelola/script integration pulls orders through `updated_since`
+  instead of relying on the creation push alone;
+- the UTM report attributes ≥ 90% of orders that carry any `utm_campaign`
+  to a named campaign row (the rest are malformed tags, reported as such).
+
+### Non-goals
+
+- A buyer-facing or storefront API. Checkout stays the install's own forms.
+- Multi-store keys or a cross-install fleet API: one key belongs to one install
+  (1 installer = 1 Worker = 1 store).
+- OAuth, per-user tokens or a developer portal. Keys are issued by the owner in
+  admin.
+- Product, page or settings writes through the API.
+- A published npm package for the CLI (in-repo first; revisit if a third party
+  needs it).
+- Visit counts or conversion rate against sessions (PRD A37 deferral stands).
+- Changing how UTM tags are captured or merged (TRACKING_SPECS §3 owns that).
+
+### Core features
+
+| Feature | Priority | Requirements |
+| --- | --- | --- |
+| Key foundation: explicit scopes, PII split, audit, quotas | Must | REQ-251, REQ-252, REQ-253, REQ-265 |
+| Orders read: list, sync, detail, attribution | Must | REQ-254, REQ-255, REQ-256 |
+| `adsbook` CLI (read) | Must | REQ-260 |
+| UTM campaign report | Must | REQ-261 |
+| Retire storefront headless endpoints | Must | REQ-263 |
+| Contract document and OpenAPI | Must | REQ-264 |
+| Order actions (v2) | Must (v2) | REQ-257 |
+| Reports read | Should | REQ-258 |
+| UTM link builder | Should | REQ-262 |
+| Outbound signed webhooks | Should | REQ-259 |
+
+### Requirements
+
+- **REQ-251** (Must, ubiquitous) — The system shall serve the operations API
+  under `/api/v1`, authenticated by `Authorization: Bearer <key>` against
+  `developer_api_keys`, every route registered in one operation table with one
+  minimum scope, and every call recorded in the existing audit and usage
+  tables with the key id as actor.
+  - Acceptance: Given a revoked, malformed or absent key, When any operations
+    route is called, Then it answers 401 and writes an audit row; Given a valid
+    key without the route's scope, Then 403 and an audit row.
+- **REQ-252** (Must, unwanted) — If a key was issued without an explicit scope
+  list, then the system shall grant it no operations scope. New keys shall name
+  their scopes; none is granted by default. Scopes: `orders:read`,
+  `orders:read_pii`, `orders:write`, `shipping:write`, `reports:read`.
+  - Acceptance: Given a key created before A45 with a null scope list, When it
+    calls `GET /api/v1/orders`, Then 403.
+- **REQ-253** (Must, state) — While a key lacks `orders:read_pii`, the system
+  shall omit buyer name, phone, email and street address from every order it
+  returns (city, district and province remain).
+  - Acceptance: Given a key with `orders:read` only, When it reads an order,
+    Then the payload has no `customer_name`, `customer_phone`, `customer_email`
+    or `address` field.
+- **REQ-254** (Must, event) — When a key with `orders:read` lists orders, the
+  system shall return orders (never abandoned leads unless asked by `kind`)
+  filtered by status, payment method/status, period (the admin period rules),
+  source slug and UTM campaign, ordered and paged by an opaque cursor, at most
+  100 per page, and by `updated_since` for incremental sync. Orders gain an
+  `updated_at` maintained on every write path.
+  - Acceptance: Given 250 orders, When a client pages with the returned cursor,
+    Then it receives each order exactly once; Given an order edited after
+    `t`, When listed with `updated_since=t`, Then it is included.
+- **REQ-255** (Must, event) — When a key with `orders:read` reads one order by
+  its number, the system shall return the order, its items with recorded weight
+  and unit price, payment (method, status, channel, amounts, instruction state),
+  shipping (courier, service, resi, provider status) and the
+  `payment_switched_*` record; 404 for an unknown number.
+  - Acceptance: Given INV-10014, When read, Then totals equal the admin order
+    page's totals for the same order.
+- **REQ-256** (Must, ubiquitous) — Every order the API returns shall carry its
+  attribution: `source_slug`, the traffic source type the admin badge shows,
+  and the five UTM tags as stored; click-id values only with
+  `orders:read_pii`.
+  - Acceptance: Given an order stored with `utm_campaign=promo-okt` and a
+    `gclid`, When read with `orders:read`, Then `utm.campaign` is `promo-okt`
+    and no `gclid` value is present.
+- **REQ-257** (Must, v2, event) — When a key with `orders:write` (or
+  `shipping:write` for dispatch and pickup) requests an order action — confirm,
+  change shipping status, cancel, switch COD payment (REQ-250), mark a manual
+  transfer received, dispatch to Mengantar — the system shall run the same
+  library function the admin page runs (`order-lifecycle.ts`,
+  `payment-switch.ts`, `mengantar-dispatch.ts`, the manual-transfer path that
+  sends the Meta Purchase), require an `Idempotency-Key` header, and answer a
+  repeated key with the first result without acting twice.
+  - Acceptance: Given the same dispatch request sent twice with one
+    `Idempotency-Key`, Then Mengantar is called once and both responses carry
+    the same result.
+- **REQ-258** (Should, event) — When a key with `reports:read` asks for a
+  report, the system shall return the Analitik aggregates (summary, landing,
+  products, locations, times, UTM) for a period, aggregates only, using the
+  same order definition (`orderRowSql()`) and period rules as the screens.
+- **REQ-259** (Should, event) — When an order is created, becomes paid, is
+  dispatched or changes shipping status, the system shall deliver a JSON event
+  signed HMAC-SHA256 over `{timestamp}.{body}` to each endpoint the owner
+  registered in admin (no API key can register one), retrying with backoff from the hourly cron and keeping
+  a delivery log; a slow or failing endpoint never delays the order write.
+- **REQ-260** (Must, ubiquitous) — The repository shall ship an `adsbook` CLI
+  (Node, no new dependency, `npm run adsbook --` / `bin`) that is a client of
+  the operations API only: `login` (store URL + key, stored in
+  `~/.config/adsbook/credentials.json`, mode 0600, never echoed), `orders
+  list|show`, `report`, `utm`, human tables by default and `--json` for agents;
+  v2 actions require `--yes` or an interactive confirmation and support
+  `--dry-run`.
+  - Acceptance: Given a stored login, When `adsbook orders list --json --status
+    pending` runs, Then stdout is a JSON array equal to the API's page and the
+    credentials file is mode 0600.
+- **REQ-261** (Must, event) — When an operator opens Analitik › UTM for a
+  period, the system shall show orders, revenue, delivered, returned and
+  closing rate grouped by `utm_source` / `utm_medium` / `utm_campaign` (drill
+  to `utm_content`), with a "(tanpa UTM)" row, values normalised (trim,
+  lower-case) and the same order definition and period rules as the other
+  Analitik screens.
+  - Acceptance: Given two orders tagged `Promo-Okt ` and `promo-okt`, When the
+    report renders, Then they count in one `promo-okt` row.
+- **REQ-262** (Should, event) — When an operator builds a link in admin, the
+  system shall compose a landing or product URL with UTM tags from a fixed
+  source/medium list (meta/paid, google/cpc, tiktok/paid, whatsapp/chat, …)
+  and a campaign name normalised to lower-case hyphenated ASCII, and copy it;
+  nothing is stored.
+- **REQ-263** (Must, event) — When A45 v1 ships, the system shall answer the
+  storefront headless routes (`/api/v1/storefront`, `/products*`, `/geo/*`,
+  `/checkout`, `/tracking/events`, `/orders/status`) with 410 and a pointer to
+  the operations contract for one release, then remove them, their libraries
+  and tests — but only after each live install's `developer_api_key_usage` and
+  `headless_api_audit_events` show no successful storefront call in the last
+  30 days (a read-only check Paduka approves per install).
+  - Acceptance: Given a live install with a storefront call in the window,
+    Then removal is blocked and the install is named in TASKS.
+- **REQ-264** (Must, ubiquitous) — The operations contract shall be owned by
+  one document, `docs/OPS-API.md` (added to the AGENTS.md ownership table),
+  and served as OpenAPI 3.1 at `GET /api/v1/openapi.json`, with a test that
+  fails when a registered operation and the OpenAPI paths disagree.
+- **REQ-265** (Must, ubiquitous) — Rate limit and daily quota stay per key
+  (defaults 120/min, 10,000/day); the developer settings page shows each key's
+  scopes, last use and usage, and lets the owner revoke it. Only the `owner`
+  role issues or revokes keys.
+
+### Open questions
+
+| # | Question | Owner | Blocks |
+| --- | --- | --- | --- |
+| Q1 | Does any live install call the storefront endpoints? Read-only per-install query of the two usage tables. | Paduka (approves each `--remote` read) | REQ-263 removal |
+| Q2 | Does the embed form (`/embed/form`, REQ-107) depend on `/api/v1`? **Resolved 2026-10-30: no.** Nothing under `src/pages/embed`, `src/scripts` or `src/components` calls `/api/v1`; only `api/v1/checkout.ts` imports `headless-checkout.ts`. | Agent | — |
+| Q3 | Fixed source/medium list for the link builder. **Resolved 2026-10-30 (Paduka delegated):** sources `facebook`, `instagram`, `google`, `tiktok`, `whatsapp`; mediums `paid_social`, `cpc`, `social`, `chat`; matches the Meta heuristics in `traffic-source.ts`. | Agent | — |
+| Q4 | Webhook consumers. **Resolved 2026-10-30 (Paduka delegated):** endpoints are registered by the owner in admin only; no `webhooks:manage` scope. Kelola keeps its plugin push. | Agent | — |
+
+### Stack & constraints
+
+- Astro endpoints on the Worker; D1 only; no new dependency (CLI on `node:`
+  built-ins and `fetch`). `src/lib/headless-client.ts` becomes the CLI's client.
+- One install = one store: a key is bound to its install, so tenant isolation
+  is the install boundary; no store id is accepted from the client.
+- The D1 budget (PRD A40) applies: list and report queries are bounded by
+  period or cursor and measured with `rows_read` before acceptance.
+- PII: third-party keys are issued without `orders:read_pii` by default in the
+  UI; buyer data never appears in logs or audit rows.
+
+### Technical decisions
+
+- **Decision:** extend the existing key/scope/audit foundation rather than add
+  a second auth system. **Why:** hashed keys, quotas and audit already exist
+  and are tested (`headless-api.test.ts`, `developer-api-keys.test.ts`).
+  **Consequence:** the storefront scope names are retired; old keys carry no
+  operations scope (REQ-252), so the owner re-issues keys.
+- **Decision:** the API calls the admin's own library functions for every
+  action. **Why:** one rule set; AGENTS.md §3 forbids order writes around
+  `order-lifecycle.ts`. **Consequence:** an action missing a library entry
+  point gets one extracted from its admin route first.
+- **Decision:** keep the `/api/v1` prefix. **Why:** the retiring routes and the
+  new ones do not share paths except `/orders/status`, which is removed.
+  **Consequence:** no `/v2` until a breaking change to the new contract.
+- **Decision:** retiring the storefront contract supersedes REQ-107's headless
+  surface and STOREFRONT_INTEGRATION §4; recorded as an ADR when A-433 lands.
+
+### Milestones
+
+- [ ] **v1 (read):** A-422 → A-432: foundation, `updated_at`, attribution,
+  orders read, CLI read, UTM report, contract doc, deprecation answers.
+  STATUS checkpoint.
+- [ ] **v1.1:** A-433 removal (after Q1), A-434 link builder.
+- [ ] **v2 (act):** A-435 → A-437 order and shipping actions with
+  idempotency, CLI actions. STATUS checkpoint.
+- [ ] **v2.1:** A-438 reports API, A-439 outbound webhooks.
+
 ## 11. Traceability
 
 `TASKS.md` is the execution log. New tasks reference the requirement IDs in this document. Historical tasks reference the superseded scheme described in §0 and are not retro-fitted; their evidence lives in `BUILD-LOG.md`.

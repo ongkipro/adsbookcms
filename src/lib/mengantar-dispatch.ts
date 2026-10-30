@@ -109,7 +109,7 @@ async function linkPickupSchedule(
       SELECT ?, ?, 'scheduled', 0, ?, ?, ?
       WHERE NOT EXISTS (SELECT 1 FROM pickup_schedules WHERE warehouse_id = ? AND provider_reference = ?)`,
     )
-    .bind(warehouseId, scheduledAt, timeId, choice.volume === "volumeMobil" ? "Mobil" : "Motor", new Date().toISOString(), warehouseId, timeId)
+    .bind(warehouseId, scheduledAt, timeId, choice.volume === "volumeTruck" ? "Truk" : choice.volume === "volumeMobil" ? "Mobil" : "Motor", new Date().toISOString(), warehouseId, timeId)
     .run();
   await database.batch([
     database

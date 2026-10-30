@@ -237,7 +237,7 @@ Observed client fields for `/address` include:
 
 ### Pickup or drop-off at push (PRD A46)
 
-`POST /order` carries `pickup.type`: `dropOff` (the default, and the only value sent before A46) or `scheduledPickup`, which also needs `time_id` (a `/time` slot `_id`) and `volume` (`volumeMotor`, `volumeMobil`; the provider also lists `volumeTruck`, not offered). The push dialog collects date, hour and vehicle; the dispatch resolves one slot per pickup address per request (an existing matching slot from `GET /time`, else `POST /time`), sends it with every order of that address, and links each accepted order to a local `pickup_schedules` row keyed by warehouse and provider slot id, so the shipping page does not list it as needing pickup.
+`POST /order` carries `pickup.type`: `dropOff` (the default, and the only value sent before A46) or `scheduledPickup`, which also needs `time_id` (a `/time` slot `_id`) and `volume` (`volumeMotor` by default, `volumeMobil`, `volumeTruck`). The push dialog collects date, hour and vehicle; the dispatch resolves one slot per pickup address per request (an existing matching slot from `GET /time`, else `POST /time`), sends it with every order of that address, and links each accepted order to a local `pickup_schedules` row keyed by warehouse and provider slot id, so the shipping page does not list it as needing pickup.
 
 Still **[verifikasi]** (open in the documentation repository's checklist): the exact server-accepted spelling of `scheduledPickup`/`dropOff` beyond `dropOff` (which live dispatch has used), the `GET /time` slot field names, and the error shape of a rejected pickup time. Confirm with one approved live order before relying on scheduled pickup in production.
 

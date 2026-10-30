@@ -285,7 +285,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `mengantar-areas` | 6 | `mengantar_areas` | ✓ | `/api/locations` |
 | `mengantar-client` | 20 | — | ✓ | `/api/locations` `/api/submit-order` `/api/admin/ongkir` `/api/admin/orders/[id]` `/api/admin/settings` `/api/admin/shipping` `/api/admin/warehouses` |
 | `mengantar-dispatch` | 3 | `courier_rules` `order_items` `orders` `pickup_schedules` `product_variants` `products` `provider_dispatch_locks` `warehouses` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` |
-| `mengantar-order` | 22 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
+| `mengantar-order` | 23 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `meta-capi` | 7 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` `/admin/ads/meta` `/api/admin/ads` |
 | `meta-event-contract` | 4 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
 | `meta-identity` | 7 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` |

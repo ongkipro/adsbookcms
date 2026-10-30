@@ -12,6 +12,7 @@ import {
   PackageIcon,
   RotateCcw,
   Truck,
+  Warehouse,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
@@ -29,13 +30,6 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
 import { ADMIN_CUSTOM_DATE_FILTER } from "../../lib/admin-date-filter";
 import {
   AdminDateRangeFilter,
@@ -561,45 +555,33 @@ export function ShippingOperations() {
               event.preventDefault();
               void schedulePickup();
             }}
-            className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_1fr_1.3fr_auto] lg:items-end"
+            className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_1.7fr_1.3fr_auto] lg:items-end"
           >
-            <label>
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                Gudang pickup
-              </span>
-              <Select
+            {/* One dropdown kind for warehouse, date and hour; the warehouse by name. */}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label htmlFor="shipping-pickup-warehouse" className="text-sm font-medium">Gudang pickup</label>
+              <FilterSelect
+                id="shipping-pickup-warehouse"
+                icon={Warehouse}
                 value={warehouseId}
-                onValueChange={(val) => setWarehouseId(val ?? "")}
-                required
-              >
-                <SelectTrigger >
-                  <SelectValue placeholder="Pilih gudang" />
-                </SelectTrigger>
-                <SelectContent>
-                  {data.warehouses.map((warehouse) => (
-                    <SelectItem key={warehouse.id} value={String(warehouse.id)}>
-                      {warehouse.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
+                options={[{ value: "", label: "Pilih gudang" }, ...data.warehouses.map((warehouse) => ({ value: String(warehouse.id), label: warehouse.name }))]}
+                onValueChange={setWarehouseId}
+              />
+            </div>
             <MengantarPickupFields idPrefix="shipping-pickup" date={pickupSlot.date} hour={pickupSlot.hour} onChange={setPickupSlot} />
-            <label>
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                Catatan kurir
-              </span>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label htmlFor="shipping-pickup-notes" className="text-sm font-medium">Catatan kurir</label>
               <Input
+                id="shipping-pickup-notes"
                 value={pickupNotes}
                 onChange={(event) => setPickupNotes(event.target.value)}
                 maxLength={160}
                 placeholder="Contoh: ambil di loading dock timur"
-                
               />
-            </label>
+            </div>
             <Button
               type="submit"
-              disabled={scheduling || selectedOrderIds.length === 0}
+              disabled={scheduling || selectedOrderIds.length === 0 || !warehouseId}
             >
               {scheduling ? (
                 <LoaderCircleIcon

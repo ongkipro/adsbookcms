@@ -7312,3 +7312,25 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   (headless Chromium, `dev:local`): dialog at 390 and 1440 px fits the
   viewport; three ready orders pushed as a 14.00 car pickup got three resi,
   one schedule row, and left no ready order. Not run against live Mengantar.
+### Entry 200: Quieter admin topbar; dropdown pickup fields; truck pickup
+
+- Topbar (Paduka): the bell, status and profile were framed, shadowed tiles
+  beside a separate "Owner" pill. They are now borderless icon buttons from
+  one `topbar-styles.ts` definition, the status keeps its tone on the icon
+  only, the role joins the profile control (avatar + role), the search pill
+  loses its border, and badges are smaller with a white ring.
+- Pickup fields are dropdowns (`FilterSelect`, a Radix menu that works inside
+  the push dialog): seven bookable days ("Hari ini, 31 Okt", "Besok, 1 Nov",
+  "Sen, 2 Nov") and only the hours still bookable. The shipping page's
+  warehouse dropdown shows warehouse names (the Base UI Select had no `items`
+  and showed the id); its labels match the other fields.
+- Pickup vehicle: Motor (default), Mobil, Truk (`volumeTruck`).
+- Spacing: an island is `astro-island { display: contents }`, so Tailwind v4
+  `space-y-*` margins never reached it and the next card touched it
+  (Pengaturan › Headless API). `admin.css` makes an island directly inside a
+  `space-y-*` stack a block.
+- Verification: `npm test` 1083 pass / 0 fail, `npm run check` 0 errors /
+  0 hints, `npm run build` complete. Browser (headless Chromium, `dev:local`):
+  topbar 64 px at 1440/1024 and 60 px at 390 with no overflow; shipping form
+  picks "Gudang Dummy Jakarta" by name; dialog offers Motor | Mobil | Truk;
+  24 px between the developer page island and the API docs card.

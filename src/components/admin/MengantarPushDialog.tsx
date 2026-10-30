@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bike, Car, PackageCheck, Truck } from "lucide-react";
+import { Bike, Car, Container, PackageCheck, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,13 @@ export type MengantarPushResult = {
   cnoteNo?: string;
   error?: string;
 };
+
+/** Mengantar `pickup.volume`: the vehicle sent to collect; motor unless the operator says otherwise. */
+const VEHICLES = [
+  { value: "volumeMotor", label: "Motor", icon: Bike },
+  { value: "volumeMobil", label: "Mobil", icon: Car },
+  { value: "volumeTruck", label: "Truk", icon: Container },
+] as const;
 
 const statusLabels: Record<string, string> = {
   dispatched: "Terkirim",
@@ -115,13 +122,12 @@ export function MengantarPushDialog({
                 <MengantarPickupFields idPrefix="push-pickup" date={slot.date} hour={slot.hour} onChange={setSlot} />
                 <div className="flex min-w-0 flex-col gap-1.5">
                   <span id="push-pickup-volume" className="text-sm font-medium">Kendaraan</span>
-                  <div role="radiogroup" aria-labelledby="push-pickup-volume" className="grid grid-cols-2 gap-2">
-                    <Button type="button" variant="outline" role="radio" aria-checked={volume === "volumeMotor"} className={option(volume === "volumeMotor")} onClick={() => setVolume("volumeMotor")}>
-                      <span className="flex items-center gap-1.5 font-medium"><Bike aria-hidden="true" />Motor</span>
-                    </Button>
-                    <Button type="button" variant="outline" role="radio" aria-checked={volume === "volumeMobil"} className={option(volume === "volumeMobil")} onClick={() => setVolume("volumeMobil")}>
-                      <span className="flex items-center gap-1.5 font-medium"><Car aria-hidden="true" />Mobil</span>
-                    </Button>
+                  <div role="radiogroup" aria-labelledby="push-pickup-volume" className="grid grid-cols-3 gap-2">
+                    {VEHICLES.map((vehicle) => (
+                      <Button key={vehicle.value} type="button" variant="outline" role="radio" aria-checked={volume === vehicle.value} className={option(volume === vehicle.value)} onClick={() => setVolume(vehicle.value)}>
+                        <span className="flex items-center gap-1.5 font-medium"><vehicle.icon aria-hidden="true" />{vehicle.label}</span>
+                      </Button>
+                    ))}
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">Satu jadwal pickup per gudang untuk semua order ini.</p>

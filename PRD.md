@@ -1364,7 +1364,7 @@ opens a dialog that asks how the parcel leaves the warehouse.
   (row action, selection, or "Push semua yang siap"), the system shall ask
   drop-off or pickup; drop-off sends `pickup.type = dropOff` as before, pickup
   sends `scheduledPickup` with the slot's `time_id` and a vehicle (`volumeMotor`
-  by default, `volumeMobil` on request).
+  by default, `volumeMobil` or `volumeTruck` on request).
   - Acceptance: Given three ready orders of one warehouse and a pickup at 14.00
     by car, When pushed, Then one provider slot is booked or reused, all three
     orders carry it, and one local pickup schedule links them.

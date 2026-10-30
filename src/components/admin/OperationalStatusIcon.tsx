@@ -1,4 +1,5 @@
 import * as React from "react";
+import { TOPBAR_BADGE, TOPBAR_ICON_BUTTON } from "./topbar-styles";
 import { Activity, CircleCheck, ListTodo, TriangleAlert } from "lucide-react";
 import type { StatusIconState } from "@/lib/health-snapshot";
 
@@ -43,10 +44,10 @@ export function rememberStatusIcon(icon: StatusIconState) {
 }
 
 const TONE: Record<StatusIconState["tone"], { icon: typeof Activity; className: string }> = {
-  problem: { icon: TriangleAlert, className: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100" },
-  setup: { icon: ListTodo, className: "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" },
-  healthy: { icon: CircleCheck, className: "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50" },
-  unknown: { icon: Activity, className: "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-950" },
+  problem: { icon: TriangleAlert, className: "text-rose-600 hover:text-rose-700" },
+  setup: { icon: ListTodo, className: "text-amber-600 hover:text-amber-700" },
+  healthy: { icon: CircleCheck, className: "text-emerald-600 hover:text-emerald-700" },
+  unknown: { icon: Activity, className: "" },
 };
 
 export function OperationalStatusIcon({ active = false }: { active?: boolean }) {
@@ -104,15 +105,13 @@ export function OperationalStatusIcon({ active = false }: { active?: boolean }) 
       title={label}
       aria-current={active ? "page" : undefined}
       data-status-tone={icon?.tone ?? "loading"}
-      className={`relative grid size-10 shrink-0 place-items-center rounded-xl border shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${tone.className}`}
+      className={`${TOPBAR_ICON_BUTTON} ${tone.className} ${active ? "bg-slate-100" : ""}`}
     >
       <Icon className="size-[18px]" aria-hidden="true" />
       {badge && (
         <span
           aria-hidden="true"
-          className={`absolute -right-1 -top-1 grid min-w-5 place-items-center rounded-full px-1 text-xs font-semibold leading-5 text-white ${
-            icon?.tone === "problem" ? "bg-red-600" : "bg-amber-600"
-          }`}
+          className={`${TOPBAR_BADGE} ${icon?.tone === "problem" ? "bg-red-600" : "bg-amber-600"}`}
         >
           {badge}
         </span>

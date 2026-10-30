@@ -358,3 +358,11 @@
   .admin-login-form-wrapper { padding-top: max(1.5rem, env(safe-area-inset-top)); padding-bottom: max(1.5rem, env(safe-area-inset-bottom)); }
   .admin-login-card { margin-top: 0; margin-bottom: 0; }
 }
+
+/* An island renders as `astro-island { display: contents }`, so Tailwind v4's
+   `space-y-*` margin (set on the child) never applies to it and the card after
+   an island touches it (seen on Pengaturan › Headless API). Directly inside a
+   space-y stack, an island is a block so the stack's spacing holds. */
+[class*="space-y-"] > astro-island {
+  display: block;
+}

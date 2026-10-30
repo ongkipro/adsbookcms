@@ -8,6 +8,7 @@ import {
   availablePickupHours,
   defaultPickupSlot,
   parseMengantarPickupChoice,
+  pickupDayOptions,
   pickMengantarTimeId,
   runMengantarOrderQueue,
   summarizeMengantarDispatchResults,
@@ -173,7 +174,8 @@ test("PRD A46: the push choice is drop-off by default; a pickup needs a real dat
   assert.match(refused({ type: "scheduledPickup", date: "2026-02-30", hour: 12 }), /Tanggal/);
   assert.match(refused({ type: "scheduledPickup", date: "02-11-2026", hour: 12 }), /Tanggal/);
   assert.match(refused({ type: "scheduledPickup", date: "2026-11-02", hour: 19 }), /09.00–18.00/);
-  assert.match(refused({ type: "scheduledPickup", date: "2026-11-02", hour: 12, volume: "volumeTruck" }), /Kendaraan/);
+  assert.match(refused({ type: "scheduledPickup", date: "2026-11-02", hour: 12, volume: "volumeBus" }), /Kendaraan/);
+  assert.equal(parseMengantarPickupChoice({ type: "scheduledPickup", date: "2026-11-02", hour: 12, volume: "volumeTruck" }, now).ok, true);
   assert.match(refused({ type: "scheduledPickup", date: "2026-11-02", hour: 11 }), /90 menit/, "11:00 is only 60 minutes away");
 });
 
@@ -262,4 +264,19 @@ test("summarizes batch partial success without hiding per-order failures", () =>
     status: "failed",
     error: "Provider timeout",
   });
+});
+
+test("the pickup date dropdown offers seven bookable days from the earliest one", () => {
+  const morning = Date.parse("2026-10-31T03:00:00.000Z"); // Sat 10:00 WIB
+  const days = pickupDayOptions(morning);
+  assert.equal(days.length, 7);
+  assert.equal(days[0].value, "2026-10-31");
+  assert.equal(days[0].label, "Hari ini, 31 Okt");
+  assert.equal(days[1].label, "Besok, 1 Nov");
+  assert.equal(days[2].label, "Sen, 2 Nov");
+  assert.equal(days[6].value, "2026-11-06");
+  // After 16:30 WIB today has no slot left, so the list starts tomorrow.
+  const evening = Date.parse("2026-10-31T10:00:00.000Z");
+  assert.equal(pickupDayOptions(evening)[0].value, "2026-11-01");
+  assert.equal(pickupDayOptions(evening)[0].label, "Besok, 1 Nov");
 });

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { buttonVariants } from "../ui/button";
 import { StoreMark } from "./StoreMark";
+import { TOPBAR_ICON_BUTTON } from "./topbar-styles";
 import {
   SidebarInset,
   SidebarProvider,
@@ -77,6 +78,7 @@ export function AdminShell({
 }: AdminShellProps) {
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
+  const roleLabel = adminRole === "owner" ? "Owner" : adminRole === "admin" ? "Admin" : adminRole === "customer_service" ? "CS" : "Advertiser";
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [expandedMobileMenus, setExpandedMobileMenus] = React.useState<Set<string>>(
     () => new Set([activeMenu]),
@@ -200,12 +202,12 @@ export function AdminShell({
           onOpenChangelog={() => setChangelogOpen(true)}
         />
         <SidebarInset className="min-w-0 bg-transparent">
-          <header className="admin-topbar sticky top-0 z-30 flex h-[60px] shrink-0 items-center border-b border-slate-200/80 bg-white/95 px-3 backdrop-blur-xl md:h-[68px] md:px-6">
+          <header className="admin-topbar sticky top-0 z-30 flex h-[60px] shrink-0 items-center border-b border-slate-200/70 bg-white/90 px-3 backdrop-blur-xl md:h-16 md:px-6">
             <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
               <button
                 type="button"
                 onClick={() => setMenuOpen(true)}
-                className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 md:hidden"
+                className={`${TOPBAR_ICON_BUTTON} md:hidden`}
                 aria-label="Buka menu navigasi"
               >
                 <Menu className="size-5" aria-hidden="true" />
@@ -226,30 +228,28 @@ export function AdminShell({
             {!mustChangePassword && <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="group mx-4 hidden min-h-10 w-full max-w-lg flex-1 items-center gap-2.5 rounded-xl border border-slate-200/90 bg-slate-50/70 px-3 text-left text-sm font-medium text-slate-500 transition hover:border-slate-300 hover:bg-white hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 md:flex xl:mx-6"
+              className="group mx-4 hidden h-9 w-full max-w-md flex-1 items-center gap-2.5 rounded-lg bg-slate-100/80 px-3 text-left text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 md:flex xl:mx-6"
             >
-              <Search className="size-4 text-slate-400 transition group-hover:text-slate-600" aria-hidden="true" />
+              <Search className="size-4 text-slate-400 transition-colors group-hover:text-slate-600" aria-hidden="true" />
               <span className="min-w-0 flex-1 truncate">Cari halaman atau tugas…</span>
-              <kbd className="inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-500 shadow-xs">
+              <kbd className="rounded bg-white px-1.5 py-0.5 font-sans text-xs font-medium text-slate-400 ring-1 ring-slate-200">
                 ⌘K
               </kbd>
             </button>}
 
-            <div className="flex flex-1 items-center justify-end gap-1.5 md:gap-2">
-              {!mustChangePassword && <span className="hidden items-center rounded-full border border-slate-200 bg-slate-50/80 px-2.5 py-1 text-xs font-medium text-slate-600 lg:inline-flex">
-                {adminRole === "owner" ? "Owner" : adminRole === "admin" ? "Admin" : adminRole === "customer_service" ? "CS" : "Advertiser"}
-              </span>}
+            <div className="flex flex-1 items-center justify-end gap-1">
               {!mustChangePassword && <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                className="grid size-10 place-items-center rounded-xl text-slate-600 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 md:hidden"
+                className={`${TOPBAR_ICON_BUTTON} md:hidden`}
                 aria-label="Cari halaman admin"
               >
                 <Search className="size-[18px]" aria-hidden="true" />
               </button>}
-              {!mustChangePassword && <a href="/" target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "ghost", className: "hidden text-slate-600 xl:inline-flex" })}>
+              {!mustChangePassword && <a href="/" target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "ghost", className: "hidden h-9 gap-1 font-normal text-slate-500 xl:inline-flex" })}>
                 Lihat storefront <ArrowUpRight className="size-3.5" aria-hidden="true" />
               </a>}
+              {!mustChangePassword && <span className="mx-1 hidden h-5 w-px bg-slate-200 xl:block" aria-hidden="true" />}
               {/* A first-run session may only rotate its password; the bell
                   hides itself for roles the endpoint refuses. */}
               {!mustChangePassword && <NotificationBell />}
@@ -257,18 +257,20 @@ export function AdminShell({
               {!mustChangePassword && (adminRole === "owner" || adminRole === "admin") && (
                 <OperationalStatusIcon active={activeMenu === "status"} />
               )}
+              {/* Profile and role in one control: the role used to be a separate pill. */}
               <a
                 href="/admin/profile"
                 aria-current={activeMenu === "profile" ? "page" : undefined}
-                className={`grid size-10 place-items-center rounded-xl border shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
-                  activeMenu === "profile"
-                    ? "border-blue-600 bg-blue-50 text-blue-600 font-semibold"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-950"
+                className={`ml-1 flex h-9 shrink-0 items-center gap-2 rounded-full pl-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 lg:pr-3 ${
+                  activeMenu === "profile" ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
-                aria-label="Buka profil & integrasi admin"
+                aria-label={`Buka profil & integrasi admin (${roleLabel})`}
                 title="Profil & Integrasi"
               >
-                <UserRound className="size-[18px]" aria-hidden="true" />
+                <span className="grid size-8 place-items-center rounded-full bg-slate-900 text-white" aria-hidden="true">
+                  <UserRound className="size-4" />
+                </span>
+                {!mustChangePassword && <span className="hidden text-sm font-medium lg:inline">{roleLabel}</span>}
               </a>
             </div>
           </header>

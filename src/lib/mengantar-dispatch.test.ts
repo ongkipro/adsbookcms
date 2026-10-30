@@ -130,11 +130,28 @@ class DispatchDatabase {
       INSERT INTO order_items VALUES (1, 1, 1, 1, 150000);
       -- 0070_order_item_weight: the row above predates it, so it stays NULL.
       ALTER TABLE order_items ADD weight_grams INTEGER;
+      ALTER TABLE orders ADD pickup_schedule_id INTEGER;
+      CREATE TABLE pickup_schedules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        warehouse_id INTEGER NOT NULL,
+        scheduled_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'scheduled',
+        shipment_count INTEGER NOT NULL DEFAULT 0,
+        provider_reference TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL
+      );
     `);
   }
 
   prepare(sql: string) {
     return new SqliteD1Statement(this.sqlite, sql);
+  }
+
+  async batch(statements: SqliteD1Statement[]) {
+    const results = [];
+    for (const statement of statements) results.push(await statement.run());
+    return results;
   }
 }
 
@@ -315,4 +332,88 @@ test("any other provider refusal leaves the courier policy alone", async (contex
   assert.equal(outcome.status, "failed");
   assert.equal(outcome.error, "Forbidden");
   assert.equal(posCod.is_cod_enabled, 1);
+});
+
+// PRD A46: a scheduled pickup carries `scheduledPickup`, the vehicle and the
+// provider slot's `time_id`, found or created once per pickup address.
+test("a scheduled pickup books one provider slot per address and links each order to it", async (context) => {
+  const database = new DispatchDatabase();
+  database.sqlite.exec(`
+    INSERT INTO orders (id, order_number, warehouse_id, customer_name, customer_phone, address, destination_area_id,
+      courier_code, payment_method, payment_status, shipping_status, total_amount)
+    VALUES (2, 'INV-TEST-2', 1, 'Budi', '6281234567891', 'Jl. Mawar 7, Surabaya', 'destination-1', 'JNE', 'cod', 'unpaid', 'pending', 168000);
+    INSERT INTO order_items VALUES (2, 2, 1, 1, 150000, NULL);
+  `);
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const calls: Array<{ method: string; path: string; body: string }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input));
+    const method = init?.method || "GET";
+    const body = typeof init?.body === "string" ? init.body : "";
+    calls.push({ method, path: url.pathname.replace(/^.*\/api\/public\/[^/]+/, ""), body });
+    const json = (value: unknown) => new Response(JSON.stringify(value), { status: 200, headers: { "Content-Type": "application/json" } });
+    if (url.pathname.endsWith("/time") && method === "GET") return json({ success: true, data: [{ _id: "other", date: "11-02-2026", time: "9:00" }] });
+    // POST /time answers one slot object, not an array (Mengantar docs).
+    if (url.pathname.endsWith("/time")) return json({ success: true, data: { _id: "time-13", date: "11-02-2026", time: "13:00" } });
+    return acceptedResponse();
+  };
+  const pickup = {
+    choice: { type: "scheduledPickup" as const, date: "2026-11-02", hour: 13, volume: "volumeMotor" as const },
+    timeIds: new Map<string, string>(),
+  };
+
+  assert.equal((await dispatchOrderToMengantar(asD1(database), locals, 1, pickup)).status, "dispatched");
+  // The second order reuses the slot; the fake answers the same provider id.
+  assert.equal((await dispatchOrderToMengantar(asD1(database), locals, 2, pickup)).status, "dispatched");
+
+  const timeCalls = calls.filter((call) => call.path === "/time");
+  assert.deepEqual(timeCalls.map((call) => call.method), ["GET", "POST"], "one lookup and one booking for the batch");
+  const booked = new URLSearchParams(timeCalls[1].body);
+  assert.equal(booked.get("address_id"), "pickup-1");
+  assert.equal(booked.get("date"), "11-02-2026");
+  assert.equal(booked.get("time"), "13:00");
+
+  const orderBodies = calls.filter((call) => call.path === "/order").map((call) => JSON.parse(call.body));
+  assert.equal(orderBodies.length, 2);
+  for (const body of orderBodies) {
+    assert.deepEqual(body.pickup, { type: "scheduledPickup", volume: "volumeMotor", address_id: "pickup-1", time_id: "time-13" });
+  }
+  const schedules = database.sqlite.prepare("SELECT warehouse_id, provider_reference, shipment_count, scheduled_at, notes FROM pickup_schedules").all();
+  assert.deepEqual(schedules.map((row) => ({ ...row })), [
+    { warehouse_id: 1, provider_reference: "time-13", shipment_count: 2, scheduled_at: "2026-11-02T06:00:00.000Z", notes: "Motor" },
+  ]);
+  const linked = database.sqlite.prepare("SELECT id, pickup_schedule_id FROM orders ORDER BY id").all() as Array<{ pickup_schedule_id: number }>;
+  assert.ok(linked.every((row) => row.pickup_schedule_id !== null));
+});
+
+test("an existing provider slot is reused, and drop-off stays the default", async (context) => {
+  const database = new DispatchDatabase();
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const calls: Array<{ method: string; path: string; body: string }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input));
+    calls.push({ method: init?.method || "GET", path: url.pathname, body: typeof init?.body === "string" ? init.body : "" });
+    if (url.pathname.endsWith("/time")) {
+      return new Response(JSON.stringify({ success: true, data: [{ _id: "time-existing", date: "11-02-2026", time: "10:00" }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    return acceptedResponse();
+  };
+  await dispatchOrderToMengantar(asD1(database), locals, 1, {
+    choice: { type: "scheduledPickup", date: "2026-11-02", hour: 10, volume: "volumeMobil" },
+    timeIds: new Map(),
+  });
+  assert.deepEqual(calls.filter((call) => call.path.endsWith("/time")).map((call) => call.method), ["GET"], "no new booking");
+  assert.equal(JSON.parse(calls.find((call) => call.path.endsWith("/order"))!.body).pickup.time_id, "time-existing");
+
+  const plain = new DispatchDatabase();
+  calls.length = 0;
+  await dispatchOrderToMengantar(asD1(plain), locals, 1);
+  assert.deepEqual(JSON.parse(calls.find((call) => call.path.endsWith("/order"))!.body).pickup, { type: "dropOff", address_id: "pickup-1" });
+  assert.equal(calls.some((call) => call.path.endsWith("/time")), false);
 });

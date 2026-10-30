@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-10-30 @ `1e61368` + feat/compact-wa-follow-up working tree (baseline 1077)
+> Verified against disk: 2026-10-30 @ `93d78a8` + feat/mengantar-pickup working tree (baseline 1082)
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -122,7 +122,7 @@ can reach it.
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **1077 passing** (0 skipped, 2026-10-31, `feat/compact-wa-follow-up` on main `1e61368`), 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints (544 files). A change that reduces this baseline is not done.
+Current verified working-tree baseline: **1082 passing** (0 skipped, 2026-10-31, `feat/mengantar-pickup` on `93d78a8`), 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints (546 files). A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 

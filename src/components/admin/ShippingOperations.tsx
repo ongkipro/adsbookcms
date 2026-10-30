@@ -16,6 +16,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import { SHIPPING_STATUS_LABELS } from "@/lib/shipping-status";
+import { MengantarPickupFields } from "./MengantarPickupFields";
+import { defaultPickupSlot, mengantarPickupSlot } from "@/lib/mengantar-order";
 import { Input } from "../ui/input";
 import { FilterBar, FilterField, FilterSelect, SearchInput } from "./filter-bar";
 import { Checkbox } from "../ui/checkbox";
@@ -182,22 +184,6 @@ const dateTime = (value: string) =>
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
-function defaultPickupDate() {
-  const format = (value: Date) =>
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Jakarta",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(value);
-  const now = new Date();
-  const today = format(now);
-  const todaySlot = new Date(`${today}T09:00:00+07:00`);
-  return todaySlot.getTime() >= now.getTime() + 90 * 60 * 1000
-    ? today
-    : format(new Date(now.getTime() + 24 * 60 * 60 * 1000));
-}
-
 function StatusBadge({ status }: { status: string }) {
   const style = statusStyles[status] ?? statusStyles.cancelled;
   return (
@@ -249,7 +235,8 @@ export function ShippingOperations() {
   const [activeQueue, setActiveQueue] = useState<ShippingQueueId>("all");
   const [syncing, setSyncing] = useState(false);
   const [pickupOpen, setPickupOpen] = useState(false);
-  const [pickupAt, setPickupAt] = useState(defaultPickupDate);
+  // One-hour provider slot, 09.00–18.00 WIB, at least 90 minutes ahead.
+  const [pickupSlot, setPickupSlot] = useState(defaultPickupSlot);
   const [warehouseId, setWarehouseId] = useState("");
   const [pickupNotes, setPickupNotes] = useState("");
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
@@ -455,7 +442,7 @@ export function ShippingOperations() {
         {
           action: "schedule-pickup",
           warehouseId: Number(warehouseId),
-          scheduledAt: pickupAt,
+          scheduledAt: mengantarPickupSlot(pickupSlot.date, pickupSlot.hour).scheduledAt,
           orderIds: selectedOrderIds,
           notes: pickupNotes,
         },
@@ -477,7 +464,7 @@ export function ShippingOperations() {
   };
 
   const openPickupScheduler = () => {
-    setPickupAt(defaultPickupDate());
+    setPickupSlot(defaultPickupSlot());
     setPickupOpen(true);
     window.requestAnimationFrame(() =>
       document
@@ -597,19 +584,7 @@ export function ShippingOperations() {
                 </SelectContent>
               </Select>
             </label>
-            <label>
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
-                Tanggal pickup (09.00–18.00 WIB)
-              </span>
-              <Input
-                type="date"
-                value={pickupAt}
-                min={defaultPickupDate()}
-                onChange={(event) => setPickupAt(event.target.value)}
-                
-                required
-              />
-            </label>
+            <MengantarPickupFields idPrefix="shipping-pickup" date={pickupSlot.date} hour={pickupSlot.hour} onChange={setPickupSlot} />
             <label>
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                 Catatan kurir

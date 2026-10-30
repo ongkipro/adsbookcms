@@ -1355,6 +1355,26 @@ on the order page is removed; the chip's WhatsApp link carries the message.
   sent keeps its event id (the order number), so the paid Purchase that
   follows deduplicates against it.
 
+## A46 — Pickup or drop-off when pushing to Mengantar
+
+Accepted 2026-10-31 (Paduka): every push to Mengantar, one order or many,
+opens a dialog that asks how the parcel leaves the warehouse.
+
+- **REQ-271** (Must, event) — When an operator pushes orders to Mengantar
+  (row action, selection, or "Push semua yang siap"), the system shall ask
+  drop-off or pickup; drop-off sends `pickup.type = dropOff` as before, pickup
+  sends `scheduledPickup` with the slot's `time_id` and a vehicle (`volumeMotor`
+  by default, `volumeMobil` on request).
+  - Acceptance: Given three ready orders of one warehouse and a pickup at 14.00
+    by car, When pushed, Then one provider slot is booked or reused, all three
+    orders carry it, and one local pickup schedule links them.
+- **REQ-272** (Must, ubiquitous) — A pickup slot shall be one hour from 09.00
+  to 18.00 WIB, at least 90 minutes ahead, sent as `time` `"13:00"` and `date`
+  `mm-dd-yyyy` (Mengantar docs), on the push dialog and the shipping page alike.
+- **REQ-273** (Should, event) — The order list shall offer "Push semua yang
+  siap (N)" for the ready orders of the current page and filter (COD pending,
+  or prepaid paid), up to the endpoint's 50.
+
 ## A45 — Operations API and `adsbook` CLI, beside the storefront headless API
 
 **Status:** Accepted 2026-10-30 (Paduka: "lanjutkan development task yang

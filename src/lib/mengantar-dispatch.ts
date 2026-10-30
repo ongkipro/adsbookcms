@@ -5,8 +5,12 @@ import {
 } from "./mengantar-client.ts";
 import {
   buildMengantarOrderPayload,
+  mengantarPickupSlot,
   parseMengantarDispatchResponse,
+  pickMengantarTimeId,
   resolveAcceptedMengantarShipment,
+  type MengantarPickupChoice,
+  type MengantarPickupPayload,
 } from "./mengantar-order.ts";
 import { getProviderConfig } from "./provider-config.ts";
 import {
@@ -44,7 +48,86 @@ type DispatchOrderRow = {
   cnote_no: string | null;
   provider_dispatch_error: string | null;
   pickup_address_id: string | null;
+  warehouse_id: number | null;
 };
+
+/**
+ * How a push leaves the warehouse (PRD A46). One per request: a bulk push
+ * shares `timeIds`, so each pickup address asks Mengantar for its slot once.
+ */
+export type MengantarDispatchPickup = {
+  choice: MengantarPickupChoice;
+  timeIds: Map<string, string>;
+};
+
+/**
+ * The provider `time_id` for a scheduled pickup at one address: an existing
+ * slot for that date and hour (`GET /time`), else a new one (`POST /time`).
+ */
+async function resolvePickupTimeId(
+  client: MengantarClient,
+  addressId: string,
+  choice: Extract<MengantarPickupChoice, { type: "scheduledPickup" }>,
+  timeIds: Map<string, string>,
+) {
+  const cached = timeIds.get(addressId);
+  if (cached) return cached;
+  const slot = mengantarPickupSlot(choice.date, choice.hour);
+  let timeId = "";
+  try {
+    const existing = await client.getPickupTimes(addressId);
+    const rows = Array.isArray(existing.data) ? existing.data : [];
+    timeId = String(rows.find((row) => row.date === slot.date && row.time === slot.time)?._id || "").trim();
+  } catch (error) {
+    // A failed listing is not a refusal; creating the slot still decides.
+    console.error("mengantar-pickup-time-list", error instanceof Error ? error.message : "unknown");
+  }
+  if (!timeId) {
+    const created = await client.schedulePickupTime({ addressId, date: slot.date, time: slot.time });
+    timeId = pickMengantarTimeId(created.data, slot);
+  }
+  if (!timeId) throw new Error("Mengantar tidak mengembalikan jadwal pickup; order tidak dikirim.");
+  timeIds.set(addressId, timeId);
+  return timeId;
+}
+
+/**
+ * The local schedule row a picked-up order belongs to, one per warehouse and
+ * provider slot, so the shipping page no longer lists it as needing pickup.
+ */
+async function linkPickupSchedule(
+  database: D1Database,
+  orderId: number,
+  warehouseId: number,
+  timeId: string,
+  choice: Extract<MengantarPickupChoice, { type: "scheduledPickup" }>,
+) {
+  const scheduledAt = mengantarPickupSlot(choice.date, choice.hour).scheduledAt;
+  await database
+    .prepare(
+      `INSERT INTO pickup_schedules (warehouse_id, scheduled_at, status, shipment_count, provider_reference, notes, created_at)
+      SELECT ?, ?, 'scheduled', 0, ?, ?, ?
+      WHERE NOT EXISTS (SELECT 1 FROM pickup_schedules WHERE warehouse_id = ? AND provider_reference = ?)`,
+    )
+    .bind(warehouseId, scheduledAt, timeId, choice.volume === "volumeMobil" ? "Mobil" : "Motor", new Date().toISOString(), warehouseId, timeId)
+    .run();
+  await database.batch([
+    database
+      .prepare(
+        `UPDATE orders SET pickup_schedule_id =
+          (SELECT id FROM pickup_schedules WHERE warehouse_id = ? AND provider_reference = ? ORDER BY id LIMIT 1)
+        WHERE id = ? AND pickup_schedule_id IS NULL`,
+      )
+      .bind(warehouseId, timeId, orderId),
+    database
+      .prepare(
+        `UPDATE pickup_schedules SET shipment_count =
+          (SELECT COUNT(*) FROM orders WHERE pickup_schedule_id = pickup_schedules.id)
+        WHERE warehouse_id = ? AND provider_reference = ?`,
+      )
+      .bind(warehouseId, timeId),
+  ]);
+}
 
 type DispatchItemRow = {
   quantity: number;
@@ -144,6 +227,7 @@ export async function dispatchOrderToMengantar(
   database: D1Database,
   locals: App.Locals,
   orderId: number,
+  pickup: MengantarDispatchPickup = { choice: { type: "dropOff" }, timeIds: new Map() },
 ): Promise<MengantarDispatchOutcome> {
   const order = await database
     .prepare(
@@ -151,7 +235,7 @@ export async function dispatchOrderToMengantar(
         o.id, o.order_number, o.customer_name, o.customer_phone, o.address,
         o.destination_area_id, o.courier_code, o.payment_method, o.payment_status,
         o.shipping_status, o.total_amount, o.provider_order_id, o.cnote_no,
-        o.provider_dispatch_error, w.pickup_address_id
+        o.provider_dispatch_error, w.pickup_address_id, o.warehouse_id
       FROM orders o
       LEFT JOIN warehouses w ON w.id = o.warehouse_id
       WHERE o.id = ?
@@ -279,8 +363,17 @@ export async function dispatchOrderToMengantar(
   }
 
   let leaseToken = "";
+  let pickupPayload: MengantarPickupPayload = { type: "dropOff" };
   try {
     leaseToken = await acquireMengantarLease(database);
+    const client = new MengantarClient(config.apiKey, config.baseUrl);
+    if (pickup.choice.type === "scheduledPickup") {
+      pickupPayload = {
+        type: "scheduledPickup",
+        volume: pickup.choice.volume,
+        timeId: await resolvePickupTimeId(client, pickupAddressId, pickup.choice, pickup.timeIds),
+      };
+    }
     const payload = buildMengantarOrderPayload({
       orderNumber: order.order_number,
       courierCode,
@@ -296,11 +389,9 @@ export async function dispatchOrderToMengantar(
       paymentMethod: order.payment_method,
       goodsAmount: Number(item.unit_price) * Number(item.quantity),
       collectedAmount: Number(order.total_amount),
+      pickup: pickupPayload,
     });
-    const response = await new MengantarClient(
-      config.apiKey,
-      config.baseUrl,
-    ).createShipment(payload);
+    const response = await client.createShipment(payload);
     const dispatched = parseMengantarDispatchResponse(response);
     const acceptedAt = new Date().toISOString();
     const accepted = resolveAcceptedMengantarShipment(
@@ -397,6 +488,15 @@ export async function dispatchOrderToMengantar(
         };
       }
       return { status: "failed", error: conflictMessage };
+    }
+    if (pickupPayload.type === "scheduledPickup" && pickup.choice.type === "scheduledPickup" && order.warehouse_id) {
+      // The shipment is the provider's now; a failed local link only leaves
+      // it listed as needing pickup on the shipping page.
+      try {
+        await linkPickupSchedule(database, order.id, order.warehouse_id, pickupPayload.timeId, pickup.choice);
+      } catch (error) {
+        console.error("mengantar-pickup-link", error instanceof Error ? error.message : "unknown");
+      }
     }
     return {
       status: accepted.outcome,

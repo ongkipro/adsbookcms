@@ -7285,3 +7285,30 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   the three dot colours and matching delivery labels; no overflow.
 - Verification: `npm test` 1077 pass / 0 fail, `npm run check` 0 errors /
   0 hints (544 files), `npm run build` complete.
+### Entry 199: Pickup or drop-off when pushing to Mengantar (A46)
+
+- Paduka asked for a dialog on "Push ke Mengantar": drop-off or pickup, with
+  pickup date and time, for one order or many (by selection, by filter, or
+  every confirmed order). The contract came from the Mengantar documentation
+  repository (`~/Projects/mengantar-documentation`, mirrored from the official
+  docs): `pickup.type` `dropOff` | `scheduledPickup`, the latter with `time_id`
+  from `/time` and a vehicle `volume`.
+- Two existing defects found on the way: `POST /time` was sent the range
+  `"9:00 - 18:00"` (a slot is one hour, `"13:00"`), and its single-object
+  answer was read as `data[0]`, so the shipping page could never get a
+  provider reference. Both came with the fork; neither had evidence.
+- `MengantarPushDialog` (drop-off | pickup, date, hour buttons 09.00–18.00
+  with the 90-minute rule, Motor default, Mobil) on the order list (row,
+  selection, "Push semua yang siap (N)") and the order page; per-order
+  outcome with resi in the dialog. `MengantarPickupFields` is shared with the
+  shipping page. Dispatch stays one order per call under the existing lease;
+  a request books or reuses one slot per pickup address and links accepted
+  orders to a `pickup_schedules` row (warehouse + provider slot id).
+- The local stand-in now follows the documented `/time` shape and refuses a
+  `scheduledPickup` without a known `time_id` and a volume.
+- Verification: `npm test` 1082 pass / 0 fail (new pickup tests in
+  `mengantar-order`, `mengantar-dispatch`, `dev-providers`; mutation-checked),
+  `npm run check` 0 errors / 0 hints, `npm run build` complete. Browser
+  (headless Chromium, `dev:local`): dialog at 390 and 1440 px fits the
+  viewport; three ready orders pushed as a 14.00 car pickup got three resi,
+  one schedule row, and left no ready order. Not run against live Mengantar.

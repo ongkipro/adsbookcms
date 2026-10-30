@@ -112,9 +112,6 @@ test("headless order status requires the checkout-issued identity and token with
     // whose items cannot be read reports 0, never the invoice total, so a
     // missing join can never inflate reported ad revenue with shipping and fees.
     product_value: 0,
-    // The fixture row carries no courier or destination, so the COD order is
-    // not one the buyer could move to prepaid (src/lib/payment-switch.ts).
-    payment_switch: null,
     payment: null,
   });
   assert.deepEqual(auditStatuses, [404, 200]);

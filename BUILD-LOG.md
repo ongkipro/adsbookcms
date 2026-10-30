@@ -7098,20 +7098,37 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   this worktree fails on a symlinked `node_modules` (Vite denies files outside
   the root); the Wrangler demo on the Tailscale address is the working path.
 
-### Entry 191: Buyer switches a COD order to prepaid on /thanks (A44, REQ-250)
+### Entry 191: Operator switches a COD order to transfer/VA (A44, REQ-250)
 
 - Merged PR #102 into main (`cbcadbf`) and deleted `feat/s1-a36-a38`; new work
   on `feat/invoice-payment-switch`.
 - The demo Worker had served `/_astro` 404s after a rebuild underneath it
   (Pengiriman and Pembayaran blank); a restart fixed it. Restart after every
   build.
-- COD → manual transfer or AutoLaris VA/QRIS from `/thanks`, through
-  `POST /api/order-status` `switch_payment`. Refused once fulfilment touched
-  the order or while its address/courier is not final (middle form before
-  completion, `ICO`). Total drops the COD fee; the write repeats every guard
-  and the read total. Migration `0074` adds `payment_switched_from/_at`;
-  `schemaVersion` 75.
-- Kelola cannot be updated (resend = duplicate), so the admin order tells the
-  operator to correct it by hand when the switch came after the push.
+- First cut offered the switch to the buyer on `/thanks`; corrected to an
+  operator action on the admin order (PATCH `switch-payment`) and the buyer
+  path removed. Refused once fulfilment touched the order or while its
+  address/courier is not final. Total drops the COD fee; the write repeats
+  every guard and the read total. Migration `0074` adds
+  `payment_switched_from/_at/_by`; `schemaVersion` 75. "Salin link
+  pembayaran" hands the buyer `/payment`.
+- Kelola cannot be updated (resend = duplicate), so the admin order asks for a
+  manual Kelola correction when the switch came after the push.
+- The local AutoLaris simulator now charges the store's fee table (it charged
+  a flat Rp4.000 for every VA) and lists VA Permata.
 - Evidence: TASKS A-421.
+- Independent review (separate agent, code only): four findings, all fixed.
+  An admin re-quote racing a switch could write its COD total over the
+  prepaid order (the re-quote UPDATE now also requires the method and total it
+  read); a resubmitted COD checkout could be handed the switched order back as
+  COD (`checkout_fingerprint` cleared on switch); refusal copy addressed the
+  buyer. `0074` gained `payment_switched_by` after its first push: the branch
+  was unmerged and no install deploys from it; the only D1 that ran the
+  earlier `0074` is the local demo, patched by hand.
+- `/payment` now keeps the server's payment method, so an order an operator
+  moved off COD (or a link opened on another device) reaches `/thanks` as what
+  it is once paid.
+- Demo smoke after restart: 17 pages 200 with every island asset served;
+  admin order APIs 200; expected refusals 400/401/404/409; a COD re-quote on
+  INV-10013 (JNE→J&T) still recomputes the COD total; no console errors.
 

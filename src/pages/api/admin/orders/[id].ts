@@ -8,6 +8,12 @@ import { isValidWa62 } from '../../../../lib/validation';
 import { getMengantarDispatchEligibility } from '../../../../lib/payment-dispatch-policy';
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from '../../../../lib/payment-fee-policy';
 import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch';
+import {
+  adminPaymentSwitchView,
+  parsePaymentSwitchTarget,
+  PaymentSwitchError,
+  switchCodOrderPayment,
+} from '../../../../lib/payment-switch.ts';
 import { buildPaymentNotification, recordNotification } from '../../../../lib/notifications';
 import { enqueuePurchaseForPaidOrder, manualTransferBecamePaid } from '../../../../lib/paid-order-purchase.ts';
 import {
@@ -44,7 +50,9 @@ const SHIPPING_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'ret
 const PAID_STATUSES = new Set(['paid', 'settled', 'success']);
 
 type OrderUpdatePayload = {
-  action?: 'dispatch-order' | 'refresh-scoring' | 'push-kelola';
+  action?: 'dispatch-order' | 'refresh-scoring' | 'push-kelola' | 'switch-payment';
+  /** `switch-payment`: the prepaid method (src/lib/payment-switch.ts). */
+  switch_payment?: unknown;
   payment_status?: string;
   shipping_status?: string;
   cnote_no?: string;
@@ -83,6 +91,8 @@ type OrderRow = {
   payment_method: string;
   payment_switched_from: string | null;
   payment_switched_at: string | null;
+  payment_switched_by: string | null;
+  public_status_token: string | null;
   payment_status: string;
   shipping_status: string;
   confirmed_at: string | null;
@@ -174,6 +184,8 @@ async function loadOrder(database: D1Database, rawOrderKey: string) {
       o.payment_method,
       o.payment_switched_from,
       o.payment_switched_at,
+      o.payment_switched_by,
+      o.public_status_token,
       o.payment_status,
       o.shipping_status,
       o.confirmed_at,
@@ -306,6 +318,15 @@ export const GET: APIRoute = async ({ params, locals }) => {
         payment_method: order.payment_method,
         payment_switched_from: order.payment_switched_from,
         payment_switched_at: order.payment_switched_at,
+        payment_switched_by: order.payment_switched_by,
+        // COD → transfer/VA availability and the buyer's payment link.
+        ...adminPaymentSwitchView(
+          order,
+          ((itemsResult.results ?? []) as OrderItemRow[]).reduce(
+            (sum, item) => sum + Number(item.quantity) * Number(item.unit_price),
+            0,
+          ),
+        ),
         payment_status: order.payment_status,
         shipping_status: order.shipping_status,
         stock_restored_at: order.stock_restored_at,
@@ -377,6 +398,17 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     if (!current) return jsonError('Order tidak ditemukan.', 404);
 
     const action = body.action;
+    if (action === 'switch-payment') {
+      const target = parsePaymentSwitchTarget(body.switch_payment);
+      if (!target) return jsonError('Metode pembayaran pengganti tidak valid.', 400);
+      try {
+        await switchCodOrderPayment(db, locals, current.id, target, locals.admin?.username || 'admin');
+      } catch (error) {
+        if (error instanceof PaymentSwitchError) return jsonError(error.message, error.status);
+        throw error;
+      }
+      return jsonOk({ message: `Pembayaran ${current.order_number} diganti dari COD.` });
+    }
     if (action === 'push-kelola') {
       const config = await activeKelolaConfig(db, locals);
       if (config === undefined) return jsonError('Plugin Kelola CRM belum aktif.', 409);
@@ -704,19 +736,28 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
 
     let metaPurchase: Awaited<ReturnType<typeof enqueuePurchaseForPaidOrder>> | null = null;
     if (assignments.length > 0) {
+      // A re-quote writes a COD total computed from the order as read; an
+      // operator switching the payment (src/lib/payment-switch.ts) during the
+      // provider quote must not get that total written over a prepaid order.
+      const quoteGuard = hasShippingSelection ? `
+        AND payment_method = ? AND total_amount = ?` : '';
       const destinationEditGuard =
         hasCustomerChanges || hasShippingSelection
           ? `
         AND provider_order_id IS NULL
         AND provider_dispatch_claimed_at IS NULL
-        AND shipping_status = 'pending'`
+        AND shipping_status = 'pending'${quoteGuard}`
           : '';
       const mutation = db.prepare(`
         UPDATE orders
         SET ${assignments.join(', ')}
         WHERE id = ?
         ${destinationEditGuard}
-      `).bind(...values, current.id);
+      `).bind(
+        ...values,
+        current.id,
+        ...(hasShippingSelection ? [current.payment_method, current.total_amount] : []),
+      );
       const hasLifecycleChange =
         action !== 'dispatch-order' &&
         (nextPaymentStatus !== undefined || nextShippingStatus !== undefined);
@@ -736,7 +777,9 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
       if (!updated) {
         return destinationEditGuard
           ? jsonError(
-              'Data tujuan tidak dapat diubah karena order sedang atau sudah diproses ke Mengantar.',
+              hasShippingSelection
+                ? 'Order berubah saat ongkir dihitung ulang (diproses ke Mengantar atau pembayarannya diganti). Muat ulang halaman.'
+                : 'Data tujuan tidak dapat diubah karena order sedang atau sudah diproses ke Mengantar.',
               409,
             )
           : jsonError('Order tidak ditemukan.', 404);

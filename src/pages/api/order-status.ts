@@ -6,11 +6,6 @@ import {
 import { isAutoLarisCheckoutChannel } from "../../lib/autolaris-client.ts";
 import { getRuntimeEnv } from "../../lib/env.ts";
 import { loadPublicOrderStatus, resolvePublicOrderId } from "../../lib/order-status.ts";
-import {
-  parsePaymentSwitchTarget,
-  PaymentSwitchError,
-  switchCodOrderPayment,
-} from "../../lib/payment-switch.ts";
 import { checkRateLimit, getClientIp, rateLimitHeaders } from "../../lib/rate-limit.ts";
 
 export const prerender = false;
@@ -31,13 +26,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
       order_id?: unknown;
       status_token?: unknown;
       retry_payment?: unknown;
-      switch_payment?: unknown;
     } | null;
     const orderIdentity = String(body?.order_pk ?? body?.order_id ?? "").trim();
     const statusToken = String(body?.status_token ?? "").trim();
     const retryPayment = body?.retry_payment === true;
-    const switchRequested = body?.switch_payment !== undefined;
-    const switchTarget = switchRequested ? parsePaymentSwitchTarget(body?.switch_payment) : null;
     if (!orderIdentity || !statusToken) {
       return json(
         {
@@ -46,9 +38,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
         },
         400,
       );
-    }
-    if (switchRequested && !switchTarget) {
-      return json({ success: false, error: "Metode pembayaran pengganti tidak valid." }, 400);
     }
 
     const database = getRuntimeEnv(locals)?.OMS_DB as D1Database | undefined;
@@ -63,7 +52,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // the per-address ceilings are loose; the retry is additionally capped per
     // order below, which is the limit that actually protects the provider.
     const clientIp = getClientIp(request.headers);
-    const rateLimit = retryPayment || switchTarget
+    const rateLimit = retryPayment
       ? await checkRateLimit(database, `public-payment-retry:${clientIp}`, 30, 10 * 60_000)
       : await checkRateLimit(database, `public-order-status:${clientIp}`, 240, 60_000);
     if (!rateLimit.allowed) {
@@ -111,28 +100,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
         });
       } catch (error) {
         console.error("public-payment-retry-failed", error);
-      }
-      orderStatus = (await loadPublicOrderStatus(database, orderIdentity, statusToken)) ?? orderStatus;
-    }
-    // COD → prepaid from the invoice page (src/lib/payment-switch.ts). Shares
-    // the retry's per-address damping above, since a VA switch is a provider
-    // request too, and is capped per order on top of it.
-    if (switchTarget) {
-      const orderId = await resolvePublicOrderId(database, orderIdentity, statusToken);
-      if (orderId === null) return json({ success: false, error: "Order tidak ditemukan." }, 404);
-      const perOrder = await checkRateLimit(database, `public-payment-switch-order:${orderId}`, 3, 10 * 60_000);
-      if (!perOrder.allowed) {
-        return json(
-          { success: false, error: "Terlalu banyak percobaan. Coba lagi dalam beberapa menit.", code: "RATE_LIMITED" },
-          429,
-          rateLimitHeaders(perOrder.remaining, perOrder.resetAt),
-        );
-      }
-      try {
-        await switchCodOrderPayment(database, locals, orderId, switchTarget);
-      } catch (error) {
-        if (!(error instanceof PaymentSwitchError)) throw error;
-        return json({ success: false, error: error.message }, error.status);
       }
       orderStatus = (await loadPublicOrderStatus(database, orderIdentity, statusToken)) ?? orderStatus;
     }

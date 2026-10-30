@@ -1,5 +1,6 @@
 /**
- * A buyer moving their own COD order to a prepaid method from the invoice page.
+ * An operator moving a COD order to a prepaid method from the admin order page,
+ * when the buyer asks to pay first (transfer or VA) instead of on delivery.
  *
  * One direction only: COD → manual transfer, or COD → an AutoLaris VA/QRIS
  * channel the store has live. Prepaid never goes back to COD here — that would
@@ -9,7 +10,8 @@
  * not dispatched or being dispatched, and carrying a real courier and
  * destination. A middle-form order before the operator completes the address,
  * or one on the city-average `ICO` placeholder rate, has no price a prepaid
- * buyer could be billed (see shipping-quote.ts), so it stays COD.
+ * buyer could be billed (see shipping-quote.ts): the operator completes the
+ * address and courier first, then switches.
  *
  * Money: the prepaid total is items − discount + shipping, the same base the
  * COD fee was computed on, with the COD fee dropped. The courier price is the
@@ -18,12 +20,12 @@
  * it, is added by the payment transaction exactly as at checkout.
  *
  * What was already said about the sale stays said. The Meta Purchase a COD
- * order sends from /thanks keeps its event_id (the order number), so the paid
+ * order sent from /thanks keeps its event_id (the order number), so the paid
  * Purchase that follows a switch is deduplicated against it. A Kelola push
  * that already happened keeps saying COD — Kelola answers a resend of the same
  * order code as a duplicate and has no update route — so the order records
- * `payment_switched_from/_at` and the admin order page tells the operator to
- * correct it in Kelola by hand. An order Kelola has not accepted yet is pushed
+ * `payment_switched_from/_at/_by` and the admin order page tells the operator
+ * to correct it in Kelola by hand. An order Kelola has not accepted yet is pushed
  * later with the new method, because the push reads the order as it stands.
  */
 import {
@@ -78,12 +80,45 @@ export function paymentSwitchBlockReason(order: PaymentSwitchOrder): string | nu
   }
   const courier = (order.courier_code || "").trim().toUpperCase();
   if (!courier || courier === "ICO" || !order.destination_area_id || !(order.district || "").trim()) {
-    return "Alamat dan ongkir pesanan ini belum final. Hubungi admin untuk mengganti pembayaran.";
+    return "Alamat, kecamatan atau kurir belum final. Lengkapi lewat Edit pembeli & alamat, lalu ganti pembayaran.";
   }
   return null;
 }
 
-/** Parse the buyer's request body; null when it names no valid prepaid target. */
+/**
+ * What the admin order page shows about switching: for a COD order, whether
+ * it can still move to transfer/VA and the total it would then carry; for an
+ * unpaid prepaid order, the buyer's own /payment page to send them (the
+ * fragment locator never reaches a server or a referrer).
+ */
+export function adminPaymentSwitchView(
+  order: PaymentSwitchOrder & {
+    id: number;
+    public_status_token: string | null;
+    discount_amount: number | null;
+    shipping_cost: number | null;
+  },
+  itemTotal: number,
+) {
+  const reason = paymentSwitchBlockReason(order);
+  const paid = ["paid", "settled", "success"].includes(String(order.payment_status));
+  return {
+    payment_switch:
+      order.payment_method === "cod"
+        ? {
+            available: reason === null,
+            reason,
+            total_amount: prepaidTotal(itemTotal, Number(order.discount_amount || 0), Number(order.shipping_cost || 0)),
+          }
+        : null,
+    payment_link:
+      order.payment_method !== "cod" && !paid && !order.stock_restored_at && order.public_status_token
+        ? `/payment#o=${order.id}&t=${encodeURIComponent(order.public_status_token)}`
+        : null,
+  };
+}
+
+/** Parse the request body; null when it names no valid prepaid target. */
 export function parsePaymentSwitchTarget(value: unknown): PaymentSwitchTarget | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
@@ -128,16 +163,17 @@ async function autoLarisChannelUnavailable(
 
 /**
  * Move one COD order to a prepaid method. Throws PaymentSwitchError with the
- * buyer-facing reason when the order or the target refuses; an AutoLaris
+ * operator-facing reason when the order or the target refuses; an AutoLaris
  * failure after the switch is not thrown — the order is prepaid by then and
- * keeps a failed transaction row the buyer can retry from /payment, exactly
- * as a checkout whose first provider call failed.
+ * keeps a failed transaction row the buyer can regenerate from /payment,
+ * exactly as a checkout whose first provider call failed.
  */
 export async function switchCodOrderPayment(
   database: D1Database,
   locals: App.Locals,
   orderId: number,
   target: PaymentSwitchTarget,
+  switchedBy: string,
   now = new Date(),
 ): Promise<void> {
   const order = await database
@@ -193,7 +229,9 @@ export async function switchCodOrderPayment(
          cod_service_fee = 0, cod_service_fee_vat = 0,
          seller_bank_account_id = ?, seller_bank_code = ?, seller_bank_name = ?,
          seller_account_holder = ?, seller_account_number = ?,
-         payment_switched_from = 'cod', payment_switched_at = ?
+         payment_switched_from = 'cod', payment_switched_at = ?, payment_switched_by = ?,
+         -- A resubmitted COD checkout must not be handed this order back as COD.
+         checkout_fingerprint = NULL
        WHERE id = ? AND payment_method = 'cod' AND payment_status = 'unpaid'
          AND shipping_status = 'pending' AND stock_restored_at IS NULL
          AND provider_order_id IS NULL AND COALESCE(provider_dispatch_error, '') <> 'DISPATCHING'
@@ -208,6 +246,7 @@ export async function switchCodOrderPayment(
       bank?.account_holder ?? null,
       bank?.account_number ?? null,
       now.toISOString(),
+      switchedBy.slice(0, 120),
       order.id,
       order.total_amount,
     )

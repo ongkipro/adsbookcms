@@ -218,9 +218,6 @@ Requires scope `orders:read`. The JSON body must contain both `order_number` and
 the matching `status_token` returned by Headless checkout. The response contains
 only public order/payment state and recorded amounts/instructions; it excludes
 name, phone, address, provider credentials, and internal ids.
-`payment_switch` is `{ total_amount }` while the COD order could still be moved
-to a prepaid method by its buyer (REQ-250), otherwise `null`; the switch itself
-is not part of the headless surface.
 
 ### 4.10 Executable contract assets
 

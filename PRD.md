@@ -1308,26 +1308,28 @@ in its existing fields and analytics cohort, but opening WA and marking contacte
 become separate actions. No order/payment/shipping transitions or ad events are
 triggered by follow-up writes. Advertisers cannot read/write order follow-up.
 
-## Buyer payment switch on the invoice page (REQ-250)
+## Operator payment switch on the admin order (REQ-250)
 
-- **REQ-250** — A buyer holding a COD order's status token shall be able to
-  move that order to a prepaid method from `/thanks`: manual transfer to an
-  active seller account, or an AutoLaris VA/QRIS channel the store has live
-  (the same readiness `/api/payment-methods` reports). One direction only;
-  prepaid never returns to COD from the buyer side. The switch is refused
-  unless the order is pending, unpaid, not void, not dispatched or being
-  dispatched, and carries a real courier (not the `ICO` placeholder), a
-  destination area and a kecamatan. The prepaid total is items − discount +
-  shipping, the COD fee dropped; a VA/QRIS admin fee follows the store's fee
-  bearer exactly as at checkout. The write is guarded on every precondition
-  and the read total, so a concurrent dispatch or admin edit wins. A provider
-  failure after the switch leaves a prepaid order with a failed instruction
-  the buyer can regenerate from `/payment`. The order records
-  `payment_switched_from/_at`; the admin order shows it, and when the order
-  was already pushed to Kelola (which answers a resend as a duplicate and has
-  no update route) it tells the operator to correct the payment there by hand.
-  The COD Purchase already sent keeps its event id (the order number), so the
-  paid Purchase that follows deduplicates against it.
+- **REQ-250** — An owner, admin or customer-service operator shall be able to
+  move a COD order to a prepaid method from the admin order page when the
+  buyer asks to pay first: manual transfer to an active seller account, or an
+  AutoLaris VA/QRIS channel the store has live (the same readiness
+  `/api/payment-methods` reports). One direction only; there is no buyer-side
+  switch. The switch is refused unless the order is pending, unpaid, not
+  void, not dispatched or being dispatched, and carries a real courier (not
+  the `ICO` placeholder), a destination area and a kecamatan; otherwise the
+  page says why. The prepaid total is items − discount + shipping, the COD fee
+  dropped; a VA/QRIS admin fee follows the store's fee bearer exactly as at
+  checkout. The write is guarded on every precondition and the read total, so
+  a concurrent dispatch or edit wins. A provider failure after the switch
+  leaves a prepaid order with a failed instruction the buyer can regenerate
+  from `/payment`. The order records `payment_switched_from/_at/_by`. An
+  unpaid prepaid order offers "Salin link pembayaran" (the buyer's `/payment`
+  page) for the operator to send. When the order was already pushed to Kelola
+  (which answers a resend as a duplicate and has no update route) the page
+  tells the operator to correct it there by hand. The COD Purchase already
+  sent keeps its event id (the order number), so the paid Purchase that
+  follows deduplicates against it.
 
 ## 11. Traceability
 

@@ -1,5 +1,4 @@
 import { effectivePaymentStatus } from "./autolaris-payment.ts";
-import { paymentSwitchBlockReason, prepaidTotal } from "./payment-switch.ts";
 
 export type PublicPaymentStatus = {
   channel_code: string;
@@ -37,13 +36,6 @@ export type PublicOrderStatus = {
    * so a later catalogue edit cannot restate a past order's value.
    */
   product_value: number;
-  /**
-   * Present while this COD order may still be moved to a prepaid method by the
-   * buyer (src/lib/payment-switch.ts), with the total it would then carry —
-   * the COD fee dropped. The invoice page offers the switch only then; the
-   * switch itself re-checks every condition when it writes.
-   */
-  payment_switch: { total_amount: number } | null;
   payment: PublicPaymentStatus | null;
 };
 
@@ -54,14 +46,6 @@ type PublicOrderStatusRow = {
   payment_method?: string;
   payment_status?: string;
   shipping_status?: string;
-  stock_restored_at?: string | null;
-  provider_order_id?: string | null;
-  provider_dispatch_error?: string | null;
-  courier_code?: string | null;
-  destination_area_id?: string | null;
-  district?: string | null;
-  shipping_cost?: number | null;
-  discount_amount?: number | null;
   seller_bank_code?: string | null;
   seller_bank_name?: string | null;
   seller_account_holder?: string | null;
@@ -99,14 +83,6 @@ export async function loadPublicOrderStatus(
         o.payment_method,
         o.payment_status,
         o.shipping_status,
-        o.stock_restored_at,
-        o.provider_order_id,
-        o.provider_dispatch_error,
-        o.courier_code,
-        o.destination_area_id,
-        o.district,
-        o.shipping_cost,
-        o.discount_amount,
         o.seller_bank_code,
         o.seller_bank_name,
         o.seller_account_holder,
@@ -150,26 +126,6 @@ export async function loadPublicOrderStatus(
     status: orderRow.shipping_status || "pending",
     total_amount: Number(orderRow.total_amount ?? 0),
     product_value: Number(orderRow.product_value ?? 0),
-    payment_switch:
-      paymentSwitchBlockReason({
-        payment_method: orderRow.payment_method ?? null,
-        payment_status: paymentStatus,
-        shipping_status: orderRow.shipping_status ?? null,
-        stock_restored_at: orderRow.stock_restored_at ?? null,
-        provider_order_id: orderRow.provider_order_id ?? null,
-        provider_dispatch_error: orderRow.provider_dispatch_error ?? null,
-        courier_code: orderRow.courier_code ?? null,
-        destination_area_id: orderRow.destination_area_id ?? null,
-        district: orderRow.district ?? null,
-      }) === null
-        ? {
-            total_amount: prepaidTotal(
-              Number(orderRow.product_value ?? 0),
-              Number(orderRow.discount_amount ?? 0),
-              Number(orderRow.shipping_cost ?? 0),
-            ),
-          }
-        : null,
     payment:
       orderRow.channel_code ||
       orderRow.payment_method === "manual_transfer" ||

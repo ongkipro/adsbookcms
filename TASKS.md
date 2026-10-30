@@ -4043,32 +4043,36 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
   size (target under 150 KB raw), a new install resolves a sampled district
   with no Mengantar call, and the generator is committed under `scripts/`.
 
-## A44 — Buyer switches a COD order to prepaid on the invoice page
+## A44 — Operator switches a COD order to transfer/VA on the admin order
 
-Added 2026-10-30 on request ("di halaman inv misal cod bisa ganti transfer atau
-va jika api autolaris aktif dan tersedia"). Direction chosen with the owner:
-COD → prepaid only. Kelola: the owner asked for a resend if Kelola could update
-an order; its order webhook keys on the order code and answers a resend as a
-duplicate (`src/plugins/kelola/sync.ts`), and no update route is known, so the
-order is flagged for a manual Kelola correction instead.
+Added 2026-10-30 on request: a COD order whose buyer then wants to transfer;
+the operator switches it on the admin invoice page ("admin yang mengganti di
+halaman inv admin"). A first cut put the chooser on the buyer's `/thanks`; the
+owner corrected that it is an operator action, and the buyer-side switch was
+removed before merge. Direction: COD → prepaid only. Kelola: its order webhook
+keys on the order code and answers a resend as a duplicate
+(`src/plugins/kelola/sync.ts`); no update route is known, so the order is
+flagged for a manual Kelola correction instead.
 
-- [x] **A-421** — `src/lib/payment-switch.ts`, a `switch_payment` branch on
-  `POST /api/order-status` (per-address damping shared with the retry, 3 per
-  order per 10 minutes), `payment_switch` on the public status, the `/thanks`
-  chooser, migration `0074` (`payment_switched_from/_at`), and the admin
-  order notices.
+- [x] **A-421** — `src/lib/payment-switch.ts`, PATCH
+  `/api/admin/orders/[id]` action `switch-payment` (session operator recorded),
+  `payment_switch` / `payment_link` on the admin order read,
+  `PaymentSwitchDialog`, migration `0074` (`payment_switched_from/_at/_by`),
+  the Kelola notice, and the local AutoLaris simulator charging the store's
+  own fee table.
   -> REQ: REQ-250 · deps: [] · Done when: tests prove the COD-fee drop, the
-  refusals, the failed-provider path and the guarded write (mutation-checked);
-  a browser run takes a full-form COD order to VA BCA and to QRIS at 1366 and
-  390 px and the admin order shows the switch and the Kelola notice.
-  Done 2026-10-30: `payment-switch.test.ts` 5/5; removing the dispatch guard
-  or keeping the COD fee each fails one test. Demo (Wrangler, AutoLaris mock):
-  INV-10019 COD Rp83.698 → VA BCA, order total Rp81.000; INV-10020 → QRIS
-  Rp81.000 + Rp567. Admin INV-10019 shows "Diganti pembeli dari COD" and,
-  with Kelola enabled locally and a pre-switch sync row, the manual-correction
-  notice. Not run in a browser: manual transfer (the demo store has no seller
-  account; covered by the endpoint test). The mock's VA BCA fee (Rp4.000)
-  differs from the policy label (Rp6.500); that is the mock's figure.
+  operator record, the refusals, the failed-provider path and the guarded
+  write (mutation-checked); a browser run switches a demo COD order to VA from
+  the admin order and the buyer link resolves to the new instruction.
+  Done 2026-10-30: `payment-switch.test.ts` 5/5 (dispatch guard and COD-fee
+  mutations each fail a test); `dev-providers.test.ts` pins QRIS 0.7% and VA
+  BCA Rp6.500. Demo: admin INV-10014 COD Rp142.596 → VA BCA, total Rp138.000,
+  "Diganti dari COD … oleh admin", Mengantar push held for payment; the copied
+  link's instruction is VABCA Rp138.000 + Rp6.500. Earlier INV-10019 showed
+  the Kelola notice with Kelola enabled locally on a dummy URL. A Base UI
+  Select inside the Radix dialog dropped its selection, so the dialog lists
+  the methods as buttons. Not run in a browser: manual transfer (no demo
+  seller account; covered by the test) and the dialog at 390 px.
 
 ## Integration — parallel streams and one release
 

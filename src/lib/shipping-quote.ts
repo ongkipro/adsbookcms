@@ -40,6 +40,13 @@ export type ShippingQuoteInput = {
    * before it pays for a second rate call (audit finding 23).
    */
   warehouseOnly?: boolean;
+  /**
+   * Fail instead of re-quoting from the primary when the chosen warehouse's
+   * rate call fails or returns no usable rate. Headless checkout sets it: it
+   * receives no shipping cost to compare, so a re-quote from another
+   * warehouse could charge a price the buyer was never shown.
+   */
+  noPrimaryFallback?: boolean;
 };
 
 export class ShippingQuoteError extends Error {
@@ -71,6 +78,9 @@ export type ResolvedShippingRates = {
   warehouse?: QuotedWarehouse;
   variant?: QuotedVariant;
   fallbackUsed?: boolean;
+  /** The warehouse whose rate call failed or came back empty, when the quote
+   *  was re-made from the primary instead (`warehouse` is then the primary). */
+  primaryFallbackFrom?: number;
 };
 
 const normalizeCity = (value: string) =>
@@ -207,7 +217,7 @@ export async function resolveEligibleShippingRates(
     };
   }
 
-  const warehouse = await readQuoteWarehouse(database, input);
+  let warehouse = await readQuoteWarehouse(database, input);
 
   let originId =
     input.originId?.trim() || warehouse?.origin_area_id?.trim() || "";
@@ -239,20 +249,13 @@ export async function resolveEligibleShippingRates(
   const isCod = input.paymentMethod === "cod";
   const destinationCity = input.destinationCity ?? "";
   const hasCityFallback = isCod && destinationCity.trim() !== "";
-  const [rates, ruleResult] = await Promise.all([
-    // A failed exact-district estimate used to end a COD checkout even though
-    // the city-average fallback below exists for exactly that buyer. Prepaid
-    // still fails loudly: it has no fallback (see ICO below).
-    client
-      .estimateRates({
-        originId,
-        destinationId,
-        weight: weightKg,
-      })
-      .catch((error: unknown) => {
-        if (hasCityFallback) return [] as CourierRateResult[];
-        throw error;
-      }),
+  const estimate = (origin: string) =>
+    client.estimateRates({ originId: origin, destinationId, weight: weightKg }).then(
+      (rates) => ({ rates, error: undefined as unknown }),
+      (error: unknown) => ({ rates: [] as CourierRateResult[], error }),
+    );
+  const [firstEstimate, ruleResult] = await Promise.all([
+    estimate(originId),
     database
       .prepare(
         `
@@ -274,6 +277,58 @@ export async function resolveEligibleShippingRates(
           !rate.unsupported && Number.isFinite(rate.price) && rate.price > 0,
       )
       .filter((rate) => !isCod || !rate.unsupported_cod);
+  let { rates, error: rateError } = firstEstimate;
+  // A branch warehouse whose rate call fails or returns no usable rate hands
+  // the quote to the primary before anything else is tried: the primary is
+  // the store's default origin. The order records whichever warehouse quoted
+  // (`quote.warehouse`), so dispatch and pickup follow it; a rate route and a
+  // submit that land on different sides of an outage disagree on price, and
+  // submit already refuses that with SHIPPING_QUOTE_CHANGED. A named warehouse
+  // (`warehouseId`: the admin re-quote and its preview, a headless echo) is
+  // never swapped: the admin save compares no price with its preview, so a
+  // silent swap would write another warehouse's cost (REQ-241). It fails, and
+  // the operator retries or changes the warehouse.
+  let primaryFallbackFrom: number | undefined;
+  if (
+    warehouse &&
+    !input.warehouseId &&
+    !input.noPrimaryFallback &&
+    !input.originId?.trim() &&
+    eligible(rates).length === 0
+  ) {
+    const primary = await database
+      .prepare(
+        `SELECT id, origin_area_id, pickup_address_id
+        FROM warehouses ORDER BY is_primary DESC, id LIMIT 1`,
+      )
+      .first<QuotedWarehouse>();
+    const primaryOrigin =
+      primary?.origin_area_id?.trim() || getEnvValue("MENGANTAR_ORIGIN_AREA_ID", env) || "";
+    if (primary && primary.id !== warehouse.id && primaryOrigin) {
+      console.warn("shipping-quote-primary-fallback", {
+        warehouse_id: warehouse.id,
+        primary_id: primary.id,
+        reason: rateError ? "error" : "no_rates",
+      });
+      primaryFallbackFrom = warehouse.id;
+      warehouse = {
+        id: primary.id,
+        origin_area_id: primary.origin_area_id,
+        pickup_address_id: primary.pickup_address_id,
+      };
+      originId = primaryOrigin;
+      const branchError = rateError;
+      ({ rates, error: rateError } = await estimate(originId));
+      // The primary had nothing either: surface the branch's own provider
+      // error, as before the fallback, rather than an empty list.
+      if (!rateError && eligible(rates).length === 0) rateError = branchError;
+    }
+  }
+  // A failed exact-district estimate used to end a COD checkout even though
+  // the city-average fallback below exists for exactly that buyer. Prepaid
+  // still fails loudly: it has no fallback (see ICO below).
+  if (rateError && !hasCityFallback) throw rateError;
+  const fallbackFrom = primaryFallbackFrom ? { primaryFallbackFrom } : {};
   const eligibleRates = eligible(rates);
   // The city-average `ICO` rate is a placeholder the operator replaces with a
   // real courier before dispatch — which the admin allows only for COD. A
@@ -286,6 +341,7 @@ export async function resolveEligibleShippingRates(
       rates: eligibleRates,
       warehouse,
       variant: quotedVariant,
+      ...fallbackFrom,
     };
   }
 
@@ -320,7 +376,7 @@ export async function resolveEligibleShippingRates(
   });
   const fallbackRate = buildCityAverageFallbackRate(citySamples);
   if (!fallbackRate) {
-    return { originId, rates: [], warehouse, variant: quotedVariant };
+    return { originId, rates: [], warehouse, variant: quotedVariant, ...fallbackFrom };
   }
 
   return {
@@ -329,5 +385,6 @@ export async function resolveEligibleShippingRates(
     variant: quotedVariant,
     fallbackUsed: true,
     rates: [fallbackRate],
+    ...fallbackFrom,
   };
 }

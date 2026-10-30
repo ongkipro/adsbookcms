@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-10-30 @ `7f59daf` + A37 backend/UI working tree (`feat/s1-a36-a38`; browser restored, acceptance in progress)
+> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (A-444; other sections retain their recorded evidence)
 
 ## A21 — A landing page may become the product page
 
@@ -3930,6 +3930,33 @@ ADR-032. No install was read or touched.
   map, version and changelog.
   -> REQ: REQ-237 … REQ-242, REQ-248 · deps: [A-410] · Done when: the docs match
   disk and `npm test`, `npm run check` and `npm run build` pass.
+- [x] **A-444** — **Done 2026-10-30.** A branch warehouse whose rate call fails
+  or comes back empty hands the quote to the primary
+  (`resolveEligibleShippingRates` in `src/lib/shipping-quote.ts`; result field
+  `primaryFallbackFrom`; `console.warn("shipping-quote-primary-fallback", …)`
+  with both ids and `error`/`no_rates`). Headless checkout sets
+  `noPrimaryFallback`; a named `warehouseId` is never swapped. Protected
+  surface (the quote path), changed at Paduka's explicit request.
+  Independent review (2026-10-30): one medium — the admin re-quote with the
+  order's own `warehouseId` was swapped to the primary at save with no price
+  compare against its preview, against REQ-241 — fixed by never swapping a
+  named warehouse; lows fixed: the branch's provider error is surfaced when
+  the primary has no rate either, `noPrimaryFallback` added to the headless
+  resolver type, a misnamed test renamed. Not fixed (pre-existing, low): lead
+  conversion's preview and save also compare no price.
+  Evidence: `warehouse-quote.test.ts` +7 — failing and empty branch for COD and
+  prepaid, a named warehouse never swapped, primary with no rate surfaces the
+  branch error, primary failing too (prepaid throws, COD city average from
+  the primary), a chosen primary never retried, rate route → submit at the
+  fallback price accepted (the persisted `warehouse_id` is inferred from
+  `quote.warehouse`: the fixture has no order tables); the REQ-242 golden
+  tests and "headless checkout fails closed" unchanged and passing. Mutation:
+  fallback disabled → 5 fail; headless opt-out removed → 1; named-warehouse
+  guard removed → 1; branch-error restore removed → 1. `npm test` 1049 pass,
+  `npm run check` 0 errors (524 files), `npm run build` complete. Not run: a
+  browser or live Mengantar outage.
+  -> REQ: REQ-270 (constraints REQ-240, REQ-241, REQ-242) · deps: [] · Done when: the
+  tests above pass and the full suite, check and build are green.
 
 ## A43 — Resolve kecamatan to Mengantar areas without calling Mengantar
 
@@ -4043,10 +4070,41 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
   size (target under 150 KB raw), a new install resolves a sampled district
   with no Mengantar call, and the generator is committed under `scripts/`.
 
-## A45 — Operations API and `adsbook` CLI (replaces the storefront headless API)
+## A44 — Operator switches a COD order to transfer/VA on the admin order
 
-Proposed 2026-10-30 (PRD A45, REQ-251–REQ-269). Docs only so far; no task
-starts before Paduka accepts the PRD section. Migration numbers are
+Added 2026-10-30 on request: a COD order whose buyer then wants to transfer;
+the operator switches it on the admin invoice page ("admin yang mengganti di
+halaman inv admin"). A first cut put the chooser on the buyer's `/thanks`; the
+owner corrected that it is an operator action, and the buyer-side switch was
+removed before merge. Direction: COD → prepaid only. Kelola: its order webhook
+keys on the order code and answers a resend as a duplicate
+(`src/plugins/kelola/sync.ts`); no update route is known, so the order is
+flagged for a manual Kelola correction instead.
+
+- [x] **A-421** — `src/lib/payment-switch.ts`, PATCH
+  `/api/admin/orders/[id]` action `switch-payment` (session operator recorded),
+  `payment_switch` / `payment_link` on the admin order read,
+  `PaymentSwitchDialog`, migration `0074` (`payment_switched_from/_at/_by`),
+  the Kelola notice, and the local AutoLaris simulator charging the store's
+  own fee table.
+  -> REQ: REQ-250 · deps: [] · Done when: tests prove the COD-fee drop, the
+  operator record, the refusals, the failed-provider path and the guarded
+  write (mutation-checked); a browser run switches a demo COD order to VA from
+  the admin order and the buyer link resolves to the new instruction.
+  Done 2026-10-30: `payment-switch.test.ts` 5/5 (dispatch guard and COD-fee
+  mutations each fail a test); `dev-providers.test.ts` pins QRIS 0.7% and VA
+  BCA Rp6.500. Demo: admin INV-10014 COD Rp142.596 → VA BCA, total Rp138.000,
+  "Diganti dari COD … oleh admin", Mengantar push held for payment; the copied
+  link's instruction is VABCA Rp138.000 + Rp6.500. Earlier INV-10019 showed
+  the Kelola notice with Kelola enabled locally on a dummy URL. A Base UI
+  Select inside the Radix dialog dropped its selection, so the dialog lists
+  the methods as buttons. Not run in a browser: manual transfer (no demo
+  seller account; covered by the test) and the dialog at 390 px.
+
+## A45 — Operations API and `adsbook` CLI (beside the storefront headless API)
+
+Accepted 2026-10-30 (PRD A45, REQ-251–REQ-269); the storefront headless API
+stays, so A-432 and A-433 are cancelled. Migration numbers are
 provisional: take the next free one at merge. Every task: `npm test`,
 `npm run check`, `npm run build`, `npm run route-map` when a route or lib
 module is added, and the A40 `rows_read` measurement for any new list or
@@ -4054,22 +4112,27 @@ report query.
 
 **v1 — read**
 
-- [ ] **A-422** — Operations scopes replace the storefront scopes in
-  `src/lib/developer-api-keys.ts`: `orders:read`, `orders:read_pii`,
-  `orders:write`, `shipping:write`, `reports:read`; a null
-  or empty stored scope list grants nothing; key creation requires at least one
+- [ ] **A-422** — Operations scopes beside the storefront scopes in
+  `src/lib/developer-api-keys.ts`: `ops:orders:read`, `ops:orders:read_pii`,
+  `ops:orders:write`, `ops:shipping:write`, `ops:reports:read`,
+  `ops:catalog:read`; a null or empty stored scope list keeps the storefront
+  defaults and never grants an `ops:` scope; key creation requires at least one
   scope and is owner-only (`src/pages/api/admin/settings/developer.ts`,
   `src/pages/admin/settings/developer.astro`, its island).
-  -> REQ: REQ-252 (constraints REQ-265) · deps: [] · Done when: tests prove a
-  null-scope key gets 403 on an operations route, creation without scopes is
+  -> REQ: REQ-252 (constraints REQ-263, REQ-265) · deps: [] · Done when: tests
+  prove a null-scope key gets 403 on an operations route and still passes a
+  storefront route, creation without scopes is
   400, a non-owner gets 403 on create and revoke; the developer page lists
   scopes, last use and usage at 390 and 1280 px.
-- [ ] **A-423** — One operations table in `src/lib/headless-api.ts` (renamed
-  in place, not duplicated): Bearer auth, scope check, per-key rate limit and
-  quota, audit and usage rows with the key id, for every operations route.
-  -> REQ: REQ-251 · deps: [A-422] · Done when: tests cover absent, malformed,
-  revoked and out-of-scope keys (401/401/401/403, each with an audit row) and a
-  test fails when an operations route file is not in the table.
+- [ ] **A-423** — `src/lib/ops-api.ts`: `OPS_OPERATIONS` (one minimum scope
+  each) and `validateOpsRequest`, sharing the key lookup, usage limits and
+  audit of `headless-api.ts` (extracted, not duplicated); Bearer auth, no CORS,
+  no origin allowlist.
+  -> REQ: REQ-251 (constraints REQ-263) · deps: [A-422] · Done when: tests
+  cover absent, malformed and revoked keys (401, no audit row) and an
+  out-of-scope key (403 with an audit row); a storefront scope never satisfies
+  an operations operation nor the reverse; a test fails when a route file under
+  `src/pages/api/ops/v1` is not in the table.
 - [ ] **A-424** — Migration: `orders.updated_at` backfilled from `created_at`,
   kept by an `AFTER UPDATE` trigger (one place instead of every write path),
   index `(updated_at, id)`.
@@ -4080,27 +4143,26 @@ report query.
   refuses the trigger, stop and bring the alternative to Paduka.
 - [ ] **A-425** — Pure order serializer `src/lib/ops-order.ts`: attribution
   (`source_slug`, traffic source via `traffic-source.ts`, five UTM tags from
-  `ad_click_ids`) and PII omission without `orders:read_pii`.
+  `ad_click_ids`) and PII omission without `ops:orders:read_pii`.
   -> REQ: REQ-256 (constraints REQ-253) · deps: [] · Done when: tests prove a
-  `orders:read` payload has no name, phone, email, street address or click-id
-  value, and a `orders:read_pii` payload has them; UTM values match the stored
+  `ops:orders:read` payload has no name, phone, email, street address or click-id
+  value, and a `ops:orders:read_pii` payload has them; UTM values match the stored
   JSON.
-- [ ] **A-426** — `GET /api/v1/orders`: filters (status, payment method/status,
+- [ ] **A-426** — `GET /api/ops/v1/orders`: filters (status, payment method/status,
   period by the admin rules, `source_slug`, `utm_campaign`, `kind`), opaque
   cursor, ≤ 100 per page, `updated_since`.
   -> REQ: REQ-254 · deps: [A-423, A-424, A-425] · Done when: a test pages 250
   fixture orders and sees each once; an order edited after `t` appears under
   `updated_since=t`; `rows_read` for a 90-day page is recorded and under the
   A40 ceiling.
-- [ ] **A-427** — `GET /api/v1/orders/{number}`: items with recorded weight,
+- [ ] **A-427** — `GET /api/ops/v1/orders/{number}`: items with recorded weight,
   payment, shipping, `payment_switched_*`.
   -> REQ: REQ-255 · deps: [A-423, A-425] · Done when: a test reads a fixture
   order and its totals equal the admin GET's; unknown number is 404 with an
   audit row.
 - [ ] **A-428** — `adsbook` CLI (`scripts/adsbook.ts`, `npm run adsbook --`):
   `login`, `logout`, `orders list|show`, `--json`; credentials at
-  `~/.config/adsbook/credentials.json` mode 0600; built on
-  `src/lib/headless-client.ts`.
+  `~/.config/adsbook/credentials.json` mode 0600; plain `fetch`.
   -> REQ: REQ-260 · deps: [A-426, A-427] · Done when: a test runs the CLI
   against the real route handlers (as `headless-client.test.ts` does) and its
   `--json` output equals the API page; the credentials file is 0600 and the key
@@ -4118,26 +4180,18 @@ report query.
   shows the table, the drill to content and back, empty and error states, no
   horizontal overflow; advertiser role can open it.
 - [ ] **A-431** — `docs/OPS-API.md` (ownership row in AGENTS.md §2), OpenAPI
-  3.1 at `/api/v1/openapi.json` from the operations table.
+  3.1 at `/api/ops/v1/openapi.json` from the operations table.
   -> REQ: REQ-264 · deps: [A-426, A-427] · Done when: a test fails when a
   registered operation and an OpenAPI path disagree; `npm run docs:check`
   passes.
-- [ ] **A-432** — Storefront headless routes answer 410 with a pointer to
-  `docs/OPS-API.md`; STOREFRONT_INTEGRATION §4 marked superseded.
-  -> REQ: REQ-263 · deps: [A-431] · Done when: a test calls each retired route
-  and gets 410 with no D1 write besides the audit row.
+- [x] **A-432** — **Cancelled 2026-10-30** (Paduka: "headless tidak perlu di
+  hapus"). The storefront routes stay; REQ-263 now asks for scope isolation,
+  delivered by A-422 and A-423.
 
 **v1.1**
 
-- [ ] **A-433** — Remove the retired routes, `headless-checkout.ts` and their
-  tests; ADR superseding the storefront contract.
-  -> REQ: REQ-263 · deps: [A-432] · Blocked on PRD A45 Q1 (per-install usage
-  read, each approved by Paduka); Q2 resolved, the embed form does not use
-  `/api/v1`. Done when: the
-  usage evidence per install is recorded here, the suite passes with the files
-  gone (including the two `api/v1/products` entries leaving the strict-id
-  allowlist in `catalog-identity.test.ts`), and the route map no longer lists
-  them.
+- [x] **A-433** — **Cancelled 2026-10-30** with A-432; no per-install usage
+  read is needed (PRD A45 Q1 moot).
 - [ ] **A-434** — UTM link builder in admin (landing/product picker, fixed
   source/medium list, normalised campaign, copy).
   -> REQ: REQ-262 · deps: [] · Source/medium list per PRD A45 Q3. Done when: a test of the pure
@@ -4155,12 +4209,12 @@ own repository; nothing here builds, deploys or writes to a live store.
   -> REQ: REQ-269 · deps: [] · Done when: a test reads the manifest and fails
   when any of those paths or `scripts/**` is missing from its section;
   RELEASE.md §7 names the register merge; `npm run docs:check` passes.
-- [ ] **A-441** — `catalog:read` scope; `GET /api/v1/catalog/products/{slug}`
-  and `GET /api/v1/catalog/landing-pages` (CMS rows from `landing_pages`,
+- [ ] **A-441** — `ops:catalog:read` scope; `GET /api/ops/v1/catalog/products/{slug}`
+  and `GET /api/ops/v1/catalog/landing-pages` (CMS rows from `landing_pages`,
   native rows from the register, product-page claim), registered in the
   operations table and the OpenAPI document.
   -> REQ: REQ-268 (constraints REQ-251, REQ-264) · deps: [A-423, A-431] ·
-  Done when: tests prove a `catalog:read`-only key gets 403 on orders, an
+  Done when: tests prove a `ops:catalog:read`-only key gets 403 on orders, an
   inactive product answers 200 `active: false`, an unknown slug 404 with an
   audit row, and no response carries section bodies.
 - [ ] **A-442** — Pure checker `src/lib/native-landing-check.ts` (file ↔
@@ -4192,14 +4246,14 @@ own repository; nothing here builds, deploys or writes to a live store.
 
 - [ ] **A-435** — Idempotency store (migration `api_idempotency`: key id +
   `Idempotency-Key` → status + body, 24 h) and `POST
-  /api/v1/orders/{number}/actions` for confirm, shipping status, cancel,
+  /api/ops/v1/orders/{number}/actions` for confirm, shipping status, cancel,
   switch payment, transfer received — each calling the admin's own library
   function.
   -> REQ: REQ-257 · deps: [A-423] · Done when: tests prove a repeated key
   returns the first result without a second write, each action matches the
-  admin path's resulting row, and a write without `orders:write` is 403.
+  admin path's resulting row, and a write without `ops:orders:write` is 403.
 - [ ] **A-436** — Dispatch to Mengantar and pickup scheduling under
-  `shipping:write`, through `mengantar-dispatch.ts`.
+  `ops:shipping:write`, through `mengantar-dispatch.ts`.
   -> REQ: REQ-257 · deps: [A-435] · Done when: against the local provider
   simulator, a repeated `Idempotency-Key` dispatch calls Mengantar once.
 - [ ] **A-437** — CLI actions with `--dry-run` and `--yes`.
@@ -4209,8 +4263,8 @@ own repository; nothing here builds, deploys or writes to a live store.
 
 **v2.1**
 
-- [ ] **A-438** — `GET /api/v1/reports/{summary|landing|products|locations|times|utm}`
-  under `reports:read`, reusing `insights.ts`.
+- [ ] **A-438** — `GET /api/ops/v1/reports/{summary|landing|products|locations|times|utm}`
+  under `ops:reports:read`, reusing `insights.ts`.
   -> REQ: REQ-258 · deps: [A-423, A-429] · Done when: each report's totals equal
   the Analitik screen's for the same period.
 - [ ] **A-439** — Outbound webhooks: owner-only endpoint registration in admin,

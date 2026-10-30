@@ -1,6 +1,6 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-10-30 @ `7f59daf` + A37 backend working tree (A37 measurements and cache boundary; other sections retain their recorded evidence)
+> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (A42 REQ-270; other sections retain their recorded evidence)
 
 ## A43 — Resolve kecamatan to Mengantar areas without calling Mengantar
 
@@ -140,6 +140,21 @@ choosing one by the buyer's location.
   orders and dispatches to today's, proven by tests run before and after.
 - **REQ-248** — A warehouse with orders cannot be deleted, only made inactive;
   the primary cannot be made inactive.
+- **REQ-270** (Must, unwanted; added 2026-10-30 at Paduka's request) — If the
+  chosen warehouse is not the primary and its Mengantar rate call fails or
+  returns no usable rate, then the quote shall be re-made once from the primary
+  (the store's default warehouse), and the order shall record the primary as
+  its warehouse. The primary is never retried; when it has no rate either, the
+  branch's own error surfaces as before (a COD quote with a city takes the
+  city average from the primary). Only a warehouse the quote *chose* is
+  swapped: a named one (`warehouseId` — the admin re-quote and its preview,
+  REQ-241) fails instead, because the admin save compares no price with its
+  preview. Headless checkout, which compares no submitted shipping cost,
+  opts out and fails closed.
+  - Acceptance: Given a Surabaya branch whose rate call fails, When a Surabaya
+    buyer is quoted, Then the rates and `warehouse` are the primary's, a
+    `shipping-quote-primary-fallback` warning names both ids, and submitting
+    the shown price is accepted.
 
 ### Technical decisions
 
@@ -1308,26 +1323,51 @@ in its existing fields and analytics cohort, but opening WA and marking contacte
 become separate actions. No order/payment/shipping transitions or ad events are
 triggered by follow-up writes. Advertisers cannot read/write order follow-up.
 
-## A45 — Operations API and `adsbook` CLI, replacing the storefront headless API
+## Operator payment switch on the admin order (REQ-250)
 
-**Status:** Proposed 2026-10-30. Docs first; no code until Paduka accepts this
-section. Supersedes the storefront headless contract
-(`STOREFRONT_INTEGRATION.md` §4) once REQ-263's usage check passes, and the
-A36 non-goal "UTM campaign reports".
+- **REQ-250** — An owner, admin or customer-service operator shall be able to
+  move a COD order to a prepaid method from the admin order page when the
+  buyer asks to pay first: manual transfer to an active seller account, or an
+  AutoLaris VA/QRIS channel the store has live (the same readiness
+  `/api/payment-methods` reports). One direction only; there is no buyer-side
+  switch. The switch is refused unless the order is pending, unpaid, not
+  void, not dispatched or being dispatched, and carries a real courier (not
+  the `ICO` placeholder), a destination area and a kecamatan; otherwise the
+  page says why. The prepaid total is items − discount + shipping, the COD fee
+  dropped; a VA/QRIS admin fee follows the store's fee bearer exactly as at
+  checkout. The write is guarded on every precondition and the read total, so
+  a concurrent dispatch or edit wins. A provider failure after the switch
+  leaves a prepaid order with a failed instruction the buyer can regenerate
+  from `/payment`. The order records `payment_switched_from/_at/_by`. An
+  unpaid prepaid order offers "Salin link pembayaran" (the buyer's `/payment`
+  page) for the operator to send. When the order was already pushed to Kelola
+  (which answers a resend as a duplicate and has no update route) the page
+  tells the operator to correct it there by hand. The COD Purchase already
+  sent keeps its event id (the order number), so the paid Purchase that
+  follows deduplicates against it.
+
+## A45 — Operations API and `adsbook` CLI, beside the storefront headless API
+
+**Status:** Accepted 2026-10-30 (Paduka: "lanjutkan development task yang
+belum"). Revised the same day: the storefront headless API stays (Paduka:
+"headless tidak perlu di hapus"), so A45 adds an operations API beside it and
+retires nothing; A-432 and A-433 are cancelled. Supersedes the A36 non-goal
+"UTM campaign reports".
 
 ### Overview
 
 Operators, the owner's own systems (Kelola, scripts), AI agents and named third
 parties need to read and act on a store's orders without a browser session.
 Today the only machine surface is `/api/v1`, built for a headless storefront
-(catalogue, quote, checkout, tracking, token-scoped order status). The owner
-reports no install uses it. Its foundation — hashed per-install keys
-(`developer_api_keys`), scopes, per-key rate limit and daily quota, and a D1
-audit trail (`headless_api_audit_events`, `developer_api_key_usage`) — is
-reusable; its storefront endpoints are not what anyone needs.
+(catalogue, quote, checkout, tracking, token-scoped order status). Its
+foundation — hashed per-install keys (`developer_api_keys`), scopes, per-key
+rate limit and daily quota, and a D1 audit trail (`headless_api_audit_events`,
+`developer_api_key_usage`) — is reusable; its endpoints serve a storefront,
+not operations.
 
-A45 keeps that foundation, retires the storefront endpoints, and builds an
-operations API on it, plus an `adsbook` CLI in this repository that is a thin
+A45 builds an operations API on that foundation under its own prefix,
+`/api/ops/v1`, with its own `ops:` scopes, and leaves the storefront contract
+(`STOREFRONT_INTEGRATION.md` §4) as it is, plus an `adsbook` CLI in this repository that is a thin
 client of the same API. It also turns the UTM tags every order already stores
 (`orders.ad_click_ids`, TRACKING_SPECS §3) into a campaign report and a link
 builder.
@@ -1359,7 +1399,8 @@ the install's own release path; the CLI never does either.
   admin page obeys, because it calls the same code.
 - A campaign's orders, revenue and closing rate are visible per UTM tag, and
   links carrying those tags are built consistently.
-- No storefront headless endpoint remains once it is proven unused.
+- A storefront key never reads or acts on operations data, and an operations
+  key never reaches a storefront route, whatever the key's age.
 - A native landing page starts from a scaffold that already obeys the tracking,
   catalogue-identity and form-mode invariants, is checked against the live
   store before it ships, and survives every install update.
@@ -1402,7 +1443,7 @@ Read once A45's v1 milestone ships on one live install:
 | Orders read: list, sync, detail, attribution | Must | REQ-254, REQ-255, REQ-256 |
 | `adsbook` CLI (read) | Must | REQ-260 |
 | UTM campaign report | Must | REQ-261 |
-| Retire storefront headless endpoints | Must | REQ-263 |
+| Storefront headless API stays, isolated by scope | Must | REQ-263 |
 | Contract document and OpenAPI | Must | REQ-264 |
 | Order actions (v2) | Must (v2) | REQ-257 |
 | Reports read | Should | REQ-258 |
@@ -1421,22 +1462,27 @@ Read once A45's v1 milestone ships on one live install:
   minimum scope, and every call recorded in the existing audit and usage
   tables with the key id as actor.
   - Acceptance: Given a revoked, malformed or absent key, When any operations
-    route is called, Then it answers 401 and writes an audit row; Given a valid
-    key without the route's scope, Then 403 and an audit row.
+    route is called, Then it answers 401 (no audit row: no key is identified,
+    and the audit table references a key); Given a valid key without the
+    route's scope, Then 403 and an audit row. Operations calls are
+    server-to-server: no CORS headers, no storefront origin allowlist.
 - **REQ-252** (Must, unwanted) — If a key was issued without an explicit scope
-  list, then the system shall grant it no operations scope. New keys shall name
-  their scopes; none is granted by default. Scopes: `orders:read`,
-  `orders:read_pii`, `orders:write`, `shipping:write`, `reports:read`,
-  `catalog:read`.
+  list, then it shall keep the storefront scopes it always had and the system
+  shall grant it no operations scope. New keys shall name their scopes. The
+  operations scopes are namespaced so they never collide with the storefront's
+  own `orders:read` and `catalog:read`: `ops:orders:read`,
+  `ops:orders:read_pii`, `ops:orders:write`, `ops:shipping:write`,
+  `ops:reports:read`, `ops:catalog:read`.
   - Acceptance: Given a key created before A45 with a null scope list, When it
-    calls `GET /api/v1/orders`, Then 403.
-- **REQ-253** (Must, state) — While a key lacks `orders:read_pii`, the system
+    calls `GET /api/ops/v1/orders`, Then 403, and its storefront routes still
+    answer.
+- **REQ-253** (Must, state) — While a key lacks `ops:orders:read_pii`, the system
   shall omit buyer name, phone, email and street address from every order it
   returns (city, district and province remain).
-  - Acceptance: Given a key with `orders:read` only, When it reads an order,
+  - Acceptance: Given a key with `ops:orders:read` only, When it reads an order,
     Then the payload has no `customer_name`, `customer_phone`, `customer_email`
     or `address` field.
-- **REQ-254** (Must, event) — When a key with `orders:read` lists orders, the
+- **REQ-254** (Must, event) — When a key with `ops:orders:read` lists orders, the
   system shall return orders (never abandoned leads unless asked by `kind`)
   filtered by status, payment method/status, period (the admin period rules),
   source slug and UTM campaign, ordered and paged by an opaque cursor, at most
@@ -1445,7 +1491,7 @@ Read once A45's v1 milestone ships on one live install:
   - Acceptance: Given 250 orders, When a client pages with the returned cursor,
     Then it receives each order exactly once; Given an order edited after
     `t`, When listed with `updated_since=t`, Then it is included.
-- **REQ-255** (Must, event) — When a key with `orders:read` reads one order by
+- **REQ-255** (Must, event) — When a key with `ops:orders:read` reads one order by
   its number, the system shall return the order, its items with recorded weight
   and unit price, payment (method, status, channel, amounts, instruction state),
   shipping (courier, service, resi, provider status) and the
@@ -1455,12 +1501,12 @@ Read once A45's v1 milestone ships on one live install:
 - **REQ-256** (Must, ubiquitous) — Every order the API returns shall carry its
   attribution: `source_slug`, the traffic source type the admin badge shows,
   and the five UTM tags as stored; click-id values only with
-  `orders:read_pii`.
+  `ops:orders:read_pii`.
   - Acceptance: Given an order stored with `utm_campaign=promo-okt` and a
-    `gclid`, When read with `orders:read`, Then `utm.campaign` is `promo-okt`
+    `gclid`, When read with `ops:orders:read`, Then `utm.campaign` is `promo-okt`
     and no `gclid` value is present.
-- **REQ-257** (Must, v2, event) — When a key with `orders:write` (or
-  `shipping:write` for dispatch and pickup) requests an order action — confirm,
+- **REQ-257** (Must, v2, event) — When a key with `ops:orders:write` (or
+  `ops:shipping:write` for dispatch and pickup) requests an order action — confirm,
   change shipping status, cancel, switch COD payment (REQ-250), mark a manual
   transfer received, dispatch to Mengantar — the system shall run the same
   library function the admin page runs (`order-lifecycle.ts`,
@@ -1470,7 +1516,7 @@ Read once A45's v1 milestone ships on one live install:
   - Acceptance: Given the same dispatch request sent twice with one
     `Idempotency-Key`, Then Mengantar is called once and both responses carry
     the same result.
-- **REQ-258** (Should, event) — When a key with `reports:read` asks for a
+- **REQ-258** (Should, event) — When a key with `ops:reports:read` asks for a
   report, the system shall return the Analitik aggregates (summary, landing,
   products, locations, times, UTM) for a period, aggregates only, using the
   same order definition (`orderRowSql()`) and period rules as the screens.
@@ -1503,18 +1549,17 @@ Read once A45's v1 milestone ships on one live install:
   source/medium list (meta/paid, google/cpc, tiktok/paid, whatsapp/chat, …)
   and a campaign name normalised to lower-case hyphenated ASCII, and copy it;
   nothing is stored.
-- **REQ-263** (Must, event) — When A45 v1 ships, the system shall answer the
-  storefront headless routes (`/api/v1/storefront`, `/products*`, `/geo/*`,
-  `/checkout`, `/tracking/events`, `/orders/status`) with 410 and a pointer to
-  the operations contract for one release, then remove them, their libraries
-  and tests — but only after each live install's `developer_api_key_usage` and
-  `headless_api_audit_events` show no successful storefront call in the last
-  30 days (a read-only check Paduka approves per install).
-  - Acceptance: Given a live install with a storefront call in the window,
-    Then removal is blocked and the install is named in TASKS.
+- **REQ-263** (Must, ubiquitous; revised 2026-10-30, Paduka: headless stays) —
+  The storefront headless API (`/api/v1/*`, STOREFRONT_INTEGRATION §4) shall
+  stay as it is. Operations routes shall live only under `/api/ops/v1` and
+  accept only `ops:` scopes; a storefront scope shall never satisfy an
+  operations route, nor an `ops:` scope a storefront route.
+  - Acceptance: Given a key holding every storefront scope, When it calls any
+    operations route, Then 403; Given a key holding only `ops:` scopes, When it
+    calls `/api/v1/products`, Then 403.
 - **REQ-264** (Must, ubiquitous) — The operations contract shall be owned by
   one document, `docs/OPS-API.md` (added to the AGENTS.md ownership table),
-  and served as OpenAPI 3.1 at `GET /api/v1/openapi.json`, with a test that
+  and served as OpenAPI 3.1 at `GET /api/ops/v1/openapi.json`, with a test that
   fails when a registered operation and the OpenAPI paths disagree.
 - **REQ-265** (Must, ubiquitous) — Rate limit and daily quota stay per key
   (defaults 120/min, 10,000/day); the developer settings page shows each key's
@@ -1570,15 +1615,15 @@ Read once A45's v1 milestone ships on one live install:
     as shipped (empty register), When `lp check` runs, Then nothing fails —
     `hybrid-form.astro`, `contoh-landing.astro` and the other reserved routes
     are not reported as orphans.
-- **REQ-268** (Should, event) — When a key with `catalog:read` asks, the system
+- **REQ-268** (Should, event) — When a key with `ops:catalog:read` asks, the system
   shall return one product by slug (`id`, `slug`, `title`, `active`, the
   catalogue content id or null, variant count, lowest price) and the landing
   page list (`slug`, `title`, `kind` cms or native, published, product slug,
   whether it holds its product's page); 404 for an unknown product slug. No
-  buyer data and no section bodies. This replaces, for tooling, what the
-  retiring `/api/v1/products*` routes returned.
-  - Acceptance: Given a key with `catalog:read` only, When it calls
-    `GET /api/v1/orders`, Then 403; Given an inactive product, When read, Then
+  buyer data and no section bodies. The storefront `/api/v1/products*` routes
+  serve storefront keys and are untouched.
+  - Acceptance: Given a key with `ops:catalog:read` only, When it calls
+    `GET /api/ops/v1/orders`, Then 403; Given an inactive product, When read, Then
     200 with `active: false`.
 - **REQ-269** (Must, ubiquitous) — The install-update manifest
   (`docs/UPDATE-PATH-OWNERSHIP.md`) shall name where a native landing page
@@ -1597,16 +1642,16 @@ Read once A45's v1 milestone ships on one live install:
 
 | # | Question | Owner | Blocks |
 | --- | --- | --- | --- |
-| Q1 | Does any live install call the storefront endpoints? Read-only per-install query of the two usage tables. | Paduka (approves each `--remote` read) | REQ-263 removal |
+| Q1 | Does any live install call the storefront endpoints? **Resolved 2026-10-30 (Paduka): moot** — the storefront API stays, so no usage read is needed. | Paduka | — |
 | Q2 | Does the embed form (`/embed/form`, REQ-107) depend on `/api/v1`? **Resolved 2026-10-30: no.** Nothing under `src/pages/embed`, `src/scripts` or `src/components` calls `/api/v1`; only `api/v1/checkout.ts` imports `headless-checkout.ts`. | Agent | — |
 | Q3 | Fixed source/medium list for the link builder. **Resolved 2026-10-30 (Paduka delegated):** sources `facebook`, `instagram`, `google`, `tiktok`, `whatsapp`; mediums `paid_social`, `cpc`, `social`, `chat`; matches the Meta heuristics in `traffic-source.ts`. | Agent | — |
 | Q4 | Webhook consumers. **Resolved 2026-10-30 (Paduka delegated):** endpoints are registered by the owner in admin only; no `webhooks:manage` scope. Kelola keeps its plugin push. | Agent | — |
-| Q5 | Do the CLI's landing commands belong to A45? **Resolved 2026-10-30 (Paduka):** yes — `lp new` and `lp check` (REQ-266, REQ-267) on a `catalog:read` scope (REQ-268). Found while scoping: (a) `docs/LANDING-PAGES.md` §2's snippet called the strict `catalogProductId`, which `catalog-identity.test.ts` refuses in `src/pages` — corrected in the same change to the `contoh-landing.astro` shape; (b) the update manifest never named the native page paths, so a wholesale `src/**` copy would replace an install's register with the product's empty one and unlist its pages — REQ-269. | Agent | — |
+| Q5 | Do the CLI's landing commands belong to A45? **Resolved 2026-10-30 (Paduka):** yes — `lp new` and `lp check` (REQ-266, REQ-267) on an `ops:catalog:read` scope (REQ-268). Found while scoping: (a) `docs/LANDING-PAGES.md` §2's snippet called the strict `catalogProductId`, which `catalog-identity.test.ts` refuses in `src/pages` — corrected in the same change to the `contoh-landing.astro` shape; (b) the update manifest never named the native page paths, so a wholesale `src/**` copy would replace an install's register with the product's empty one and unlist its pages — REQ-269. | Agent | — |
 
 ### Stack & constraints
 
 - Astro endpoints on the Worker; D1 only; no new dependency (CLI on `node:`
-  built-ins and `fetch`). `src/lib/headless-client.ts` becomes the CLI's client.
+  built-ins and `fetch`). The CLI uses `fetch`; `src/lib/headless-client.ts` stays the storefront's client.
 - One install = one store: a key is bound to its install, so tenant isolation
   is the install boundary; no store id is accepted from the client.
 - `adsbook lp` writes only inside the working tree it runs in, only the three
@@ -1616,7 +1661,7 @@ Read once A45's v1 milestone ships on one live install:
   argument parser.
 - The D1 budget (PRD A40) applies: list and report queries are bounded by
   period or cursor and measured with `rows_read` before acceptance.
-- PII: third-party keys are issued without `orders:read_pii` by default in the
+- PII: third-party keys are issued without `ops:orders:read_pii` by default in the
   UI; buyer data never appears in logs or audit rows.
 
 ### Technical decisions
@@ -1624,17 +1669,20 @@ Read once A45's v1 milestone ships on one live install:
 - **Decision:** extend the existing key/scope/audit foundation rather than add
   a second auth system. **Why:** hashed keys, quotas and audit already exist
   and are tested (`headless-api.test.ts`, `developer-api-keys.test.ts`).
-  **Consequence:** the storefront scope names are retired; old keys carry no
-  operations scope (REQ-252), so the owner re-issues keys.
+  **Consequence:** operations scopes are namespaced `ops:`; old keys keep their
+  storefront scopes and gain none (REQ-252), so the owner issues an operations
+  key.
 - **Decision:** the API calls the admin's own library functions for every
   action. **Why:** one rule set; AGENTS.md §3 forbids order writes around
   `order-lifecycle.ts`. **Consequence:** an action missing a library entry
   point gets one extracted from its admin route first.
-- **Decision:** keep the `/api/v1` prefix. **Why:** the retiring routes and the
-  new ones do not share paths except `/orders/status`, which is removed.
-  **Consequence:** no `/v2` until a breaking change to the new contract.
-- **Decision:** retiring the storefront contract supersedes REQ-107's headless
-  surface and STOREFRONT_INTEGRATION §4; recorded as an ADR when A-433 lands.
+- **Decision (revised 2026-10-30):** operations routes under `/api/ops/v1`.
+  **Why:** the storefront API stays at `/api/v1` with its origin allowlist and
+  CORS, built for browsers; operations calls are server-to-server and must
+  inherit neither, and `/api/v1/orders/status` is taken. **Consequence:** two
+  OpenAPI documents, one per surface.
+- **Decision (revised 2026-10-30):** the storefront contract is not retired;
+  REQ-107's headless surface and STOREFRONT_INTEGRATION §4 stand.
 - **Decision:** the scaffold is a template in `src/lib`, not a copy of
   `contoh-landing.astro` at run time. **Why:** the sample binds to the first
   active product and is `noindex` on purpose; a real page names its product
@@ -1647,10 +1695,10 @@ Read once A45's v1 milestone ships on one live install:
 
 ### Milestones
 
-- [ ] **v1 (read):** A-422 → A-432: foundation, `updated_at`, attribution,
-  orders read, CLI read, UTM report, contract doc, deprecation answers.
+- [ ] **v1 (read):** A-422 → A-431: foundation, `updated_at`, attribution,
+  orders read, CLI read, UTM report, contract doc.
   STATUS checkpoint.
-- [ ] **v1.1:** A-433 removal (after Q1), A-434 link builder; native
+- [ ] **v1.1:** A-434 link builder (A-432/A-433 cancelled); native
   landing pages: A-440 manifest (Must, no dependency — can ship first),
   A-441 catalogue read, A-442 `lp check`, A-443 `lp new`.
 - [ ] **v2 (act):** A-435 → A-437 order and shipping actions with

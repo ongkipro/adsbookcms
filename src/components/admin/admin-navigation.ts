@@ -3,6 +3,7 @@ import type { AdminRole } from "../../lib/auth";
 export type { AdminRole } from "../../lib/auth";
 import {
   Activity,
+  ChartNoAxesCombined,
   BadgeDollarSign,
   Boxes,
   CircleUserRound,
@@ -112,6 +113,21 @@ export const adminNavGroups: AdminNavGroup[] = [
     label: "Pemasaran",
     items: [
       {
+        id: "analytics",
+        href: "/admin/analytics",
+        label: "Analitik",
+        description: "Sumber pesanan, produk, dan wilayah",
+        icon: ChartNoAxesCombined,
+        keywords: "analitik analytics laporan trend produk lokasi waktu",
+        children: [
+          { href: "/admin/analytics", label: "Ringkasan" },
+          { href: "/admin/analytics/landing", label: "Landing page" },
+          { href: "/admin/analytics/products", label: "Produk" },
+          { href: "/admin/analytics/locations", label: "Lokasi" },
+          { href: "/admin/analytics/times", label: "Waktu beli" },
+        ],
+      },
+      {
         id: "ads",
         href: "/admin/ads",
         label: "Iklan & tracking",
@@ -205,7 +221,7 @@ export function getVisibleNavGroups(role: AdminRole) {
     : role === "advertiser"
       // "content" was here too, but no group defines that id any more - the page is
       // deliberately off the menu and reached from Pengaturan > Toko.
-      ? new Set(["dashboard", "products", "ads"])
+      ? new Set(["dashboard", "products", "analytics", "ads"])
       : new Set(["dashboard", "orders", "shipping", "scoring"]);
   return adminNavGroups
     .map((group) => ({

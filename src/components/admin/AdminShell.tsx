@@ -37,6 +37,7 @@ import { ChangelogModal } from "./ChangelogModal";
 import { NotificationBell } from "./NotificationBell";
 import { OperationalStatusIcon } from "./OperationalStatusIcon";
 import { CMS_VERSION } from "@/lib/version";
+import { withInsightsPeriod } from "@/lib/insights-view";
 import {
   ADMIN_ACCENT,
   getSearchableNavItems,
@@ -160,7 +161,7 @@ export function AdminShell({
                 value={`${item.label} ${item.description} ${item.keywords} ${item.group}`}
                 onSelect={() => {
                   handleSearchOpenChange(false);
-                  window.location.assign(item.href);
+                  window.location.assign(withInsightsPeriod(item.href, window.location.pathname, window.location.search));
                 }}
                 className="min-h-14 px-3 py-2.5"
               >

@@ -248,3 +248,34 @@ test("OperationalStatus names a failing snapshot write apart from a stopped sche
   assert.match(await renderIsland("OperationalStatus.tsx", "default", props("snapshot")), /Status tidak diperbarui/);
   assert.match(await renderIsland("OperationalStatus.tsx", "default", props("scheduler")), /Pemeliharaan berhenti/);
 });
+
+for (const report of ['landing', 'products', 'locations', 'times', 'trend']) {
+  test(`InsightsReport ${report} renders loading and empty data safely`, async () => {
+    const props = { report, initialQuery: '?date_filter=this_month' };
+    assert.match(await renderIsland('InsightsReport.tsx', 'InsightsReport', props), /aria-busy="true"/);
+    const empty = {
+      landing: { rows: [], totals: {} }, products: { rows: [], totals: { units: 0, revenue: 0 } },
+      locations: { provinces: [], province: null, unmatched_provinces: [] },
+      times: { total: 0, max: 0, cells: Array.from({ length: 7 }, () => Array(24).fill(0)) },
+      trend: { series: [], total: { orders: 0, leads: 0, revenue: 0 }, previous: { start: '2026-09-01', end: '2026-09-30', orders: 0, leads: 0, revenue: 0 } },
+    };
+    const html = await renderIsland('InsightsReport.tsx', 'InsightsReport', { ...props, initialData: empty[report as keyof typeof empty] });
+    assert.match(html, /Asia\/Jakarta/);
+    assert.match(html, /(?:Belum ada data|Tidak ada pesanan)/);
+  });
+}
+
+test('InsightsReport renders populated source, variant, location, and heatmap data', async () => {
+  const landing = await renderIsland('InsightsReport.tsx', 'InsightsReport', {
+    report: 'landing', mayReadOrders: true,
+    initialData: { rows: [{ slug: null, label: '(tidak tercatat)', leads: 2, orders: 1, revenue: 100, delivered_revenue: 100, average_order_value: 100, closing_rate: 33.33, delivered_share: 100, return_share: 0, channels: {}, follow_up: { new: 2, contacted: 0, qualified: 0, converted: 0, not_interested: 0 } }] },
+  });
+  assert.match(landing, /source_slug=__none__/);
+  assert.match(landing, /<progress/);
+  const products = await renderIsland('InsightsReport.tsx', 'InsightsReport', { report: 'products', initialData: { totals: { units: 1, revenue: 100 }, rows: [{ product_id: null, label: 'Produk lama', units: 1, revenue: 100, return_share: 30, variants: [{ variant_id: null, label: 'Varian lama', units: 1, revenue: 100 }] }] } });
+  assert.match(products, /Varian lama/);
+  const locations = await renderIsland('InsightsReport.tsx', 'InsightsReport', { report: 'locations', initialData: { provinces: [{ key: 'JI', label: 'Jawa Timur', orders: 1, revenue: 100, return_share: 30 }], province: null, unmatched_provinces: [] } });
+  assert.match(locations, /Perlu perhatian/);
+  const times = await renderIsland('InsightsReport.tsx', 'InsightsReport', { report: 'times', initialData: { total: 168, max: 1, cells: Array.from({ length: 7 }, () => Array(24).fill(1)) } });
+  assert.match(times.replace(/<!--.*?-->/g, ''), /23:00/);
+});

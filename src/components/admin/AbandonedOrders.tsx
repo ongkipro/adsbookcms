@@ -765,10 +765,10 @@ export function AbandonedOrders({ initialQuery = "" }: { initialQuery?: string }
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
-                    <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" disabled={updatingId === lead.id} onClick={() => {
+                    <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => {
                       window.open(buildWaUrl(phone, message), "_blank", "noopener,noreferrer");
-                      void followUp(lead);
-                    }}><ExternalLink />{updatingId === lead.id ? "Mencatat…" : "Follow up WA"}</Button>
+                    }}><ExternalLink />Buka WhatsApp</Button>
+                    {lead.followUpStatus === 'new' && <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" disabled={updatingId === lead.id} onClick={() => void followUp(lead)}>{updatingId === lead.id ? 'Mencatat…' : 'Tandai sudah dihubungi'}</Button>}
                     <Button type="button" size="lg" className="w-full sm:w-auto" onClick={() => setSelectedLead(lead)}><UserRoundPlus />Jadikan order</Button>
                   </div>
                 </div>

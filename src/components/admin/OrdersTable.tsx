@@ -4,7 +4,6 @@ import { paymentInstructionHint } from "../../lib/order-instruction-hint";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
 import { SourceSlugChip } from "./SourceSlugChip";
 import { CrmActionGroup } from "./CrmActionGroup";
-import type { CrmStepKey } from "./CrmActionButton";
 import { useEffect, useMemo, useState } from "react";
 import {
   buildWaUrl,
@@ -614,7 +613,6 @@ export function OrdersTable({
     highRiskCount: 0,
     totalValue: 0,
   });
-  const [clickedSteps, setClickedSteps] = useState<Record<string, boolean>>({});
   const [crmTemplates, setCrmTemplates] = useState({ ...defaultCrmTemplates });
   const [updatingOrderId, setUpdatingOrderId] = useState("");
   const [updateNotice, setUpdateNotice] = useState("");
@@ -987,15 +985,6 @@ export function OrdersTable({
     setSourceSlugFilter("all");
     setPage(1);
   };
-  const markStepClicked = (orderId: string, step: string) => {
-    setClickedSteps((current) => ({
-      ...current,
-      [`${orderId}_${step}`]: true,
-    }));
-  };
-  const isStepClicked = (orderId: string, step: string) =>
-    Boolean(clickedSteps[`${orderId}_${step}`]);
-
   const crmUrls = useMemo(
     () =>
       new Map(
@@ -1037,17 +1026,10 @@ export function OrdersTable({
 
   const renderCrmActions = (order: OrderItem) => {
     const urls = crmUrls.get(order.id) || {};
-    const orderClickedSteps: Record<string, boolean> = {};
-    for (const key of ['welcome', '1', '2', '3', '4', '5', '6', '7', '8', '9']) {
-      orderClickedSteps[key] = isStepClicked(order.id, key as CrmStepKey);
-    }
     return (
       <CrmActionGroup
         crmUrls={urls}
-        clickedSteps={orderClickedSteps}
-        onStepClick={(stepKey) => markStepClicked(order.id, stepKey)}
-        size="sm"
-        collapsible={true}
+        orderId={order.id}
       />
     );
   };

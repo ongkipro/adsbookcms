@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-10-29 @ A-419 integration (`feat/a35-a40-analytics-fit`)
+> Verified against disk: 2026-10-30 @ `7f59daf` + A37 backend/UI working tree (`feat/s1-a36-a38`; browser restored, acceptance in progress)
 
 ## A21 — A landing page may become the product page
 
@@ -3051,10 +3051,43 @@ Proposed 2026-10-29. Prerequisite of A37. Migration numbers are provisional
 
 ## A37 — Analytics: which landing page wins, what sells, and where
 
-Proposed 2026-10-29. Measure before building: A-348 sets the budget that every
-later task is held to.
+Backend resumed and verified 2026-10-30 in `feat/s1-a36-a38`; A-357–A-362
+screens/close-out and A38 remain open. Evidence: `scratchpad/evidence/analytics-resume/`
+(ignored local logs); reproducible commands and figures live in PRD A37 and
+`scripts/measure-insights.ts`. Full suite: 1024 passing, check/build pass.
+No protected order, tracking or form module was changed. Existing uncommitted
+backend work was preserved and completed, not replaced.
 
-- [ ] **A-348** — Seed a realistic local D1 (≥ 20,000 orders over 90 days, 40
+A-348 establishes the fixed-fixture budget; A-362 must verify finished screens.
+
+Code review 2026-10-30 (working tree, high): ten findings, all addressed.
+Province drill-down sends the row key, so an empty or unmatched province opens;
+non-JSON error bodies keep the 401/403/5xx states; a follow-up 409 reloads the
+stage list; a URL `source`/`product_id` on a screen without that control is shown
+as "Filter aktif" and kept on Apply; the period reaches Analitik links on
+pointerdown/focus as well as click, and the palette uses `withInsightsPeriod`;
+shared constants replace literals; the follow-up route reuses `orderRowSql()` and
+answers 404 for an order that vanishes mid-save; both layout instances of an
+order's follow-up stay in step. Closing rate keeps every lead in the denominator
+(PRD amended). Suite 1039/1039, check 0/0/0, build. Browser on the 8795 demo at
+1366/390px: drill-down, filter chip, sidebar/palette period, 401/403/502 states,
+follow-up save sync and 409 recovery. Not browser-proven: an empty-province row
+(no such row in the demo data; covered by `insights.test.ts`).
+
+UI checkpoint 2026-10-30: 1033 tests pass, check 521 files with zero
+errors/warnings/hints, build passes. Evidence: `scratchpad/evidence/analytics-ui/`.
+Independent attached-source review accepted code fixes; no visual approval.
+Native browser tool failed `missing-binary` (`agent-browser` not on PATH), and
+`pi-agent-browser-doctor` is also absent. No browser package installed, no
+alternate unaudited browser harness used. Geometry and visual/interaction checks
+are UNVERIFIED. Local dev server started on 8795 and was stopped by its own
+process group; no seed, credential read or live mutation was performed.
+
+- [ ] **A-348** — **Measured 2026-10-30; pending the explicitly required Git commit.**
+  Ephemeral local D1: 20,000 orders / 27,000 items / 40 sources / 30 products /
+  300 cities. Real rows-read, elapsed times, indexed range plans, covering-index
+  experiment and runnable ceilings recorded in PRD A37. Script is present but
+  uncommitted; no commit was authorized. Seed a realistic local D1 (≥ 20,000 orders over 90 days, 40
   slugs, 30 products, 300 cities) and measure `meta.rows_read` and time for the
   queries the dashboard runs today. Every new A37 or A38 query is checked
   with `EXPLAIN QUERY PLAN`: no `SCAN orders` and no `USE TEMP B-TREE` where an
@@ -3063,17 +3096,25 @@ later task is held to.
   rows read per screen) into the PRD's A37 technical decisions.
   -> REQ: REQ-198, REQ-208 · deps: [] · Done when: the figures are recorded, the
   seed script is committed under `scripts/` and never touches a remote database.
-- [ ] **A-349** — Move `RELEASED_ORDER` and the "abandoned is a lead" rule out of
+- [x] **A-349** — **Done locally 2026-10-30.** Shared `order-metrics.ts` imported
+  by dashboard and insights; `admin-analytics.test.ts` unchanged and green.
+  Protected lifecycle keeps its own equivalent write predicate, checked by test.
+  Move `RELEASED_ORDER` and the "abandoned is a lead" rule out of
   `api/admin/analytics.ts` into one `src/lib` module and import it there.
   -> REQ: REQ-206 · deps: [] · Done when: `admin-analytics.test.ts` is unchanged
   and green, and a grep finds the expression in one place.
-- [ ] **A-350** — Shared period handling for the new routes: required start and
+- [x] **A-350** — **Done locally 2026-10-30.** Existing parser reused; 90-day,
+  missing/inverted range, zero-fill, prior period and Jakarta boundary tests pass.
+  Shared period handling for the new routes: required start and
   end, 90-day ceiling with a stated 400, the dashboard's `'+7 hours'` expression,
   zero-filled day series. Reuse `admin-date-filter.ts`; add no second parser.
   -> REQ: REQ-198 · deps: [A-349] · Done when: tests prove a missing end, an
   inverted range, a 91-day range and a valid one, and a day with no orders
   returned as zero.
-- [ ] **A-351** — Landing ranking: `GET /api/admin/insights/landing` returns, per
+- [x] **A-351** — **Done locally 2026-10-30.** Hand-checked ranking/funnel,
+  aggregates-only response and local D1 fixture budget pass. Response is no-store,
+  matching admin middleware; PRD corrected rather than weakening session policy.
+  Landing ranking: `GET /api/admin/insights/landing` returns, per
   source, leads, orders, revenue, average order value, closing rate, delivered
   and return share and channel split, in one `D1.batch`, labels joined, with a
   `(tidak tercatat)` row and the default sort on delivered revenue.
@@ -3083,32 +3124,42 @@ later task is held to.
   smaller page that was delivered), leads counted per source, no personal field
   in the response, and `rows_read` under the A-348 ceiling. Role access is
   A-356's.
-- [ ] **A-352** — Trend: `GET /api/admin/insights/trend` returns daily orders,
+- [x] **A-352** — **Done locally 2026-10-30.** Source totals, product revenue,
+  zero-filled days and previous-period arithmetic pass. Trend: `GET /api/admin/insights/trend` returns daily orders,
   leads and revenue for the period, optionally for one source or product, plus
   the previous period's total.
   -> REQ: REQ-200 · deps: [A-350] · Done when: tests prove zero-filled days, the
   filtered series summing to the unfiltered total across all sources, and the
   previous period being the same length ending the day before.
-- [ ] **A-353** — Product ranking: `GET /api/admin/insights/products` returns
+- [x] **A-353** — **Done locally 2026-10-30.** Line arithmetic and released-order
+  exclusions pass. Legacy orphan test first proves normal FK rejection, then
+  simulates an old import only in disposable SQLite; schema stays unchanged.
+  Product ranking: `GET /api/admin/insights/products` returns
   units, revenue, variant split and return share per product (`order_items` ⋈
   `product_variants`), live orders only.
   -> REQ: REQ-201, REQ-206 · deps: [A-350] · Done when: tests prove units × price
   equals revenue on a fixture, a released order excluded, and a deleted variant
   not failing the query.
-- [ ] **A-354** — Location ranking: `GET /api/admin/insights/locations` returns
+- [x] **A-354** — **Done locally 2026-10-30.** Top-N + Lainnya totals, unknown
+  aliases and hostile province input pass; city label is stable across row order.
+  Location ranking: `GET /api/admin/insights/locations` returns
   provinces, then a province's cities on request, top 20 and top 50 plus
   `Lainnya`, each with orders, revenue and return share.
   -> REQ: REQ-202 · deps: [A-350] · Done when: tests prove the cut-off and that
   `Lainnya` makes the total equal the unfiltered total; the city param is bound,
   never interpolated; and a province spelled two ways in old rows is reported
   (the finding recorded, merged only if the catalogue defines the alias).
-- [ ] **A-355** — Order time heatmap: `GET /api/admin/insights/times` returns
+- [x] **A-355** — **Done locally 2026-10-30.** Sunday/Monday WIB boundaries,
+  7×24 zero cells and landing follow-up aggregates pass. Order time heatmap: `GET /api/admin/insights/times` returns
   orders by weekday × hour in Asia/Jakarta, and the lead follow-up funnel is
   folded into A-351's response.
   -> REQ: REQ-204, REQ-205 · deps: [A-350] · Done when: tests prove an order at
   Sunday 23:30 WIB (16:30 UTC) lands in Sunday 23:00, and one at Monday 00:10 WIB
   (Sunday 17:10 UTC) lands in Monday 00:00.
-- [ ] **A-356** — Route policy in `auth.ts`: add `/api/admin/insights` to
+- [x] **A-356** — **Done locally 2026-10-30.** Real request-gate tests admit
+  owner/admin/advertiser and refuse customer service for every insights endpoint;
+  dashboard access is unchanged. Page-policy tests pass; pages await A-357.
+  Route policy in `auth.ts`: add `/api/admin/insights` to
   `ADMIN_API_ROUTES` and the advertiser API list, and `/admin/analytics` to
   `ADMIN_PAGE_ROUTES` and the advertiser page list. Only owner passes by
   default; admin is held to its lists. Customer service gets neither. Do not put
@@ -3118,38 +3169,69 @@ later task is held to.
   and advertiser reach every `/api/admin/insights/*` path and `/admin/analytics`,
   customer service gets 403 on all of them, and the dashboard's own
   `/api/admin/analytics` access is unchanged for every role.
-- [ ] **A-357** — Navigation and shell: an **Analitik** item in
+- [ ] **A-357** — **Implemented, browser acceptance in progress 2026-10-30.** Five
+  Astro routes and Analitik sidebar children; owner/admin/advertiser only. Shared
+  period picker, explicit Apply, applied-period label, source/product/channel
+  choices, source-to-order links and page-width guard. URL helper tests pass;
+  Owner browser proof now covers explicit Apply and seven-day period persistence
+  from Ringkasan to Lokasi, plus keyboard province drill-down. Full role/menu
+  acceptance remains open.
+  Navigation and shell: an **Analitik** item in
   `admin-navigation.ts` with children (Ringkasan, Landing page, Produk, Lokasi,
   Waktu beli), one `/admin/analytics/*` page each on `AdminLayout`,
   `AdminPageHeader`, the shared period control, no page-level width of its own.
   -> REQ: REQ-197, REQ-198, REQ-208 · deps: [A-350] · Done when: the menu item
   opens each page, the period survives switching screens, the limits notice
   (REQ-208) is on every page, and `admin-page-width.test.ts` still passes.
-- [ ] **A-358** — Landing screen: a sortable table (delivered revenue default)
+- [ ] **A-358** — **Implemented, browser acceptance in progress 2026-10-30.** Numeric
+  sorting, delivered-revenue default, phone cards, desktop table, closing bars,
+  expandable channel/follow-up counts and role-gated source links. SSR test
+  covers populated and empty rows. Browser captures cover phone cards and desktop
+  table; the table now has a named focusable scroll region, with ArrowRight
+  movement verified at 1280px. Multi-row sorting and source deep links remain open.
+  Landing screen: a sortable table (delivered revenue default)
   with a closing-rate bar, a channel mini-split, the `(tidak tercatat)` row, and
   a link to the order list filtered by that source (A-346).
   -> REQ: REQ-199, REQ-203 · deps: [A-351, A-357] · Done when: browser evidence at
   390px (cards) and 1280px (table) shows sorting, the link, an empty state and no
   overflow; the console is empty.
-- [ ] **A-359** — Trend and product screens: a daily chart with the previous
+- [ ] **A-359** — **Partial 2026-10-30.** Lazy trend chart with metric selector,
+  previous total and accessible daily table; failed chart import degrades to a
+  reload action while the data table remains. Product summaries expand variant
+  tables. Desktop product ranking is now a table; phone retains cards. Native
+  keyboard expansion, empty/reset, and injected network failure/retry with period
+  preserved pass in-browser. Tooltip/network lazy-load proof remains open. Trend and product screens: a daily chart with the previous
   period beside it, a source or product selector, and the product table with
   variant split. Lazy island per screen.
   -> REQ: REQ-200, REQ-201 · deps: [A-352, A-353, A-357] · Done when: browser
   evidence shows the chart, the selector changing it, tooltips, the empty state
   and both widths; the network panel shows the chart code loading only on these
   screens.
-- [ ] **A-360** — Location and time screens: province table opening to cities,
+- [ ] **A-360** — **Implemented, browser acceptance in progress 2026-10-30.** Province
+  to city drill-down, Lainnya, stated 20% RTS attention threshold and numeric
+  7×24 heatmap. Keyboard province-to-city drill-down is verified; heatmap theme
+  and keyboard/scroll acceptance remain open.
+  Location and time screens: province table opening to cities,
   return share highlighted above a stated threshold, and the weekday × hour
   heatmap with a legible scale in both themes.
   -> REQ: REQ-202, REQ-204 · deps: [A-354, A-355, A-357] · Done when: browser
   evidence at both widths proves drill-down, `Lainnya`, the heatmap in light and
   dark, and keyboard reach for every control.
-- [ ] **A-361** — Island render safety: add each new data island to
+- [x] **A-361** — **Verified locally 2026-10-30.** Shared InsightsReport island
+  renders loading/empty cases for all five reports and populated landing,
+  product, location and time data through the existing esbuild/SSR harness.
+  Chart remains lazy; its client rendering requires A-359 browser proof.
+  Island render safety: add each new data island to
   `admin-islands-render.test.ts`, or keep the branch logic in `src/lib` where
   the runner reaches it.
   -> REQ: REQ-197 · deps: [A-358, A-359, A-360] · Done when: the render test fails
   if an island throws on empty and on populated data.
-- [ ] **A-362** — Weight gate and close-out: re-run the A-348 measurement against
+- [ ] **A-362** — **Partial 2026-10-30:** measurement rerun passes all eight
+  existing fixture budgets unchanged; five real handlers pass local D1 smoke.
+  Full suite 1033/1033, check 0/0/0, build, docs check and route-map generation
+  (131 routes) pass after desktop-product/keyboard-scroll refinement. Full screen
+  budget including selector reads, browser matrix and release closure remain.
+  Weight gate and close-out: re-run the A-348 measurement against
   the finished screens, record the figures, `npm run route-map`, document the menu
   in `ARCHITECTURE.md`, version and changelog per `RELEASE.md`.
   -> REQ: REQ-198, REQ-208 · deps: [A-361] · Done when: every screen is under its
@@ -3982,8 +4064,19 @@ order.
   `/admin/status`, a second warehouse quoting its province, source deep links.
   Post-merge fixes (Exceptions A-397/A-408): the admin courier re-quote and its
   preview quote the order's recorded weight; `/admin/orders` server-renders
-  its deep-link filters. **Open:** Analitik is not built (A37/A38 not started),
-  so this task's Done when cannot close yet.
+  its deep-link filters. **Open:** A37 backend now passes locally in s1 but is
+  uncommitted and not integrated; Analitik screen code now exists but its
+  browser acceptance is in progress (tool restored; five-report demo smoke
+  passed), and A38 panels remain open.
+  A-363's recent-buyers commit `d408b32` exists in s2 but is not integrated.
+  Upstream `c85fe5b`/`be08fc6` (Kelola backfill / 1.7.14) also remain to be
+  integrated. Upstream CI run 40884103654 is now green. Simulated committed-tree
+  integration passes 14 Kelola tests with A41 weights retained; resolve STATUS,
+  regenerate maps, and reconcile duplicate BUILD-LOG Entry 185 identifiers.
+  Before accepting backfill, address/review the proven first-50-row starvation
+  and old-counter/all-age-send mismatch, and verify the settings UI and request
+  duration against a synthetic receiver. No live Kelola call is authorized.
+  This task's Done when cannot close yet.
   Merge the streams in this order: A36→A37→A38, A39 (+A-379),
   A41, A43, A42. Renumber migrations gap-free, set `schemaVersion`, regenerate
   the route map, resolve the known shared files (`auth.ts` route lists,

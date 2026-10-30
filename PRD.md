@@ -1,6 +1,6 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-10-29 @ `be00fee` + s4-a43 working tree
+> Verified against disk: 2026-10-30 @ `7f59daf` + A37 backend working tree (A37 measurements and cache boundary; other sections retain their recorded evidence)
 
 ## A43 — Resolve kecamatan to Mengantar areas without calling Mengantar
 
@@ -444,7 +444,7 @@ queries A37 builds, so there is one definition of each number.
 
 ## A37 — Analytics: which landing page wins, what sells, and where
 
-**Status:** Proposed. Reads what A36 records; adds no write to the visitor path.
+**Status:** Backend verified locally on 2026-10-30; screens and A38 integration remain open. Reads what A36 records; adds no write to the visitor path.
 
 ### Goals
 
@@ -506,6 +506,44 @@ queries A37 builds, so there is one definition of each number.
   that rows before A36 may lack a source, that the period is Asia/Jakarta, and
   that no visit data exists.
 
+### Screen contract — A-357–A-361
+
+Owner/admin/advertiser compare sources and products, inspect geography and buying
+hours, then follow a source to the existing order list when authorized. Customer
+service has neither menu nor endpoints. No mutation/export/visit-rate feature.
+
+Direction: reuse this product's AdminShell, AdminPageHeader and §7.1 controls,
+not a second dashboard shell. Existing dashboard and source-filtered order list
+are the primary references. Carbon's read-only table pattern (sortable numeric
+columns, explicit empty states, details on demand) transfers to desktop; the
+accepted A-358 contract chooses stacked cards on phones instead of a wide table.
+No decorative KPI row, duplicate tab navigation or new component dependency.
+
+- Five sidebar destinations: Ringkasan (trend), Landing page, Produk, Lokasi,
+  Waktu beli. Period lives in the URL and survives navigation between them.
+- Default this month, shared period picker capped at 90 days. Filters apply
+  explicitly; invalid bookmarked ranges display the API refusal and a reset.
+- Each route requests only its own report. Trend selectors use catalogue labels
+  and allow a custom historical source slug, including missing-source rows.
+  One source or one product, never both. Channel applies outside Landing page.
+- Loading has a stable skeleton, filtered zero has a reset action, failures retain
+  URL filters and offer retry, 401/403 distinguish login from denied access.
+- Landing defaults to delivered revenue; all numeric columns can re-sort, mobile
+  cards retain the same data and sort control. Closing rate is orders/(orders+
+  every lead), not a visit conversion; a lead marked not interested is a lost
+  sale and stays in the denominator (decided 2026-10-30). Follow-up and channel counts are readable.
+- Product rows expand their variant split; geography opens cities immediately
+  using the applied period/channel (drill-down, not a draft toolbar filter) and
+  retains Lainnya. RTS above 20% is a labelled attention threshold, not a provider risk
+  score, and always states its delivered+returned denominator.
+- Trend has a metric switch, named previous-period total, no mixed-unit axis,
+  accessible daily table and no refresh animation. Chart code loads only there.
+- Heatmap shows numeric counts as well as intensity, states WIB and weekday/hour,
+  and stays readable without hover in both themes. No data is invented.
+- Every page states Asia/Jakarta, potentially missing historical source labels,
+  and absence of visit data. Shell owns width; test 390/1280/1366/1536, keyboard,
+  error/empty/retry, period persistence, light/dark and console/hydration.
+
 ### Technical decisions
 
 - **Weight is the design constraint.** Everything is a `GROUP BY` over `orders`
@@ -519,8 +557,10 @@ queries A37 builds, so there is one definition of each number.
   operator never opens from costing a read. Each API runs its queries in a
   single `D1.batch`, no N+1, no per-row lookups; names for landing and product
   are joined in the same batch.
-- **Reads cached by the browser only.** `Cache-Control: private, max-age=60`.
-  No KV write (ADR-021) and no edge cache (admin is excluded by ADR-029).
+- **Admin responses are not cached.** `Cache-Control: no-store`, matching the
+  existing session-aware middleware. The original browser-cache proposal was
+  never effective through that middleware; this feature does not weaken its
+  revocation boundary. No KV write (ADR-021) or edge cache (ADR-029).
 - **Aggregate in SQL, shape in `src/lib`.** SQL returns grouped rows; a pure
   module turns them into the series, the top-N plus `Lainnya`, and the
   zero-filled days (the dashboard already zero-fills in the route). The module
@@ -530,8 +570,8 @@ queries A37 builds, so there is one definition of each number.
   `client:only` island, so a screen's chart code loads only when opened. A new
   data island is added to `admin-islands-render.test.ts` or its logic stays in
   `src/lib`.
-- **Shared definition.** `RELEASED_ORDER` is a local constant in
-  `api/admin/analytics.ts`. It moves to `src/lib` and both routes import it, so
+- **Shared definition.** `RELEASED_ORDER` lives in `src/lib/order-metrics.ts`.
+  Both the existing dashboard and the new insights import it, so
   the dashboard card and this menu cannot drift.
 - **Role prefix trap.** `canAccessAdminRoute` matches a role's route entry as a
   prefix (`matchesRoute`: equal, or `startsWith(route + '/')`), and
@@ -544,6 +584,46 @@ queries A37 builds, so there is one definition of each number.
   one.
 - **Timezone.** The dashboard converts with a literal `'+7 hours'`. This menu
   reuses that exact expression, not a second one.
+#### A-348 local query-cost evidence — 2026-10-30
+
+Run `node --experimental-strip-types scripts/measure-insights.ts`. The script
+creates an ephemeral local workerd D1 from the real migration chain, with remote
+bindings disabled and no install configuration or credential files loaded.
+Fixture: 20,000 orders over 90 days, 27,000 items, 40 sources, 30 products,
+300 cities, mixed shipment/payment states. Five actual route handlers pass
+independent arithmetic and response-minimization checks against that database.
+
+| Query | D1 rows read | Local elapsed ms (one run) | Fixture regression ceiling |
+| --- | ---: | ---: | ---: |
+| Existing dashboard, 29 days (baseline only) | 51,542 | 57.32 | — |
+| Landing, 90 days | 79,670 | 145.55 | 90,000 |
+| Trend, 90 days + preceding period | 53,971 | 56.40 | 60,000 |
+| Trend, one source | 1,361 | 15.45 | 2,000 |
+| Trend, one product | 95,660 | 45.22 | 110,000 |
+| Products | 172,118 | 69.78 | 190,000 |
+| Locations | 51,791 | 49.83 | 60,000 |
+| Order times | 37,931 | 51.05 | 45,000 |
+| Landing, one day | 1,121 | 17.40 | 2,000 |
+
+These are real local D1 metadata, not the unit adapter's synthetic `7` rows per
+statement. Timings include local proxy overhead and are not production latency
+or SLAs. The preceding 90-day trend period contains no seeded orders; the smaller
+behavioral fixture separately verifies non-empty previous periods. Budgets apply
+only to this fixed fixture; larger histories/catalogues or more items need new
+measurement. A-362 must remeasure the final screens and A38 combined batches.
+
+The existing dashboard scans `orders`; it is measured, not optimized in this
+slice. Every new order query uses indexed `created_at` bounds (source-filtered
+queries also use `source_slug`). Grouping by source/channel, local day, joined
+product, location and hour uses temporary B-trees over the bounded result. A
+range-leading covering index was tried in the disposable database: no rows-read
+reduction for six screen variants, and product trend fell from 95,660 to 69,580.
+It did not eliminate those grouping trees. No production index/migration is added:
+its width/write cost is not justified for one optional filter. Do not replace
+bounded date searches with a full-history grouping-index scan just to remove
+`USE TEMP B-TREE`. The script enforces date-bound search plans and per-fixture
+rows-read ceilings; it retains the covering experiment for reproducibility.
+
 - **Upgrade path, not built now.** `// lazy:` ceiling: live aggregation is right
   up to roughly 20,000 orders in a period. Past that, an `analytics_daily`
   rollup (day × source × province × city × product) written by the existing
@@ -1204,6 +1284,24 @@ remain separate correctness work.
 | REQ-85 | Operational alert state shall be persisted per install and notifications shall contain only signal identity, transition, timestamp, event id, and bounded reason. | Implemented 2026-08-17 |
 
 ---
+
+## Persistent WhatsApp follow-up (REQ-249)
+
+Accepted 2026-10-30 for local implementation. Owner, admin and customer-service
+operators can explicitly record completion of each existing order CRM stage,
+with an optional note (maximum 1,000 characters), server timestamp and session
+operator identity. Opening a WhatsApp link never writes completion and never
+claims message delivery/read status. Order list and detail read the same D1
+records; old browser-only clicks are not backfilled as evidence. Missing records
+mean not yet recorded, while failed reads mean unknown, never not done.
+
+A correction marks the stage incomplete with a required reason and retains its
+revision and last-change operator/time. Updates use an expected revision; a stale
+operator gets a conflict and must reload before confirming again. Failures keep
+the entered note and do not display successful completion. Lead follow-up stays
+in its existing fields and analytics cohort, but opening WA and marking contacted
+become separate actions. No order/payment/shipping transitions or ad events are
+triggered by follow-up writes. Advertisers cannot read/write order follow-up.
 
 ## 11. Traceability
 

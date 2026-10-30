@@ -1,131 +1,88 @@
-import React, { useState } from 'react';
-import { CrmActionButton, CRM_STEPS, type CrmStepKey } from './CrmActionButton';
+import { useEffect, useId, useState } from 'react';
+import { CRM_STEPS } from './CrmActionButton';
+import type { OrderFollowUp, OrderFollowUpStep } from '../../lib/order-follow-up';
+import { Button, buttonVariants } from '../ui/button';
+import { Textarea } from '../ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 
-interface CrmActionGroupProps {
-  crmUrls: Record<string, string>;
-  clickedSteps: Record<string, boolean>;
-  onStepClick: (stepKey: CrmStepKey) => void;
-  size?: 'sm' | 'md';
-  compact?: boolean;
-  collapsible?: boolean;
-  defaultExpanded?: boolean;
-}
+const FOLLOW_UP_SAVED = 'adsbook:follow-up-saved';
 
-export const CrmActionGroup: React.FC<CrmActionGroupProps> = ({
-  crmUrls,
-  clickedSteps,
-  onStepClick,
-  size = 'md',
-  compact = false,
-  collapsible = true,
-  defaultExpanded = false,
-}) => {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+export function CrmActionGroup({ orderId, crmUrls }: { orderId: string | number; crmUrls: Record<string, string> }) {
+  const [expanded, setExpanded] = useState(false);
+  const [rows, setRows] = useState<OrderFollowUp[] | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [editing, setEditing] = useState<{ step: OrderFollowUpStep; completed: boolean; revision: number } | null>(null);
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [conflict, setConflict] = useState(false);
+  const noteId = useId();
+  const endpoint = `/api/admin/orders/${encodeURIComponent(orderId)}/follow-up`;
 
-  const clickedCount = Object.values(clickedSteps).filter(Boolean).length;
-  const totalCount = CRM_STEPS.length;
+  useEffect(() => {
+    if (!expanded) return;
+    const controller = new AbortController();
+    setLoading(true); setError('');
+    fetch(endpoint, { signal: controller.signal }).then(async response => {
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || 'Catatan belum dapat dimuat.');
+      if (!controller.signal.aborted) setRows(body.data);
+    }).catch(reason => { if (!controller.signal.aborted) setError(reason.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [expanded, endpoint, reload]);
 
-  if (compact) {
-    return (
-      <div className="flex flex-wrap items-center gap-1">
-        {CRM_STEPS.map((step) => {
-          const url = crmUrls[step.key] || '';
-          const isClicked = Boolean(clickedSteps[step.key]);
-          return (
-            <CrmActionButton
-              key={step.key}
-              stepKey={step.key}
-              label={step.label}
-              fullLabel={step.fullLabel}
-              mobileLabel={step.mobileLabel}
-              title={step.title}
-              waUrl={url}
-              isClicked={isClicked}
-              onClicked={onStepClick}
-              size={size}
-              variant="compact"
-            />
-          );
-        })}
-      </div>
-    );
+  // OrdersTable mounts one group per layout (cards and table); a save in one
+  // updates the other, so neither shows a stale status or revision.
+  useEffect(() => {
+    const sync = (event: Event) => {
+      const { orderId: saved, row } = (event as CustomEvent<{ orderId: string; row: OrderFollowUp }>).detail;
+      if (saved === String(orderId)) setRows(current => current && [...current.filter(item => item.step !== row.step), row]);
+    };
+    window.addEventListener(FOLLOW_UP_SAVED, sync);
+    return () => window.removeEventListener(FOLLOW_UP_SAVED, sync);
+  }, [orderId]);
+
+  async function save() {
+    if (!editing || saving || conflict) return;
+    setSaving(true); setSaveError('');
+    try {
+      const response = await fetch(endpoint, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...editing, note }) });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) { if (response.status === 409) { setConflict(true); setReload(value => value + 1); return; } throw new Error(body.error || 'Gagal menyimpan catatan.'); }
+      setRows(current => [...(current || []).filter(row => row.step !== editing.step), body.data]);
+      window.dispatchEvent(new CustomEvent(FOLLOW_UP_SAVED, { detail: { orderId: String(orderId), row: body.data } }));
+      setEditing(null);
+    } catch (reason) { setSaveError(reason instanceof Error ? reason.message : 'Gagal menyimpan catatan.'); }
+    finally { setSaving(false); }
   }
 
-  return (
-    <div className="w-full space-y-1.5">
-      {collapsible && (
-        <button
-          type="button"
-          onClick={() => setExpanded((prev) => !prev)}
-          className={`group flex min-h-8 w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
-            expanded
-              ? 'border-emerald-300 bg-emerald-50 text-emerald-900 shadow-xs'
-              : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-200 hover:bg-emerald-50/50 hover:text-emerald-800'
-          }`}
-        >
-          <span className="flex items-center gap-1.5">
-            <svg
-              className="size-3.5 fill-current text-[#25D366]"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M12.031 0C5.394 0 0 5.394 0 12.031c0 2.124.553 4.197 1.604 6.02L.055 24l6.096-1.597C7.92 23.42 9.948 24 12.031 24c6.638 0 12.031-5.394 12.031-12.031C24.062 5.394 18.669 0 12.031 0zm6.812 17.062c-.282.796-1.411 1.488-2.28 1.637-.6.102-1.385.184-4.029-.912-3.376-1.398-5.545-4.839-5.714-5.064-.168-.225-1.378-1.832-1.378-3.497 0-1.665.867-2.484 1.176-2.822.31-.337.675-.422.9-.422.225 0 .45.003.647.012.21.009.492-.08.769.587.282.686.966 2.355 1.05 2.524.084.168.14.365.028.59-.112.225-.168.365-.337.562-.168.197-.354.44-.505.59-.168.168-.344.351-.148.687.197.337.876 1.446 1.883 2.343 1.294 1.152 2.385 1.51 2.722 1.678.337.168.534.14.731-.084.197-.225.843-.983 1.068-1.32.225-.337.45-.282.759-.168.31.112 1.967.927 2.304 1.096.337.168.562.253.647.394.085.141.085.825-.197 1.621z" />
-            </svg>
-            <span className="truncate">WA CRM</span>
-          </span>
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-semibold transition-colors ${
-                clickedCount > 0
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {clickedCount}/{totalCount}
-            </span>
-            <svg
-              className={`size-3.5 transition-transform duration-200 ${
-                expanded ? 'rotate-180 text-emerald-700' : 'text-slate-400'
-              }`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
-            </svg>
+  return <div className="flex min-w-0 flex-col gap-2">
+    <Button variant="outline" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>Follow-up WA{rows && !error ? ` · ${rows.filter(row => row.completed).length}/${CRM_STEPS.length}` : ''}</Button>
+    {expanded && <>
+      <p className="text-xs text-muted-foreground">Buka WhatsApp tidak menandai selesai. Catat setelah follow-up dilakukan; bukan bukti pesan terkirim atau dibaca.</p>
+      <Button variant="ghost" disabled={loading} onClick={() => setReload(value => value + 1)}>Muat ulang status</Button>
+      {loading ? <p role="status">Memuat catatan…</p> : error ? <p role="alert">{error}</p> : rows && <div className="flex flex-col gap-3">{CRM_STEPS.map(step => {
+        const row = rows.find(item => item.step === step.key);
+        return <div key={step.key} className="flex min-w-0 flex-col gap-2 border-t border-border pt-3">
+          <p className="text-sm font-medium">{step.fullLabel} · {row?.completed ? 'Sudah dilakukan' : 'Belum dilakukan'}</p>
+          {row && <p className="break-words text-xs text-muted-foreground">{row.completed ? 'Dicatat' : 'Dikoreksi'} {new Date(row.updated_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB oleh {row.updated_by}{row.note ? ` · ${row.note}` : ''}</p>}
+          <div className="flex flex-wrap gap-2">
+            {crmUrls[step.key] && <a className={buttonVariants({ variant: 'outline' })} href={crmUrls[step.key]} target="_blank" rel="noopener noreferrer" aria-label={`Buka WhatsApp ${step.fullLabel}`}>Buka WhatsApp</a>}
+            <Button variant="outline" onClick={() => { setEditing({ step: step.key, completed: !row?.completed, revision: row?.revision ?? 0 }); setNote(''); setSaveError(''); setConflict(false); }}>{row?.completed ? 'Koreksi ke belum' : 'Tandai selesai'}</Button>
           </div>
-        </button>
-      )}
-
-      {(!collapsible || expanded) && (
-        // The breakpoints were inverted: `grid-cols-5 sm:grid-cols-2` gave a phone
-        // five columns and a desktop two. At 360px each of the five tracks is
-        // (310 - 24)/5 = 57px, while a CrmActionButton's min-content is ~74px
-        // (px-2 + gap + the nowrap label + the clicked badge), so the row overflowed
-        // by ~80px — clipped without a scroll path by the Card's own overflow-hidden
-        // in OrderDetail. Two columns is what desktop already rendered.
-        <div className="grid grid-cols-2 gap-1.5 w-full pt-1">
-          {CRM_STEPS.map((step) => {
-            const url = crmUrls[step.key] || '';
-            const isClicked = Boolean(clickedSteps[step.key]);
-            return (
-              <CrmActionButton
-                key={step.key}
-                stepKey={step.key}
-                label={step.label}
-                fullLabel={step.fullLabel}
-                mobileLabel={step.mobileLabel}
-                title={step.title}
-                waUrl={url}
-                isClicked={isClicked}
-                onClicked={onStepClick}
-                size={size}
-                variant="full"
-              />
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
+        </div>;
+      })}</div>}
+    </>}
+    <Dialog open={!!editing} onOpenChange={open => { if (!open && !saving) setEditing(null); }}><DialogContent>
+      <DialogHeader><DialogTitle>{editing?.completed ? 'Konfirmasi follow-up selesai' : 'Koreksi status follow-up'}</DialogTitle><DialogDescription>{CRM_STEPS.find(step => step.key === editing?.step)?.fullLabel} · Simpan hanya setelah tindakan benar-benar dilakukan. Identitas operator dan waktu akan dicatat.</DialogDescription></DialogHeader>
+      <label htmlFor={noteId}>{editing?.completed ? 'Catatan (opsional)' : 'Alasan koreksi (wajib)'}</label>
+      <Textarea id={noteId} maxLength={1000} value={note} disabled={saving} onChange={event => setNote(event.target.value)} />
+      {saveError && <p role="alert">{saveError}</p>}
+      {conflict && <p className="text-sm">Status terbaru sudah dimuat ulang. Tutup dialog dan periksa sebelum mencatat lagi. Catatan Anda: {note || '—'}</p>}
+      <DialogFooter><Button variant="outline" disabled={saving} onClick={() => setEditing(null)}>Batal</Button><Button disabled={saving || conflict || (!editing?.completed && !note.trim())} onClick={() => void save()}>{saving ? 'Menyimpan…' : 'Simpan konfirmasi'}</Button></DialogFooter>
+    </DialogContent></Dialog>
+  </div>;
+}

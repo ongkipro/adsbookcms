@@ -1,6 +1,49 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-24 (1.7.13 on revenleather, zvarashop, taniniaga, agritani-shop, halotanishop, permatamall, numaskin-adbook, bavenshop, beranda-tani; zanobyshop on 1.7.2)
+> Verified against disk: 2026-10-30 @ `7f59daf` + A37 backend working tree (local backend/UI handoff; browser smoke verified, full acceptance pending). Fleet evidence remains 2026-10-24 (1.7.13 on revenleather, zvarashop, taniniaga, agritani-shop, halotanishop, permatamall, numaskin-adbook, bavenshop, beranda-tani; zanobyshop on 1.7.2); not rechecked.
+
+## 2026-10-30 — Local development handoff (not deployed)
+
+A37 backend resumed in `adsbookcms-s1-a36-a38` at `7f59daf` plus uncommitted
+work. A-349–A-356 verified locally; A-348 measured but its required commit is
+not authorized. No change to the fleet/version statement above. Canonical
+completion details: TASKS A37; reproducible cost figures: PRD A37; history:
+BUILD-LOG Entry 185.
+
+A-357–A-360 screen code now exists; A-361 SSR checks pass (1033 full-suite
+checks, 0 type errors, successful build). The browser-tool blocker is resolved:
+agent-browser 0.38.1 passes its doctor and native interaction smoke. An isolated
+Tailscale demo on port 8795 has 11 synthetic products and 18 orders; login and all
+five reports render, with no observed page errors. Landing captures exist at
+390/1366px under `.wrangler/`. This is smoke evidence, not full acceptance.
+Existing local store state and production were not modified.
+
+Upstream review: origin/main is `be08fc6` (1.7.14, Kelola backfill, PR #101).
+Its two new commits are not integrated here. After the owner made the repository
+public, CI run 40884103654 passed check/tests/build; its earlier failure was a
+billing-blocked job, not a test failure. The simulated committed-tree merge
+preserves A41 recorded weights and schema 73; STATUS and generated route maps
+conflict. Upstream and local history both use BUILD-LOG Entry 185: reconcile
+identifiers and references during integration, preserving both entries.
+
+Further local QA: all five reports have zero document-width overflow at
+390/1366/1536px on the synthetic data. Explicit Apply, period persistence,
+keyboard province drill-down, product variant expansion, empty/reset and aborted
+fetch/retry recovery are observed. Product desktop ranking is now a table;
+Landing has a named focusable horizontal scroll region. Tests remain 1033/1033;
+check 0/0/0, build, docs check and regenerated 131-route map pass. Existing eight
+D1 fixture budgets pass unchanged. Full visual/role/theme/fixture acceptance and
+selector-query accounting are still outstanding, not inferred from this smoke.
+
+Review fixes (TASKS A37, 2026-10-30): 1039/1039 tests, check 0/0/0, build; the
+8795 demo was restarted on the new build and the fixed paths were exercised in
+the browser at 1366/390px. Demo D1 now holds follow-up rows written by that QA.
+
+Next action: finish A-357–A-360 acceptance and richer historical/source/lead/return
+fixtures. Then continue A38 panels using the
+shared query builders. Preserve existing work; s2's
+`d408b32` recent-buyers commit is not integrated. Finish A-362 measurements and
+browser proof before A-419/A-420. Local green tests are not release completion.
 
 ## 2026-10-29 — Variant weights across the fleet (A-391)
 

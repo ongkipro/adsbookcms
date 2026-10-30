@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-10-29 @ A-419 integration (`feat/a35-a40-analytics-fit`)
+> Verified against disk: 2026-10-30 @ `7f59daf` + A37 backend working tree (§3 insights boundary; remaining sections retain their recorded evidence)
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -62,7 +62,7 @@ Runs on every request, in order: canonical host redirect (`www` → apex), ad cl
 > The table below is a summary and has drifted before — it said `/admin/*` was
 > 27 pages when there were 28, and §4 described a 41-file migration chain that
 > was already 52. **`docs/ROUTE-MAP.md` and `docs/route-map.xml` are the map to
-> trust**: `npm run route-map` derives all 111 routes from `src/pages/` with
+> trust**: `npm run route-map` derives the routes from `src/pages/` with
 > their files, HTTP verbs, auth boundary and the roles `canAccessAdminRoute`
 > actually admits, and `src/lib/route-map.test.ts` fails when the committed map
 > and the filesystem disagree.
@@ -75,10 +75,11 @@ Runs on every request, in order: canonical host redirect (`www` → apex), ad cl
 | Checkout forms | `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`. `/form-hybrid`, `/form-middle`, `/form-full` are query-preserving 308 redirects that **do** exist |
 | Feeds | `/sitemap.xml`, `/feed/google-catalog.xml`, `/feed/meta-catalog.xml`, `/robots.txt` (dynamic, `src/pages/robots.txt.ts`) |
 | Media | `/assets/[...key]` (R2 `uploads/` prefix), `/media/[...key]` (R2 `content/` prefix) |
-| Admin | `/hello` (login), `/admin/*` — 31 pages |
+| Admin | `/hello` (login), `/admin/*` — see generated route map for the page inventory |
 | Public API | `/api/*` — checkout, locations, shipping rates, payment methods, order status, Meta events |
 | Headless API | `/api/v1/*` — storefront descriptor, products, geo, shipping rates, checkout, tracking events |
 | Admin payment reconciliation | `/api/admin/payment-reconciliation` |
+| Insights (A37 backend, not yet released) | `/api/admin/insights/{landing,trend,products,locations,times}` — owner/admin/advertiser only, aggregates, bounded 90-day Jakarta period, one D1 batch per request; `order-metrics.ts` shares revenue rules with dashboard. No-store follows admin middleware. Five `/admin/analytics/*` pages share InsightsPage/InsightsReport; trend alone imports the lazy chart. UI acceptance remains A-357–A-362 (browser blocked). |
 
 The headless `/api/v1/*` family is **implemented and shipping**, authenticated by `X-App-Key`/`Bearer` against the `developer_api_keys` table (`src/lib/headless-api.ts`) plus an origin allowlist. Keys are issued at `/admin/settings/developer`.
 

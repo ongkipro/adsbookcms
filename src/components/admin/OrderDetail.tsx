@@ -815,7 +815,6 @@ export function OrderDetail({ invoice }: { invoice: string }) {
   const [crmTemplates, setCrmTemplates] = useState({ ...defaultCrmTemplates });
   const [crmSellerName, setCrmSellerName] = useState("");
   const [crmBankAccounts, setCrmBankAccounts] = useState("");
-  const [clickedSteps, setClickedSteps] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1816,9 +1815,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
             <CardContent className="p-4 sm:p-5">
               <CrmActionGroup
                 crmUrls={allCrmUrls}
-                clickedSteps={clickedSteps}
-                onStepClick={(stepKey) => setClickedSteps((current) => ({ ...current, [stepKey]: true }))}
-                size="md"
+                orderId={order.id}
               />
               <div className="mt-4 border-t border-slate-100 pt-4">
                 <p className="mb-2 text-xs text-slate-500">

@@ -4,6 +4,7 @@ import { OrdersTable, type OrderItem } from '../../../components/admin/OrdersTab
 import AdminPageHeader from '../../../components/admin/AdminPageHeader.astro';
 import { getRuntimeEnv } from '../../../lib/env';
 import { initialOrderListWhere } from '../../../lib/admin-orders-initial';
+import { readOrderFollowUpsFor } from '../../../lib/order-follow-up';
 
 export const prerender = false;
 
@@ -120,10 +121,17 @@ if (database?.prepare) {
       .bind(...where.params)
       .all<InitialOrderDatabaseRow>();
 
+    // The follow-up chips' state for the same page in one read, so no panel
+    // reads its own order on first paint; a failed read leaves it to them.
+    const followUps = await readOrderFollowUpsFor(database, result.results.map((order) => Number(order.id))).catch((error) => {
+      console.error('admin-orders-initial-follow-ups', error);
+      return null;
+    });
     initialOrders = result.results.map(
       ({ dispatchEligible, ...order }): OrderItem => ({
         ...order,
         dispatchEligible: Boolean(dispatchEligible),
+        followUps: followUps ? followUps.get(Number(order.id)) ?? [] : null,
       }),
     );
   } catch (error) {

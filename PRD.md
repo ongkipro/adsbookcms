@@ -1323,6 +1323,15 @@ in its existing fields and analytics cohort, but opening WA and marking contacte
 become separate actions. No order/payment/shipping transitions or ad events are
 triggered by follow-up writes. Advertisers cannot read/write order follow-up.
 
+**Amended 2026-10-31 (Paduka):** the follow-up panel is one row of step chips.
+Tapping a step's chip opens its WhatsApp template **and** records that step
+done, under the operator's session identity and server time, with no dialog;
+the chip then shows a check. The "opening WhatsApp never writes completion"
+rule above is withdrawn for this one-tap action; completion still never claims
+delivery or read status. A wrong tap is undone from the confirmation toast,
+which opens the existing correction (reason required). The separate copy grid
+on the order page is removed; the chip's WhatsApp link carries the message.
+
 ## Operator payment switch on the admin order (REQ-250)
 
 - **REQ-250** — An owner, admin or customer-service operator shall be able to

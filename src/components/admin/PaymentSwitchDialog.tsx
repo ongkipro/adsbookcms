@@ -93,7 +93,7 @@ export function PaymentSwitchDialog({
             <p role="status" className="text-sm text-slate-600">Memuat metode pembayaran…</p>
           ) : methods.length === 0 ? (
             <p className="text-sm text-slate-600">
-              Belum ada metode non-COD yang aktif. Tambahkan rekening toko atau aktifkan AutoLaris di Pengaturan Pembayaran.
+              Belum ada metode non-COD yang aktif. <a className="underline underline-offset-4" href="/admin/payments#rekening-bank-section">Tambahkan rekening toko</a> atau aktifkan AutoLaris di Pengaturan Pembayaran.
             </p>
           ) : (
             <div className="space-y-3">
@@ -115,6 +115,12 @@ export function PaymentSwitchDialog({
                   </Button>
                 ))}
               </div>
+              {/* Manual transfer is offered only for an active store account. */}
+              {!methods.some((method) => method.payment_method === "manual_transfer") && (
+                <p className="text-xs text-slate-600">
+                  Transfer ke rekening toko belum tersedia. <a className="underline underline-offset-4" href="/admin/payments#rekening-bank-section">Tambahkan rekening bank</a>
+                </p>
+              )}
               <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm">
                 <span className="text-slate-600">Total tanpa biaya COD</span>
                 <strong className="text-slate-900">{formatIdr(totalAmount)}</strong>

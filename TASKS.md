@@ -4202,7 +4202,8 @@ report query.
 
 - [x] **A-433** — **Cancelled 2026-10-30** with A-432; no per-install usage
   read is needed (PRD A45 Q1 moot).
-- [ ] **A-434** — UTM link builder in admin (landing/product picker, fixed
+- [x] **A-434** — **Done locally 2026-10-31.** Pure `src/lib/utm-link.ts` (Q3 lists, `normalizeUtmTag`, `buildUtmLink`), `UtmLinkBuilder.tsx`, page `/admin/ads/utm` (Iklan & tracking › Link UTM), pages listed as the sitemap lists them on the store's own origin. `utm-link.test.ts`: normalisation (diacritics, symbols, length), encoding, the page's own query and fragment kept, an existing `utm_*` replaced, refusals. Headless Chromium on a seeded `dev:local` store at 1280 and 390 px: medium follows the source, the stored campaign is shown, the copied link equals the field, the target page answers 200 for a product and a landing page, no overflow; Analitik › UTM links to it.
+  UTM link builder in admin (landing/product picker, fixed
   source/medium list, normalised campaign, copy).
   -> REQ: REQ-262 · deps: [] · Source/medium list per PRD A45 Q3. Done when: a test of the pure
   builder proves normalisation and encoding; browser run at 390 and 1280 px.

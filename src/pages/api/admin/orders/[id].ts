@@ -7,7 +7,7 @@ import { normalizePhoneNumber } from '../../../../lib/order-schema';
 import { isValidWa62 } from '../../../../lib/validation';
 import { getMengantarDispatchEligibility } from '../../../../lib/payment-dispatch-policy';
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from '../../../../lib/payment-fee-policy';
-import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch';
+import { dispatchOrderToMengantar, releaseUnknownMengantarDispatch } from '../../../../lib/mengantar-dispatch';
 import { parseMengantarPickupChoice } from '../../../../lib/mengantar-order';
 import {
   adminPaymentSwitchView,
@@ -51,7 +51,7 @@ const SHIPPING_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'ret
 const PAID_STATUSES = new Set(['paid', 'settled', 'success']);
 
 type OrderUpdatePayload = {
-  action?: 'dispatch-order' | 'refresh-scoring' | 'push-kelola' | 'switch-payment';
+  action?: 'dispatch-order' | 'refresh-scoring' | 'push-kelola' | 'switch-payment' | 'release-dispatch-unknown';
   /** `switch-payment`: the prepaid method (src/lib/payment-switch.ts). */
   switch_payment?: unknown;
   /** `dispatch-order`: drop-off or a scheduled pickup (PRD A46); absent means drop-off. */
@@ -401,6 +401,17 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     if (!current) return jsonError('Order tidak ditemukan.', 404);
 
     const action = body.action;
+    // Audit 2026-10-31 M-1: a push whose outcome was unknown blocks the order
+    // until someone has checked Mengantar. Releasing it risks a second parcel,
+    // so it is owner and admin only.
+    if (action === 'release-dispatch-unknown') {
+      if (locals.admin?.role !== 'owner' && locals.admin?.role !== 'admin') {
+        return jsonError('Hanya owner atau admin yang dapat mengizinkan push ulang.', 403);
+      }
+      const released = await releaseUnknownMengantarDispatch(db, current.id);
+      if (!released) return jsonError('Order tidak sedang menunggu pengecekan Mengantar.', 409);
+      return jsonOk({ message: `${current.order_number} boleh di-push ulang ke Mengantar.` });
+    }
     if (action === 'switch-payment') {
       const target = parsePaymentSwitchTarget(body.switch_payment);
       if (!target) return jsonError('Metode pembayaran pengganti tidak valid.', 400);

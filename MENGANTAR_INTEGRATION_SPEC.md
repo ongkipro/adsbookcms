@@ -193,7 +193,8 @@ An explicit Push action in Order Management is the provider boundary. Selection 
 - Each `/order` request is awaited before the next begins. Parallel calls and guessed fixed delays are prohibited.
 - Every selected order returns an independent `success`, `unpaid`, `skipped`, or `failed` result with an actionable reason.
 - Accepted siblings remain committed when another order fails.
-- Provider rejection or transport failure clears the dispatch claim, preserves the provider error, and leaves the order `pending` in Order Management for correction and retry.
+- A clear provider rejection (4xx, `success:false`) clears the dispatch claim, preserves the provider error, and leaves the order `pending` in Order Management for correction and retry.
+- An **unknown** outcome of `POST /order` — timeout, dropped connection, provider 5xx, or a 2xx whose body or shipment id cannot be read (`MengantarOutcomeUnknownError`) — may mean the shipment exists. The order is marked `DISPATCH_UNKNOWN: …`, refused by every push (eligibility, the dispatcher's early check, and the D1 claim), and shown on the order page with instructions; an owner or admin releases it (`release-dispatch-unknown`) only after finding no shipment at Mengantar. A failure before `POST /order` (a pickup slot that cannot be booked) is a plain failure. Audit 2026-10-31 M-1; a lookup by order number would let this resolve itself, but no such provider endpoint is confirmed.
 - A stale dispatch claim becomes retryable after the same bounded lease used by the dispatcher.
 
 ### D. Provider-accepted Shipping projection

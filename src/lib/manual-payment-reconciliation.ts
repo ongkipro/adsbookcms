@@ -1,4 +1,5 @@
 import { AutoLarisClient } from "./autolaris-client.ts";
+import { adoptPaymentAttemptStatements, type PaymentTransactionAttempt } from "./autolaris-payment.ts";
 import type { AdminRole } from "./auth.ts";
 import {
   buildPaymentNotification,
@@ -161,11 +162,27 @@ export async function confirmManualAutoLarisPayment(
       "Transaksi AutoLaris tidak ditemukan.",
     );
   }
-  if (
-    !payment.provider_transaction_id ||
-    payment.provider_transaction_id !== input.providerReference ||
-    payment.total_amount !== input.verifiedAmount
-  ) {
+  // The reference may be an instruction the buyer paid after it was replaced
+  // (audit 2026-10-31 H-1): it is kept in payment_transaction_attempts, and
+  // put back on the row in the same batch as the confirmation.
+  const matchesCurrent =
+    Boolean(payment.provider_transaction_id) &&
+    payment.provider_transaction_id === input.providerReference &&
+    payment.total_amount === input.verifiedAmount;
+  const attempt = matchesCurrent
+    ? null
+    : await database
+        .prepare(
+          `SELECT id, payment_transaction_id, provider_transaction_id, reference_id, channel_code,
+            amount, admin_fee, total_amount, expires_at
+          FROM payment_transaction_attempts
+          WHERE payment_transaction_id = ? AND provider_transaction_id = ? AND total_amount = ?
+            AND settled_at IS NULL
+          LIMIT 1`,
+        )
+        .bind(input.transactionId, input.providerReference, input.verifiedAmount)
+        .first<PaymentTransactionAttempt>();
+  if (!matchesCurrent && !attempt) {
     throw new ManualPaymentReconciliationError(
       "PAYMENT_MISMATCH",
       "Nominal atau referensi provider tidak cocok dengan catatan pembayaran.",
@@ -180,7 +197,8 @@ export async function confirmManualAutoLarisPayment(
     return { transaction: payment, transitioned: false };
   }
   if (
-    !["pending", "expired"].includes(payment.status) ||
+    // A matched superseded instruction replaces the row, status included.
+    (!attempt && !["pending", "expired"].includes(payment.status)) ||
     !["pending", "unpaid"].includes(payment.order_payment_status) ||
     payment.shipping_status !== "pending" ||
     payment.stock_restored_at !== null ||
@@ -194,7 +212,9 @@ export async function confirmManualAutoLarisPayment(
 
   let results: D1Result[];
   try {
+    const adopt = attempt ? adoptPaymentAttemptStatements(database, attempt, now) : [];
     results = await database.batch([
+      ...adopt,
       database
         .prepare(
           `INSERT INTO payment_reconciliation_audits (
@@ -299,7 +319,7 @@ export async function confirmManualAutoLarisPayment(
   });
   return {
     transaction: confirmed,
-    transitioned: Number(results[1]?.meta?.changes || 0) > 0,
+    transitioned: Number(results[results.length - 2]?.meta?.changes || 0) > 0,
   };
 }
 

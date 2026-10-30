@@ -50,11 +50,27 @@ export function canDispatchOrderToMengantar(
   );
 }
 
+/**
+ * `orders.provider_dispatch_error` prefix for a push whose outcome is unknown
+ * (audit 2026-10-31 M-1). The order stays out of every push until an operator
+ * has checked Mengantar and released it (`releaseUnknownMengantarDispatch`).
+ */
+export const DISPATCH_UNKNOWN_PREFIX = "DISPATCH_UNKNOWN:";
+
+export const isDispatchOutcomeUnknown = (error: string | null | undefined) =>
+  Boolean(error?.startsWith(DISPATCH_UNKNOWN_PREFIX));
+
 export function getMengantarDispatchEligibility(
   input: MengantarDispatchEligibilityInput,
 ): MengantarDispatchEligibility {
   if (input.providerOrderId?.trim()) {
     return { eligible: false, reason: "Shipment Mengantar sudah dibuat." };
+  }
+  if (isDispatchOutcomeUnknown(input.providerDispatchError)) {
+    return {
+      eligible: false,
+      reason: "Hasil push sebelumnya belum pasti. Cek di Mengantar dulu, lalu izinkan push ulang.",
+    };
   }
   if (input.providerDispatchError === "DISPATCHING") {
     const claimedAt = Date.parse(input.providerDispatchClaimedAt || "");

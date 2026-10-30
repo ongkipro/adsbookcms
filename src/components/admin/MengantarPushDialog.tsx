@@ -24,6 +24,7 @@ const statusLabels: Record<string, string> = {
   dispatched: "Terkirim",
   already_dispatched: "Sudah terkirim",
   unpaid: "Draft, saldo wallet kurang",
+  outcome_unknown: "Belum pasti, cek Mengantar",
   failed: "Gagal",
 };
 
@@ -95,7 +96,7 @@ export function MengantarPushDialog({
               {outcome.results.map((result) => (
                 <li key={result.orderId} className="flex min-w-0 items-start justify-between gap-3 px-3 py-2">
                   <span className="shrink-0 font-medium">{labelOf.get(String(result.orderId)) ?? `#${result.orderId}`}</span>
-                  <span className={cn("min-w-0 text-right text-xs", result.status === "dispatched" || result.status === "already_dispatched" ? "text-emerald-700" : result.status === "unpaid" ? "text-amber-700" : "text-rose-700")}>
+                  <span className={cn("min-w-0 text-right text-xs", result.status === "dispatched" || result.status === "already_dispatched" ? "text-emerald-700" : result.status === "unpaid" || result.status === "outcome_unknown" ? "text-amber-700" : "text-rose-700")}>
                     {statusLabels[result.status] ?? result.status}
                     {result.cnoteNo ? ` · ${result.cnoteNo}` : ""}
                     {result.error && result.status !== "dispatched" ? <span className="block break-words text-muted-foreground">{result.error}</span> : null}

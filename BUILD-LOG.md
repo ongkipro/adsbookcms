@@ -7370,3 +7370,34 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   `npm run build` complete. Headless Chromium on a seeded `dev:local` store
   at 1440 and 390 px: every screen and both drills, horizontal overflow 0, no
   page errors.
+### Entry 202: Audit fixes H-1 (late payment on a replaced instruction) and M-1 (unknown push outcome)
+
+- From `docs/AUDIT-2026-10-31.md` (branch `audit/repo-review-2026-10-31`).
+- **H-1.** Regenerating an expired QRIS/VA instruction rewrote the order's
+  `payment_transactions` row and erased the old provider `trx_id`; a buyer who
+  paid the old one could reach `paid` by no path. Migration `0076` (schema 77)
+  adds `payment_transaction_attempts`: the old instruction is kept in the same
+  batch that rewrites the row, and that rewrite now runs only while the row is
+  failed or expired, so two simultaneous retries cannot both win. The hourly
+  Advice run also asks about superseded instructions inside its 24-hour
+  recheck window; a paid one goes back on its row (`adoptPaymentAttemptStatements`)
+  and the existing guarded settle statements apply. Manual confirmation accepts
+  a superseded reference with its amount.
+- **M-1.** A timeout, dropped connection, provider 5xx, or unreadable 2xx on
+  `POST /order` was treated as a rejection and the order was pushable again at
+  once, risking a second parcel and a second COD collection. These are now
+  `MengantarOutcomeUnknownError`; the order is marked `DISPATCH_UNKNOWN:` and
+  refused by eligibility, the dispatcher and the D1 claim until an owner or
+  admin, having checked Mengantar, releases it from the order page. A pickup
+  slot failure before `POST /order` stays a plain failure.
+- Tests: `payment-attempts.test.ts` (3, real functions on the full migration
+  chain: regenerate keeps TRX-1, Advice settles it, manual confirm by the old
+  reference, a racing second regeneration does not overwrite), 3 new
+  `mengantar-dispatch` tests (five unknown shapes, a clear refusal stays
+  retryable, a pickup slot failure is not unknown). Mutation-checked: removing
+  the supersede step, the unknown marker, or the re-push block each fails them.
+- Not done: a buyer who pays both the old and the new instruction is still not
+  detected (the second payment's row is already `paid`); RELEASE.md's migration
+  notes (stale since 0066, audit M-10) do not yet describe 0067–0076.
+- Verification: `npm test` 1090 pass / 0 fail, `npm run check` 0 errors /
+  0 hints (548 files).

@@ -1,5 +1,6 @@
 import { formatIdr } from "@/lib/format-idr";
 import { isVoidOrder } from "@/lib/order-lifecycle";
+import { isDispatchOutcomeUnknown } from "@/lib/payment-dispatch-policy";
 import { useConfirm } from "./useConfirm";
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from "@/lib/payment-fee-policy";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
@@ -1095,6 +1096,31 @@ export function OrderDetail({ invoice }: { invoice: string }) {
     if (pushAccepted.current && order) window.location.assign(`/admin/shipping?order=${encodeURIComponent(order.order_number)}`);
   };
 
+  const releaseUnknownDispatch = async () => {
+    if (!order) return;
+    if (!(await confirm({
+      title: "Izinkan push ulang?",
+      description: `Pastikan ${order.order_number} tidak ada di dashboard Mengantar. Kalau ternyata sudah ada, push ulang membuat paket kedua.`,
+      confirmLabel: "Sudah dicek, izinkan",
+    }))) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${encodeURIComponent(String(order.id))}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "release-dispatch-unknown" }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) throw new Error(payload.error || "Gagal mengizinkan push ulang.");
+      toast.success(payload.message || "Order boleh di-push ulang.");
+      setReloadKey((value) => value + 1);
+    } catch (reason) {
+      toast.error(reason instanceof Error ? reason.message : "Gagal mengizinkan push ulang.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const deleteOrder = async () => {
     if (!order) return;
     if (!(await confirm({ title: `Hapus pesanan ${order.order_number}?`, description: "Pesanan terhapus permanen dan tidak dapat dikembalikan.", confirmLabel: "Hapus pesanan" }))) {
@@ -1616,12 +1642,21 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 </div>
               </div>
 
-              {order.provider_dispatch_error && (
+              {order.provider_dispatch_error && isDispatchOutcomeUnknown(order.provider_dispatch_error) ? (
+                // Audit 2026-10-31 M-1: Mengantar may have created the shipment.
+                <div role="status" className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                  <p className="font-semibold">Hasil push ke Mengantar belum pasti</p>
+                  <p className="leading-relaxed">Koneksi terputus atau respons tidak terbaca, jadi paket mungkin sudah dibuat. Cari {order.order_number} di dashboard Mengantar. Push ulang hanya kalau paketnya memang belum ada, supaya tidak terkirim dua kali.</p>
+                  <Button type="button" variant="outline" className="self-start" disabled={saving} onClick={() => void releaseUnknownDispatch()}>
+                    Sudah dicek, izinkan push ulang
+                  </Button>
+                </div>
+              ) : order.provider_dispatch_error ? (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
                   <p className="font-semibold text-rose-900">Gagal Push ke Mengantar:</p>
                   <p className="mt-0.5 font-normal leading-relaxed">{order.provider_dispatch_error}</p>
                 </div>
-              )}
+              ) : null}
 
               {order.shipping_status === "pending" ? (
                 <div className="pt-2">

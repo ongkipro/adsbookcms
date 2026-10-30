@@ -1,6 +1,7 @@
 import { getRuntimeEnv } from "./env.ts";
 import {
   MengantarClient,
+  MengantarOutcomeUnknownError,
   MengantarPosCodIneligibleError,
 } from "./mengantar-client.ts";
 import {
@@ -15,6 +16,8 @@ import {
 import { getProviderConfig } from "./provider-config.ts";
 import {
   canDispatchOrderToMengantar,
+  DISPATCH_UNKNOWN_PREFIX,
+  isDispatchOutcomeUnknown,
   MENGANTAR_DISPATCH_CLAIM_TTL_MS,
 } from "./payment-dispatch-policy.ts";
 
@@ -26,6 +29,7 @@ export type MengantarDispatchOutcome = {
     | "waiting_for_confirmation"
     | "waiting_for_payment"
     | "unpaid"
+    | "outcome_unknown"
     | "failed";
   providerOrderId?: string;
   cnoteNo?: string;
@@ -190,6 +194,44 @@ async function releaseMengantarLease(database: D1Database, token: string) {
     .run();
 }
 
+const UNKNOWN_OUTCOME_MESSAGE =
+  "Hasil push ke Mengantar belum pasti (koneksi terputus atau respons tidak terbaca). Cek di dashboard Mengantar sebelum push ulang.";
+
+/**
+ * A push whose outcome is unknown (audit 2026-10-31 M-1): Mengantar may have
+ * created the shipment. The order is marked and kept out of every push, single
+ * or bulk, until an operator checks Mengantar and releases it, instead of
+ * reading as a plain failure that the next click would push a second time.
+ */
+async function recordDispatchUnknown(database: D1Database, orderId: number, detail: string) {
+  await database
+    .prepare(
+      `UPDATE orders
+      SET provider_dispatch_error = ?, provider_dispatch_claimed_at = NULL,
+        shipping_status = 'pending'
+      WHERE id = ? AND provider_order_id IS NULL
+        AND shipping_status = 'pending'`,
+    )
+    .bind(`${DISPATCH_UNKNOWN_PREFIX} ${detail}`.slice(0, 500), orderId)
+    .run();
+}
+
+/**
+ * The operator has checked Mengantar and found no shipment for this order:
+ * it may be pushed again. Only a still-unknown, still-unshipped order changes.
+ */
+export async function releaseUnknownMengantarDispatch(database: D1Database, orderId: number) {
+  const result = await database
+    .prepare(
+      `UPDATE orders SET provider_dispatch_error = NULL
+      WHERE id = ? AND provider_order_id IS NULL
+        AND provider_dispatch_error LIKE ?`,
+    )
+    .bind(orderId, `${DISPATCH_UNKNOWN_PREFIX}%`)
+    .run();
+  return Number(result.meta?.changes || 0) > 0;
+}
+
 async function recordDispatchError(
   database: D1Database,
   orderId: number,
@@ -254,6 +296,9 @@ export async function dispatchOrderToMengantar(
         ? "Shipment Mengantar sudah dibuat tetapi masih menunggu nomor resi."
         : undefined,
     };
+  }
+  if (isDispatchOutcomeUnknown(order.provider_dispatch_error)) {
+    return { status: "outcome_unknown", error: UNKNOWN_OUTCOME_MESSAGE };
   }
   if (order.shipping_status !== "pending") {
     return {
@@ -328,13 +373,14 @@ export async function dispatchOrderToMengantar(
         AND stock_restored_at IS NULL
         AND payment_status NOT IN ('cancelled', 'refunded', 'failed')
         AND shipping_status = 'pending'
+        AND COALESCE(provider_dispatch_error, '') NOT LIKE ?
         AND (
           COALESCE(provider_dispatch_error, '') <> 'DISPATCHING'
           OR provider_dispatch_claimed_at IS NULL
           OR provider_dispatch_claimed_at <= ?
         )`,
     )
-    .bind(claimedAt, order.id, staleBefore)
+    .bind(claimedAt, order.id, `${DISPATCH_UNKNOWN_PREFIX}%`, staleBefore)
     .run();
   if (!claim.meta?.changes) {
     const current = await database
@@ -364,6 +410,8 @@ export async function dispatchOrderToMengantar(
 
   let leaseToken = "";
   let pickupPayload: MengantarPickupPayload = { type: "dropOff" };
+  // From the moment POST /order leaves, a shipment may exist at Mengantar.
+  let shipmentRequested = false;
   try {
     leaseToken = await acquireMengantarLease(database);
     const client = new MengantarClient(config.apiKey, config.baseUrl);
@@ -391,8 +439,15 @@ export async function dispatchOrderToMengantar(
       collectedAmount: Number(order.total_amount),
       pickup: pickupPayload,
     });
+    shipmentRequested = true;
     const response = await client.createShipment(payload);
-    const dispatched = parseMengantarDispatchResponse(response);
+    let dispatched;
+    try {
+      dispatched = parseMengantarDispatchResponse(response);
+    } catch (error) {
+      // A success response without a readable shipment id: it may well exist.
+      throw new MengantarOutcomeUnknownError(error instanceof Error ? error.message : String(error));
+    }
     const acceptedAt = new Date().toISOString();
     const accepted = resolveAcceptedMengantarShipment(
       order.payment_method,
@@ -509,6 +564,10 @@ export async function dispatchOrderToMengantar(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (shipmentRequested && error instanceof MengantarOutcomeUnknownError) {
+      await recordDispatchUnknown(database, order.id, message);
+      return { status: "outcome_unknown", error: UNKNOWN_OUTCOME_MESSAGE };
+    }
     if (error instanceof MengantarPosCodIneligibleError) {
       await disablePosCod(database);
     }

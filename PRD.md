@@ -1332,6 +1332,14 @@ client of the same API. It also turns the UTM tags every order already stores
 (`orders.ad_click_ids`, TRACKING_SPECS §3) into a campaign report and a link
 builder.
 
+The same CLI carries the native Astro landing page workflow
+(`docs/LANDING-PAGES.md`, `docs/NATIVE_LANDING_PAGE_SPEC.md`) into the install
+repository where those pages are written: `adsbook lp new` scaffolds a page that
+passes the suite on its first build, and `adsbook lp check` decides every item
+of the spec's checklist a machine can decide, asking the store over the API
+whether the product is live and the slug is free. Building and deploying stay
+the install's own release path; the CLI never does either.
+
 ### Users and current workaround
 
 | Role | Job to be done | Current workaround |
@@ -1341,6 +1349,7 @@ builder.
 | AI agent (Claude, Codex) | Answer "which orders are stuck", act on request | Scrapes nothing; asks the operator |
 | Third party (agency, partner) | Read orders and campaign results for one store | Screenshots and spreadsheets from the owner |
 | Advertiser role | Compare campaigns by UTM | Channel split only (REQ-203); no campaign level |
+| Developer / AI terminal in an install repo | Ship a native landing page that sells one product | Copies `contoh-landing.astro` by hand, reads the spec's checklist, checks `/admin/landing-pages` for the slug by eye |
 
 ### Goals
 
@@ -1351,6 +1360,9 @@ builder.
 - A campaign's orders, revenue and closing rate are visible per UTM tag, and
   links carrying those tags are built consistently.
 - No storefront headless endpoint remains once it is proven unused.
+- A native landing page starts from a scaffold that already obeys the tracking,
+  catalogue-identity and form-mode invariants, is checked against the live
+  store before it ships, and survives every install update.
 
 ### Success measure
 
@@ -1358,7 +1370,10 @@ Read once A45's v1 milestone ships on one live install:
 - the owner's Kelola/script integration pulls orders through `updated_since`
   instead of relying on the creation push alone;
 - the UTM report attributes ≥ 90% of orders that carry any `utm_campaign`
-  to a named campaign row (the rest are malformed tags, reported as such).
+  to a named campaign row (the rest are malformed tags, reported as such);
+- the next native landing page built in an install passes `npm test`,
+  `npm run check` and `npm run build` with no edit to scaffold-generated
+  structure, and `adsbook lp check` reports no failure before its deploy.
 
 ### Non-goals
 
@@ -1372,6 +1387,12 @@ Read once A45's v1 milestone ships on one live install:
   needs it).
 - Visit counts or conversion rate against sessions (PRD A37 deferral stands).
 - Changing how UTM tags are captured or merged (TRACKING_SPECS §3 owns that).
+- The CLI building, previewing on a live store, or deploying a landing page,
+  or writing a landing page through the API. A native page is application code
+  released from the install repository (NATIVE_LANDING_PAGE_SPEC §7).
+- Generating landing page copy, claims or imagery. The scaffold writes the
+  structure; the sections and their evidence are the author's.
+- Converting a CMS landing page into a native one, or the reverse.
 
 ### Core features
 
@@ -1387,6 +1408,10 @@ Read once A45's v1 milestone ships on one live install:
 | Reports read | Should | REQ-258 |
 | UTM link builder | Should | REQ-262 |
 | Outbound signed webhooks | Should | REQ-259 |
+| Native landing page survives install updates | Must | REQ-269 |
+| Catalogue read for tooling | Should | REQ-268 |
+| `adsbook lp check` | Should | REQ-267 |
+| `adsbook lp new` | Should | REQ-266 |
 
 ### Requirements
 
@@ -1401,7 +1426,8 @@ Read once A45's v1 milestone ships on one live install:
 - **REQ-252** (Must, unwanted) — If a key was issued without an explicit scope
   list, then the system shall grant it no operations scope. New keys shall name
   their scopes; none is granted by default. Scopes: `orders:read`,
-  `orders:read_pii`, `orders:write`, `shipping:write`, `reports:read`.
+  `orders:read_pii`, `orders:write`, `shipping:write`, `reports:read`,
+  `catalog:read`.
   - Acceptance: Given a key created before A45 with a null scope list, When it
     calls `GET /api/v1/orders`, Then 403.
 - **REQ-253** (Must, state) — While a key lacks `orders:read_pii`, the system
@@ -1457,7 +1483,8 @@ Read once A45's v1 milestone ships on one live install:
   (Node, no new dependency, `npm run adsbook --` / `bin`) that is a client of
   the operations API only: `login` (store URL + key, stored in
   `~/.config/adsbook/credentials.json`, mode 0600, never echoed), `orders
-  list|show`, `report`, `utm`, human tables by default and `--json` for agents;
+  list|show`, `report`, `utm`, `lp new|check` (REQ-266, REQ-267), human
+  tables by default and `--json` for agents;
   v2 actions require `--yes` or an interactive confirmation and support
   `--dry-run`.
   - Acceptance: Given a stored login, When `adsbook orders list --json --status
@@ -1493,6 +1520,72 @@ Read once A45's v1 milestone ships on one live install:
   (defaults 120/min, 10,000/day); the developer settings page shows each key's
   scopes, last use and usage, and lets the owner revoke it. Only the `owner`
   role issues or revokes keys.
+- **REQ-266** (Should, event) — When a developer runs `adsbook lp new <slug>
+  --product <product-slug>` in an install's working tree, the CLI shall write
+  `src/pages/<slug>.astro`, `src/styles/landing-pages/<slug>.css` and the
+  slug's entry in `src/data/native-landing-pages.ts` (`isActive: false`), from
+  one product-owned template in the shape `contoh-landing.astro` demonstrates:
+  `BaseLayout`, the product resolved by `getStorefrontProduct` for the named
+  slug with a rewrite to `/404`, `MetaLandingTracker` keyed by
+  `defaultCatalogContentId`, a canonical from `nativeLandingCanonicalPath`, and
+  `GeoIpResolvedForm mode="hybrid"`. It shall refuse, writing nothing, a slug
+  that `validateNativeLandingPages` rejects, one `isReservedLandingSlug`
+  already names, or a file that exists; and, with a stored login, a product the
+  store reports missing or inactive, or a slug an active CMS landing page holds
+  (REQ-268). Without a login it writes and says the store-side checks did not
+  run. It never builds, deploys or calls a provider.
+  - Acceptance: Given slug `promo-okt` and an active product, When it runs in a
+    clean install tree, Then exactly those three paths change, `npm test`,
+    `npm run check` and `npm run build` pass with no further edit, and
+    `/promo-okt` answers 200 in `wrangler dev --local`. Given an existing
+    `src/pages/promo-okt.astro`, Then it exits non-zero and nothing changes.
+- **REQ-267** (Should, event) — When a developer runs `adsbook lp check
+  [<slug>]`, the CLI shall report, per registered native page or the one named,
+  each NATIVE_LANDING_PAGE_SPEC §6 item a machine can decide as `pass`,
+  `fail`, `warn` or `not checked`, and exit non-zero on any `fail`:
+  - fail: a route file without a register entry or the reverse; an entry
+    `validateNativeLandingPages` rejects; a page not rendering through
+    `BaseLayout`; no `MetaLandingTracker`; a `GeoIpResolvedForm` count other
+    than one, or a mode other than `hybrid` without a
+    `lp-check: form-mode <reason>` comment; any `fbq(` call (AGENTS.md §3, one
+    init per pixel); any strict `catalogProductId(` call;
+  - warn: a rupiah literal in markup (price belongs to D1); `noindex` on an
+    entry that is active; an entry still `isActive: false`;
+  - with a stored login (REQ-268): fail when the product is missing or
+    inactive, or an active CMS landing page holds the slug; report which page
+    holds the product's page (A21);
+  - always `not checked`, by name: the 390 px and desktop render, keyboard and
+    form handoff, and the evidence behind every claim — the author proves those
+    in a browser.
+  `--json` prints the same report for agents. The checks are one pure library
+  function the test suite also runs, so `contoh-landing.astro` and the
+  scaffold's output are held to them on every `npm test`.
+  - Acceptance: Given `contoh-landing.astro` copied to a new slug with one
+    `catalogProductId(` call added, When checked, Then it fails naming the file
+    and line; Given a register entry with no route file, Then it fails; Given
+    the unmodified scaffold output, Then no item fails.
+- **REQ-268** (Should, event) — When a key with `catalog:read` asks, the system
+  shall return one product by slug (`id`, `slug`, `title`, `active`, the
+  catalogue content id or null, variant count, lowest price) and the landing
+  page list (`slug`, `title`, `kind` cms or native, published, product slug,
+  whether it holds its product's page); 404 for an unknown product slug. No
+  buyer data and no section bodies. This replaces, for tooling, what the
+  retiring `/api/v1/products*` routes returned.
+  - Acceptance: Given a key with `catalog:read` only, When it calls
+    `GET /api/v1/orders`, Then 403; Given an inactive product, When read, Then
+    200 with `active: false`.
+- **REQ-269** (Must, ubiquitous) — The install-update manifest
+  (`docs/UPDATE-PATH-OWNERSHIP.md`) shall name where a native landing page
+  lives so no update erases one: each registered slug's
+  `src/pages/<slug>.astro`, `src/styles/landing-pages/<slug>.css` and
+  `src/components/storefront/landing-pages/<slug>/` are install-owned;
+  `src/data/native-landing-pages.ts` is merged by hand (the install's
+  `nativeLandingPages` and `installRouteSlugs` kept, the product's type and
+  comments taken); and the root `scripts/**`, which `package.json` scripts and
+  the CLI run from, is product-owned.
+  - Acceptance: Given an install with a registered native page `promo-okt`,
+    When it is updated by RELEASE.md §7 from a release whose register is empty,
+    Then the page, its CSS and its register entry remain and `npm test` passes.
 
 ### Open questions
 
@@ -1502,6 +1595,7 @@ Read once A45's v1 milestone ships on one live install:
 | Q2 | Does the embed form (`/embed/form`, REQ-107) depend on `/api/v1`? **Resolved 2026-10-30: no.** Nothing under `src/pages/embed`, `src/scripts` or `src/components` calls `/api/v1`; only `api/v1/checkout.ts` imports `headless-checkout.ts`. | Agent | — |
 | Q3 | Fixed source/medium list for the link builder. **Resolved 2026-10-30 (Paduka delegated):** sources `facebook`, `instagram`, `google`, `tiktok`, `whatsapp`; mediums `paid_social`, `cpc`, `social`, `chat`; matches the Meta heuristics in `traffic-source.ts`. | Agent | — |
 | Q4 | Webhook consumers. **Resolved 2026-10-30 (Paduka delegated):** endpoints are registered by the owner in admin only; no `webhooks:manage` scope. Kelola keeps its plugin push. | Agent | — |
+| Q5 | Do the CLI's landing commands belong to A45? **Resolved 2026-10-30 (Paduka):** yes — `lp new` and `lp check` (REQ-266, REQ-267) on a `catalog:read` scope (REQ-268). Found while scoping: (a) `docs/LANDING-PAGES.md` §2's snippet called the strict `catalogProductId`, which `catalog-identity.test.ts` refuses in `src/pages` — corrected in the same change to the `contoh-landing.astro` shape; (b) the update manifest never named the native page paths, so a wholesale `src/**` copy would replace an install's register with the product's empty one and unlist its pages — REQ-269. | Agent | — |
 
 ### Stack & constraints
 
@@ -1509,6 +1603,11 @@ Read once A45's v1 milestone ships on one live install:
   built-ins and `fetch`). `src/lib/headless-client.ts` becomes the CLI's client.
 - One install = one store: a key is bound to its install, so tenant isolation
   is the install boundary; no store id is accepted from the client.
+- `adsbook lp` writes only inside the working tree it runs in, only the three
+  paths REQ-266 names, never overwrites, and touches no Cloudflare resource.
+  Its template and checks live in `src/lib`, so they reach installs with the
+  product and are covered by `npm test`; `scripts/adsbook.ts` stays a thin
+  argument parser.
 - The D1 budget (PRD A40) applies: list and report queries are bounded by
   period or cursor and measured with `rows_read` before acceptance.
 - PII: third-party keys are issued without `orders:read_pii` by default in the
@@ -1530,13 +1629,24 @@ Read once A45's v1 milestone ships on one live install:
   **Consequence:** no `/v2` until a breaking change to the new contract.
 - **Decision:** retiring the storefront contract supersedes REQ-107's headless
   surface and STOREFRONT_INTEGRATION §4; recorded as an ADR when A-433 lands.
+- **Decision:** the scaffold is a template in `src/lib`, not a copy of
+  `contoh-landing.astro` at run time. **Why:** the sample binds to the first
+  active product and is `noindex` on purpose; a real page names its product
+  and is indexable. **Consequence:** the sample and the template are both run
+  through `lp check` in `npm test`, so neither drifts from the invariants.
+- **Decision:** register entries are created `isActive: false`. **Why:** the
+  CMS lists and links an active entry as soon as it deploys; the author flips
+  it when the page is proven. **Consequence:** `lp check` warns on an inactive
+  entry so it is not forgotten.
 
 ### Milestones
 
 - [ ] **v1 (read):** A-422 → A-432: foundation, `updated_at`, attribution,
   orders read, CLI read, UTM report, contract doc, deprecation answers.
   STATUS checkpoint.
-- [ ] **v1.1:** A-433 removal (after Q1), A-434 link builder.
+- [ ] **v1.1:** A-433 removal (after Q1), A-434 link builder; native
+  landing pages: A-440 manifest (Must, no dependency — can ship first),
+  A-441 catalogue read, A-442 `lp check`, A-443 `lp new`.
 - [ ] **v2 (act):** A-435 → A-437 order and shipping actions with
   idempotency, CLI actions. STATUS checkpoint.
 - [ ] **v2.1:** A-438 reports API, A-439 outbound webhooks.

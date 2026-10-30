@@ -4045,7 +4045,7 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
 
 ## A45 — Operations API and `adsbook` CLI (replaces the storefront headless API)
 
-Proposed 2026-10-30 (PRD A45, REQ-251–REQ-265). Docs only so far; no task
+Proposed 2026-10-30 (PRD A45, REQ-251–REQ-269). Docs only so far; no task
 starts before Paduka accepts the PRD section. Migration numbers are
 provisional: take the next free one at merge. Every task: `npm test`,
 `npm run check`, `npm run build`, `npm run route-map` when a route or lib
@@ -4135,11 +4135,55 @@ report query.
   read, each approved by Paduka); Q2 resolved, the embed form does not use
   `/api/v1`. Done when: the
   usage evidence per install is recorded here, the suite passes with the files
-  gone, and the route map no longer lists them.
+  gone (including the two `api/v1/products` entries leaving the strict-id
+  allowlist in `catalog-identity.test.ts`), and the route map no longer lists
+  them.
 - [ ] **A-434** — UTM link builder in admin (landing/product picker, fixed
   source/medium list, normalised campaign, copy).
   -> REQ: REQ-262 · deps: [] · Source/medium list per PRD A45 Q3. Done when: a test of the pure
   builder proves normalisation and encoding; browser run at 390 and 1280 px.
+
+**v1.1 — native landing pages** (PRD A45 Q5). The CLI works in an install's
+own repository; nothing here builds, deploys or writes to a live store.
+
+- [ ] **A-440** — Update manifest names the native landing page paths:
+  install-owned `src/pages/<slug>.astro`, `src/styles/landing-pages/<slug>.css`,
+  `src/components/storefront/landing-pages/<slug>/` per registered slug;
+  `src/data/native-landing-pages.ts` under "Merge by hand"; root `scripts/**`
+  product-owned (`docs/UPDATE-PATH-OWNERSHIP.md`, RELEASE.md §7 step that
+  copies `src/**`).
+  -> REQ: REQ-269 · deps: [] · Done when: a test reads the manifest and fails
+  when any of those paths or `scripts/**` is missing from its section;
+  RELEASE.md §7 names the register merge; `npm run docs:check` passes.
+- [ ] **A-441** — `catalog:read` scope; `GET /api/v1/catalog/products/{slug}`
+  and `GET /api/v1/catalog/landing-pages` (CMS rows from `landing_pages`,
+  native rows from the register, product-page claim), registered in the
+  operations table and the OpenAPI document.
+  -> REQ: REQ-268 (constraints REQ-251, REQ-264) · deps: [A-423, A-431] ·
+  Done when: tests prove a `catalog:read`-only key gets 403 on orders, an
+  inactive product answers 200 `active: false`, an unknown slug 404 with an
+  audit row, and no response carries section bodies.
+- [ ] **A-442** — Pure checker `src/lib/native-landing-check.ts` (file ↔
+  register, `validateNativeLandingPages`, `BaseLayout`, `MetaLandingTracker`,
+  one `GeoIpResolvedForm` in `hybrid` or a waiver comment, no `fbq(`, no strict
+  `catalogProductId(`, rupiah-literal and `noindex`/inactive warnings, named
+  manual items) and `adsbook lp check [<slug>] [--json]`, adding the store-side
+  items through A-441 when logged in.
+  -> REQ: REQ-267 · deps: [A-428, A-441] · Done when: a test runs the checker
+  over `contoh-landing.astro` (no fail), over a copy with one strict
+  `catalogProductId(` (fail naming file and line), with an orphan register
+  entry (fail) and with a second form (fail); the CLI exits non-zero on a fail
+  and `--json` equals the library report.
+- [ ] **A-443** — Template `src/lib/native-landing-scaffold.ts` (pure:
+  slug + product slug → the three file changes) and `adsbook lp new <slug>
+  --product <slug>`: refusals before any write, `isActive: false` entry,
+  offline warning, next steps printed.
+  -> REQ: REQ-266 (constraints REQ-267, REQ-269) · deps: [A-442] · Done when:
+  a test proves the scaffold output passes A-442 with no fail and every
+  refusal writes nothing; in a scratch copy of the repo `adsbook lp new
+  promo-okt --product <seeded product>` then `npm test`, `npm run check`,
+  `npm run build` pass and `/promo-okt` answers 200 in `wrangler dev --local`
+  at 390 and 1280 px with no console error.
 
 **v2 — act**
 

@@ -4070,9 +4070,9 @@ order.
   passed), and A38 panels remain open.
   A-363's recent-buyers commit `d408b32` exists in s2 but is not integrated.
   Upstream `c85fe5b`/`be08fc6` (Kelola backfill / 1.7.14) also remain to be
-  integrated. Upstream CI run 40884103654 is now green. Simulated committed-tree
-  integration passes 14 Kelola tests with A41 weights retained; resolve STATUS,
-  regenerate maps, and reconcile duplicate BUILD-LOG Entry 185 identifiers.
+  integrated. Upstream CI run 40884103654 is now green. Merged 2026-10-30:
+  STATUS resolved, maps regenerated, BUILD-LOG local entries renumbered 186–189
+  (Entry 190).
   Before accepting backfill, address/review the proven first-50-row starvation
   and old-counter/all-age-send mismatch, and verify the settings UI and request
   duration against a synthetic receiver. No live Kelola call is authorized.

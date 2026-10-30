@@ -29,10 +29,23 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: "1.7.14",
+    date: "29 Oktober 2026",
+    releaseTag: "2026.10-plugins",
+    isLatest: true,
+    highlight: "Order lama yang belum pernah masuk Kelola kini bisa dikirim sekali klik.",
+    changes: [
+      {
+        title: "Tombol Kirim order lama di plugin Kelola",
+        description: "Webhook dan sinkron per jam hanya mengirim order 24 jam terakhir, jadi order dari sebelum Kelola disambungkan tidak pernah masuk. Halaman pengaturan plugin Kelola kini menampilkan jumlah order lama yang belum terkirim dan tombol Kirim order lama untuk mengirimnya. Order abandoned dan order yang dibatalkan tetap tidak dikirim.",
+      },
+    ],
+  },
+  {
     version: "1.7.13",
     date: "24 Oktober 2026",
     releaseTag: "2026.10-plugins",
-    isLatest: true,
+    isLatest: false,
     highlight: "Transfer manual bisa dikonfirmasi dari detail order, dan Purchase-nya terkirim ke Meta.",
     changes: [
       {

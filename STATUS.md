@@ -8,7 +8,7 @@ A37 backend resumed in `adsbookcms-s1-a36-a38` at `7f59daf` plus uncommitted
 work. A-349–A-356 verified locally; A-348 measured but its required commit is
 not authorized. No change to the fleet/version statement above. Canonical
 completion details: TASKS A37; reproducible cost figures: PRD A37; history:
-BUILD-LOG Entry 185.
+BUILD-LOG Entry 186.
 
 A-357–A-360 screen code now exists; A-361 SSR checks pass (1033 full-suite
 checks, 0 type errors, successful build). The browser-tool blocker is resolved:
@@ -19,12 +19,13 @@ five reports render, with no observed page errors. Landing captures exist at
 Existing local store state and production were not modified.
 
 Upstream review: origin/main is `be08fc6` (1.7.14, Kelola backfill, PR #101).
-Its two new commits are not integrated here. After the owner made the repository
+Merged into `feat/s1-a36-a38` on 2026-10-30 (BUILD-LOG Entry 190); the notes
+below are the pre-merge review. After the owner made the repository
 public, CI run 40884103654 passed check/tests/build; its earlier failure was a
 billing-blocked job, not a test failure. The simulated committed-tree merge
 preserves A41 recorded weights and schema 73; STATUS and generated route maps
-conflict. Upstream and local history both use BUILD-LOG Entry 185: reconcile
-identifiers and references during integration, preserving both entries.
+conflict. Both histories used BUILD-LOG Entry 185; at the merge upstream kept
+185 and the local entries became 186–189.
 
 Further local QA: all five reports have zero document-width overflow at
 390/1366/1536px on the synthetic data. Explicit Apply, period persistence,
@@ -104,6 +105,14 @@ written, enforced since 2026-09-01 (PRD A40 E1).
 - Heaviest writes: the CAPI outbox (insert plus two updates per event, about
   58k a day together) and `rate_limits` (15k upserts and 3k purges).
 - Raw JSON is not committed. Tasks A-381 to A-387 in TASKS act on these.
+
+## 2026-10-29 — 1.7.14: Kelola plugin backfills old orders
+
+- The Kelola webhook and hourly drain only cover the last 24 h, so orders taken
+  before the plugin was switched on never reached Kelola. **1.7.14** adds
+  "Kirim order lama" to `/admin/settings/plugins/kelola` (BUILD-LOG Entry 185).
+  Not deployed to any install yet; the settings page has not been opened in a
+  browser.
 
 ## 2026-10-24 — 1.7.13: manual transfer confirmation sends the Purchase
 

@@ -7250,3 +7250,35 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   without declared columns before review.
 - Verification: `npm test` 1076 pass / 0 fail, `npm run check` 0 errors
   (544 files), `npm run docs:check` passed, `npm run build` complete.
+### Entry 199: Analitik tables made consistent and compact
+
+- Paduka asked for tidier Analitik tables (Landing page, Produk, Lokasi,
+  Waktu beli, UTM). An audit in a browser found four table styles on five
+  screens, a verbose "· Perlu perhatian" on every flagged RTS, a progress bar
+  per closing rate, Landing's RTS and channel columns pushed past the edge by
+  a `<details>` column, Lokasi drawn as a grid that repeated its labels on
+  every row (and a long city name that overran into the next cell and could
+  not be clicked), and phone cards of about 250 px per row (Produk 2,694 px).
+- One table anatomy in `InsightsReport.tsx`: a bordered shell that scrolls
+  sideways, upper-case muted headers, right-aligned tabular figures, the name
+  column pinned (slate-50 like admin.css's thead and row hover). Under `md`
+  each row is one compact list item: name and headline figure, then one line
+  of small figures. Drill names (Lokasi, UTM) wrap and keep their text at the
+  top of the phone touch floor.
+- RTS is a figure, red with a dot above the 20% review line, the reason on
+  hover and for screen readers. Closing is a figure. Landing sorts from its
+  headers (a select remains on phones), its channels read as one short line,
+  and the lead follow-up split rides on the Lead cell's title. Produk gains
+  delivered and returned units; a single variant is named inline. Lokasi is a
+  real table with delivered/returned columns and the incomplete-address row
+  inside it. Waktu beli is compact: "–" for an empty hour, hour and day
+  totals, the busiest hour in the summary.
+- Heights at 390 px: Landing 1,698→882, Produk 2,694→1,232, Lokasi
+  1,305→972, UTM 1,671→1,015. No numbers changed (`insights.ts` untouched).
+- Numbered 199 because the open `feat/compact-wa-follow-up` branch carries
+  Entry 198; renumber whichever merges second.
+- Verification: `npm test` 1077 pass / 0 fail (the UTM screen joins the
+  island loading/empty render test), `npm run check` 0 errors / 0 hints,
+  `npm run build` complete. Headless Chromium on a seeded `dev:local` store
+  at 1440 and 390 px: every screen and both drills, horizontal overflow 0, no
+  page errors.

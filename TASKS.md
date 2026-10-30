@@ -4168,9 +4168,12 @@ own repository; nothing here builds, deploys or writes to a live store.
   one `GeoIpResolvedForm` in `hybrid` or a waiver comment, no `fbq(`, no strict
   `catalogProductId(`, rupiah-literal and `noindex`/inactive warnings, named
   manual items) and `adsbook lp check [<slug>] [--json]`, adding the store-side
-  items through A-441 when logged in.
-  -> REQ: REQ-267 · deps: [A-428, A-441] · Done when: a test runs the checker
-  over `contoh-landing.astro` (no fail), over a copy with one strict
+  items through A-441 when logged in. Orphan detection skips reserved and
+  install route slugs.
+  -> REQ: REQ-267 · deps: [A-428; A-441 for the store-side items only] · Done
+  when: a test runs the checker over the shipped tree (no fail: the reserved
+  form and sample routes are not orphans), over `contoh-landing.astro` as a
+  registered entry (no fail), over a copy with one strict
   `catalogProductId(` (fail naming file and line), with an orphan register
   entry (fail) and with a second form (fail); the CLI exits non-zero on a fail
   and `--json` equals the library report.

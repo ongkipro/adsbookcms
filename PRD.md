@@ -1543,7 +1543,10 @@ Read once A45's v1 milestone ships on one live install:
   [<slug>]`, the CLI shall report, per registered native page or the one named,
   each NATIVE_LANDING_PAGE_SPEC §6 item a machine can decide as `pass`,
   `fail`, `warn` or `not checked`, and exit non-zero on any `fail`:
-  - fail: a route file without a register entry or the reverse; an entry
+  - fail: a register entry without its route file; a top-level route file that
+    renders `GeoIpResolvedForm` or `MetaLandingTracker` and is neither
+    registered nor named by `RESERVED_LANDING_SLUGS` or `installRouteSlugs`
+    (so the product's own form and sample routes are not orphans); an entry
     `validateNativeLandingPages` rejects; a page not rendering through
     `BaseLayout`; no `MetaLandingTracker`; a `GeoIpResolvedForm` count other
     than one, or a mode other than `hybrid` without a
@@ -1563,7 +1566,10 @@ Read once A45's v1 milestone ships on one live install:
   - Acceptance: Given `contoh-landing.astro` copied to a new slug with one
     `catalogProductId(` call added, When checked, Then it fails naming the file
     and line; Given a register entry with no route file, Then it fails; Given
-    the unmodified scaffold output, Then no item fails.
+    the unmodified scaffold output, Then no item fails; Given the product tree
+    as shipped (empty register), When `lp check` runs, Then nothing fails —
+    `hybrid-form.astro`, `contoh-landing.astro` and the other reserved routes
+    are not reported as orphans.
 - **REQ-268** (Should, event) — When a key with `catalog:read` asks, the system
   shall return one product by slug (`id`, `slug`, `title`, `active`, the
   catalogue content id or null, variant count, lowest price) and the landing

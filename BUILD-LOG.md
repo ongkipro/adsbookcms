@@ -7186,3 +7186,23 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   field each fail it.
 - Verification: `npm test` 1069 pass / 0 fail, `npm run check` 0 errors
   (536 files), `npm run docs:check` passed, `npm run build` complete.
+### Entry 195: The `adsbook` CLI, read (A-428)
+
+- `npm run -s adsbook -- login|logout|orders list|orders show`, a client of
+  the operations API only (REQ-260). Logic in `src/lib/adsbook-cli.ts` with
+  its I/O injected; `scripts/adsbook.ts` connects it to the process. No
+  dependency: `node:util` `parseArgs`, `fetch`, `Intl`.
+- `login` verifies the key against `/api/ops/v1/openapi.json` before storing
+  it in `~/.config/adsbook/credentials.json` (0600, directory 0700); it reads
+  the key from stdin or a raw-mode prompt that does not echo. Store URLs must
+  be `https://` except localhost.
+- `--json` prints exactly the API's `data`; the next cursor goes to stderr so
+  stdout stays one JSON value. Human tables show WIB times and rupiah.
+- `ops-api.test.ts` runs the CLI through the real route handlers: list and
+  detail `--json` equal the API, a 401 key is not stored, the file is 0600, no
+  stdout/stderr carries the key. Mutation-checked: a 0644 file and a key in
+  the login message each fail it. Smoke: the real entry through
+  `npm run -s adsbook` with a piped key, and the prompt in a pseudo-terminal.
+- Contract: `docs/OPS-API.md` §5.
+- Verification: `npm test` 1070 pass / 0 fail, `npm run check` 0 errors
+  (538 files), `npm run docs:check` passed, `npm run build` complete.

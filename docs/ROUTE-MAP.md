@@ -213,7 +213,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 ## Modules
 
-125 modules under `src/lib`; 10 without a sibling test.
+126 modules under `src/lib`; 11 without a sibling test.
 `used by` lists routes importing the module directly — a module used by nothing
 is either transitive (imported by another lib) or dead, and only reading tells which.
 
@@ -227,6 +227,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `admin-date-filter` | 25 | — | ✓ | `/api/admin/orders` `/api/admin/shipping` |
 | `admin-orders-initial` | 1 | — | ✓ | `/admin/orders` |
 | `admin-session` | 6 | `admin_credentials` `admin_sessions` | ✓ | `/[slug]` `/hello` `/api/admin/access` `/api/admin/logout` `/api/admin/profile` |
+| `adsbook-cli` | 4 | — | **none** | — |
 | `ai-content-instructions` | 2 | — | ✓ | `/api/admin/content` |
 | `api` | 3 | — | ✓ | `/api/form-config` `/api/record-abandoned-order` `/api/webhooks/autolaris` `/api/admin/abandoned-orders` `/api/admin/access` `/api/admin/analytics` `/api/admin/check` `/api/admin/expeditions` `/api/admin/health` `/api/admin/health/check` `/api/admin/health/status` `/api/admin/insights/trend` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` `/api/admin/media` `/api/admin/notifications` `/api/admin/ongkir` `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/orders/[id]/follow-up` `/api/admin/orders/retention` `/api/admin/payment-reconciliation` `/api/admin/plugins` `/api/admin/plugins/kelola` `/api/admin/products` `/api/admin/profile` `/api/admin/rules` `/api/admin/seller-bank-accounts` `/api/admin/settings` `/api/admin/settings/developer` `/api/admin/shipping` `/api/admin/upload-r2` `/api/admin/warehouses` `/api/admin/whatsapp-numbers` |
 | `auth-secret` | 1 | `install_secrets` | ✓ | `/[slug]` `/hello` `/api/install` `/api/admin/logout` |

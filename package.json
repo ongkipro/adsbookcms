@@ -16,6 +16,7 @@
     "build": "astro build",
     "check": "astro check && tsc --noEmit",
     "test": "node --experimental-strip-types --test src/lib/*.test.ts src/plugins/*.test.ts src/plugins/*/*.test.ts",
+    "adsbook": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/adsbook.ts",
     "docs:check": "node --experimental-strip-types scripts/check-docs.ts",
     "preview": "astro preview",
     "cf:dev": "wrangler dev --local",

@@ -1,6 +1,6 @@
 # AdsBookCMS — Operations API contract
 
-> Verified against disk: 2026-10-30 @ `bf6d336` + feat/a45-ops-api working tree
+> Verified against disk: 2026-10-30 @ `645963a` + feat/a45-cli working tree
 
 The operations API lets a store's own tooling — a script, a spreadsheet sync,
 the `adsbook` CLI, an agent — read the store's orders. It is the server-to-server
@@ -100,10 +100,39 @@ order time) and the latest payment instruction.
 Every call made with a recognised key, allowed or refused, is written to the
 key's audit trail as `ops.<operation>`.
 
-## 5. Changing the contract
+## 5. The `adsbook` CLI
+
+A client of this API only, in `scripts/adsbook.ts` (logic in
+`src/lib/adsbook-cli.ts`), no dependency beyond Node. Run it from a checkout
+with `npm run -s adsbook -- <command>`; `-s` keeps npm's banner out of stdout
+so `--json` output pipes cleanly.
+
+```bash
+npm run -s adsbook -- login --url https://toko.example   # asks for the key, hidden
+npm run -s adsbook -- orders list --status pending
+npm run -s adsbook -- orders list --updated-since 2026-10-30T00:00:00Z --json
+npm run -s adsbook -- orders show INV-10023
+npm run -s adsbook -- logout
+```
+
+- `login` checks the key against `/openapi.json` before storing it, so a key
+  without `ops:orders:read` is refused, not saved. It reads the key from
+  stdin when piped, otherwise prompts without echo; `--key` exists for
+  scripts but leaves the key in shell history.
+- Credentials live in `~/.config/adsbook/credentials.json`, mode 0600 (the
+  directory 0700). `logout` deletes the file. The key never appears in the
+  CLI's output or errors.
+- `--json` prints exactly the API's `data`; for a list, the next page's
+  cursor goes to stderr. Human output shows times in WIB.
+- Every `orders list` filter in §3 is a flag: `--status`, `--payment-method`,
+  `--date-filter`, `--updated-since`, `--cursor`, and so on.
+- Store URLs must be `https://`, except `http://localhost`.
+
+## 6. Changing the contract
 
 Add the route under `src/pages/api/ops/v1`, register it in `OPS_OPERATIONS`
 with one minimum scope, describe it in `src/lib/ops-openapi.ts`, and update
-§3 here. The tests refuse a route missing from the table and a table entry
-missing from the document. A breaking change to a field or parameter needs a
-new version path, not an edit to `v1`.
+§3 here (and §5 when the CLI gains a command). The tests refuse a route
+missing from the table and a table entry missing from the document. A
+breaking change to a field or parameter needs a new version path, not an
+edit to `v1`.

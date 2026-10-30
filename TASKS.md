@@ -4112,7 +4112,8 @@ report query.
 
 **v1 — read**
 
-- [ ] **A-422** — Operations scopes beside the storefront scopes in
+- [x] **A-422** — **Done locally 2026-10-30.** Six `ops:` scopes, never a default; a key is created or changed only with an explicit scope list (400 otherwise — an omitted list on PATCH used to reset an ops key to the storefront defaults); only the owner issues, changes or revokes a key with an `ops:` scope. Browser: developer page at 1280 and 390 px lists scopes, last use and the audit rows, no page overflow.
+  Operations scopes beside the storefront scopes in
   `src/lib/developer-api-keys.ts`: `ops:orders:read`, `ops:orders:read_pii`,
   `ops:orders:write`, `ops:shipping:write`, `ops:reports:read`,
   `ops:catalog:read`; a null or empty stored scope list keeps the storefront
@@ -4124,7 +4125,8 @@ report query.
   storefront route, creation without scopes is
   400, a non-owner gets 403 on create and revoke; the developer page lists
   scopes, last use and usage at 390 and 1280 px.
-- [ ] **A-423** — `src/lib/ops-api.ts`: `OPS_OPERATIONS` (one minimum scope
+- [x] **A-423** — **Done locally 2026-10-30.** Key lookup, usage limits and audit exported from `headless-api.ts`, not copied; no CORS headers, `no-store`.
+  `src/lib/ops-api.ts`: `OPS_OPERATIONS` (one minimum scope
   each) and `validateOpsRequest`, sharing the key lookup, usage limits and
   audit of `headless-api.ts` (extracted, not duplicated); Bearer auth, no CORS,
   no origin allowlist.
@@ -4133,7 +4135,8 @@ report query.
   out-of-scope key (403 with an audit row); a storefront scope never satisfies
   an operations operation nor the reverse; a test fails when a route file under
   `src/pages/api/ops/v1` is not in the table.
-- [ ] **A-424** — Migration: `orders.updated_at` backfilled from `created_at`,
+- [x] **A-424** — **Done locally 2026-10-30.** Migration `0075` (schema 76). Applied by workerd D1 on a fresh install (`dev:local`) and to a copy of the A36–A38 demo D1 (20 orders backfilled). A test drives `order-lifecycle.ts`, `updateAdminOrderShippingStatuses`, `payment-switch.ts` and an admin edit; dropping the trigger fails it.
+  Migration: `orders.updated_at` backfilled from `created_at`,
   kept by an `AFTER UPDATE` trigger (one place instead of every write path),
   index `(updated_at, id)`.
   -> REQ: REQ-254 · deps: [] · Done when: it applies to an empty local D1 and
@@ -4141,21 +4144,24 @@ report query.
   `payment-switch.ts` and the admin PATCH SQL and sees `updated_at` advance
   each time; `EXPLAIN QUERY PLAN` uses the index for `updated_at > ?`. If D1
   refuses the trigger, stop and bring the alternative to Paduka.
-- [ ] **A-425** — Pure order serializer `src/lib/ops-order.ts`: attribution
+- [x] **A-425** — **Done locally 2026-10-30.**
+  Pure order serializer `src/lib/ops-order.ts`: attribution
   (`source_slug`, traffic source via `traffic-source.ts`, five UTM tags from
   `ad_click_ids`) and PII omission without `ops:orders:read_pii`.
   -> REQ: REQ-256 (constraints REQ-253) · deps: [] · Done when: tests prove a
   `ops:orders:read` payload has no name, phone, email, street address or click-id
   value, and a `ops:orders:read_pii` payload has them; UTM values match the stored
   JSON.
-- [ ] **A-426** — `GET /api/ops/v1/orders`: filters (status, payment method/status,
+- [x] **A-426** — **Done locally 2026-10-30.** Browsing pages by `(created_at, id)`, syncing by `(updated_at, id)`; both walk an index. `scripts/measure-ops-orders.ts` (20k orders/27k lines, local workerd D1): a 90-day page read 37,930 rows when ordered by id, 399 now; every page ≤ 1,240 rows, ceilings in the script.
+  `GET /api/ops/v1/orders`: filters (status, payment method/status,
   period by the admin rules, `source_slug`, `utm_campaign`, `kind`), opaque
   cursor, ≤ 100 per page, `updated_since`.
   -> REQ: REQ-254 · deps: [A-423, A-424, A-425] · Done when: a test pages 250
   fixture orders and sees each once; an order edited after `t` appears under
   `updated_since=t`; `rows_read` for a 90-day page is recorded and under the
   A40 ceiling.
-- [ ] **A-427** — `GET /api/ops/v1/orders/{number}`: items with recorded weight,
+- [x] **A-427** — **Done locally 2026-10-30.** Amounts and items equal the admin GET's; unknown number 404 with an audit row.
+  `GET /api/ops/v1/orders/{number}`: items with recorded weight,
   payment, shipping, `payment_switched_*`.
   -> REQ: REQ-255 · deps: [A-423, A-425] · Done when: a test reads a fixture
   order and its totals equal the admin GET's; unknown number is 404 with an

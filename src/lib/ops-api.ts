@@ -20,6 +20,9 @@ import {
 export const OPS_OPERATIONS = {
   ordersList: { scope: "ops:orders:read", method: "GET", path: "/api/ops/v1/orders" },
   orderDetail: { scope: "ops:orders:read", method: "GET", path: "/api/ops/v1/orders/{number}" },
+  // lazy: the contract reads with the base read scope; a key holding only
+  // `ops:catalog:read` (A-441) cannot fetch it until this accepts any ops scope.
+  openApiRead: { scope: "ops:orders:read", method: "GET", path: "/api/ops/v1/openapi.json" },
 } as const satisfies Record<string, { scope: OpsApiScope; method: "GET" | "POST"; path: string }>;
 
 export type OpsOperation = keyof typeof OPS_OPERATIONS;

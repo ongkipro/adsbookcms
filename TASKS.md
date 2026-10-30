@@ -4185,7 +4185,8 @@ report query.
   -> REQ: REQ-261 · deps: [A-429] · Done when: browser run at 1366 and 390 px
   shows the table, the drill to content and back, empty and error states, no
   horizontal overflow; advertiser role can open it.
-- [ ] **A-431** — `docs/OPS-API.md` (ownership row in AGENTS.md §2), OpenAPI
+- [x] **A-431** — **Done locally 2026-10-30.** `src/lib/ops-openapi.ts` served by `openapi.json.ts` (ops key, no CORS, `no-store`); `ops-openapi.test.ts` fails on a path/method/scope mismatch in either direction and on a serializer field the Order schema does not name (three mutations each caught).
+  `docs/OPS-API.md` (ownership row in AGENTS.md §2), OpenAPI
   3.1 at `/api/ops/v1/openapi.json` from the operations table.
   -> REQ: REQ-264 · deps: [A-426, A-427] · Done when: a test fails when a
   registered operation and an OpenAPI path disagree; `npm run docs:check`

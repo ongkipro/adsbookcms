@@ -7170,3 +7170,19 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   page read 399 rows (37,930 when ordered by id), every page under 1,240.
 - Verification: `npm test` 1065 pass / 0 fail, `npm run check` 0 errors
   (533 files), `npm run build` complete (TASKS A-422 to A-427).
+### Entry 194: Operations API contract and OpenAPI (A-431)
+
+- `docs/OPS-API.md` owns the operations contract (row added to AGENTS.md §2):
+  calling rules, the six scopes and which are live, operations, sync vs browse
+  paging, errors.
+- `GET /api/ops/v1/openapi.json` serves `src/lib/ops-openapi.ts` to a key with
+  `ops:orders:read`; registered in `OPS_OPERATIONS` like every ops route.
+  `// lazy:` a catalogue-only key (A-441) cannot read it until the route
+  accepts any ops scope.
+- `ops-openapi.test.ts`: the document and `OPS_OPERATIONS` agree on name, path,
+  method and scope in both directions; every `$ref` resolves; every field
+  `serializeOpsOrder` writes (with PII) is named in the Order schema.
+  Mutation-checked: a changed scope, a removed table entry and a removed schema
+  field each fail it.
+- Verification: `npm test` 1069 pass / 0 fail, `npm run check` 0 errors
+  (536 files), `npm run docs:check` passed, `npm run build` complete.

@@ -24,6 +24,7 @@ const resolver = registerHooks({
 });
 const { GET: listRoute } = await import("../pages/api/ops/v1/orders/index.ts");
 const { GET: detailRoute } = await import("../pages/api/ops/v1/orders/[number].ts");
+const { GET: openApiRoute } = await import("../pages/api/ops/v1/openapi.json.ts");
 const developerRoute = await import("../pages/api/admin/settings/developer.ts");
 const { GET: adminOrderRoute } = await import("../pages/api/admin/orders/[id].ts");
 resolver.deregister();
@@ -281,6 +282,23 @@ test("REQ-254: updated_since syncs what changed, once, in change order, over the
     .prepare("EXPLAIN QUERY PLAN SELECT id FROM orders o WHERE o.updated_at > ? ORDER BY o.updated_at ASC, o.id ASC LIMIT 10")
     .all("2029-01-01") as { detail: string }[];
   assert.match(plan.map((row) => row.detail).join(" "), /orders_updated_at_id/);
+});
+
+test("REQ-264: the contract is served to an ops key, refused to a storefront key, never cross-origin", async () => {
+  const { locals, addKey, audit } = store();
+  await addKey("read", "ops:orders:read");
+  await addKey("storefront-all", "storefront:read,catalog:read,orders:read");
+  const { response, body } = await call(openApiRoute, locals, "/api/ops/v1/openapi.json", "read");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/vnd.oai.openapi+json;version=3.1");
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  for (const [name] of response.headers) assert.doesNotMatch(name, /^access-control-/i);
+  assert.equal(body.openapi, "3.1.0");
+  assert.equal((await call(openApiRoute, locals, "/api/ops/v1/openapi.json", "storefront-all")).response.status, 403);
+  assert.deepEqual(audit().map((row) => [row.operation, row.status_code]), [
+    ["ops.openApiRead", 200],
+    ["ops.openApiRead", 403],
+  ]);
 });
 
 test("every route under /api/ops/v1 is in the operations table", () => {

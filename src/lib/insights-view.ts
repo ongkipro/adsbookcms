@@ -6,7 +6,7 @@ export const INSIGHTS_REPORTS = {
   trend: { label: 'Ringkasan', path: '/admin/analytics', description: 'Bandingkan tren pesanan, lead, dan omset dengan periode sebelumnya.' },
   landing: { label: 'Landing page', path: '/admin/analytics/landing', description: 'Bandingkan sumber pesanan berdasarkan omset terkirim, bukan jumlah pesanan saja.' },
   products: { label: 'Produk', path: '/admin/analytics/products', description: 'Lihat unit terjual, omset produk, dan varian yang dipilih pembeli.' },
-  locations: { label: 'Lokasi', path: '/admin/analytics/locations', description: 'Telusuri pesanan dan retur dari provinsi hingga kota.' },
+  locations: { label: 'Lokasi', path: '/admin/analytics/locations', description: 'Telusuri pesanan dan retur dari provinsi, kota, hingga kecamatan.' },
   times: { label: 'Waktu beli', path: '/admin/analytics/times', description: 'Lihat kapan pesanan dibuat dalam waktu Asia/Jakarta.' },
 } as const;
 export type InsightsReport = keyof typeof INSIGHTS_REPORTS;

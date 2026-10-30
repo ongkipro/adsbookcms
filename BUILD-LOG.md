@@ -7086,6 +7086,14 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   its number; the local Analitik entries became 186–189. Route maps
   regenerated, not hand-merged. The upstream backfill was integrated, not
   re-reviewed: TASKS still lists its open questions.
+- Lokasi opens a city to its districts (province › city › kecamatan, breadcrumb).
+  An order counts under a place only once its address form is complete
+  (district filled, the checkout rule); a middle-form order before an operator
+  completes it is one `Alamat belum dilengkapi` row, not credited to its
+  IP-guessed province. Same single grouped read: 51,791 rows on the
+  locations-90d fixture, unchanged, under its 60,000 ceiling. Weight was
+  confirmed already handled: every form records `order_items.weight_grams`
+  through `persistOrder`, and dispatch, re-quote and Kelola read it.
 - Verification and browser evidence: TASKS A37 review note. `astro dev` from
   this worktree fails on a symlinked `node_modules` (Vite denies files outside
   the root); the Wrangler demo on the Tailscale address is the working path.

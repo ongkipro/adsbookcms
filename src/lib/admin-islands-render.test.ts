@@ -255,7 +255,7 @@ for (const report of ['landing', 'products', 'locations', 'times', 'trend']) {
     assert.match(await renderIsland('InsightsReport.tsx', 'InsightsReport', props), /aria-busy="true"/);
     const empty = {
       landing: { rows: [], totals: {} }, products: { rows: [], totals: { units: 0, revenue: 0 } },
-      locations: { provinces: [], province: null, unmatched_provinces: [] },
+      locations: { provinces: [], province: null, unmatched_provinces: [], incomplete_address: { orders: 0, revenue: 0, delivered: 0, returned: 0, return_share: 0 } },
       times: { total: 0, max: 0, cells: Array.from({ length: 7 }, () => Array(24).fill(0)) },
       trend: { series: [], total: { orders: 0, leads: 0, revenue: 0 }, previous: { start: '2026-09-01', end: '2026-09-30', orders: 0, leads: 0, revenue: 0 } },
     };
@@ -274,8 +274,15 @@ test('InsightsReport renders populated source, variant, location, and heatmap da
   assert.match(landing, /<progress/);
   const products = await renderIsland('InsightsReport.tsx', 'InsightsReport', { report: 'products', initialData: { totals: { units: 1, revenue: 100 }, rows: [{ product_id: null, label: 'Produk lama', units: 1, revenue: 100, return_share: 30, variants: [{ variant_id: null, label: 'Varian lama', units: 1, revenue: 100 }] }] } });
   assert.match(products, /Varian lama/);
-  const locations = await renderIsland('InsightsReport.tsx', 'InsightsReport', { report: 'locations', initialData: { provinces: [{ key: 'JI', label: 'Jawa Timur', orders: 1, revenue: 100, return_share: 30 }], province: null, unmatched_provinces: [] } });
+  const jatim = { key: 'JI', label: 'Jawa Timur', orders: 1, revenue: 100, return_share: 30 };
+  const locations = await renderIsland('InsightsReport.tsx', 'InsightsReport', { report: 'locations', initialData: { provinces: [jatim], province: null, unmatched_provinces: [], incomplete_address: { orders: 2, revenue: 50, delivered: 0, returned: 0, return_share: 0 } } });
   assert.match(locations, /Perlu perhatian/);
+  assert.match(locations, /Alamat belum dilengkapi/);
+  const districts = await renderIsland('InsightsReport.tsx', 'InsightsReport', { report: 'locations', initialData: { provinces: [jatim], unmatched_provinces: [], incomplete_address: { orders: 0, revenue: 0, delivered: 0, returned: 0, return_share: 0 },
+    province: { key: 'JI', label: 'Jawa Timur', cities: [{ key: 'surabaya', label: 'Surabaya', orders: 1, revenue: 100, return_share: 0 }],
+      city: { key: 'surabaya', label: 'Surabaya', districts: [{ key: 'wonokromo', label: 'Wonokromo', orders: 1, revenue: 100, return_share: 0 }] } } } });
+  assert.match(districts, /Wonokromo/);
+  assert.match(districts, /Kecamatan/);
   const times = await renderIsland('InsightsReport.tsx', 'InsightsReport', { report: 'times', initialData: { total: 168, max: 1, cells: Array.from({ length: 7 }, () => Array(24).fill(1)) } });
   assert.match(times.replace(/<!--.*?-->/g, ''), /23:00/);
 });

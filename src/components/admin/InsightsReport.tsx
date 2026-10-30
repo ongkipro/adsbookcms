@@ -95,9 +95,12 @@ export function InsightsReport({ report, initialQuery = '', sources = [], produc
     setDate(insightsDateSelection('date_filter=this_month')); setSource(''); setProduct(''); setChannel('');
     changeQuery(new URLSearchParams('date_filter=this_month'));
   }
-  function province(value: string) {
+  // Province, then city: `city` only ever narrows the province beside it, so
+  // changing the province drops it. An empty city key is a real place.
+  function place(province: string, city: string | null = null) {
     const params = new URLSearchParams(query);
-    if (value) params.set('province', value); else params.delete('province');
+    if (province) params.set('province', province); else params.delete('province');
+    if (province && city !== null) params.set('city', city); else params.delete('city');
     changeQuery(params);
   }
   const appliedDate = insightsDateSelection(query);
@@ -133,7 +136,7 @@ export function InsightsReport({ report, initialQuery = '', sources = [], produc
       {report === 'landing' && ((data as Landing).rows.length ? <LandingView data={data as Landing} query={query} mayReadOrders={mayReadOrders} /> : <Empty reset={reset} />)}
       {report === 'products' && ((data as Products).rows.length ? <ProductsView data={data as Products} /> : <Empty reset={reset} />)}
       {report === 'trend' && <TrendView data={data as Trend} metric={metric} setMetric={setMetric} />}
-      {report === 'locations' && ((data as Locations).provinces.length ? <LocationsView data={data as Locations} onProvince={province} /> : <Empty reset={reset} />)}
+      {report === 'locations' && ((data as Locations).provinces.length || (data as Locations).incomplete_address.orders ? <LocationsView data={data as Locations} onPlace={place} /> : <Empty reset={reset} />)}
       {report === 'times' && ((data as Times).total ? <TimesView data={data as Times} /> : <Empty reset={reset} />)}
     </>}
   </div>;
@@ -189,12 +192,29 @@ function TrendView({ data, metric, setMetric }: { data: Trend; metric: 'orders' 
     <details className="mt-4"><summary className="cursor-pointer py-2 text-sm">Lihat data harian</summary><Table><TableHeader><TableRow><TableHead>Tanggal</TableHead><TableHead>Pesanan</TableHead><TableHead>Lead</TableHead><TableHead>Omset</TableHead></TableRow></TableHeader><TableBody>{data.series.map((day) => <TableRow key={day.date}><TableCell>{day.date}</TableCell><TableCell>{number(day.orders)}</TableCell><TableCell>{number(day.leads)}</TableCell><TableCell>{money(day.revenue)}</TableCell></TableRow>)}</TableBody></Table></details>
   </section>;
 }
-function LocationsView({ data, onProvince }: { data: Locations; onProvince: (value: string) => void }) {
-  const places = data.province ? data.province.cities : data.provinces;
-  return <section className="flex flex-col gap-3"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-base font-semibold">{data.province ? data.province.label : 'Provinsi'}</h3>{data.province && <Button variant="outline" onClick={() => onProvince('')}>Semua provinsi</Button>}</div>
+function LocationsView({ data, onPlace }: { data: Locations; onPlace: (province: string, city?: string | null) => void }) {
+  const province = data.province;
+  const city = province?.city ?? null;
+  const places = city ? city.districts : province ? province.cities : data.provinces;
+  const level = city ? 'Kecamatan' : province ? 'Kota / kabupaten' : 'Provinsi';
+  const open = (key: string) => (province ? onPlace(province.key, key) : onPlace(key));
+  return <section className="flex flex-col gap-3"><div className="flex flex-wrap items-center justify-between gap-3">
+      <nav aria-label="Tingkat wilayah" className="min-w-0"><ol className="flex flex-wrap items-center gap-1 text-base font-semibold">
+        <li>{province ? <Button variant="link" onClick={() => onPlace('')}>Provinsi</Button> : 'Provinsi'}</li>
+        {province && <li className="flex items-center gap-1"><span aria-hidden="true">›</span>{city ? <Button variant="link" onClick={() => onPlace(province.key)}>{province.label}</Button> : <span aria-current="page">{province.label}</span>}</li>}
+        {city && <li className="flex items-center gap-1"><span aria-hidden="true">›</span><span aria-current="page" className="break-words">{city.label}</span></li>}
+      </ol></nav>
+      <span className="text-xs text-muted-foreground">{level}</span>
+    </div>
     <p className="text-xs text-muted-foreground">RTS di atas 20% ditandai untuk ditinjau · retur / (terkirim + retur). Lainnya menjumlahkan wilayah di luar peringkat teratas.</p>
-    {places.length === 0 && <p className="text-sm">Tidak ada kota pada provinsi ini untuk filter terpilih.</p>}
-    <div className="divide-y divide-border rounded-lg border border-border bg-card">{places.map((place) => <div key={place.key} className="grid grid-cols-2 items-center gap-3 p-4 sm:grid-cols-4"><div className="min-w-0 break-words">{!data.province && place.key !== 'other' ? <Button variant="link" onClick={() => onProvince(place.key)}>{place.label}</Button> : place.label}</div><div><p className="text-xs text-muted-foreground">Pesanan</p>{number(place.orders)}</div><div><p className="text-xs text-muted-foreground">Omset</p><span className="text-sm tabular-nums">{money(place.revenue)}</span></div><div><p className="text-xs text-muted-foreground">RTS</p><ReturnShare value={place.return_share} /></div></div>)}</div>
+    {places.length === 0 && <p className="text-sm">{city ? 'Tidak ada kecamatan pada kota ini' : 'Tidak ada kota pada provinsi ini'} untuk filter terpilih.</p>}
+    <div className="divide-y divide-border rounded-lg border border-border bg-card">{places.map((place) => <div key={place.key} className="grid grid-cols-2 items-center gap-3 p-4 sm:grid-cols-4"><div className="min-w-0 break-words">{!city && place.key !== 'other' ? <Button variant="link" onClick={() => open(place.key)}>{place.label}</Button> : place.label}</div><div><p className="text-xs text-muted-foreground">Pesanan</p>{number(place.orders)}</div><div><p className="text-xs text-muted-foreground">Omset</p><span className="text-sm tabular-nums">{money(place.revenue)}</span></div><div><p className="text-xs text-muted-foreground">RTS</p><ReturnShare value={place.return_share} /></div></div>)}</div>
+    {!province && data.incomplete_address.orders > 0 && <div className="grid grid-cols-2 items-center gap-3 rounded-lg border border-dashed border-border bg-card p-4 sm:grid-cols-4">
+      <div className="min-w-0 break-words"><p className="font-medium">Alamat belum dilengkapi</p><p className="text-xs text-muted-foreground">Kecamatan belum diisi (mis. middle form sebelum dilengkapi operator). Provinsinya hanya tebakan IP, jadi belum dihitung per wilayah.</p></div>
+      <div><p className="text-xs text-muted-foreground">Pesanan</p>{number(data.incomplete_address.orders)}</div>
+      <div><p className="text-xs text-muted-foreground">Omset</p><span className="text-sm tabular-nums">{money(data.incomplete_address.revenue)}</span></div>
+      <div><p className="text-xs text-muted-foreground">RTS</p><ReturnShare value={data.incomplete_address.return_share} /></div>
+    </div>}
     {data.unmatched_provinces.length > 0 && <p className="text-xs text-muted-foreground">Nama belum cocok dengan katalog: {data.unmatched_provinces.join(', ')}. Tidak digabung otomatis.</p>}
   </section>;
 }

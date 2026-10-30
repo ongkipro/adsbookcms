@@ -268,7 +268,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `image-derivative` | 1 | — | ✓ | `/404` `/landing-page` |
 | `insights-period` | 10 | — | **none** | — |
 | `insights-view` | 13 | — | ✓ | — |
-| `insights` | 27 | `order_items` `orders` `product_variants` `products` | ✓ | `/api/admin/insights/landing` `/api/admin/insights/locations` `/api/admin/insights/products` `/api/admin/insights/times` `/api/admin/insights/trend` |
+| `insights` | 28 | `order_items` `orders` `product_variants` `products` | ✓ | `/api/admin/insights/landing` `/api/admin/insights/locations` `/api/admin/insights/products` `/api/admin/insights/times` `/api/admin/insights/trend` |
 | `install` | 6 | `admin_credentials` `courier_rules` `stores` `whatsapp_numbers` | ✓ | `/api/install` |
 | `json-ld` | 14 | — | ✓ | — |
 | `json-script` | 1 | — | ✓ | — |

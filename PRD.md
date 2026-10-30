@@ -485,8 +485,13 @@ queries A37 builds, so there is one definition of each number.
 - **REQ-201** — **Produk.** Rank products by units and revenue, with each
   product's variant split and its return share.
 - **REQ-202** — **Lokasi.** Rank provinces by orders and revenue, open a province
-  to its cities, and show each place's return share. At most the top 20
-  provinces and 50 cities are returned; the rest is one `Lainnya` row.
+  to its cities and a city to its districts (kecamatan), and show each place's
+  return share. At most the top 20 provinces, 50 cities and 50 districts are
+  returned; the rest is one `Lainnya` row. An order counts under a place only
+  once its address form is complete, the checkout rule (district required): a
+  middle-form order before an operator completes it has no district and only an
+  IP-guessed province, so it is one `Alamat belum dilengkapi` row, never
+  credited to a place. The total still counts it (amended 2026-10-30).
 - **REQ-203** — **Channel.** Split the same orders by ad channel (Meta, Google,
   TikTok, organic or direct) from the click ids already stored on the order, and
   show it as a column of the Landing page screen and a filter on the others.

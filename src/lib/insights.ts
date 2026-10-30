@@ -514,11 +514,13 @@ export async function productRanking(
 
 export const INSIGHTS_TOP_PROVINCES = 20;
 export const INSIGHTS_TOP_CITIES = 50;
+export const INSIGHTS_TOP_DISTRICTS = 50;
 export const OTHER_PLACES_LABEL = "Lainnya";
 
 type LocationGroupRow = {
   province: string | null;
   city: string | null;
+  district: string | null;
   orders: number;
   revenue: number;
   delivered: number;
@@ -536,8 +538,9 @@ type Place = {
 };
 
 /**
- * One read for both levels: grouped by province and city, so a province is
- * the sum of its cities and opening one costs nothing more.
+ * One read for every level: grouped by province, city and district, so a
+ * province is the sum of its cities, a city the sum of its districts, and
+ * opening either costs nothing more.
  */
 export function locationStatements(database: D1Database, period: InsightsPeriod, filter: InsightsFilter = {}) {
   const range = periodClause(period);
@@ -545,14 +548,14 @@ export function locationStatements(database: D1Database, period: InsightsPeriod,
   return [
     database
       .prepare(
-        `SELECT province, trim(city) AS city,
+        `SELECT province, trim(city) AS city, trim(district) AS district,
           COUNT(*) AS orders,
           SUM(CASE WHEN ${LIVE} THEN total_amount ELSE 0 END) AS revenue,
           SUM(CASE WHEN shipping_status = 'delivered' THEN 1 ELSE 0 END) AS delivered,
           SUM(CASE WHEN shipping_status = 'returned' THEN 1 ELSE 0 END) AS returned
         FROM orders
         WHERE ${ORDER_ROW} AND ${range.sql}${where.sql}
-        GROUP BY province, trim(city)`,
+        GROUP BY province, trim(city), trim(district)`,
       )
       .bind(...range.params, ...where.params),
   ];
@@ -589,7 +592,33 @@ function topWithOther(places: Place[], top: number) {
   return [...places.slice(0, top).map(finish), finish(rest)];
 }
 
-export function shapeLocations(groups: readonly LocationGroupRow[], options: { province?: string | null } = {}) {
+/**
+ * Adds a grouped row to the place named by `text` (trimmed, case-insensitive),
+ * so `SURABAYA` and `Surabaya` are one city. The label prefers a stored
+ * mixed-case spelling, then lexical order, never SQL row order.
+ */
+function addNamedPlace(places: Map<string, Place>, text: string, group: LocationGroupRow) {
+  const key = text.toLowerCase();
+  let place = places.get(key);
+  if (!place) {
+    place = { key, label: text || "(kosong)", orders: 0, revenue: 0, delivered: 0, returned: 0, return_share: 0 };
+    places.set(key, place);
+  }
+  const mixedCase = (value: string) => value !== value.toUpperCase() && value !== value.toLowerCase();
+  if ((mixedCase(text) && !mixedCase(place.label)) ||
+      (mixedCase(text) === mixedCase(place.label) && text && text < place.label)) {
+    place.label = text;
+  }
+  place.orders += num(group.orders);
+  place.revenue += num(group.revenue);
+  place.delivered += num(group.delivered);
+  place.returned += num(group.returned);
+}
+
+export function shapeLocations(
+  groups: readonly LocationGroupRow[],
+  options: { province?: string | null; city?: string | null } = {},
+) {
   const provinces = new Map<string, Place & { spellings: Set<string> }>();
   const unmatched = new Set<string>();
   // The drilldown sends a row's key; an unmatched row's key is `raw:<text>`, which
@@ -599,8 +628,23 @@ export function shapeLocations(groups: readonly LocationGroupRow[], options: { p
     : options.province ? provinceKey(options.province) : null;
   const requested = asked?.key ?? null;
   const cities = new Map<string, Place>();
+  // A city key is its trimmed lower-cased text, the same key its row carries.
+  const requestedCity = requested && options.city != null ? options.city.trim().toLowerCase() : null;
+  const districts = new Map<string, Place>();
+  // An address counts as a place once its form is complete, the rule checkout
+  // applies (`order-schema.ts`: district required). The middle form stores no
+  // district and only an IP-guessed province until an operator completes the
+  // address, so until then the order is counted here, never under a place.
+  const incomplete = { orders: 0, revenue: 0, delivered: 0, returned: 0 };
 
   for (const group of groups) {
+    if (!String(group.district ?? "").trim()) {
+      incomplete.orders += num(group.orders);
+      incomplete.revenue += num(group.revenue);
+      incomplete.delivered += num(group.delivered);
+      incomplete.returned += num(group.returned);
+      continue;
+    }
     const province = provinceKey(group.province);
     if (!province.matched) unmatched.add(String(group.province ?? ""));
     let place = provinces.get(province.key);
@@ -616,22 +660,10 @@ export function shapeLocations(groups: readonly LocationGroupRow[], options: { p
 
     if (requested && province.key === requested) {
       const cityText = String(group.city ?? "").trim();
-      const cityKey = cityText.toLowerCase();
-      let city = cities.get(cityKey);
-      if (!city) {
-        city = { key: cityKey, label: cityText || "(kosong)", orders: 0, revenue: 0, delivered: 0, returned: 0, return_share: 0 };
-        cities.set(cityKey, city);
+      addNamedPlace(cities, cityText, group);
+      if (requestedCity !== null && cityText.toLowerCase() === requestedCity) {
+        addNamedPlace(districts, String(group.district).trim(), group);
       }
-      // Prefer a stored mixed-case label, then lexical order, not SQL row order.
-      const mixedCase = (text: string) => text !== text.toUpperCase() && text !== text.toLowerCase();
-      if ((mixedCase(cityText) && !mixedCase(city.label)) ||
-          (mixedCase(cityText) === mixedCase(city.label) && cityText && cityText < city.label)) {
-        city.label = cityText;
-      }
-      city.orders += num(group.orders);
-      city.revenue += num(group.revenue);
-      city.delivered += num(group.delivered);
-      city.returned += num(group.returned);
     }
   }
 
@@ -646,7 +678,7 @@ export function shapeLocations(groups: readonly LocationGroupRow[], options: { p
   );
   const total = [...provinces.values()].reduce(
     (sum, place) => ({ orders: sum.orders + place.orders, revenue: sum.revenue + place.revenue }),
-    { orders: 0, revenue: 0 },
+    { orders: incomplete.orders, revenue: incomplete.revenue },
   );
   return {
     provinces: provinceRows,
@@ -655,9 +687,17 @@ export function shapeLocations(groups: readonly LocationGroupRow[], options: { p
           key: requested,
           label: provinces.get(requested)?.label ?? asked!.label,
           cities: topWithOther([...cities.values()], INSIGHTS_TOP_CITIES),
+          city: requestedCity !== null
+            ? {
+                key: requestedCity,
+                label: cities.get(requestedCity)?.label ?? (options.city!.trim() || "(kosong)"),
+                districts: topWithOther([...districts.values()], INSIGHTS_TOP_DISTRICTS),
+              }
+            : null,
         }
       : null,
     unmatched_provinces: [...unmatched].sort(),
+    incomplete_address: { ...incomplete, return_share: pct(incomplete.returned, incomplete.delivered + incomplete.returned) },
     totals: total,
   };
 }
@@ -665,7 +705,7 @@ export function shapeLocations(groups: readonly LocationGroupRow[], options: { p
 export async function locationRanking(
   database: D1Database,
   period: InsightsPeriod,
-  options: { province?: string | null; filter?: InsightsFilter } = {},
+  options: { province?: string | null; city?: string | null; filter?: InsightsFilter } = {},
 ) {
   const results = (await database.batch(locationStatements(database, period, options.filter))) as BatchResult[];
   return {

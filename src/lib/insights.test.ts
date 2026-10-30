@@ -405,7 +405,7 @@ test("locations: top 20 provinces plus Lainnya keep the total; spellings merge o
 
 test("city labels are stable when grouped rows arrive in a different order", () => {
   const groups = ["SURABAYA", "Surabaya", "surabaya"].map((city) => ({
-    province: "Jawa Timur", city, orders: 1, revenue: 100, delivered: 1, returned: 0,
+    province: "Jawa Timur", city, district: "Kec", orders: 1, revenue: 100, delivered: 1, returned: 0,
   }));
   assert.deepEqual(
     shapeLocations(groups, { province: "JI" }),
@@ -413,10 +413,37 @@ test("city labels are stable when grouped rows arrive in a different order", () 
   );
 });
 
+test("a city opens to its districts; spellings of one district merge and the city keeps its total", () => {
+  const row = (city: string, district: string | null, orders: number) => ({
+    province: "Jawa Timur", city, district, orders, revenue: orders * 100, delivered: 0, returned: 0,
+  });
+  const groups = [row("Surabaya", "Wonokromo", 2), row("SURABAYA", "WONOKROMO ", 1), row("Surabaya", "Rungkut", 1), row("Malang", "Klojen", 5)];
+  const opened = shapeLocations(groups, { province: "JI", city: "surabaya" }).province;
+  assert.equal(opened?.city?.label, "Surabaya");
+  assert.deepEqual(opened?.city?.districts.map((d) => [d.label, d.orders]), [["Wonokromo", 3], ["Rungkut", 1]]);
+  assert.equal(opened?.cities.find((c) => c.key === "surabaya")?.orders, 4, "the city row is the sum of its districts");
+  assert.equal(shapeLocations(groups, { province: "JI" }).province?.city, null, "no city asked, no district list");
+  assert.equal(shapeLocations(groups, { city: "surabaya" }).province, null, "a city never opens without its province");
+  assert.deepEqual(shapeLocations(groups, { province: "JI", city: "" }).province?.city?.districts, [], "an empty city key is its own place");
+});
+
+test("an order whose address form is not complete (no district) is counted apart, never under a guessed place", () => {
+  const groups = [
+    { province: "Jawa Timur", city: "Surabaya", district: "Wonokromo", orders: 2, revenue: 200, delivered: 1, returned: 1 },
+    // The middle form: IP-guessed province, no city, no district.
+    { province: "Jawa Barat", city: "", district: "", orders: 3, revenue: 300, delivered: 0, returned: 0 },
+    { province: "Jawa Barat", city: null, district: null, orders: 1, revenue: 100, delivered: 0, returned: 1 },
+  ];
+  const data = shapeLocations(groups);
+  assert.deepEqual(data.provinces.map((p) => [p.label, p.orders]), [["Jawa Timur", 2]], "no province is credited with a guess");
+  assert.deepEqual(data.incomplete_address, { orders: 4, revenue: 400, delivered: 0, returned: 1, return_share: 100 });
+  assert.deepEqual(data.totals, { orders: 6, revenue: 600 }, "the total still counts every order");
+});
+
 test("an unmatched or empty province row opens by the key the drilldown sends", () => {
   const long = `Provinsi ${"x".repeat(100)}`;
   const groups = [null, long].map((province) => ({
-    province, city: "Kota", orders: 1, revenue: 100, delivered: 1, returned: 0,
+    province, city: "Kota", district: "Kec", orders: 1, revenue: 100, delivered: 1, returned: 0,
   }));
   for (const row of shapeLocations(groups).provinces.filter((place) => place.key !== "other")) {
     const opened = shapeLocations(groups, { province: row.key }).province;

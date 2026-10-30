@@ -7230,3 +7230,23 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   403. Mutation-checked: dropping `lower` or `NULLIF` fails the tests.
 - Verification: `npm test` 1072 pass / 0 fail, `npm run check` 0 errors
   (540 files), `npm run docs:check` passed, `npm run build` complete.
+### Entry 197: UTM link builder (A-434)
+
+- PRD A45, REQ-262: Iklan & tracking › Link UTM (`/admin/ads/utm`). The
+  operator picks a landing page or product, a source and medium from the
+  fixed Q3 lists (the medium follows the source), types a campaign and an
+  optional content, and copies the link. Nothing is stored.
+- `src/lib/utm-link.ts` is pure: `normalizeUtmTag` writes lower-case
+  hyphenated ASCII (diacritics folded, symbols to `-`, 100 characters), the
+  form Analitik › UTM groups by, so a campaign built here never splits into
+  two report rows; `buildUtmLink` keeps the page's own query and fragment and
+  replaces any `utm_*` already there.
+- The page list is the sitemap's: active landing pages on their own slug
+  (a product-page takeover listed once, as the product) and active products,
+  on `tenant.siteUrl`, never a fixed domain.
+- Tests: `utm-link.test.ts` (4). Browser (headless Chromium, seeded
+  `dev:local`): 1280 and 390 px, product and landing targets answer 200, the
+  copied link equals the field, no overflow. The design guard caught a grid
+  without declared columns before review.
+- Verification: `npm test` 1076 pass / 0 fail, `npm run check` 0 errors
+  (544 files), `npm run docs:check` passed, `npm run build` complete.

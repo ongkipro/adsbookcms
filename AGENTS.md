@@ -1,6 +1,6 @@
 # AGENTS.md — Working Agreement for AdsBookCMS
 
-> Verified against disk: 2026-10-30 @ `6130c9d` + feat/a45-utm-report working tree (baseline 1072)
+> Verified against disk: 2026-10-30 @ `68c4e92` + feat/a45-utm-builder working tree (baseline 1076)
 
 This file is the contract for any AI coding agent or contributor working in this repository. Read it before the first edit.
 
@@ -122,7 +122,7 @@ can reach it.
 
 On a fresh clone, run `npm run check` rather than bare `npx tsc --noEmit`. `astro check` generates `.astro/types.d.ts` first; without it `tsc` reports phantom errors such as `Property 'env' does not exist on type 'ImportMeta'`.
 
-Current verified working-tree baseline: **1072 passing** (0 skipped, 2026-10-30, `feat/a45-utm-report` on main `6130c9d`), 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints (540 files). A change that reduces this baseline is not done.
+Current verified working-tree baseline: **1076 passing** (0 skipped, 2026-10-31, `feat/a45-utm-builder` on main `68c4e92`), 0 type errors, `astro check` 0 errors / 0 warnings / 0 hints (544 files). A change that reduces this baseline is not done.
 
 New non-trivial logic — a branch, a parser, a money or auth path — leaves one runnable check behind. Trivial one-liners do not need a test.
 

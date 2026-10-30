@@ -263,7 +263,7 @@ function UtmView({ data }: { data: Utm }) {
       <UtmTable label="Konten" rows={open.contents.map((content) => ({ key: content.content ?? '', name: content.content ?? '(tanpa content)', metrics: content }))} />
     </> : <>
       <p className="text-sm">{number(data.totals.orders)} pesanan · {money(data.totals.revenue)} omset · {percent(data.tagged_share)} pesanan ber-UTM</p>
-      <p className="text-xs text-muted-foreground">Tag disatukan tanpa beda huruf besar/kecil dan spasi. Closing = pesanan / (pesanan + lead). RTS = retur / (terkirim + retur).</p>
+      <p className="text-xs text-muted-foreground">Tag disatukan tanpa beda huruf besar/kecil dan spasi. Closing = pesanan / (pesanan + lead). RTS = retur / (terkirim + retur). <a className="underline underline-offset-4" href="/admin/ads/utm">Buat link UTM</a></p>
       <UtmTable label="Kampanye" rows={data.rows.map((row) => ({
         key: row.key,
         name: row.untagged ? utmCampaign(row) : <Button variant="link" className="h-auto p-0 text-left whitespace-normal" onClick={() => setOpenKey(row.key)}>{utmCampaign(row)}</Button>,

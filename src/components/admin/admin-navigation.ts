@@ -134,10 +134,11 @@ export const adminNavGroups: AdminNavGroup[] = [
         label: "Iklan & tracking",
         description: "Sinyal konversi iklan",
         icon: Megaphone,
-        keywords: "ads pixel capi google tracking conversion",
+        keywords: "ads pixel capi google tracking conversion utm link kampanye campaign",
         children: [
           { href: "/admin/ads/meta", label: "Meta Pixel & CAPI" },
           { href: "/admin/ads/google", label: "Google Ads" },
+          { href: "/admin/ads/utm", label: "Link UTM" },
         ],
       },
     ],

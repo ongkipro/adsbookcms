@@ -7329,6 +7329,10 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   `space-y-*` margins never reached it and the next card touched it
   (Pengaturan › Headless API). `admin.css` makes an island directly inside a
   `space-y-*` stack a block.
+- Link UTM: the destination is a searchable combobox (name, kind, path shown
+  once chosen), sources are one-tap buttons, the medium is the shared
+  dropdown, and the link with its four tags sits in a right-hand panel that
+  stays in view on wide screens and lists what is still missing until ready.
 - Verification: `npm test` 1083 pass / 0 fail, `npm run check` 0 errors /
   0 hints, `npm run build` complete. Browser (headless Chromium, `dev:local`):
   topbar 64 px at 1440/1024 and 60 px at 390 with no overflow; shipping form

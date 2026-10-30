@@ -18,7 +18,10 @@ import {
   timeStatements,
   trendSeries,
   trendStatements,
+  utmReport,
+  utmStatements,
 } from "./insights.ts";
+import { UTM_NONE_LABEL } from "./insights-view.ts";
 import { previousInsightsPeriod, resolveInsightsPeriod, type InsightsPeriod } from "./insights-period.ts";
 import { RELEASED_ORDER, releasedOrderSql } from "./order-metrics.ts";
 import { splitMigrationStatements } from "./schema-version.ts";
@@ -28,6 +31,7 @@ import { GET as trendRoute } from "../pages/api/admin/insights/trend.ts";
 import { GET as productsRoute } from "../pages/api/admin/insights/products.ts";
 import { GET as locationsRoute } from "../pages/api/admin/insights/locations.ts";
 import { GET as timesRoute } from "../pages/api/admin/insights/times.ts";
+import { GET as utmRoute } from "../pages/api/admin/insights/utm.ts";
 
 type Value = null | number | string;
 type Recorded = { sql: string; values: Value[] };
@@ -508,6 +512,7 @@ test("every insights statement reads orders through an index, never a table scan
     ...productStatements(d1, OCTOBER),
     ...locationStatements(d1, OCTOBER, { channel: "meta" }),
     ...timeStatements(d1, OCTOBER),
+    ...utmStatements(d1, OCTOBER, { channel: "meta" }),
   ] as unknown as Recorded[];
   for (const { sql, values } of statements) {
     const plan = (sqlite.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...values) as Array<{ detail: string }>)
@@ -517,4 +522,92 @@ test("every insights statement reads orders through an index, never a table scan
     assert.match(plan, /SEARCH (orders|o) USING (COVERING )?INDEX/, plan);
     assert.doesNotMatch(plan, /SCAN (order_items|oi)\b/, plan);
   }
+});
+
+// ── A-429 UTM campaigns ─────────────────────────────────────────────────────
+
+function seedUtm() {
+  const seeded = openDatabase();
+  const { order } = seeded;
+  const tags = (fields: Record<string, string>) => JSON.stringify({ fbclid: "fb.1", ...fields });
+  const promo = { utm_source: "facebook", utm_medium: "paid_social" };
+  // One campaign spelled two ways, two contents (one untagged content).
+  order({ at: "2026-10-02T03:00:00.000Z", amount: 100_000, shipping: "delivered", clicks: tags({ ...promo, utm_campaign: "Promo-Okt ", utm_content: "Video-A" }) });
+  order({ at: "2026-10-03T03:00:00.000Z", amount: 150_000, shipping: "returned", clicks: tags({ ...promo, utm_campaign: "promo-okt", utm_content: "video-a" }) });
+  order({ at: "2026-10-04T03:00:00.000Z", amount: 120_000, clicks: tags({ utm_source: " FACEBOOK", utm_medium: "Paid_Social", utm_campaign: "PROMO-OKT" }) });
+  order({ at: "2026-10-04T04:00:00.000Z", shipping: "abandoned", clicks: tags({ ...promo, utm_campaign: "promo-okt" }) });
+  // A released order counts as an order, never as revenue.
+  order({ at: "2026-10-05T03:00:00.000Z", amount: 90_000, shipping: "cancelled", clicks: tags({ utm_source: "google", utm_medium: "cpc", utm_campaign: "brand" }) });
+  order({ at: "2026-10-05T04:00:00.000Z", amount: 200_000, shipping: "delivered", clicks: tags({ utm_source: "google", utm_medium: "cpc", utm_campaign: "brand" }) });
+  // A blank tag and a missing tag are the same campaign row.
+  order({ at: "2026-10-07T03:00:00.000Z", clicks: tags({ utm_source: "tiktok", utm_medium: "  ", utm_campaign: "flash" }) });
+  order({ at: "2026-10-07T04:00:00.000Z", clicks: tags({ utm_source: "tiktok", utm_campaign: "flash" }) });
+  // Untagged: no click JSON, click ids only, blank tags, broken JSON.
+  order({ at: "2026-10-06T03:00:00.000Z", amount: 80_000, shipping: "delivered" });
+  order({ at: "2026-10-06T04:00:00.000Z", amount: 70_000, clicks: JSON.stringify({ gclid: "g.1" }) });
+  order({ at: "2026-10-06T05:00:00.000Z", amount: 60_000, clicks: tags({ utm_source: "  ", utm_campaign: "" }) });
+  order({ at: "2026-10-06T06:00:00.000Z", shipping: "abandoned", clicks: "{not json" });
+  // Outside the period.
+  order({ at: "2026-09-20T03:00:00.000Z", amount: 999_000, clicks: tags({ ...promo, utm_campaign: "promo-okt" }) });
+  return seeded;
+}
+
+test("REQ-261: UTM tags are trimmed and lower-cased into one campaign; untagged orders form the last row", async () => {
+  const { d1 } = seedUtm();
+  const { data } = await utmReport(d1, OCTOBER);
+  assert.deepEqual(
+    data.rows.map((row) => [row.source, row.medium, row.campaign, row.untagged]),
+    [
+      ["google", "cpc", "brand", false],
+      ["facebook", "paid_social", "promo-okt", false],
+      ["tiktok", null, "flash", false],
+      [null, null, null, true],
+    ],
+  );
+  const [brand, promo, flash, none] = data.rows;
+  assert.equal(flash.orders, 2, "a blank utm_medium and a missing one are one row");
+  assert.equal(promo.orders, 3, "`Promo-Okt `, `promo-okt` and `PROMO-OKT` are one row");
+  assert.equal(promo.leads, 1);
+  assert.equal(promo.revenue, 220_000, "the returned order is released, not revenue");
+  assert.equal(promo.delivered, 1);
+  assert.equal(promo.delivered_revenue, 100_000);
+  assert.equal(promo.returned, 1);
+  assert.equal(promo.closing_rate, 75); // 3 / (3 + 1)
+  assert.equal(promo.delivered_share, 33.33);
+  assert.equal(promo.return_share, 50);
+  assert.deepEqual(
+    promo.contents.map((content) => [content.content, content.orders, content.leads]),
+    [["video-a", 2, 0], [null, 1, 1]],
+  );
+  assert.equal(brand.orders, 2);
+  assert.equal(brand.live_orders, 1);
+  assert.equal(brand.revenue, 200_000, "the cancelled order is no revenue");
+  assert.equal(none.orders, 3);
+  assert.equal(none.leads, 1);
+  assert.deepEqual(none.contents, []);
+  assert.equal(UTM_NONE_LABEL, "(tanpa UTM)");
+  assert.equal(data.tagged_share, 70); // 7 of 10 orders
+
+  // Totals are the landing report's for the same period: one order definition.
+  const landing = await landingRanking(d1, OCTOBER);
+  assert.deepEqual(data.totals, {
+    leads: landing.data.totals.leads,
+    orders: landing.data.totals.orders,
+    revenue: landing.data.totals.revenue,
+  });
+  assert.deepEqual(data.totals, { leads: 2, orders: 10, revenue: 830_000 });
+});
+
+test("UTM route: aggregates only, channel filter, no-store, an empty period is empty", async () => {
+  const { d1 } = seedUtm();
+  const response = await utmRoute(routeContext(d1, "date_filter=custom&date_start=2026-10-01&date_end=2026-10-28"));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const body = await response.text();
+  assert.doesNotMatch(body, PERSONAL);
+  assert.doesNotMatch(body, /fb\.1|g\.1/, "click-id values never leave");
+  const google = await (await utmRoute(routeContext(d1, "date_filter=custom&date_start=2026-10-01&date_end=2026-10-28&channel=google"))).json();
+  assert.ok(google.data.rows.every((row: { source: string | null }) => row.source !== "facebook"));
+  const empty = await (await utmRoute(routeContext(d1, "date_filter=custom&date_start=2026-08-01&date_end=2026-08-02"))).json();
+  assert.deepEqual(empty.data, { rows: [], totals: { leads: 0, orders: 0, revenue: 0 }, tagged_share: 0 });
 });

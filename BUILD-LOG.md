@@ -7206,3 +7206,27 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
 - Contract: `docs/OPS-API.md` §5.
 - Verification: `npm test` 1070 pass / 0 fail, `npm run check` 0 errors
   (538 files), `npm run docs:check` passed, `npm run build` complete.
+### Entry 196: Analitik › UTM (A-429, A-430)
+
+- PRD A45, REQ-261. One grouped read per screen like the other Analitik
+  reports: `utmStatements` groups the period's orders by `utm_source`,
+  `utm_medium`, `utm_campaign` and `utm_content`, each trimmed and
+  lower-cased in SQL with a blank tag counted as missing (`utmTagSql`).
+  `shapeUtm` folds the content split under each campaign, puts the untagged
+  orders in a last "(tanpa UTM)" row, and ranks like the landing report
+  (delivered revenue first). Order, lead and released definitions are the
+  shared `order-metrics.ts` rules, so the totals equal the landing report's.
+- `GET /api/admin/insights/utm` through `answerInsights` (period, channel and
+  source filters, `no-store`, `X-D1-Rows-Read`); access follows the Analitik
+  prefix (owner, admin, advertiser).
+- Screen `/admin/analytics/utm`: campaigns table (cards under `md`), drill to
+  content and back without a second request, the share of orders that carry
+  a tag. The "(tanpa UTM)" label lives in `insights-view.ts` so the island
+  does not bundle the server module.
+- Cost: `utm-90d` reads 79,600 rows on the 20k-order fixture (landing-90d
+  79,670); ceiling 90,000 in `scripts/measure-insights.ts`.
+- Browser (headless Chromium, seeded `dev:local`): 1366 and 390 px, drill and
+  back, empty, error and retry, no overflow; advertiser 200, customer service
+  403. Mutation-checked: dropping `lower` or `NULLIF` fails the tests.
+- Verification: `npm test` 1072 pass / 0 fail, `npm run check` 0 errors
+  (540 files), `npm run docs:check` passed, `npm run build` complete.

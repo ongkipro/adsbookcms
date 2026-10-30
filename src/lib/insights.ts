@@ -756,6 +756,168 @@ export async function orderTimes(database: D1Database, period: InsightsPeriod, f
   return { data: shapeTimes(rowsOf<TimeGroupRow>(results[0])), rowsRead: batchRowsRead(results) };
 }
 
+// ── A-429 UTM campaigns ─────────────────────────────────────────────────────
+
+const UTM_PARTS = ["source", "medium", "campaign", "content"] as const;
+
+/**
+ * One captured UTM tag as the report groups it (REQ-261): trimmed and
+ * lower-cased, empty as NULL. `Promo-Okt ` and `promo-okt` are one campaign.
+ * SQLite's `lower` folds ASCII only, which every tag the link builder (REQ-262)
+ * writes is.
+ */
+export function utmTagSql(part: (typeof UTM_PARTS)[number], alias = "") {
+  return `NULLIF(lower(trim(CASE WHEN json_valid(${alias}ad_click_ids)
+    THEN json_extract(${alias}ad_click_ids, '$.utm_${part}') END)), '')`;
+}
+
+type UtmGroupRow = {
+  source: string | null;
+  medium: string | null;
+  campaign: string | null;
+  content: string | null;
+  leads: number;
+  orders: number;
+  live_orders: number;
+  revenue: number;
+  delivered: number;
+  delivered_revenue: number;
+  returned: number;
+};
+
+export function utmStatements(database: D1Database, period: InsightsPeriod, filter: InsightsFilter = {}) {
+  const range = periodClause(period);
+  const where = filterClause(filter);
+  const order = `(${ORDER_ROW})`;
+  return [
+    database
+      .prepare(
+        `SELECT ${UTM_PARTS.map((part) => `${utmTagSql(part)} AS ${part}`).join(", ")},
+          SUM(CASE WHEN (${LEAD_ROW}) THEN 1 ELSE 0 END) AS leads,
+          SUM(CASE WHEN ${order} THEN 1 ELSE 0 END) AS orders,
+          SUM(CASE WHEN ${order} AND ${LIVE} THEN 1 ELSE 0 END) AS live_orders,
+          SUM(CASE WHEN ${order} AND ${LIVE} THEN total_amount ELSE 0 END) AS revenue,
+          SUM(CASE WHEN ${order} AND shipping_status = 'delivered' THEN 1 ELSE 0 END) AS delivered,
+          SUM(CASE WHEN ${order} AND shipping_status = 'delivered' AND ${LIVE} THEN total_amount ELSE 0 END) AS delivered_revenue,
+          SUM(CASE WHEN ${order} AND shipping_status = 'returned' THEN 1 ELSE 0 END) AS returned
+        FROM orders
+        WHERE ${range.sql}${where.sql}
+        GROUP BY source, medium, campaign, content`,
+      )
+      .bind(...range.params, ...where.params),
+  ];
+}
+
+type UtmMetrics = {
+  leads: number;
+  orders: number;
+  live_orders: number;
+  revenue: number;
+  delivered: number;
+  delivered_revenue: number;
+  returned: number;
+  /** Orders over orders plus leads, in percent — the landing report's rule. */
+  closing_rate: number;
+  /** Delivered over orders, in percent. */
+  delivered_share: number;
+  /** Returned over delivered plus returned, in percent. */
+  return_share: number;
+};
+
+const emptyUtmMetrics = (): UtmMetrics => ({
+  leads: 0, orders: 0, live_orders: 0, revenue: 0, delivered: 0, delivered_revenue: 0, returned: 0,
+  closing_rate: 0, delivered_share: 0, return_share: 0,
+});
+
+function addUtmMetrics(target: UtmMetrics, group: UtmGroupRow) {
+  target.leads += num(group.leads);
+  target.orders += num(group.orders);
+  target.live_orders += num(group.live_orders);
+  target.revenue += num(group.revenue);
+  target.delivered += num(group.delivered);
+  target.delivered_revenue += num(group.delivered_revenue);
+  target.returned += num(group.returned);
+}
+
+function finishUtmMetrics<T extends UtmMetrics>(row: T): T {
+  row.closing_rate = pct(row.orders, row.orders + row.leads);
+  row.delivered_share = pct(row.delivered, row.orders);
+  row.return_share = pct(row.returned, row.delivered + row.returned);
+  return row;
+}
+
+const byUtmValue = (a: UtmMetrics, b: UtmMetrics) =>
+  b.delivered_revenue - a.delivered_revenue || b.revenue - a.revenue || b.orders - a.orders || b.leads - a.leads;
+
+/**
+ * One row per source / medium / campaign, each with its `utm_content` split;
+ * the untagged orders form the last row. Ranked like the landing report,
+ * delivered revenue first.
+ */
+export function shapeUtm(groups: readonly UtmGroupRow[]) {
+  type Content = UtmMetrics & { content: string | null };
+  type Row = UtmMetrics & {
+    key: string;
+    source: string | null;
+    medium: string | null;
+    campaign: string | null;
+    untagged: boolean;
+    contents: Content[];
+  };
+  const rows = new Map<string, Row & { byContent: Map<string | null, Content> }>();
+  for (const group of groups) {
+    const untagged = !group.source && !group.medium && !group.campaign;
+    const key = untagged ? "" : JSON.stringify([group.source, group.medium, group.campaign]);
+    let row = rows.get(key);
+    if (!row) {
+      row = {
+        key,
+        source: untagged ? null : group.source ?? null,
+        medium: untagged ? null : group.medium ?? null,
+        campaign: untagged ? null : group.campaign ?? null,
+        untagged,
+        ...emptyUtmMetrics(),
+        contents: [],
+        byContent: new Map(),
+      };
+      rows.set(key, row);
+    }
+    addUtmMetrics(row, group);
+    const contentKey = untagged ? null : group.content ?? null;
+    let content = row.byContent.get(contentKey);
+    if (!content) {
+      content = { content: contentKey, ...emptyUtmMetrics() };
+      row.byContent.set(contentKey, content);
+    }
+    addUtmMetrics(content, group);
+  }
+  const shaped: Row[] = [...rows.values()]
+    .map(({ byContent, ...row }) =>
+      finishUtmMetrics({
+        ...row,
+        contents: row.untagged ? [] : [...byContent.values()].map(finishUtmMetrics).sort(byUtmValue),
+      }),
+    )
+    .filter((row) => row.orders > 0 || row.leads > 0)
+    .sort((a, b) => Number(a.untagged) - Number(b.untagged) || byUtmValue(a, b) || a.key.localeCompare(b.key));
+  const totals = shaped.reduce(
+    (sum, row) => ({ leads: sum.leads + row.leads, orders: sum.orders + row.orders, revenue: sum.revenue + row.revenue }),
+    { leads: 0, orders: 0, revenue: 0 },
+  );
+  const untaggedOrders = shaped.find((row) => row.untagged)?.orders ?? 0;
+  return {
+    rows: shaped,
+    totals,
+    /** Orders carrying a source, medium or campaign tag, in percent of all orders. */
+    tagged_share: pct(totals.orders - untaggedOrders, totals.orders),
+  };
+}
+
+export async function utmReport(database: D1Database, period: InsightsPeriod, filter: InsightsFilter = {}) {
+  const results = (await database.batch(utmStatements(database, period, filter))) as BatchResult[];
+  return { data: shapeUtm(rowsOf<UtmGroupRow>(results[0])), rowsRead: batchRowsRead(results) };
+}
+
 // ── Route boundary ──────────────────────────────────────────────────────────
 
 /**

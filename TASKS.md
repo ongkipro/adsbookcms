@@ -4174,14 +4174,16 @@ report query.
   against the real route handlers (as `headless-client.test.ts` does) and its
   `--json` output equals the API page; the credentials file is 0600 and the key
   never appears in stdout or stderr.
-- [ ] **A-429** — UTM aggregation in `src/lib/insights.ts`: source / medium /
+- [x] **A-429** — **Done locally 2026-10-30.** `utmStatements`/`shapeUtm`/`utmReport` in `insights.ts`, tags normalised in SQL (`utmTagSql`: trim, lower, blank = NULL). Tests: `Promo-Okt `, `promo-okt`, `PROMO-OKT` share a row; a blank and a missing medium share a row; untagged (no JSON, click ids only, blank tags, broken JSON) is the last row; totals equal the landing report; the statement walks `idx_orders_created_at`. Mutation-checked (no `lower`, no `NULLIF`). `measure-insights.ts`: `utm-90d` reads 79,600 rows on the 20k fixture (ceiling 90,000, the landing screen's), route totals equal the independent arithmetic.
+  UTM aggregation in `src/lib/insights.ts`: source / medium /
   campaign, drill to content, "(tanpa UTM)" row, trim + lower-case, same
   `orderRowSql()` and period rules; `GET /api/admin/insights/utm`.
   -> REQ: REQ-261 · deps: [] · Done when: tests prove `Promo-Okt ` and
   `promo-okt` share a row, untagged orders land in "(tanpa UTM)", totals equal
   the summary report for the same period; `rows_read` recorded on the
   locations-90d fixture.
-- [ ] **A-430** — Analitik › UTM screen (`InsightsReport.tsx`, nav entry,
+- [x] **A-430** — **Done locally 2026-10-30.** `UtmView` in `InsightsReport.tsx`, nav child "UTM", `/admin/analytics/utm`. Headless Chromium on a seeded `dev:local` store: table at 1366 px and cards at 390 px, drill to content and back at both widths, no horizontal overflow, the sidebar link carries the period, empty state, error state (500) with retry; an advertiser opens it and its API answers 200, customer service is redirected and its API answers 403.
+  Analitik › UTM screen (`InsightsReport.tsx`, nav entry,
   period carry) in the existing report idiom.
   -> REQ: REQ-261 · deps: [A-429] · Done when: browser run at 1366 and 390 px
   shows the table, the drill to content and back, empty and error states, no

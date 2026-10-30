@@ -8,7 +8,10 @@ export const INSIGHTS_REPORTS = {
   products: { label: 'Produk', path: '/admin/analytics/products', description: 'Lihat unit terjual, omset produk, dan varian yang dipilih pembeli.' },
   locations: { label: 'Lokasi', path: '/admin/analytics/locations', description: 'Telusuri pesanan dan retur dari provinsi, kota, hingga kecamatan.' },
   times: { label: 'Waktu beli', path: '/admin/analytics/times', description: 'Lihat kapan pesanan dibuat dalam waktu Asia/Jakarta.' },
+  utm: { label: 'UTM', path: '/admin/analytics/utm', description: 'Bandingkan kampanye dari tag UTM link iklan, lalu rinci per konten.' },
 } as const;
+/** The UTM report's row for orders that carry no source, medium or campaign tag (REQ-261). */
+export const UTM_NONE_LABEL = '(tanpa UTM)';
 export type InsightsReport = keyof typeof INSIGHTS_REPORTS;
 export const INSIGHTS_CHANNEL_OPTIONS = [
   { value: '', label: 'Semua kanal' }, { value: 'meta', label: 'Meta' },

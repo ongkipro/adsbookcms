@@ -1,21 +1,22 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { ArrowDownUp, ChartNoAxesCombined, Filter, Package } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { AdminDateRangeFilter, type AdminDateSelection } from './AdminDateRangeFilter';
 import { FilterBar, FilterField, FilterSelect, SearchInput } from './filter-bar';
-import { INSIGHTS_CHANNEL_OPTIONS, insightsDateSelection, insightsInitialQuery, insightsMoney as money, insightsNumber as number, insightsOrderLink, insightsPercent as percent, sortInsightRows, withInsightsPeriod, type InsightsReport as Report } from '../../lib/insights-view';
+import { INSIGHTS_CHANNEL_OPTIONS, UTM_NONE_LABEL, insightsDateSelection, insightsInitialQuery, insightsMoney as money, insightsNumber as number, insightsOrderLink, insightsPercent as percent, sortInsightRows, withInsightsPeriod, type InsightsReport as Report } from '../../lib/insights-view';
 import { INSIGHTS_MAX_RANGE_DAYS } from '../../lib/insights-period';
 import { SOURCE_SLUG_NONE_FILTER, SOURCE_SLUG_NONE_LABEL } from '../../lib/source-slug';
-import type { landingRanking, trendSeries, productRanking, locationRanking, orderTimes } from '../../lib/insights';
+import type { landingRanking, trendSeries, productRanking, locationRanking, orderTimes, utmReport } from '../../lib/insights';
 
 type Landing = Awaited<ReturnType<typeof landingRanking>>['data'];
 type Trend = Awaited<ReturnType<typeof trendSeries>>['data'];
 type Products = Awaited<ReturnType<typeof productRanking>>['data'];
 type Locations = Awaited<ReturnType<typeof locationRanking>>['data'];
 type Times = Awaited<ReturnType<typeof orderTimes>>['data'];
-type ReportData = Landing | Trend | Products | Locations | Times;
+type Utm = Awaited<ReturnType<typeof utmReport>>['data'];
+type ReportData = Landing | Trend | Products | Locations | Times | Utm;
 type Choice = { value: string; label: string };
 const Chart = lazy(() => import('./InsightsChart').catch(() => ({
   default: function ChartUnavailable() {
@@ -138,6 +139,7 @@ export function InsightsReport({ report, initialQuery = '', sources = [], produc
       {report === 'trend' && <TrendView data={data as Trend} metric={metric} setMetric={setMetric} />}
       {report === 'locations' && ((data as Locations).provinces.length || (data as Locations).incomplete_address.orders ? <LocationsView data={data as Locations} onPlace={place} /> : <Empty reset={reset} />)}
       {report === 'times' && ((data as Times).total ? <TimesView data={data as Times} /> : <Empty reset={reset} />)}
+      {report === 'utm' && ((data as Utm).rows.length ? <UtmView data={data as Utm} /> : <Empty reset={reset} />)}
     </>}
   </div>;
 }
@@ -223,4 +225,51 @@ function TimesView({ data }: { data: Times }) {
   return <figure className={sectionClass}><figcaption className="mb-3 text-sm">{number(data.total)} pesanan · WIB. Angka = jumlah pesanan, warna makin pekat = lebih banyak (0–{number(data.max)}).</figcaption>
     <div className="overflow-x-auto [&>div]:overflow-visible" tabIndex={0} role="region" aria-label="Tabel waktu beli, geser untuk melihat semua jam"><Table><TableHeader><TableRow><TableHead>Jam</TableHead>{days.map((day) => <TableHead key={day}>{day}</TableHead>)}</TableRow></TableHeader><TableBody>{Array.from({ length: 24 }, (_, hour) => <TableRow key={hour}><TableCell className="font-medium">{String(hour).padStart(2, '0')}:00</TableCell>{days.map((day, weekday) => <TableCell key={day} className="text-center tabular-nums" style={{ backgroundColor: `color-mix(in srgb, var(--chart-1) ${data.cells[weekday][hour] ? 10 + Math.round(data.cells[weekday][hour] / Math.max(1, data.max) * 22) : 0}%, transparent)` }}>{data.cells[weekday][hour]}</TableCell>)}</TableRow>)}</TableBody></Table></div>
   </figure>;
+}
+
+const utmColumns = [
+  ['leads', 'Lead'], ['orders', 'Pesanan'], ['revenue', 'Omset'], ['delivered_revenue', 'Omset terkirim'],
+  ['closing_rate', 'Closing'], ['delivered', 'Terkirim'], ['returned', 'Retur'], ['return_share', 'RTS'],
+] as const;
+type UtmRow = Utm['rows'][number];
+type UtmMetrics = Pick<UtmRow, typeof utmColumns[number][0]>;
+function utmValue(row: UtmMetrics, key: typeof utmColumns[number][0]) {
+  if (key === 'revenue' || key === 'delivered_revenue') return money(row[key]);
+  if (key === 'return_share') return <ReturnShare value={row.return_share} />;
+  if (key === 'closing_rate') return percent(row.closing_rate);
+  return number(row[key]);
+}
+const utmCampaign = (row: UtmRow) => (row.untagged ? UTM_NONE_LABEL : row.campaign ?? '(tanpa campaign)');
+const utmOrigin = (row: UtmRow) => (row.untagged ? 'Pesanan tanpa tag source, medium, atau campaign' : `${row.source ?? '—'} / ${row.medium ?? '—'}`);
+function UtmTable({ label, rows }: { label: string; rows: Array<{ key: string; name: ReactNode; detail?: string; metrics: UtmMetrics }> }) {
+  return <>
+    <div className="hidden overflow-x-auto rounded-lg border border-border md:block [&>div]:overflow-visible" tabIndex={0} role="region" aria-label={`${label}, geser untuk melihat semua kolom`}><Table><TableHeader><TableRow><TableHead>{label}</TableHead>{utmColumns.map(([key, title]) => <TableHead key={key} className="text-right">{title}</TableHead>)}</TableRow></TableHeader>
+      <TableBody>{rows.map((row) => <TableRow key={row.key}><TableCell className="min-w-48"><div className="break-words font-medium">{row.name}</div>{row.detail && <div className="text-xs text-muted-foreground">{row.detail}</div>}</TableCell>{utmColumns.map(([key]) => <TableCell key={key} className="text-right tabular-nums">{utmValue(row.metrics, key)}</TableCell>)}</TableRow>)}</TableBody>
+    </Table></div>
+    <div className="flex flex-col gap-3 md:hidden">{rows.map((row) => <article key={row.key} className={sectionClass}><h3 className="break-words text-base font-semibold">{row.name}</h3>{row.detail && <p className="text-xs text-muted-foreground">{row.detail}</p>}<dl className="mt-3 grid grid-cols-2 gap-3">{utmColumns.map(([key, title]) => <div key={key}><dt className="text-xs text-muted-foreground">{title}</dt><dd className="text-sm tabular-nums">{utmValue(row.metrics, key)}</dd></div>)}</dl></article>)}</div>
+  </>;
+}
+function UtmView({ data }: { data: Utm }) {
+  // The content split arrives with each campaign; drilling reads nothing new.
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const open = data.rows.find((row) => row.key === openKey && !row.untagged) ?? null;
+  return <section className="flex min-w-0 flex-col gap-3">
+    <nav aria-label="Tingkat UTM" className="min-w-0"><ol className="flex flex-wrap items-center gap-1 text-base font-semibold">
+      <li>{open ? <Button variant="link" onClick={() => setOpenKey(null)}>Semua kampanye</Button> : 'Semua kampanye'}</li>
+      {open && <li className="flex min-w-0 items-center gap-1"><span aria-hidden="true">›</span><span aria-current="page" className="break-words">{utmCampaign(open)}</span></li>}
+    </ol></nav>
+    {open ? <>
+      <p className="text-sm">{utmOrigin(open)} · rincian per utm_content</p>
+      <UtmTable label="Konten" rows={open.contents.map((content) => ({ key: content.content ?? '', name: content.content ?? '(tanpa content)', metrics: content }))} />
+    </> : <>
+      <p className="text-sm">{number(data.totals.orders)} pesanan · {money(data.totals.revenue)} omset · {percent(data.tagged_share)} pesanan ber-UTM</p>
+      <p className="text-xs text-muted-foreground">Tag disatukan tanpa beda huruf besar/kecil dan spasi. Closing = pesanan / (pesanan + lead). RTS = retur / (terkirim + retur).</p>
+      <UtmTable label="Kampanye" rows={data.rows.map((row) => ({
+        key: row.key,
+        name: row.untagged ? utmCampaign(row) : <Button variant="link" className="h-auto p-0 text-left whitespace-normal" onClick={() => setOpenKey(row.key)}>{utmCampaign(row)}</Button>,
+        detail: utmOrigin(row),
+        metrics: row,
+      }))} />
+    </>}
+  </section>;
 }

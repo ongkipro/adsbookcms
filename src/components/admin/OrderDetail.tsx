@@ -6,6 +6,7 @@ import { TrafficSourceBadge } from "./TrafficSourceBadge";
 import { type SyntheticEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildWaUrl, defaultCrmTemplates, renderCrmMessage } from "../../lib/crm-template";
 import { CrmActionGroup } from "./CrmActionGroup";
+import { PaymentSwitchDialog } from "./PaymentSwitchDialog";
 import { CRM_STEPS } from "./CrmActionButton";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -114,6 +115,14 @@ type Order = {
   cod_service_fee_vat: number;
   cod_fee_bearer: "buyer" | "seller";
   payment_method: string;
+  /** Set when an operator moved this order off COD (src/lib/payment-switch.ts). */
+  payment_switched_from?: string | null;
+  payment_switched_at?: string | null;
+  payment_switched_by?: string | null;
+  /** COD only: whether it can still move to transfer/VA, and the total then. */
+  payment_switch?: { available: boolean; reason: string | null; total_amount: number } | null;
+  /** The buyer's /payment page for an unpaid prepaid order (fragment locator). */
+  payment_link?: string | null;
   payment_status: string;
   shipping_status: string;
   /** Set once the order is void; see `isVoidOrder`. */
@@ -815,6 +824,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
   const [crmTemplates, setCrmTemplates] = useState({ ...defaultCrmTemplates });
   const [crmSellerName, setCrmSellerName] = useState("");
   const [crmBankAccounts, setCrmBankAccounts] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -842,7 +852,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [invoice]);
+  }, [invoice, reloadKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1645,6 +1655,37 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 </span>
               </div>
 
+              {order.payment_switched_at && (
+                <p className="rounded-lg bg-slate-50 px-3 py-2 text-slate-600">
+                  Diganti dari {String(order.payment_switched_from || "cod").toUpperCase()} pada {formatDate(order.payment_switched_at)}
+                  {order.payment_switched_by ? ` oleh ${order.payment_switched_by}` : ""}.
+                </p>
+              )}
+              {order.payment_switch?.available ? (
+                <PaymentSwitchDialog
+                  invoice={order.order_number}
+                  totalAmount={order.payment_switch.total_amount}
+                  onSwitched={() => setReloadKey((value) => value + 1)}
+                />
+              ) : order.payment_switch?.reason && order.shipping_status === "pending" && !isVoidOrder(order) ? (
+                <p className="text-slate-500">Ganti ke transfer/VA belum bisa: {order.payment_switch.reason}</p>
+              ) : null}
+              {order.payment_link && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(`${window.location.origin}${order.payment_link}`)
+                      .then(() => toast.success("Link pembayaran disalin. Kirim ke pembeli."))
+                      .catch(() => toast.error("Link gagal disalin."));
+                  }}
+                >
+                  Salin link pembayaran
+                </Button>
+              )}
+
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-medium">Status Pembayaran</span>
                 <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium ${paymentStatusStyle}`}>
@@ -1769,10 +1810,19 @@ export function OrderDetail({ invoice }: { invoice: string }) {
               </CardHeader>
               <CardContent className="p-5 sm:p-6 space-y-3 text-xs">
                 {order.kelola.synced_at ? (
-                  <p className="flex items-center gap-2 font-medium text-emerald-700">
-                    <Check className="size-4" aria-hidden="true" />
-                    Terkirim {formatDate(order.kelola.synced_at)}
-                  </p>
+                  <>
+                    <p className="flex items-center gap-2 font-medium text-emerald-700">
+                      <Check className="size-4" aria-hidden="true" />
+                      Terkirim {formatDate(order.kelola.synced_at)}
+                    </p>
+                    {/* Kelola answers a resend of the same order code as a
+                        duplicate, so a switch after the push cannot reach it. */}
+                    {order.payment_switched_at && order.payment_switched_at > order.kelola.synced_at && (
+                      <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 font-medium text-amber-900">
+                        Pembayaran diganti ke {paymentMethodLabels[order.payment_method] || order.payment_method} setelah order terkirim. Kelola masih mencatat COD — perbarui pembayaran dan nilai COD di Kelola secara manual.
+                      </p>
+                    )}
+                  </>
                 ) : order.kelola.voided ? (
                   <p className="text-slate-500">Order dibatalkan, tidak dikirim ke Kelola.</p>
                 ) : (

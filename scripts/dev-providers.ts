@@ -13,6 +13,8 @@
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { indonesiaDistricts } from "../src/data/indonesia-districts.ts";
+import { isAutoLarisCheckoutChannel } from "../src/lib/autolaris-client.ts";
+import { calculatePaymentAdminFee } from "../src/lib/payment-fee-policy.ts";
 
 type Json = Record<string, unknown> | unknown[];
 
@@ -145,13 +147,16 @@ export function createDevProviderServer(): Server {
       return send(response, 200, {
         rc: "00",
         ket: "SUCCESS",
-        data: ["QRIS", "VABCA", "VAMANDIRI", "VABNI", "VABRI"].map((channel_code) => ({ channel_code })),
+        data: ["QRIS", "VABCA", "VAMANDIRI", "VABNI", "VABRI", "VAPERMATA"].map((channel_code) => ({ channel_code })),
       });
     }
     if (url.pathname === "/api/h2h/submit" && method === "POST") {
       const body = await readBody(request);
       const amount = Number(body.grand_total) || 0;
-      const admin = String(body.channel_code) === "QRIS" ? Math.round(amount * 0.007) : 4000;
+      // The fee table the store itself shows the buyer, so the local
+      // instruction never disagrees with the checkout or invoice label.
+      const channel = String(body.channel_code);
+      const admin = isAutoLarisCheckoutChannel(channel) ? calculatePaymentAdminFee(channel, amount) : 0;
       const transactionId = String(Date.now()) + String((sequence += 1));
       payments.set(transactionId, { paid: false, total: amount + admin, receiver: String(body.receiver_name || ""), channel: String(body.channel_code || "") });
       const qris = String(body.channel_code) === "QRIS";

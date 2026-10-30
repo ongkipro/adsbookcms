@@ -4070,6 +4070,37 @@ Proposed 2026-10-29. PRD A43. Rates stay live; only the area lookup is stored.
   size (target under 150 KB raw), a new install resolves a sampled district
   with no Mengantar call, and the generator is committed under `scripts/`.
 
+## A44 — Operator switches a COD order to transfer/VA on the admin order
+
+Added 2026-10-30 on request: a COD order whose buyer then wants to transfer;
+the operator switches it on the admin invoice page ("admin yang mengganti di
+halaman inv admin"). A first cut put the chooser on the buyer's `/thanks`; the
+owner corrected that it is an operator action, and the buyer-side switch was
+removed before merge. Direction: COD → prepaid only. Kelola: its order webhook
+keys on the order code and answers a resend as a duplicate
+(`src/plugins/kelola/sync.ts`); no update route is known, so the order is
+flagged for a manual Kelola correction instead.
+
+- [x] **A-421** — `src/lib/payment-switch.ts`, PATCH
+  `/api/admin/orders/[id]` action `switch-payment` (session operator recorded),
+  `payment_switch` / `payment_link` on the admin order read,
+  `PaymentSwitchDialog`, migration `0074` (`payment_switched_from/_at/_by`),
+  the Kelola notice, and the local AutoLaris simulator charging the store's
+  own fee table.
+  -> REQ: REQ-250 · deps: [] · Done when: tests prove the COD-fee drop, the
+  operator record, the refusals, the failed-provider path and the guarded
+  write (mutation-checked); a browser run switches a demo COD order to VA from
+  the admin order and the buyer link resolves to the new instruction.
+  Done 2026-10-30: `payment-switch.test.ts` 5/5 (dispatch guard and COD-fee
+  mutations each fail a test); `dev-providers.test.ts` pins QRIS 0.7% and VA
+  BCA Rp6.500. Demo: admin INV-10014 COD Rp142.596 → VA BCA, total Rp138.000,
+  "Diganti dari COD … oleh admin", Mengantar push held for payment; the copied
+  link's instruction is VABCA Rp138.000 + Rp6.500. Earlier INV-10019 showed
+  the Kelola notice with Kelola enabled locally on a dummy URL. A Base UI
+  Select inside the Radix dialog dropped its selection, so the dialog lists
+  the methods as buttons. Not run in a browser: manual transfer (no demo
+  seller account; covered by the test) and the dialog at 390 px.
+
 ## Integration — parallel streams and one release
 
 Added 2026-10-29 after the plan review. A36–A43 run as parallel streams on

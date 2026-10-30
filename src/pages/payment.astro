@@ -230,6 +230,7 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
       success?: boolean;
       is_paid?: boolean;
       order_number?: string;
+      payment_method?: string;
       payment_status?: string;
       payment?: PaymentDetails | null;
       error?: string;
@@ -789,6 +790,10 @@ if (Array.from(Astro.url.searchParams.keys()).some((key) => key !== 'preview')) 
         const data = await response.json() as StatusResponse;
         if (!response.ok || data.success === false) throw new Error(data.error || 'Status pembayaran tidak tersedia.');
         orderNumber = text(data.order_number || orderNumber);
+        // The server's method, not the tab's: an order an operator moved off
+        // COD, or one opened from a link on another device, would otherwise
+        // reach /thanks as COD (or the COD default) once paid.
+        if (data.payment_method) stored = { ...stored, payment_method: text(data.payment_method) };
         if (data.is_paid) {
           // Paid is paid, whatever the instruction row says about itself.
           redirectToThanks();

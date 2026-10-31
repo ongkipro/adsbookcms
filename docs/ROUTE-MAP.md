@@ -284,7 +284,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `manual-payment-reconciliation` | 6 | `admin_credentials` `orders` `payment_reconciliation_audits` `payment_transaction_attempts` `payment_transactions` `stores` | ✓ | `/api/admin/payment-reconciliation` |
 | `mengantar-areas` | 6 | `mengantar_areas` | ✓ | `/api/locations` |
 | `mengantar-client` | 21 | — | ✓ | `/api/locations` `/api/submit-order` `/api/admin/ongkir` `/api/admin/orders/[id]` `/api/admin/settings` `/api/admin/shipping` `/api/admin/warehouses` |
-| `mengantar-dispatch` | 4 | `courier_rules` `order_items` `orders` `pickup_schedules` `product_variants` `products` `provider_dispatch_locks` `warehouses` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` |
+| `mengantar-dispatch` | 5 | `courier_rules` `order_items` `orders` `pickup_schedules` `product_variants` `products` `provider_dispatch_locks` `warehouses` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` |
 | `mengantar-order` | 24 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `meta-capi` | 7 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` `/admin/ads/meta` `/api/admin/ads` |
 | `meta-event-contract` | 4 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
@@ -308,7 +308,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `order-status` | 4 | `order_items` `orders` `payment_transactions` | ✓ | `/api/order-status` `/api/v1/orders/status` |
 | `paid-order-purchase` | 3 | `order_items` `orders` `product_variants` `products` | ✓ | `/api/admin/orders/[id]` `/api/admin/payment-reconciliation` |
 | `payment-brand` | 6 | — | ✓ | `/payment` `/api/payment-methods` |
-| `payment-dispatch-policy` | 9 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
+| `payment-dispatch-policy` | 10 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `payment-fee-policy` | 11 | — | ✓ | `/api/payment-methods` `/admin/payments` `/api/admin/orders/[id]` |
 | `payment-switch` | 10 | `order_items` `orders` `seller_bank_accounts` `stores` `warehouses` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` |
 | `product-mutation` | 10 | `order_items` `product_variants` `products` `storefront_content` | ✓ | `/api/admin/products` |

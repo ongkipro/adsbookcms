@@ -7549,7 +7549,11 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
     transient D1 error, or a conflict write that matched nothing) was recorded
     as a plain failure, so the next push created a second parcel. Any failure
     after the answer is read is now `DISPATCH_UNKNOWN: Mengantar menerima <id>`,
-    and the order detail says not to push again.
+    and the order detail says not to push again. Such an order is never
+    released (`releaseUnknownMengantarDispatch` refuses the marker); "Tautkan
+    paket Mengantar" links the id to the order instead
+    (`linkAcceptedMengantarShipment`). Found by a second, independent review of
+    the fix commit.
   - A superseded AutoLaris instruction was marked `settled_at` even when its
     settle matched nothing. `markPaymentAttemptSettledStatement` now closes the
     batch and only fires once the row is paid under that instruction's id. The

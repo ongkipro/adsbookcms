@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync, type StatementSync } from "node:sqlite";
 import test from "node:test";
-import { dispatchOrderToMengantar, releaseUnknownMengantarDispatch } from "./mengantar-dispatch.ts";
+import { dispatchOrderToMengantar, linkAcceptedMengantarShipment, releaseUnknownMengantarDispatch } from "./mengantar-dispatch.ts";
 
 type QueryValue = null | number | string | Uint8Array;
 
@@ -536,4 +536,13 @@ test("a local failure after Mengantar accepted the shipment blocks the order ins
   failPersistence = false;
   assert.equal((await dispatchOrderToMengantar(asD1(database), locals, 1)).status, "outcome_unknown");
   assert.equal(orderCalls, 1, "no second POST /order");
+
+  // It is never released for a second push; it is linked to its shipment.
+  assert.equal(await releaseUnknownMengantarDispatch(asD1(database), 1), false);
+  assert.equal(await linkAcceptedMengantarShipment(asD1(database), 1), "provider-order-1");
+  const linked = database.sqlite.prepare("SELECT provider_order_id, provider_dispatch_error, shipping_status FROM orders WHERE id = 1").get();
+  assert.deepEqual({ ...(linked as object) }, { provider_order_id: "provider-order-1", provider_dispatch_error: null, shipping_status: "processing" });
+  assert.equal((await dispatchOrderToMengantar(asD1(database), locals, 1)).status, "already_dispatched");
+  assert.equal(orderCalls, 1, "still one POST /order");
+  assert.equal(await linkAcceptedMengantarShipment(asD1(database), 1), null, "nothing left to link");
 });

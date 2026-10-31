@@ -1061,6 +1061,25 @@ export function OrderDetail({
     if (pushAccepted.current && order) window.location.assign(`/admin/shipping?order=${encodeURIComponent(order.order_number)}`);
   };
 
+  const linkAcceptedDispatch = async () => {
+    if (!order) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/admin/orders/${encodeURIComponent(String(order.id))}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "link-accepted-dispatch" }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.success) throw new Error(payload.error || "Gagal menautkan paket Mengantar.");
+      toast.success(payload.message || "Paket Mengantar ditautkan.");
+      setReloadKey((value) => value + 1);
+    } catch (reason) {
+      toast.error(reason instanceof Error ? reason.message : "Gagal menautkan paket Mengantar.");
+    } finally {
+      setSaving(false);
+    }
+  };
   const releaseUnknownDispatch = async () => {
     if (!order) return;
     if (!(await confirm({
@@ -1612,11 +1631,16 @@ export function OrderDetail({
                 <div role="status" className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
                   <p className="font-semibold">Hasil push ke Mengantar belum pasti</p>
                   {acceptedShipmentId(order.provider_dispatch_error) ? (
-                    <p className="leading-relaxed">Mengantar sudah menerima paket ini (ID {acceptedShipmentId(order.provider_dispatch_error)}), tetapi hasilnya gagal disimpan di sini. Jangan push ulang; cocokkan resinya dari dashboard Mengantar.</p>
+                    <>
+                      <p className="leading-relaxed">Mengantar sudah menerima paket ini (ID {acceptedShipmentId(order.provider_dispatch_error)}), tetapi hasilnya gagal disimpan di sini. Jangan push ulang: tautkan paketnya, lalu resi terisi saat sinkron status.</p>
+                      <Button type="button" variant="outline" className="self-start" disabled={saving} onClick={() => void linkAcceptedDispatch()}>
+                        Tautkan paket Mengantar
+                      </Button>
+                    </>
                   ) : (
                     <p className="leading-relaxed">Koneksi terputus atau respons tidak terbaca, jadi paket mungkin sudah dibuat. Cari {order.order_number} di dashboard Mengantar. Push ulang hanya kalau paketnya memang belum ada, supaya tidak terkirim dua kali.</p>
                   )}
-                  {mayReleaseDispatch ? (
+                  {acceptedShipmentId(order.provider_dispatch_error) ? null : mayReleaseDispatch ? (
                     <Button type="button" variant="outline" className="self-start" disabled={saving} onClick={() => void releaseUnknownDispatch()}>
                       Sudah dicek, izinkan push ulang
                     </Button>

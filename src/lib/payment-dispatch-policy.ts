@@ -61,25 +61,32 @@ export const isDispatchOutcomeUnknown = (error: string | null | undefined) =>
   Boolean(error?.startsWith(DISPATCH_UNKNOWN_PREFIX));
 
 /**
+ * Follows the unknown-outcome prefix when Mengantar accepted the shipment and
+ * this store failed to record it: `DISPATCH_UNKNOWN: Mengantar menerima <id>: …`.
+ * Such an order is never released for a second push, only linked to its id
+ * (`linkAcceptedMengantarShipment`).
+ */
+export const ACCEPTED_MARKER = "Mengantar menerima";
+
+/** The Mengantar id an unknown-outcome marker carries, if the shipment was accepted. */
+export function acceptedShipmentId(error: string | null | undefined) {
+  if (!isDispatchOutcomeUnknown(error)) return null;
+  const rest = String(error).slice(DISPATCH_UNKNOWN_PREFIX.length).trim();
+  if (!rest.startsWith(`${ACCEPTED_MARKER} `)) return null;
+  const match = /^(\S+): /.exec(rest.slice(ACCEPTED_MARKER.length + 1));
+  return match ? match[1] : null;
+}
+
+/**
  * `provider_dispatch_error` as an operator reads it. The two internal markers
  * (a claim in flight, an unknown outcome) are words, not codes; a provider's
  * own refusal is shown as given.
  */
-/**
- * The Mengantar id of a shipment that was accepted but could not be recorded
- * locally (`recordDispatchUnknown` writes `Mengantar menerima <id>: …`). Such an order
- * must not be pushed again, whatever its connection looked like.
- */
-export function acceptedShipmentId(error: string | null | undefined) {
-  if (!isDispatchOutcomeUnknown(error)) return null;
-  const match = /^Mengantar menerima (\S+): /.exec(String(error).slice(DISPATCH_UNKNOWN_PREFIX.length).trim());
-  return match && match[1] !== "unknown" ? match[1] : null;
-}
-
 export function providerDispatchErrorText(error: string | null | undefined) {
   if (!error) return null;
   if (error === "DISPATCHING") return "Sedang dikirim ke Mengantar.";
-  if (acceptedShipmentId(error)) return `Mengantar sudah menerima paket (ID ${acceptedShipmentId(error)}); hasilnya belum tersimpan. Jangan push ulang.`;
+  const accepted = acceptedShipmentId(error);
+  if (accepted) return `Mengantar sudah menerima paket (ID ${accepted}); hasilnya belum tersimpan. Jangan push ulang.`;
   if (isDispatchOutcomeUnknown(error)) return "Hasil push belum pasti. Cek di Mengantar dulu sebelum push ulang.";
   return error;
 }

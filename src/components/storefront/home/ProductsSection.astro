@@ -119,7 +119,7 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
     class="mt-6 flex flex-col items-center gap-3"
     hidden={products.length === 0}
   >
-    <p id="catalog-status" class="text-xs text-[#767676]">
+    <p id="catalog-status" class="text-xs text-[#555555]">
       Menampilkan <span id="product-visible-count">{Math.min(10, products.length)}</span> dari <span id="product-total-count">{products.length}</span> produk
     </p>
     {

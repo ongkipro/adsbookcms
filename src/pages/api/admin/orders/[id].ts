@@ -7,7 +7,7 @@ import { normalizePhoneNumber } from '../../../../lib/order-schema';
 import { isValidWa62 } from '../../../../lib/validation';
 import { getMengantarDispatchEligibility } from '../../../../lib/payment-dispatch-policy';
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from '../../../../lib/payment-fee-policy';
-import { dispatchOrderToMengantar, releaseUnknownMengantarDispatch } from '../../../../lib/mengantar-dispatch';
+import { dispatchOrderToMengantar, linkAcceptedMengantarShipment, releaseUnknownMengantarDispatch } from '../../../../lib/mengantar-dispatch';
 import { parseMengantarPickupChoice } from '../../../../lib/mengantar-order';
 import { CRM_BANK_ACCOUNTS_SQL, CRM_STORE_SQL, crmStoreContext, formatBankAccount } from '../../../../lib/crm-template.ts';
 import {
@@ -54,7 +54,7 @@ const SHIPPING_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'ret
 const PAID_STATUSES = new Set(['paid', 'settled', 'success']);
 
 type OrderUpdatePayload = {
-  action?: 'dispatch-order' | 'refresh-scoring' | 'push-kelola' | 'switch-payment' | 'release-dispatch-unknown';
+  action?: 'dispatch-order' | 'refresh-scoring' | 'push-kelola' | 'switch-payment' | 'release-dispatch-unknown' | 'link-accepted-dispatch';
   /** `switch-payment`: the prepaid method (src/lib/payment-switch.ts). */
   switch_payment?: unknown;
   /** `dispatch-order`: drop-off or a scheduled pickup (PRD A46); absent means drop-off. */
@@ -428,6 +428,13 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     // Audit 2026-10-31 M-1: a push whose outcome was unknown blocks the order
     // until someone has checked Mengantar. Releasing it risks a second parcel,
     // so it is owner and admin only.
+    // A shipment Mengantar accepted but this store failed to record: link it
+    // to the order. It cannot create a second parcel, so any role here may.
+    if (action === 'link-accepted-dispatch') {
+      const linked = await linkAcceptedMengantarShipment(db, current.id);
+      if (!linked) return jsonError('Order tidak sedang menunggu penautan paket Mengantar.', 409);
+      return jsonOk({ message: `${current.order_number} ditautkan ke paket Mengantar ${linked}.` });
+    }
     if (action === 'release-dispatch-unknown') {
       if (locals.admin?.role !== 'owner' && locals.admin?.role !== 'admin') {
         return jsonError('Hanya owner atau admin yang dapat mengizinkan push ulang.', 403);

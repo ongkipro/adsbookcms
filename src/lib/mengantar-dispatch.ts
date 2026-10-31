@@ -16,6 +16,8 @@ import {
 } from "./mengantar-order.ts";
 import { getProviderConfig } from "./provider-config.ts";
 import {
+  acceptedShipmentId,
+  ACCEPTED_MARKER,
   canDispatchOrderToMengantar,
   DISPATCH_UNKNOWN_PREFIX,
   isDispatchOutcomeUnknown,
@@ -226,11 +228,45 @@ export async function releaseUnknownMengantarDispatch(database: D1Database, orde
     .prepare(
       `UPDATE orders SET provider_dispatch_error = NULL
       WHERE id = ? AND provider_order_id IS NULL
-        AND provider_dispatch_error LIKE ?`,
+        AND provider_dispatch_error LIKE ?
+        AND provider_dispatch_error NOT LIKE ?`,
     )
-    .bind(orderId, `${DISPATCH_UNKNOWN_PREFIX}%`)
+    // A shipment Mengantar accepted is never released: it is linked instead.
+    .bind(orderId, `${DISPATCH_UNKNOWN_PREFIX}%`, `${DISPATCH_UNKNOWN_PREFIX} ${ACCEPTED_MARKER}%`)
     .run();
   return Number(result.meta?.changes || 0) > 0;
+}
+
+/**
+ * Links a shipment Mengantar accepted but this store failed to record (its id
+ * is in the unknown-outcome marker) to its order, as the dispatch itself
+ * would have: the order moves to `processing` when it is still a pending,
+ * live, payable order, and the waybill follows from the next provider sync.
+ * Returns the linked id, or null when there was nothing to link.
+ */
+export async function linkAcceptedMengantarShipment(database: D1Database, orderId: number) {
+  const current = await database
+    .prepare("SELECT provider_dispatch_error FROM orders WHERE id = ? AND provider_order_id IS NULL")
+    .bind(orderId)
+    .first<{ provider_dispatch_error: string | null }>();
+  const providerOrderId = acceptedShipmentId(current?.provider_dispatch_error);
+  if (!providerOrderId) return null;
+  const now = new Date().toISOString();
+  const result = await database
+    .prepare(
+      `UPDATE orders SET
+        provider_order_id = ?, provider_dispatch_error = NULL, provider_dispatch_claimed_at = NULL,
+        provider_dispatched_at = COALESCE(provider_dispatched_at, ?),
+        confirmed_at = COALESCE(confirmed_at, ?),
+        shipping_status = CASE
+          WHEN shipping_status = 'pending' AND stock_restored_at IS NULL
+            AND payment_status NOT IN ('cancelled', 'refunded', 'failed')
+          THEN 'processing' ELSE shipping_status END
+      WHERE id = ? AND provider_order_id IS NULL AND provider_dispatch_error = ?`,
+    )
+    .bind(providerOrderId, now, now, orderId, current?.provider_dispatch_error ?? "")
+    .run();
+  return Number(result.meta?.changes || 0) > 0 ? providerOrderId : null;
 }
 
 async function recordDispatchError(
@@ -452,7 +488,7 @@ export async function dispatchOrderToMengantar(
       // A success response without a readable shipment id: it may well exist.
       throw new MengantarOutcomeUnknownError(error instanceof Error ? error.message : String(error));
     }
-    shipmentAccepted = dispatched.providerOrderId || "unknown";
+    shipmentAccepted = dispatched.providerOrderId;
     const acceptedAt = new Date().toISOString();
     const accepted = resolveAcceptedMengantarShipment(
       order.payment_method,
@@ -574,7 +610,7 @@ export async function dispatchOrderToMengantar(
       await recordDispatchUnknown(
         database,
         order.id,
-        shipmentAccepted ? `Mengantar menerima ${shipmentAccepted}: ${message}` : message,
+        shipmentAccepted ? `${ACCEPTED_MARKER} ${shipmentAccepted}: ${message}` : message,
       );
       return { status: "outcome_unknown", error: UNKNOWN_OUTCOME_MESSAGE };
     }

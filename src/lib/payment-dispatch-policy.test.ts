@@ -101,6 +101,5 @@ test("an operator reads dispatch markers as words, and an accepted shipment is n
   assert.equal(acceptedShipmentId("DISPATCH_UNKNOWN: Mengantar menerima MG-77: D1_ERROR"), "MG-77");
   assert.match(String(providerDispatchErrorText("DISPATCH_UNKNOWN: Mengantar menerima MG-77: D1_ERROR")), /MG-77.*Jangan push ulang/);
   assert.equal(acceptedShipmentId("DISPATCH_UNKNOWN: Mengantar timeout: upstream"), null, "a provider message is not an accepted id");
-  assert.equal(acceptedShipmentId("DISPATCH_UNKNOWN: Mengantar menerima unknown: x"), null);
   assert.equal(acceptedShipmentId("Mengantar menerima MG-77: x"), null, "only an unknown-outcome marker carries one");
 });

@@ -108,11 +108,6 @@ function buyerPaymentPath(order: BuyerOrderLocator) {
 }
 
 /**
- * The buyer's own pages as absolute links a WhatsApp message can carry: the
- * order on /thanks and, while it is payable, /payment. Never an /admin path
- * (audit 2026-10-31 H2) — the buyer cannot open one.
- */
-/**
  * The origin a link sent to a buyer starts with: the store's configured site,
  * never the host an operator happens to have the admin open on (a
  * `*.workers.dev` preview, a Tailscale IP, localhost). The request origin is
@@ -123,6 +118,11 @@ export function buyerLinkOrigin(siteUrl: string | undefined, requestOrigin: stri
   return siteUrl && siteUrl !== "https://example.com" ? siteUrl : requestOrigin;
 }
 
+/**
+ * The buyer's own pages as absolute links a WhatsApp message can carry: the
+ * order on /thanks and, while it is payable, /payment. Never an /admin path
+ * (audit 2026-10-31 H2) — the buyer cannot open one.
+ */
 export function buyerOrderLinks(origin: string, order: BuyerOrderLocator) {
   const payment = buyerPaymentPath(order);
   return {

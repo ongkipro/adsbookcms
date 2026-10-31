@@ -7850,3 +7850,18 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - `npm test`, `npm run check` and `npm run build` pass.
 - The footer keeps only the version; the reset hint is removed (owner).
 
+### Entry 217: Login tip jar, emphasis and motion
+
+- The title reads "CMS GRATIS. / Server GRATIS." on two lines. Each GRATIS
+  gets a brand-blue highlighter stroke drawn left to right, the second 0.45s
+  after the first, held, then redrawn on a 7s cycle.
+- The background moves outward from the code, not as decorative blobs: three
+  rings leave the card every 1.4s, scale to 1.55 and fade. They sit behind the
+  opaque white card, so the code is never covered.
+- Under reduced motion there are no rings and the highlights show fully.
+- Verification:
+  - Headless Chromium at 1366x768: the QR decodes from frames at 0.3, 0.9, 1.6
+    and 2.6s and from the 1024x768 render.
+  - The seven-size no-scroll check still passes.
+  - No console errors.
+

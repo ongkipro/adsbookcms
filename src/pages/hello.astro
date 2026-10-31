@@ -181,6 +181,10 @@ if (database && !bootstrapAdminPassword) {
              Lazy: the panel is desktop-only, and a phone never fetches it. -->
         <section class="login-qris" aria-labelledby="loginQrisTitle">
           <div class="login-qris-frame">
+            <!-- Signal waves leaving the code: the background moves, and it
+                 moves outward from the QR, so the eye lands on it. Behind the
+                 white card, never over the modules. -->
+            <span class="login-qris-waves" aria-hidden="true"><i></i><i></i><i></i></span>
             <span class="login-qris-corner" aria-hidden="true"></span>
             <img
               src="/images/qris-dukung-adsbookcms.webp"
@@ -193,7 +197,7 @@ if (database && !bootstrapAdminPassword) {
             />
           </div>
           <div class="login-qris-copy">
-            <h2 id="loginQrisTitle" class="login-qris-title">CMS gratis. Server gratis.</h2>
+            <h2 id="loginQrisTitle" class="login-qris-title"><span class="block">CMS <span class="login-gratis">GRATIS</span>.</span> <span class="block">Server <span class="login-gratis login-gratis-2">GRATIS</span>.</span></h2>
             <p class="login-qris-body">Satu-satunya yang nggak gratis cuma kopi developernya. Hehehe.</p>
             <p class="login-qris-note">QRIS a.n. ONGKI COLLECTION</p>
           </div>

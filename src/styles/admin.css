@@ -500,7 +500,6 @@
 .login-qris-quote { margin: 0.875rem auto 0; max-width: 18rem; }
 .login-qris-quote blockquote { font-size: 0.9375rem; line-height: 1.5; font-style: italic; color: rgb(226 232 240); }
 .login-qris-quote figcaption { margin-top: 0.25rem; font-size: 0.75rem; color: rgb(148 163 184); }
-.login-qris-quote figcaption::before { content: "— "; }
 .login-qris-note { margin-top: 0.75rem; font-size: 0.75rem; color: rgb(148 163 184); }
 @media (max-width: 1279px) {
   .login-qris { gap: 1rem; }

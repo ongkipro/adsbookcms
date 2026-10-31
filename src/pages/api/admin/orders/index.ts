@@ -1,7 +1,9 @@
 import type { APIRoute } from 'astro';
 import { jsonError, jsonOk } from '../../../../lib/api.ts';
-import { parseCrmTemplates } from '../../../../lib/crm-template.ts';
+import { CRM_BANK_ACCOUNTS_SQL, CRM_STORE_SQL, crmStoreContext, formatBankAccount } from '../../../../lib/crm-template.ts';
+import { buyerOrderLinks } from '../../../../lib/payment-switch.ts';
 import { getRuntimeEnv } from '../../../../lib/env.ts';
+import { shippingStatusLabel } from '../../../../lib/shipping-status.ts';
 import { readOrderFollowUpsFor, type OrderFollowUp } from '../../../../lib/order-follow-up.ts';
 import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch.ts';
 import { parseMengantarPickupChoice } from '../../../../lib/mengantar-order.ts';
@@ -80,7 +82,8 @@ type OrderRow = {
   seller_bank_name: string | null;
   seller_account_holder: string | null;
   seller_account_number: string | null;
-  epayment_link: string | null;
+  public_status_token: string | null;
+  stock_restored_at: string | null;
   destination_area_id: string | null;
   provider_order_id: string | null;
   provider_dispatch_error: string | null;
@@ -154,6 +157,15 @@ export function parseBulkStatusUpdate(body: unknown): BulkStatusUpdate {
 }
 
 
+/**
+ * The status the list shows, filters and counts by. A pending order voided
+ * through its payment (`payment_status = cancelled` sets `stock_restored_at`
+ * but leaves shipping `pending`) is cancelled, not waiting: it read
+ * "Menunggu konfirmasi" and counted under Menunggu (audit 2026-10-31 M2).
+ */
+const LIST_SHIPPING_STATUS_SQL =
+  "(CASE WHEN shipping_status = 'pending' AND stock_restored_at IS NOT NULL THEN 'cancelled' ELSE shipping_status END)";
+
 export const GET: APIRoute = async ({ url, locals }) => {
   const database = getRuntimeEnv(locals)?.OMS_DB;
   if (!database || typeof database !== 'object') {
@@ -196,7 +208,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
     const shippingStatusIndex = shippingStatus !== 'all' ? whereParts.length : -1;
     const statusParamIndex = shippingStatus !== 'all' ? params.length : -1;
     if (shippingStatus !== 'all') {
-      whereParts.push('shipping_status = ?');
+      whereParts.push(`${LIST_SHIPPING_STATUS_SQL} = ?`);
       params.push(shippingStatus);
     }
     if (paymentStatus !== 'all') {
@@ -285,7 +297,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
           shipping_cost,
           payment_method,
           payment_status,
-          shipping_status,
+          ${LIST_SHIPPING_STATUS_SQL} AS shipping_status,
           courier_code,
           cnote_no,
           (
@@ -296,13 +308,8 @@ export const GET: APIRoute = async ({ url, locals }) => {
           seller_bank_name,
           seller_account_holder,
           seller_account_number,
-          (
-            SELECT provider_payment_url
-            FROM payment_transactions
-            WHERE payment_transactions.order_id = orders.id
-            ORDER BY payment_transactions.id DESC
-            LIMIT 1
-          ) AS epayment_link,
+          public_status_token,
+          stock_restored_at,
           (
             SELECT CASE
               WHEN pt.status = 'pending' AND pt.expires_at IS NOT NULL AND pt.expires_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now') THEN 'expired'
@@ -335,7 +342,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
         LIMIT ? OFFSET ?
       `).bind(...params, limit, offset);
     const withSourceOptions = url.searchParams.get('source_options') === '1';
-    const [countResult, rowResult, summaryResult, crmResult, statusCountResult, labelResult, facetResult] = await db.batch([
+    const [countResult, rowResult, summaryResult, crmResult, bankResult, statusCountResult, labelResult, facetResult] = await db.batch([
       countStmt,
       ordersStmt,
       // Scoped to the active filters. These cards used to answer for the whole
@@ -350,11 +357,12 @@ export const GET: APIRoute = async ({ url, locals }) => {
           COALESCE(SUM(total_amount), 0) AS total_value
         FROM orders${whereClause}
       `).bind(...params),
-      db.prepare("SELECT crm_templates FROM stores ORDER BY id LIMIT 1"),
+      db.prepare(CRM_STORE_SQL),
+      db.prepare(CRM_BANK_ACCOUNTS_SQL),
       db.prepare(`
-        SELECT shipping_status, COUNT(*) AS count
+        SELECT ${LIST_SHIPPING_STATUS_SQL} AS shipping_status, COUNT(*) AS count
         FROM orders${chipWhereClause}
-        GROUP BY shipping_status
+        GROUP BY 1
       `).bind(...chipParams),
       // Names for the source chip, bounded by the catalogue.
       sourceLabelsStatement(db),
@@ -375,9 +383,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
     const totalItems = Number((countResult.results?.[0] as { total_items?: number | string } | undefined)?.total_items ?? 0);
     const totalPages = totalItems > 0 ? Math.ceil(totalItems / limit) : 0;
     const summary = (summaryResult.results?.[0] ?? {}) as Partial<OrderSummaryRow>;
-    const crmTemplates = parseCrmTemplates(
-      (crmResult.results?.[0] as { crm_templates?: string | null } | undefined)
-        ?.crm_templates ?? null,
+    const crm = crmStoreContext(
+      crmResult.results?.[0] as Parameters<typeof crmStoreContext>[0],
+      (bankResult.results ?? []) as Parameters<typeof crmStoreContext>[1],
     );
     const statusCounts = Object.fromEntries(
       ((statusCountResult.results ?? []) as OrderStatusCountRow[]).map((row) => [
@@ -440,10 +448,11 @@ export const GET: APIRoute = async ({ url, locals }) => {
           courier_code: row.courier_code,
           cnote_no: row.cnote_no,
           seller_name: row.seller_name,
-          seller_bank_name: row.seller_bank_name,
-          seller_account_holder: row.seller_account_holder,
-          seller_account_number: row.seller_account_number,
-          epayment_link: row.epayment_link,
+          // The account this order was told to pay, else the store's active ones.
+          bank_accounts:
+            formatBankAccount(row.seller_bank_name, row.seller_account_number, row.seller_account_holder) ||
+            crm.bank_accounts,
+          ...buyerOrderLinks(url.origin, row),
           dispatch_eligible: dispatch.eligible,
           dispatch_reason: dispatch.reason,
           provider_dispatch_error: row.provider_dispatch_error,
@@ -458,7 +467,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
         };
       }),
       ...(withSourceOptions ? { source_options: sourceFilterOptions(facets, sourceLabels) } : {}),
-      crm_templates: crmTemplates,
+      crm_templates: crm.templates,
       pagination: {
         page,
         limit,
@@ -521,7 +530,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         update.status,
       );
       return jsonOk({
-        message: `${updatedCount} order berhasil diubah ke status ${update.status}.`,
+        message: `${updatedCount} order berhasil diubah ke ${shippingStatusLabel(update.status)}.`,
         data: {
           updated_count: updatedCount,
           order_ids: update.orderIds.map(String),

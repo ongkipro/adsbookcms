@@ -596,7 +596,8 @@ test("every landing page field an operator can submit is bounded", async () => {
       ...base,
       sections: [{ type: "form", form_config: { mode: "hibrida" as "hybrid" } }],
     }),
-    /Mode form harus salah satu dari hybrid, middle, full/,
+    /Section 1: Mode form harus salah satu dari hybrid, middle, full/,
+    "the error names the section (audit 2026-10-31 L5)",
   );
 
   // Nothing above was written, and a page inside every bound still saves — with

@@ -313,8 +313,12 @@ export async function updateAdminOrderShippingStatuses(
       ...buildOrderReleaseStatements(database, orderIds, true),
     );
   }
-  const results = await database.batch(statements);
-  return Number(results[0]?.meta?.changes) || 0;
+  await database.batch(statements);
+  // Every selected row was loaded and validated above, and the batch is all or
+  // nothing, so that is the count. D1's `meta.changes` is not: it also counts
+  // the 0075 `updated_at` trigger's own UPDATE, and reported 4 for 2 orders
+  // (audit 2026-10-31 M1).
+  return orders.length;
 }
 
 /**

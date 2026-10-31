@@ -13,7 +13,7 @@ import {
   renderCrmMessage,
   type CrmOrderItem,
 } from "../../lib/crm-template";
-import { ADMIN_CUSTOM_DATE_FILTER } from "../../lib/admin-date-filter";
+import { ADMIN_CUSTOM_DATE_FILTER, adminDateSelectionFromQuery } from "../../lib/admin-date-filter";
 import { SOURCE_SLUG_NONE_FILTER, SOURCE_SLUG_NONE_LABEL } from "../../lib/source-slug";
 import {
   AdminDateRangeFilter,
@@ -107,6 +107,7 @@ export type OrderItem = {
   sellerName: string;
   bankAccounts: string;
   epaymentLink: string;
+  orderDetailsLink: string;
   receiverDeliveryRate: number;
   receiverRiskLabel: RiskLevel;
   createdAt: string;
@@ -143,10 +144,9 @@ type OrderRow = {
   courier_code: string | null;
   cnote_no: string | null;
   seller_name: string | null;
-  seller_bank_name: string | null;
-  seller_account_holder: string | null;
-  seller_account_number: string | null;
+  bank_accounts: string;
   epayment_link: string | null;
+  order_details_link: string | null;
   receiver_delivery_rate: number | null;
   receiver_risk_label: string | null;
   created_at: string;
@@ -210,14 +210,9 @@ const mapOrder = (row: OrderRow): OrderItem => ({
   courierCode: row.courier_code || "",
   cnoteNo: row.cnote_no || "",
   sellerName: row.seller_name || "",
-  bankAccounts: [
-    row.seller_bank_name,
-    row.seller_account_number,
-    row.seller_account_holder ? `a.n. ${row.seller_account_holder}` : "",
-  ]
-    .filter(Boolean)
-    .join(" "),
+  bankAccounts: row.bank_accounts || "",
   epaymentLink: row.epayment_link || "",
+  orderDetailsLink: row.order_details_link || "",
   receiverDeliveryRate:
     row.receiver_delivery_rate == null
       ? -1
@@ -491,7 +486,7 @@ function RiskBadge({
         title={styles.guidance}
         className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-semibold ${styles.badge}`}
       >
-        RTS {styles.label}{hasValidRate ? ` · ${deliveryRate}%` : ""}
+        RTS {styles.label}{hasValidRate ? ` · sukses ${deliveryRate}%` : ""}
       </span>
     );
   }
@@ -511,8 +506,9 @@ function RiskBadge({
         >
           RTS {styles.label}
         </span>
-        <span className="font-mono text-xs font-semibold text-slate-900">
-          {hasValidRate ? `${deliveryRate}%` : "—"}
+        {/* The rate is delivery success, not RTS; unlabelled it read as "RTS 16%" (audit 2026-10-31 L3). */}
+        <span className="text-xs text-slate-500">
+          {hasValidRate ? <>sukses <span className="font-mono font-semibold text-slate-900">{deliveryRate}%</span></> : "—"}
         </span>
       </div>
       <div
@@ -618,11 +614,9 @@ export function OrdersTable({
     () => initialParams.get("status") || initialParams.get("shipping_status") || "all",
   );
   const [paymentFilter, setPaymentFilter] = useState("all");
-  const [dateSelection, setDateSelection] = useState<AdminDateSelection>({
-    filter: "all",
-    start: "",
-    end: "",
-  });
+  const [dateSelection, setDateSelection] = useState<AdminDateSelection>(
+    () => adminDateSelectionFromQuery(initialParams),
+  );
   const [sourceFilter, setSourceFilter] = useState("all");
   // The landing page filter (PRD A36). Opened from Analitik with
   // `?source_slug=`, so it starts from the URL.
@@ -876,6 +870,17 @@ export function OrdersTable({
   const handleBulkStatusChange = async (shippingStatus: string) => {
     const orderIds = [...selectedOrderIds];
     if (orderIds.length === 0 || !shippingLabels[shippingStatus]) return;
+    // A bulk change is one click away from many orders; voiding ones cannot be undone.
+    const voids = shippingStatus === "cancelled" || shippingStatus === "returned";
+    if (!(await confirm({
+      title: `Ubah ${orderIds.length} pesanan ke ${shippingLabels[shippingStatus]}?`,
+      description: voids
+        ? "Pesanan jadi batal dan tidak bisa dikirim lagi. Langkah ini tidak dapat dibatalkan."
+        : "Status pengiriman pesanan terpilih akan diganti.",
+      confirmLabel: `Ubah ke ${shippingLabels[shippingStatus]}`,
+      cancelLabel: "Kembali",
+      tone: voids ? "destructive" : "default",
+    }))) return;
 
     const previousOrders = orders;
     const previousStatusCounts = statusCounts;
@@ -1041,7 +1046,7 @@ export function OrdersTable({
                 sellerName: order.sellerName,
                 bankAccounts: order.bankAccounts,
                 epaymentLink: order.epaymentLink,
-                orderDetailsLink: `/admin/orders/${encodeURIComponent(order.orderNumber)}`,
+                orderDetailsLink: order.orderDetailsLink,
               });
               return [
                 String(step),

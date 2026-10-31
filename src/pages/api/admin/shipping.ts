@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { jsonError, jsonOk } from "../../../lib/api";
 import { getRuntimeEnv } from "../../../lib/env";
+import { matchesShippingQueue } from "../../../lib/shipping-queue";
 import {
   mapMengantarStatusEvidence,
   MengantarClient,
@@ -60,6 +61,7 @@ type ShippingOrderRow = {
   receiverDeliveryRate: number | null;
   receiverRiskLabel: string | null;
   pickupScheduleId: number | null;
+  handover: string | null;
   createdAt: string;
   warehouseName: string;
   pickupScheduledAt: string | null;
@@ -152,6 +154,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
           o.receiver_rts_score AS receiverDeliveryRate,
           o.rts_risk_label AS receiverRiskLabel,
           o.pickup_schedule_id AS pickupScheduleId,
+          o.mengantar_handover AS handover,
           o.created_at AS createdAt,
           w.name AS warehouseName,
           ps.scheduled_at AS pickupScheduledAt,
@@ -206,12 +209,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
     const warehouses = warehouseResult.results ?? [];
 
     const readyPickupIds = shipments
-      .filter(
-        (shipment) =>
-          shipment.shippingStatus === "processing" &&
-          shipment.cnoteNo &&
-          !shipment.pickupScheduleId,
-      )
+      .filter((shipment) => matchesShippingQueue(shipment, "needs_pickup"))
       .map((shipment) => shipment.id);
     const dispatchableIds = shipments
       .filter((shipment) => shipment.dispatchEligible)
@@ -592,6 +590,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
         AND shipping_status = 'processing'
         AND cnote_no IS NOT NULL
         AND pickup_schedule_id IS NULL
+        AND mengantar_handover IS NOT 'drop_off'
     `,
       )
       .bind(warehouseId, ...orderIds)

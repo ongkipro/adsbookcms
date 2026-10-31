@@ -9,8 +9,10 @@ import { getMengantarDispatchEligibility } from '../../../../lib/payment-dispatc
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from '../../../../lib/payment-fee-policy';
 import { dispatchOrderToMengantar, releaseUnknownMengantarDispatch } from '../../../../lib/mengantar-dispatch';
 import { parseMengantarPickupChoice } from '../../../../lib/mengantar-order';
+import { CRM_BANK_ACCOUNTS_SQL, CRM_STORE_SQL, crmStoreContext, formatBankAccount } from '../../../../lib/crm-template.ts';
 import {
   adminPaymentSwitchView,
+  buyerOrderLinks,
   parsePaymentSwitchTarget,
   PaymentSwitchError,
   switchCodOrderPayment,
@@ -74,6 +76,9 @@ type OrderUpdatePayload = {
 
 type OrderRow = {
   id: number;
+  seller_bank_name: string | null;
+  seller_account_holder: string | null;
+  seller_account_number: string | null;
   order_number: string;
   warehouse_id: number | null;
   pickup_schedule_id: number | null;
@@ -206,6 +211,9 @@ async function loadOrder(database: D1Database, rawOrderKey: string) {
       o.source_page_path,
       o.stock_restored_at,
       o.created_at,
+      o.seller_bank_name,
+      o.seller_account_holder,
+      o.seller_account_number,
       w.name AS warehouse_name,
       w.pickup_address_id,
       ps.scheduled_at AS pickup_scheduled_at,
@@ -229,7 +237,7 @@ async function loadOrder(database: D1Database, rawOrderKey: string) {
     .first()) as OrderRow | null;
 }
 
-export const GET: APIRoute = async ({ params, locals }) => {
+export const GET: APIRoute = async ({ params, locals, url }) => {
   const orderKey = String(params.id || '').trim();
   if (!orderKey) return jsonError('ID order wajib diisi.', 400);
 
@@ -270,6 +278,12 @@ export const GET: APIRoute = async ({ params, locals }) => {
       WHERE order_id = ?
       LIMIT 1
     `).bind(order.id).first<PaymentTransactionRow>();
+
+    const [storeResult, bankResult] = await db.batch([db.prepare(CRM_STORE_SQL), db.prepare(CRM_BANK_ACCOUNTS_SQL)]);
+    const crm = crmStoreContext(
+      storeResult.results?.[0] as Parameters<typeof crmStoreContext>[0],
+      (bankResult.results ?? []) as Parameters<typeof crmStoreContext>[1],
+    );
 
     const dispatch = getMengantarDispatchEligibility({
       paymentMethod: order.payment_method,
@@ -348,6 +362,15 @@ export const GET: APIRoute = async ({ params, locals }) => {
         ad_click_ids: order.ad_click_ids,
         source_page_path: order.source_page_path,
         created_at: order.created_at,
+        // Everything the follow-up chips need, so a role without settings access sends the same messages.
+        crm: {
+          templates: crm.templates,
+          seller_name: crm.seller_name,
+          bank_accounts:
+            formatBankAccount(order.seller_bank_name, order.seller_account_number, order.seller_account_holder) ||
+            crm.bank_accounts,
+          ...buyerOrderLinks(url?.origin ?? locals.tenant?.siteUrl ?? "", order),
+        },
         // Absent unless the Kelola plugin is active; OrderDetail then shows no panel.
         kelola: await activeKelolaConfig(db, locals).then((config) =>
           config === undefined ? null : kelolaOrderState(db, config, order.id)),

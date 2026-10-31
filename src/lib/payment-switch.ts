@@ -91,6 +91,37 @@ export function paymentSwitchBlockReason(order: PaymentSwitchOrder): string | nu
  * unpaid prepaid order, the buyer's own /payment page to send them (the
  * fragment locator never reaches a server or a referrer).
  */
+type BuyerOrderLocator = {
+  id: number;
+  public_status_token: string | null;
+  payment_method: string | null;
+  payment_status: string | null;
+  stock_restored_at: string | null;
+};
+
+/** The buyer's /payment page for an unpaid prepaid order, or null. */
+function buyerPaymentPath(order: BuyerOrderLocator) {
+  const paid = ["paid", "settled", "success"].includes(String(order.payment_status));
+  return order.payment_method !== "cod" && !paid && !order.stock_restored_at && order.public_status_token
+    ? `/payment#o=${order.id}&t=${encodeURIComponent(order.public_status_token)}`
+    : null;
+}
+
+/**
+ * The buyer's own pages as absolute links a WhatsApp message can carry: the
+ * order on /thanks and, while it is payable, /payment. Never an /admin path
+ * (audit 2026-10-31 H2) — the buyer cannot open one.
+ */
+export function buyerOrderLinks(origin: string, order: BuyerOrderLocator) {
+  const payment = buyerPaymentPath(order);
+  return {
+    order_details_link: order.public_status_token
+      ? `${origin}/thanks#o=${order.id}&t=${encodeURIComponent(order.public_status_token)}`
+      : null,
+    epayment_link: payment ? `${origin}${payment}` : null,
+  };
+}
+
 export function adminPaymentSwitchView(
   order: PaymentSwitchOrder & {
     id: number;
@@ -101,7 +132,6 @@ export function adminPaymentSwitchView(
   itemTotal: number,
 ) {
   const reason = paymentSwitchBlockReason(order);
-  const paid = ["paid", "settled", "success"].includes(String(order.payment_status));
   return {
     payment_switch:
       order.payment_method === "cod"
@@ -111,10 +141,7 @@ export function adminPaymentSwitchView(
             total_amount: prepaidTotal(itemTotal, Number(order.discount_amount || 0), Number(order.shipping_cost || 0)),
           }
         : null,
-    payment_link:
-      order.payment_method !== "cod" && !paid && !order.stock_restored_at && order.public_status_token
-        ? `/payment#o=${order.id}&t=${encodeURIComponent(order.public_status_token)}`
-        : null,
+    payment_link: buyerPaymentPath(order),
   };
 }
 

@@ -12,6 +12,8 @@ type ShippingQueueRecord = {
   cnoteNo: string | null;
   providerOrderId: string | null;
   pickupScheduleId: number | null;
+  /** 'drop_off' never needs a pickup; 'pickup' or a pre-0077 NULL may. */
+  handover?: string | null;
 };
 
 export function matchesShippingQueue(
@@ -31,7 +33,8 @@ export function matchesShippingQueue(
     return (
       shipment.shippingStatus === "processing" &&
       Boolean(shipment.cnoteNo) &&
-      !shipment.pickupScheduleId
+      !shipment.pickupScheduleId &&
+      shipment.handover !== "drop_off"
     );
   }
   return false;

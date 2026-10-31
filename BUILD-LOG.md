@@ -7932,4 +7932,4 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   pepatah developer.
 - Verification: the seven-size no-scroll check and the QR decode after the
   change.
-
+- The quote is credited "by ongki.pro" (owner), replacing "pepatah developer".

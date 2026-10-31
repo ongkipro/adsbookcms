@@ -7636,7 +7636,8 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - A paragraph whose value is unset is dropped. Privacy, shipping and terms
     close with "Hubungi Kami" built from the channels that exist, or a pointer
     to `/kontak`.
-  - Links in paragraphs (`[label](/path)`, email, `+62…`) are parsed by
+  - Links in paragraphs (a bracketed label followed by an internal path,
+    an email, `+62…`) are parsed by
     `src/lib/legal-links.ts`; external targets are refused.
   - `LegalPage` is one reading column, with no box per section.
 - Settings: migration `0078_store_public_contact` (schema 79) adds

@@ -7780,3 +7780,147 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
 - Verification: `npm test`, `npm run check`, `npm run build`, `docs:check`;
   `dev:local` rendered the header, the home `og:image` and /hello.
 
+### Entry 214: Login tip-jar QRIS
+
+- Source: the owner's QRIS print (ONGKI COLLECTION, NMID ID1021107138476),
+  downloaded from the owner's Drive link into the scratchpad. It was checked to
+  be a JPEG, and its code was decoded with `jsqr` (scratch install, not a
+  project dependency): payload `000201010211…` (static QRIS) containing the
+  NMID and the merchant name.
+- Asset: the code alone, cropped to the detected module bounds, thresholded to
+  clean black and white, and padded with a white quiet zone. Saved as
+  `public/images/qris-dukung-adsbookcms.webp` (lossless, 560px, 2.3 KB); it
+  decodes after conversion.
+- `/hello` desktop panel:
+  - The code is centred in a white card with a pulsing "scan me" corner frame
+    outside it.
+  - "Dukung AdsBookCMS / CMS-nya gratis. Server-nya juga gratis. / Yang belum
+    gratis cuma kopi developernya. Tau kan QRIS ini buat apa? Hehehe." and the
+    merchant's name.
+  - It replaces the Iklan › Pesanan › Kirim flow.
+  - The image is lazy (phones never fetch it). The frame stops under reduced
+    motion.
+- Every install shows this on its admin login. It is the product author's,
+  not a store's.
+- Verification:
+  - Headless Chromium at 1024x768, 1280x900 and 1440x900: no panel overflow;
+    the QR decodes from the page screenshot at 1024 and 1280 with the same
+    payload; the phone fetches no QRIS; no console errors.
+  - `npm test`, `npm run check` and `npm run build` pass.
+
+### Entry 215: Login page fits one screen
+
+- `/hello` is exactly one viewport tall on phone and desktop. Each column is
+  `100dvh`, and the page itself never scrolls.
+  - The form column centres the form and pins a short footer: "Lupa password?
+    Minta owner mereset di Pengaturan › Akses Pengguna." and the version.
+    Self-service reset stays out of scope per PRD-ADMIN-LOGIN.
+  - The brand column spaces logo, tip jar and a compact "Operator Workspace"
+    caption. The 36px heading that competed with the tip jar is gone.
+  - The QR scales as `clamp(8.5rem, 24vh, 14rem)`.
+- Header:
+  - A store chip "Admin · <store>" and "Masuk ke dashboard".
+  - On a phone, the product icon and the whole header are centred.
+- Fields have placeholders ("Username Anda", "Masukkan password") and a
+  brand-blue focus ring; the button is brand blue and reads "Masuk".
+- Phones no longer get a floating card on grey; the form sits on white.
+- Verification:
+  - Headless Chromium at 1440x900, 1280x800, 1366x768, 1024x768, 390x844,
+    375x667 and 360x640.
+  - At every size: no page scroll, no clipped column, button and footer in
+    view, no console errors.
+  - The QR decodes from the 1366x768 render.
+  - `npm test`, `npm run check` and `npm run build` pass.
+
+### Entry 216: Login cleaned up
+
+- The desktop brand column holds only the tip jar.
+  - The logo row and the "Operator Workspace" caption are gone.
+  - The QR card's blue glow became a plain hairline.
+- The form column carries the brand on every screen: icon and "AdsBookCMS",
+  "Masuk ke dashboard", then "Kelola konten, pesanan, dan pengiriman <store>."
+  This replaces the green-dot store chip, which read as a fake online status.
+- Copy is a joke, not a plea (owner): "CMS gratis. Server gratis. /
+  Satu-satunya yang nggak gratis cuma kopi developernya. Hehehe." and the
+  merchant's name. "Seikhlasnya" and "Dukung AdsBookCMS" are removed.
+- Verification:
+  - Headless Chromium at the seven sizes of Entry 215: no scroll, no
+    clipping, no console errors.
+  - The QR decodes from the 1366x768 render.
+  - `npm test`, `npm run check` and `npm run build` pass.
+- The footer keeps only the version; the reset hint is removed (owner).
+
+### Entry 217: Login tip jar, emphasis and motion
+
+- The title reads "CMS GRATIS. / Server GRATIS." on two lines. Each GRATIS
+  gets a brand-blue highlighter stroke drawn left to right, the second 0.45s
+  after the first, held, then redrawn on a 7s cycle.
+- The background moves outward from the code, not as decorative blobs: three
+  rings leave the card every 1.4s, scale to 1.55 and fade. They sit behind the
+  opaque white card, so the code is never covered.
+- Under reduced motion there are no rings and the highlights show fully.
+- Verification:
+  - Headless Chromium at 1366x768: the QR decodes from frames at 0.3, 0.9, 1.6
+    and 2.6s and from the 1024x768 render.
+  - The seven-size no-scroll check still passes.
+  - No console errors.
+
+### Entry 218: Login QR rebuilt in vector, shown larger
+
+- The QR asset was a 507px crop resized to 560px. That is a non-integer scale,
+  so module edges were uneven.
+- It is now rebuilt from the owner's Drive print:
+  - The first finder column is a 67px dark run, so the module is 9.57px.
+    That gives 53 modules, which is version 9.
+  - Each module is sampled at its centre.
+  - All three finder patterns and both timing patterns match.
+- Written as one SVG path with `crispEdges` (9.9 KB), replacing
+  `qris-dukung-adsbookcms.webp`. The pattern and mask are the print's own, and
+  the decoded payload is byte-identical to the print's.
+- Displayed at `clamp(11rem, 34vh, 18rem)`: 288px at 1280 and 1440, 261px at
+  768px tall.
+- Verification:
+  - Decodes from the 1024x768, 1366x768 and 1280x900 renders and from an
+    animation frame.
+  - The seven-size no-scroll check passes.
+  - No console errors.
+
+### Entry 219: Phone login over the owner's poster, glass card
+
+- Source: the owner's poster from a Drive link (PNG 941x1672, 2.3 MB),
+  downloaded to the scratchpad and opened. It is saved as
+  `public/images/login-bg-mobile.webp`: quality 76, 149 KB, full size.
+- Below 1024px:
+  - The poster is the form column's CSS background, so a desktop never
+    fetches it.
+  - The form sits at the bottom in a glass card (85% white, `blur(20px)
+    saturate(1.4)`, a white border, 1.5rem radius, a soft shadow), leaving the
+    poster's title and face in view on a 390x844 phone.
+  - Card text is checked against #D9D9D9 (subtitle 5.4:1, title 12.6:1). The
+    version under the card is white with a text shadow.
+- The poster ships with the product, so every install's phone login shows it.
+- Verification:
+  - Headless Chromium: the seven-size no-scroll check passes.
+  - 390x844 fetches the poster and 1366x768 does not.
+  - No console errors.
+- Above the form only "Masuk ke dashboard" remains; the AdsBookCMS row and the
+  store line were removed (owner). The version stays in the footer.
+- The heading became the product icon and "AdsBookCMS" (owner), replacing
+  "Masuk ke dashboard".
+- The heading is now a small wordmark (owner: "kecil aja, yang keren"): a 28px
+  icon; "Ads" in brand blue and "Book" in ink at 18px bold; "CMS" as a tracked
+  12px tag after a hairline. Its accessible name is "AdsBookCMS".
+
+### Entry 220: Clearer glass login card on phones
+
+- The phone card is clear glass instead of 85% white:
+  - A 62%→48% white gradient.
+  - `blur(28px) saturate(1.7)`.
+  - A white border with an inset top highlight, 1.75rem radius.
+- Labels and the CMS tag are slate-900, checked against #8C8C8C (the darkest
+  the blurred poster makes the card): 5.3:1. A first cut used slate-800 for the
+  tag, which measures 4.35:1 and fails AA; the 4.7:1 first written here was
+  wrong.
+- Fields stay 92% white, so typed text never sits on the image.
+- Verification: the seven-size no-scroll check passes; no console errors.
+

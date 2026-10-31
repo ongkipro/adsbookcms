@@ -92,12 +92,30 @@ Admin colour **is** tokenised. `.admin-shell` redefines the shadcn variables in 
 - Shell background and table chrome are scoped in `src/styles/admin.css`, matched by `bg-[#f6f7f9]` on the body class (`src/layouts/AdminLayout.astro`).
 - Admin login is a plain colour stage owned by the product. Its only image is the runtime store/product identity mark inside the form card; it carries no decorative or merchant-specific background imagery (LOGIN-18).
 
-Login brand panel (`/hello`, desktop only): `bg-slate-950` with a dot-grid
-ornament (`.login-brand-grid`, slate-400 at 22%, masked to fade at the edges,
-drifting over 24s) and the operator loop drawn as Iklan → Pesanan → Kirim
-(`.login-flow`): a blue-400 pulse crosses the line in 3.2s of a 4s cycle and
-each node's border lights as it passes. All of it is `aria-hidden` and stops
-under `prefers-reduced-motion` (`admin.css`).
+Login (`/hello`): one viewport, never scrolled, on phone and desktop. The
+form column holds everything an operator needs on any screen: the wordmark as the `h1` (28px icon, "Ads" in `#2563EB` and "Book" in ink at
+18px bold, then "CMS" as a 12px tag tracked 0.18em after a hairline; one
+accessible name "AdsBookCMS")
+(owner: nothing else above the form), the form (brand-blue focus and button), and a pinned footer
+with the version; centred on a phone. On a phone the owner's poster
+(`public/images/login-bg-mobile.webp`, 941x1672, 149 KB, a CSS background
+inside the phone query so a desktop never downloads it) fills the screen and
+the form sits at the bottom in a clear glass card: a 62%→48% white gradient,
+`blur(28px) saturate(1.7)`, a light border with a top highlight, 1.75rem
+radius, so the poster shows through and its title stays in view. Labels are
+slate-900, measured against #8C8C8C (the darkest the blurred poster makes the
+card); fields stay 92% white so typed text never sits on the image. The desktop brand column
+(`bg-slate-950`, a dot grid fading to the edges) holds only the joke tip jar,
+centred (owner decision 2026-10-31): the QRIS code alone
+(`public/images/qris-dukung-adsbookcms.svg`, rebuilt as vector modules from
+the print, payload identical, checked to decode from the rendered page), a pulsing "scan me" corner frame outside the
+code, signal waves leaving the card (three rings, 4.2s, scale 1 to 1.55, behind the
+opaque card so the code is never covered), "CMS GRATIS. / Server GRATIS." with a
+brand-blue highlighter drawn under each GRATIS in turn on a 7s cycle, and the
+merchant's name. The QR stays the focal point: everything that moves moves out
+from it or sits below it. Not a plea: no
+"seikhlasnya", no "dukung". The image is lazy, so a phone never fetches it;
+motion stops under `prefers-reduced-motion` (`admin.css`).
 
 Product icon, flat (2026-10-31, replacing the gradient squircle): an open book
 in solid white — the store's order book, with a gap at the spine so it reads as

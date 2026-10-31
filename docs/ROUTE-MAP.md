@@ -83,7 +83,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 | Route | Methods | Auth | Roles | File | Libs | Tables | Tests |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `/hello` | GET | public | — | `src/pages/hello.astro` | `admin-credentials` `admin-session` `auth` `auth-secret` `env` `rate-limit` | `admin_credentials` `admin_sessions` `install_secrets` `rate_limits` | `admin-credentials.test.ts` `admin-session.test.ts` `auth.test.ts` `auth-secret.test.ts` `env.test.ts` `rate-limit.test.ts` |
+| `/hello` | GET | public | — | `src/pages/hello.astro` | `admin-credentials` `admin-session` `auth` `auth-secret` `env` `rate-limit` `version` | `admin_credentials` `admin_sessions` `install_secrets` `rate_limits` | `admin-credentials.test.ts` `admin-session.test.ts` `auth.test.ts` `auth-secret.test.ts` `env.test.ts` `rate-limit.test.ts` |
 | `/install` | GET | install token | — | `src/pages/install.astro` | `tenant` | `stores` | `tenant.test.ts` |
 
 ## Public API (15)
@@ -345,7 +345,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `utils` | 0 | — | **none** | — |
 | `utm-link` | 9 | — | ✓ | — |
 | `validation` | 7 | — | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/api/admin/orders/[id]` |
-| `version` | 2 | — | **none** | — |
+| `version` | 2 | — | **none** | `/hello` |
 | `warehouse-choice` | 9 | — | ✓ | `/api/v1/geo/shipping-rates` |
 | `warehouses` | 12 | `orders` `pickup_schedules` `stores` `warehouses` | ✓ | `/api/admin/warehouses` |
 | `weight` | 10 | — | ✓ | — |

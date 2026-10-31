@@ -47,7 +47,7 @@
     <route path="/media/[...key]" methods="GET" auth="public" file="src/pages/media/[...key].ts" libs="env" tests="src/lib/env.test.ts"/>
   </family>
   <family name="Install &amp; auth" count="2">
-    <route path="/hello" methods="GET" auth="public" file="src/pages/hello.astro" libs="admin-credentials,admin-session,auth,auth-secret,env,rate-limit" tables="admin_credentials,admin_sessions,install_secrets,rate_limits" tests="src/lib/admin-credentials.test.ts,src/lib/admin-session.test.ts,src/lib/auth.test.ts,src/lib/auth-secret.test.ts,src/lib/env.test.ts,src/lib/rate-limit.test.ts"/>
+    <route path="/hello" methods="GET" auth="public" file="src/pages/hello.astro" libs="admin-credentials,admin-session,auth,auth-secret,env,rate-limit,version" tables="admin_credentials,admin_sessions,install_secrets,rate_limits" tests="src/lib/admin-credentials.test.ts,src/lib/admin-session.test.ts,src/lib/auth.test.ts,src/lib/auth-secret.test.ts,src/lib/env.test.ts,src/lib/rate-limit.test.ts"/>
     <route path="/install" methods="GET" auth="install token" file="src/pages/install.astro" libs="tenant" tables="stores" tests="src/lib/tenant.test.ts"/>
   </family>
   <family name="Public API" count="15">
@@ -287,7 +287,7 @@
     <module name="utils" file="src/lib/utils.ts" test="none"/>
     <module name="utm-link" file="src/lib/utm-link.ts" test="src/lib/utm-link.test.ts" exports="UTM_MEDIUMS,UTM_SOURCES,UTM_TAG_MAX_LENGTH,UtmLinkInput,UtmLinkResult,UtmMedium,UtmSource,buildUtmLink,normalizeUtmTag"/>
     <module name="validation" file="src/lib/validation.ts" test="src/lib/validation.test.ts" exports="CHECKOUT_ADDRESS_MIN,CHECKOUT_NAME_MIN,INDONESIAN_MOBILE_PREFIXES,INDONESIAN_WA_REGEX,isValidWa62,missingCheckoutContact,normalizePhone" used-by="/api/record-abandoned-order,/api/submit-middle-order,/api/submit-order,/api/admin/orders/[id]"/>
-    <module name="version" file="src/lib/version.ts" test="none" exports="CMS_VERSION,CmsVersionInfo"/>
+    <module name="version" file="src/lib/version.ts" test="none" exports="CMS_VERSION,CmsVersionInfo" used-by="/hello"/>
     <module name="warehouse-choice" file="src/lib/warehouse-choice.ts" test="src/lib/warehouse-choice.test.ts" exports="ISLAND_GROUPS,WarehouseCandidate,WarehouseChoiceReason,ambiguousCityNames,chooseWarehouse,isWarehouseReady,islandGroupOf,provinceCodeForCity,servedProvinceCodes" used-by="/api/v1/geo/shipping-rates"/>
     <module name="warehouses" file="src/lib/warehouses.ts" test="src/lib/warehouses.test.ts" exports="EnsurePickup,WAREHOUSES_MAX,Warehouse,WarehouseError,WarehouseInput,addWarehouse,deleteWarehouse,listWarehouses,servedProvincesValue,setPrimaryWarehouse,setWarehouseActive,updateWarehouse" tables="orders,pickup_schedules,stores,warehouses" used-by="/api/admin/warehouses"/>
     <module name="weight" file="src/lib/weight.ts" test="src/lib/weight.test.ts" exports="CURRENT_WEIGHT_LABEL,ItemWeight,OrderWeightSummary,RECORDED_WEIGHT_LABEL,WeighedItem,formatGrams,formatKg,formatWeight,quoteUnitWeightKg,summarizeOrderWeight"/>

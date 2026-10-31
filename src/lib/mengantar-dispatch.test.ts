@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync, type StatementSync } from "node:sqlite";
 import test from "node:test";
-import { dispatchOrderToMengantar, releaseUnknownMengantarDispatch } from "./mengantar-dispatch.ts";
+import { dispatchOrderToMengantar, linkAcceptedMengantarShipment, releaseUnknownMengantarDispatch } from "./mengantar-dispatch.ts";
 
 type QueryValue = null | number | string | Uint8Array;
 
@@ -496,4 +496,53 @@ test("a pickup slot that cannot be booked fails before any shipment exists, so i
   assert.equal(outcome.status, "failed");
   const row = database.sqlite.prepare("SELECT provider_dispatch_error FROM orders WHERE id = 1").get() as { provider_dispatch_error: string };
   assert.doesNotMatch(row.provider_dispatch_error, /^DISPATCH_UNKNOWN/);
+});
+
+test("a local failure after Mengantar accepted the shipment blocks the order instead of offering a second push", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const database = new DispatchDatabase();
+  const prepare = database.prepare.bind(database);
+  let failPersistence = true;
+  database.prepare = (sql: string) => {
+    if (failPersistence && sql.includes("provider_order_id = ?, provider_batch_id = ?")) {
+      const statement = prepare(sql);
+      statement.run = async () => {
+        throw new Error("D1_ERROR: transient");
+      };
+      const bind = statement.bind.bind(statement);
+      statement.bind = (...values: QueryValue[]) => {
+        const bound = bind(...values);
+        bound.run = statement.run;
+        return bound;
+      };
+      return statement;
+    }
+    return prepare(sql);
+  };
+  let orderCalls = 0;
+  globalThis.fetch = async (input) => {
+    if (String(input).endsWith("/order")) orderCalls += 1;
+    return acceptedResponse();
+  };
+
+  const first = await dispatchOrderToMengantar(asD1(database), locals, 1);
+  assert.equal(first.status, "outcome_unknown");
+  const row = database.sqlite.prepare("SELECT provider_dispatch_error FROM orders WHERE id = 1").get() as { provider_dispatch_error: string };
+  assert.match(row.provider_dispatch_error, /^DISPATCH_UNKNOWN: Mengantar menerima provider-order-1: /);
+
+  failPersistence = false;
+  assert.equal((await dispatchOrderToMengantar(asD1(database), locals, 1)).status, "outcome_unknown");
+  assert.equal(orderCalls, 1, "no second POST /order");
+
+  // It is never released for a second push; it is linked to its shipment.
+  assert.equal(await releaseUnknownMengantarDispatch(asD1(database), 1), false);
+  assert.equal(await linkAcceptedMengantarShipment(asD1(database), 1), "provider-order-1");
+  const linked = database.sqlite.prepare("SELECT provider_order_id, provider_dispatch_error, shipping_status FROM orders WHERE id = 1").get();
+  assert.deepEqual({ ...(linked as object) }, { provider_order_id: "provider-order-1", provider_dispatch_error: null, shipping_status: "processing" });
+  assert.equal((await dispatchOrderToMengantar(asD1(database), locals, 1)).status, "already_dispatched");
+  assert.equal(orderCalls, 1, "still one POST /order");
+  assert.equal(await linkAcceptedMengantarShipment(asD1(database), 1), null, "nothing left to link");
 });

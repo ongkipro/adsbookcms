@@ -280,3 +280,17 @@ test("the pickup date dropdown offers seven bookable days from the earliest one"
   assert.equal(pickupDayOptions(evening)[0].value, "2026-11-01");
   assert.equal(pickupDayOptions(evening)[0].label, "Besok, 1 Nov");
 });
+
+test("a provider slot matches whichever way Mengantar spells the hour, and an unusable date has no hours", async () => {
+  const { availablePickupHours, pickMengantarTimeId, sameMengantarSlot } = await import("./mengantar-order.ts");
+  const slot = { date: "11-02-2026", time: "9:00" };
+  assert.equal(sameMengantarSlot({ date: "11-02-2026", time: "09:00" }, slot), true);
+  assert.equal(sameMengantarSlot({ date: "11-02-2026", time: "9:00" }, slot), true);
+  assert.equal(sameMengantarSlot({ date: "11-02-2026", time: "10:00" }, slot), false);
+  assert.equal(sameMengantarSlot({ date: "11-03-2026", time: "9:00" }, slot), false);
+  assert.equal(sameMengantarSlot({ date: "11-02-2026" }, slot), false);
+  assert.equal(pickMengantarTimeId([{ _id: "a", date: "11-02-2026", time: "10:00" }, { _id: "b", date: "11-02-2026", time: "09:00" }], slot), "b");
+  assert.deepEqual(availablePickupHours(""), []);
+  assert.deepEqual(availablePickupHours("2026-13-45"), []);
+  assert.ok(availablePickupHours("2026-11-02", Date.parse("2026-11-01T00:00:00+07:00")).length > 0);
+});

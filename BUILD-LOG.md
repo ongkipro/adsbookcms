@@ -1,6 +1,6 @@
 # BUILD LOG: AdsBookCMS
 
-> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (Entries 191–192; earlier entries retain their historical evidence)
+> Verified against disk: 2026-10-31 @ `7a8f26e` + fix/stack-review-2026-10-31 working tree (Entry 206; earlier entries retain their historical evidence)
 
 Author & Curator: **[ongki.pro](https://ongki.pro)**
 
@@ -7540,3 +7540,54 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - Not checked: real devices, live Mengantar dispatch of `mengantar_handover`
     (stand-in only), and a WhatsApp send.
 
+### Entry 206: Review of the PR #111–#115 stack, findings fixed
+
+- Scope: four parallel read-only reviews of PRs #111–#115, then one fix branch
+  on top of `fix/ui-actions-audit`.
+- Medium:
+  - A Mengantar shipment that was accepted but failed to persist locally (a
+    transient D1 error, or a conflict write that matched nothing) was recorded
+    as a plain failure, so the next push created a second parcel. Any failure
+    after the answer is read is now `DISPATCH_UNKNOWN: Mengantar menerima <id>`,
+    and the order detail says not to push again. Such an order is never
+    released (`releaseUnknownMengantarDispatch` refuses the marker); "Tautkan
+    paket Mengantar" links the id to the order instead
+    (`linkAcceptedMengantarShipment`). Found by a second, independent review of
+    the fix commit.
+  - A superseded AutoLaris instruction was marked `settled_at` even when its
+    settle matched nothing. `markPaymentAttemptSettledStatement` now closes the
+    batch and only fires once the row is paid under that instruction's id. The
+    manual-confirmation audit records the row's status from before an adopt.
+  - `/admin/orders` server-rendered its first rows from a restated SELECT that
+    had drifted from the list API: void orders read "Menunggu", `date_filter` was
+    ignored, and WA chips carried the old payment link. The page now runs the
+    list route itself, with one query builder shared with the island
+    (`admin-orders-initial.ts`).
+- Low:
+  - Buyer links use the store's site URL, not the admin's request host.
+  - Pickup slots match "9:00" and "09:00"; an invalid date has no hours; the
+    pickup fields keep state in step with what is shown.
+  - Batal in the push dialog keeps the selection; a cancelled prepaid order
+    reads "Pembayaran dibatalkan"; dispatch markers read as words.
+  - Follow-up chips record per step; the release button is owner and admin
+    only; the payment link clears once paid.
+  - A "Perlu Drop-off" queue; the Analitik mobile sort starts in its natural
+    direction.
+  - Storefront: AA contrast on grey surfaces, `scroll-pt-16` under the sticky
+    header, `aria-current="true"` on a product page, the hidden sticky bar is
+    `inert`, the brand name no longer clips descenders, and no "0 produk" copy.
+- Deferred: double payment across two instructions (UNIMPLEMENTED_SPECS
+  AUD-R1); the Mengantar `/time` spelling still needs one live order.
+- Verification:
+  - `npm test`: 1104 pass, 0 fail. The M1 and M2 tests fail against the
+    unfixed code.
+  - `npm run check`: 0 errors, 0 warnings, 0 hints (548 files).
+  - `npm run build`: complete.
+  - Local headless Chromium on `dev:local`, seeded, at 390 and 1280 px:
+    `/admin/orders` (SSR HTML carries the rows; `?status=pending` excludes
+    the void INV-10004), the order detail, `/admin/shipping` (five queues,
+    drop-off rows labelled), `/admin/analytics`, `/`, `/produk` and a product
+    page. No console errors. The sticky bar is inert while hidden and focusable
+    when shown, and the brand box is 21/21 px.
+  - Not checked: real devices, a live Mengantar or AutoLaris call, a WhatsApp
+    send.

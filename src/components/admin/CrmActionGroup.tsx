@@ -26,7 +26,8 @@ export function CrmActionGroup({ orderId, crmUrls, initialRows }: {
 }) {
   const root = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
-  const [recording, setRecording] = useState<OrderFollowUpStep | null>(null);
+  // Per step: a second chip tapped while the first is still saving is recorded too.
+  const [recording, setRecording] = useState<readonly string[]>([]);
   const [rows, setRows] = useState<OrderFollowUp[] | null>(initialRows ?? null);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
@@ -96,8 +97,8 @@ export function CrmActionGroup({ orderId, crmUrls, initialRows }: {
   // opens the correction dialog that still asks for a reason.
   async function record(step: (typeof CRM_STEPS)[number]) {
     const current = rows?.find(item => item.step === step.key);
-    if (current?.completed || recording) return;
-    setRecording(step.key);
+    if (current?.completed || recording.includes(step.key)) return;
+    setRecording(list => [...list, step.key]);
     try {
       const response = await fetch(endpoint, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ step: step.key, completed: true, revision: current?.revision ?? 0, note: '' }) });
       const body = await response.json().catch(() => ({}));
@@ -113,7 +114,7 @@ export function CrmActionGroup({ orderId, crmUrls, initialRows }: {
       });
     } catch (reason) {
       toast.error(`${step.fullLabel}: ${reason instanceof Error ? reason.message : 'Tahap belum tercatat.'}`);
-    } finally { setRecording(null); }
+    } finally { setRecording(list => list.filter(key => key !== step.key)); }
   }
 
   // `px-0`: five chips share the column; the longest label (Welcome) needs every pixel.
@@ -128,7 +129,7 @@ export function CrmActionGroup({ orderId, crmUrls, initialRows }: {
           // Done reads as grey, not an icon: a check does not fit a fifth of the column.
           const label = <><span className="truncate">{step.label}</span>{done && <span className="sr-only"> (selesai)</span>}</>;
           return url && rows
-            ? <a key={step.key} href={url} target="_blank" rel="noopener noreferrer" aria-busy={recording === step.key} title={title} className={cn(buttonVariants({ size: 'sm', variant: 'outline' }), chip, done ? WA_DONE : WA_TODO)} onClick={() => void record(step)}>{label}</a>
+            ? <a key={step.key} href={url} target="_blank" rel="noopener noreferrer" aria-busy={recording.includes(step.key)} title={title} className={cn(buttonVariants({ size: 'sm', variant: 'outline' }), chip, done ? WA_DONE : WA_TODO)} onClick={() => void record(step)}>{label}</a>
             : <Button key={step.key} size="sm" variant="outline" className={chip} disabled title={rows ? `${step.title} · template atau nomor belum ada` : 'Memuat…'}>{label}</Button>;
         })}
       </div>}

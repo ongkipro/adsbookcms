@@ -320,7 +320,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
                           </span>
                         )}
                       </p>
-                      <p class="text-xs text-[#767676]">{[review.location, review.date].filter(Boolean).join(' · ')}</p>
+                      <p class="text-xs text-[#555555]">{[review.location, review.date].filter(Boolean).join(' · ')}</p>
                     </div>
                   </div>
                   <RatingStars rating={review.rating} class="mt-2.5" starClass="h-3 w-3" />
@@ -345,7 +345,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     <!-- Sticky purchase bar. Hidden while the photo or the order form is on
          screen: over the photo it covers what the buyer came to look at, and
          over the form its button points at a form already in view. -->
-    <div id="sticky-purchase-bar" class="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-[480px] items-center justify-between gap-3 border-t border-[#EDEDED] bg-white/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(17,17,17,0.08)] backdrop-blur-md transition-all duration-300" style="transform: translateY(100%); opacity: 0; pointer-events: none;">
+    <div id="sticky-purchase-bar" class="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-[480px] items-center justify-between gap-3 border-t border-[#EDEDED] bg-white/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(17,17,17,0.08)] backdrop-blur-md transition-all duration-300" style="transform: translateY(100%); opacity: 0; pointer-events: none;" inert>
       <div class="min-w-0">
         <p class="truncate text-xs text-[#555555]">{product.productName}</p>
         <p class="text-base font-bold leading-tight text-[#111111]">{hasPriceRange && <span class="text-xs font-normal text-[#555555]">Mulai </span>}Rp{Math.round(displayPrice).toLocaleString('id-ID')}</p>
@@ -377,10 +377,13 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
           stickyBar.style.transform = 'translateY(100%)';
           stickyBar.style.opacity = '0';
           stickyBar.style.pointerEvents = 'none';
+          // Out of sight is out of the tab order too.
+          stickyBar.inert = true;
         } else {
           stickyBar.style.transform = 'translateY(0)';
           stickyBar.style.opacity = '1';
           stickyBar.style.pointerEvents = 'auto';
+          stickyBar.inert = false;
         }
       };
 

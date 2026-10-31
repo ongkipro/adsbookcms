@@ -600,7 +600,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
     );
     if (eligibleIds.length !== orderIds.length) {
       return jsonError(
-        "Sebagian order bukan milik gudang terpilih, sudah dijadwalkan, atau belum memiliki resi.",
+        "Sebagian order bukan milik gudang terpilih, sudah dijadwalkan, dikirim lewat drop-off, atau belum memiliki resi.",
         409,
       );
     }

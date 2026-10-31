@@ -1,4 +1,5 @@
 import { formatIdr } from "@/lib/format-idr";
+import { providerDispatchErrorText } from "@/lib/payment-dispatch-policy";
 import {
   AlertTriangleIcon,
   CalendarClockIcon,
@@ -162,6 +163,14 @@ const shippingQueues: Array<{
     icon: CalendarClockIcon,
     tone: "text-sky-700 bg-sky-50",
     activeTone: "border-sky-500 ring-sky-500/10",
+  },
+  {
+    id: "needs_drop_off",
+    label: "Perlu Drop-off",
+    note: "Berresi, antar ke counter",
+    icon: PackageIcon,
+    tone: "text-violet-700 bg-violet-50",
+    activeTone: "border-violet-500 ring-violet-500/10",
   },
   {
     id: "delivered",
@@ -414,7 +423,7 @@ export function ShippingOperations() {
       // Name the failures; a bare count left the operator guessing which rows (audit 2026-10-31 L2).
       const failures = ((data.results ?? []) as Array<{ orderNumber?: string; error?: string | null }>)
         .filter((result) => result.error)
-        .map((result) => `${result.orderNumber ?? "?"}: ${result.error}`);
+        .map((result) => `${result.orderNumber || "Order tanpa nomor"}: ${result.error}`);
       setNotice({
         tone: data.failed > 0 ? "warning" : "success",
         message: `Sinkronisasi selesai: ${data.updated} diperbarui, ${data.unchanged} tetap, ${data.failed} gagal dari ${data.results?.length ?? ids.length} order.${failures.length ? ` Gagal — ${failures.slice(0, 5).join("; ")}${failures.length > 5 ? `; +${failures.length - 5} lainnya` : ""}.` : ""}`,
@@ -607,7 +616,7 @@ export function ShippingOperations() {
       </section>
 
       <section
-        className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4"
+        className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-5"
         aria-label="Antrean operasional pengiriman"
         role="tablist"
       >
@@ -879,7 +888,7 @@ export function ShippingOperations() {
                   {shipment.providerDispatchError && (
                     <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
                       <p className="font-semibold mb-1">Kendala Push ke Mengantar:</p>
-                      <p>{shipment.providerDispatchError}</p>
+                      <p>{providerDispatchErrorText(shipment.providerDispatchError)}</p>
                     </div>
                   )}
                   
@@ -1037,7 +1046,7 @@ export function ShippingOperations() {
                         </p>
                         {shipment.providerDispatchError && (
                           <p className="mt-1 text-xs text-rose-600 font-semibold max-w-[200px] leading-tight">
-                            Error: {shipment.providerDispatchError}
+                            Error: {providerDispatchErrorText(shipment.providerDispatchError)}
                           </p>
                         )}
                         <p className="mt-1 text-xs text-slate-400">
@@ -1081,9 +1090,9 @@ export function ShippingOperations() {
                           </>
                         ) : (
                           <p
-                            className={`font-semibold ${ready ? "text-sky-700" : "text-slate-400"}`}
+                            className={`font-semibold ${shipment.handover === "drop_off" ? "text-violet-700" : ready ? "text-sky-700" : "text-slate-400"}`}
                           >
-                            {ready ? "Siap dijadwalkan" : "Belum siap"}
+                            {shipment.handover === "drop_off" ? "Drop-off di counter" : ready ? "Siap dijadwalkan" : "Belum siap"}
                           </p>
                         )}
                       </TableCell>

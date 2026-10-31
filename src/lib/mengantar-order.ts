@@ -56,6 +56,8 @@ export function jakartaDate(instant: number) {
 
 /** The provider hours still bookable on a Jakarta date (start ≥ now + 90 minutes). */
 export function availablePickupHours(date: string, now = Date.now()) {
+  // An empty or malformed date has no hours; building a slot from it throws.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00+07:00`))) return [];
   return MENGANTAR_PICKUP_HOURS.filter(
     (hour) => new Date(mengantarPickupSlot(date, hour).scheduledAt).getTime() >= now + MENGANTAR_PICKUP_LEAD_MS,
   );
@@ -126,9 +128,23 @@ export function parseMengantarPickupChoice(
  * `data`, `GET /time` an array (Mengantar docs). Either shape is read; a
  * matching slot wins, else the only one.
  */
+/**
+ * Whether a provider pickup row is this slot. The hour is compared as a
+ * number: the spelling Mengantar answers with ("9:00" or "09:00") is not
+ * verified, and a strict string match that never hits books a fresh slot on
+ * every push.
+ */
+export function sameMengantarSlot(row: { date?: unknown; time?: unknown }, slot: { date: string; time: string }) {
+  const clock = (value: unknown) => {
+    const match = /^\s*(\d{1,2}):(\d{2})/.exec(String(value ?? ""));
+    return match ? Number(match[1]) * 60 + Number(match[2]) : Number.NaN;
+  };
+  return String(row.date ?? "") === slot.date && clock(row.time) === clock(slot.time);
+}
+
 export function pickMengantarTimeId(data: unknown, slot: { date: string; time: string }) {
   const rows = (Array.isArray(data) ? data : data && typeof data === "object" ? [data] : []) as Array<Record<string, unknown>>;
-  const match = rows.find((row) => String(row.date) === slot.date && String(row.time) === slot.time);
+  const match = rows.find((row) => sameMengantarSlot(row, slot));
   const chosen = match ?? (rows.length === 1 ? rows[0] : undefined);
   return String(chosen?._id || "").trim();
 }

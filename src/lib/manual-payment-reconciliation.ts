@@ -1,5 +1,9 @@
 import { AutoLarisClient } from "./autolaris-client.ts";
-import { adoptPaymentAttemptStatements, type PaymentTransactionAttempt } from "./autolaris-payment.ts";
+import {
+  adoptPaymentAttemptStatements,
+  markPaymentAttemptSettledStatement,
+  type PaymentTransactionAttempt,
+} from "./autolaris-payment.ts";
 import type { AdminRole } from "./auth.ts";
 import {
   buildPaymentNotification,
@@ -211,8 +215,9 @@ export async function confirmManualAutoLarisPayment(
   }
 
   let results: D1Result[];
+  const adopt = attempt ? adoptPaymentAttemptStatements(database, attempt, now) : [];
+  const transactionSettleIndex = adopt.length + 1;
   try {
-    const adopt = attempt ? adoptPaymentAttemptStatements(database, attempt, now) : [];
     results = await database.batch([
       ...adopt,
       database
@@ -229,7 +234,8 @@ export async function confirmManualAutoLarisPayment(
             o.store_id, pt.id, o.id,
             ?, ?, ?,
             'autolaris', pt.provider_transaction_id, pt.reference_id,
-            pt.status, o.payment_status,
+            -- An adopted row reads 'expired' by now; record what it was before.
+            COALESCE(?, pt.status), o.payment_status,
             pt.amount, pt.admin_fee, pt.total_amount, ?, ?
           FROM payment_transactions pt
           INNER JOIN orders o ON o.id = pt.order_id
@@ -251,6 +257,7 @@ export async function confirmManualAutoLarisPayment(
           actor.actor_admin_id,
           actor.actor_username,
           actor.actor_role,
+          attempt ? payment.status : null,
           input.note,
           now,
           input.transactionId,
@@ -285,6 +292,7 @@ export async function confirmManualAutoLarisPayment(
             )`,
         )
         .bind(payment.order_id, actor.store_id, input.transactionId),
+      ...(attempt ? [markPaymentAttemptSettledStatement(database, attempt.id, now)] : []),
     ]);
   } catch {
     throw new ManualPaymentReconciliationError(
@@ -319,7 +327,8 @@ export async function confirmManualAutoLarisPayment(
   });
   return {
     transaction: confirmed,
-    transitioned: Number(results[results.length - 2]?.meta?.changes || 0) > 0,
+    // The payment_transactions settle: after the adopt pair and the audit insert.
+    transitioned: Number(results[transactionSettleIndex]?.meta?.changes || 0) > 0,
   };
 }
 

@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { jsonError, jsonOk } from '../../../../lib/api.ts';
 import { CRM_BANK_ACCOUNTS_SQL, CRM_STORE_SQL, crmStoreContext, formatBankAccount } from '../../../../lib/crm-template.ts';
-import { buyerOrderLinks } from '../../../../lib/payment-switch.ts';
+import { buyerLinkOrigin, buyerOrderLinks } from '../../../../lib/payment-switch.ts';
 import { getRuntimeEnv } from '../../../../lib/env.ts';
 import { shippingStatusLabel } from '../../../../lib/shipping-status.ts';
 import { readOrderFollowUpsFor, type OrderFollowUp } from '../../../../lib/order-follow-up.ts';
@@ -166,7 +166,15 @@ export function parseBulkStatusUpdate(body: unknown): BulkStatusUpdate {
 const LIST_SHIPPING_STATUS_SQL =
   "(CASE WHEN shipping_status = 'pending' AND stock_restored_at IS NOT NULL THEN 'cancelled' ELSE shipping_status END)";
 
-export const GET: APIRoute = async ({ url, locals }) => {
+/**
+ * Set by `/admin/orders` when it server-renders the first rows through this
+ * route: the island's own fetch follows within a second, and scoring the same
+ * unscored orders twice is a second provider call each. Forging it only
+ * skips one refresh.
+ */
+export const ORDER_LIST_PREFETCH_HEADER = 'X-Order-List-Prefetch';
+
+export const GET: APIRoute = async ({ url, locals, request }) => {
   const database = getRuntimeEnv(locals)?.OMS_DB;
   if (!database || typeof database !== 'object') {
     return jsonError('Database order belum tersedia.', 503);
@@ -398,7 +406,8 @@ export const GET: APIRoute = async ({ url, locals }) => {
     ).trim();
 
     const rows = (rowResult.results ?? []) as OrderRow[];
-    for (const row of rows.slice(0, 10)) {
+    const prefetch = request?.headers.get(ORDER_LIST_PREFETCH_HEADER) === '1';
+    for (const row of prefetch ? [] : rows.slice(0, 10)) {
       if (row.receiver_risk_label === null && row.customer_phone && !isRecentReceiverRefusal(row.receiver_refused_at)) {
         scheduleReceiverPerformanceRefresh(db, row.order_number, row.customer_phone, locals);
       }
@@ -452,7 +461,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
           bank_accounts:
             formatBankAccount(row.seller_bank_name, row.seller_account_number, row.seller_account_holder) ||
             crm.bank_accounts,
-          ...buyerOrderLinks(url.origin, row),
+          ...buyerOrderLinks(buyerLinkOrigin(locals.tenant?.siteUrl, url.origin), row),
           dispatch_eligible: dispatch.eligible,
           dispatch_reason: dispatch.reason,
           provider_dispatch_error: row.provider_dispatch_error,

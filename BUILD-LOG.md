@@ -7625,3 +7625,44 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
     lights are measured; under reduced motion the animations are off.
   - Not checked: real devices, an iOS home-screen install.
 
+### Entry 208: Adaptive legal pages from store settings; header, brand and card refinements
+
+- Legal pages: Kebijakan Privasi, Pengiriman & Retur, Syarat & Ketentuan and
+  Kontak (`src/data/legal.ts`).
+  - Rewritten as generic copy for any store. No city, courier, payment
+    method, return window, delivery time or legal regime is named.
+  - Filled from settings: store name, the site's host, the first CS
+    WhatsApp, and the new support email and business address.
+  - A paragraph whose value is unset is dropped. Privacy, shipping and terms
+    close with "Hubungi Kami" built from the channels that exist, or a pointer
+    to `/kontak`.
+  - Links in paragraphs (`[label](/path)`, email, `+62…`) are parsed by
+    `src/lib/legal-links.ts`; external targets are refused.
+  - `LegalPage` is one reading column, with no box per section.
+- Settings: migration `0078_store_public_contact` (schema 79) adds
+  `stores.support_email` and `stores.business_address`, edited in
+  Pengaturan → Store. The email is checked for shape (`SUPPORT_EMAIL_PATTERN`)
+  and the address is free text; both are optional. The tagline help text no
+  longer says it shows in the header.
+- Header and brand:
+  - The "Official Store" line uses a blue badge-check (owner decision).
+  - The brand is the uploaded logo, or a text wordmark when there is none. The
+    logo is sized inline, because utility sizing rendered it 0x0.
+  - A bare package icon to `/produk`.
+  - The header is not sticky; its rule fades at both edges.
+- Product cards: the price sits under a title clamped to two lines, with no
+  reserved height. The PDP inline "Pesan sekarang" button and the shipping
+  note are gone.
+- Verification:
+  - `npm test` 1106 pass; `npm run check` 0 errors; `npm run build`
+    complete; `docs:check` passed.
+  - Headless Chromium on `dev:local` at 390 px:
+    - Email and address saved through the admin form, with the other fields
+      unchanged.
+    - The four pages render them with no placeholder left.
+    - The links are `wa.me`, `mailto:` and internal pages.
+    - The header logo and text variants were measured.
+    - No console errors.
+  - Not checked: server-side refusal of a malformed email (the browser's
+    `type=email` stopped it first), and real devices.
+

@@ -33,11 +33,11 @@ The [Modules](#modules) section is the same book read from the other side.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `/disclaimer` | GET | public | — | `src/pages/disclaimer.astro` | — | — | — |
 | `/kebijakan-cookie` | GET | public | — | `src/pages/kebijakan-cookie.astro` | — | — | — |
-| `/kebijakan-privasi` | GET | public | — | `src/pages/kebijakan-privasi.astro` | `tenant` | `stores` | `tenant.test.ts` |
+| `/kebijakan-privasi` | GET | public | — | `src/pages/kebijakan-privasi.astro` | `public-store` `tenant` | `stores` | `public-store.test.ts` `tenant.test.ts` |
 | `/kontak` | GET | public | — | `src/pages/kontak.astro` | `public-store` | `stores` | `public-store.test.ts` |
-| `/pengiriman` | GET | public | — | `src/pages/pengiriman.astro` | `tenant` | `stores` | `tenant.test.ts` |
+| `/pengiriman` | GET | public | — | `src/pages/pengiriman.astro` | `public-store` `tenant` | `stores` | `public-store.test.ts` `tenant.test.ts` |
 | `/sitemap` | GET | public | — | `src/pages/sitemap.astro` | `catalog` `landing-pages` | `landing_pages` `landing_sections` `product_variants` `products` | `catalog.test.ts` `landing-pages.test.ts` |
-| `/syarat-ketentuan` | GET | public | — | `src/pages/syarat-ketentuan.astro` | `tenant` | `stores` | `tenant.test.ts` |
+| `/syarat-ketentuan` | GET | public | — | `src/pages/syarat-ketentuan.astro` | `public-store` `tenant` | `stores` | `public-store.test.ts` `tenant.test.ts` |
 | `/tentang` | GET | public | — | `src/pages/tentang.astro` | — | — | — |
 | `/testimoni` | GET | public | — | `src/pages/testimoni.astro` | — | — | — |
 
@@ -216,7 +216,7 @@ The [Modules](#modules) section is the same book read from the other side.
 
 ## Modules
 
-127 modules under `src/lib`; 11 without a sibling test.
+128 modules under `src/lib`; 11 without a sibling test.
 `used by` lists routes importing the module directly — a module used by nothing
 is either transitive (imported by another lib) or dead, and only reading tells which.
 
@@ -280,6 +280,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `json-ld` | 14 | — | ✓ | — |
 | `json-script` | 1 | — | ✓ | — |
 | `landing-pages` | 35 | `landing_pages` `landing_sections` `products` | ✓ | `/produk/[slug]` `/sitemap` `/[slug]` `/contoh-landing` `/landing-page` `/sitemap.xml` `/admin/ads/utm` `/api/admin/landing-pages` `/api/admin/landing-pages/[id]` |
+| `legal-links` | 2 | — | ✓ | — |
 | `location-search` | 19 | — | ✓ | `/api/locations` `/api/v1/geo/districts` |
 | `manual-payment-reconciliation` | 6 | `admin_credentials` `orders` `payment_reconciliation_audits` `payment_transaction_attempts` `payment_transactions` `stores` | ✓ | `/api/admin/payment-reconciliation` |
 | `mengantar-areas` | 6 | `mengantar_areas` | ✓ | `/api/locations` |
@@ -314,7 +315,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `product-mutation` | 10 | `order_items` `product_variants` `products` `storefront_content` | ✓ | `/api/admin/products` |
 | `provider-config` | 6 | `stores` | ✓ | `/api/locations` `/api/payment-methods` `/api/submit-order` `/api/v1/checkout` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` `/api/admin/warehouses` |
 | `province` | 12 | — | ✓ | `/api/submit-middle-order` `/api/v1/checkout` `/api/admin/expeditions` |
-| `public-store` | 2 | `stores` | ✓ | `/thanks` `/kontak` `/[slug]` |
+| `public-store` | 3 | `stores` | ✓ | `/thanks` `/kebijakan-privasi` `/kontak` `/pengiriman` `/syarat-ketentuan` `/[slug]` |
 | `rate-check` | 10 | — | ✓ | — |
 | `rate-limit` | 12 | `rate_limits` | ✓ | `/hello` `/api/install` `/api/locations` `/api/meta-event` `/api/order-status` `/api/record-abandoned-order` `/api/shipping-rates` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` `/api/webhooks/autolaris` `/api/admin/upload-r2` |
 | `receiver-performance` | 5 | — | ✓ | `/api/admin/orders/[id]` |
@@ -337,7 +338,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `storefront-template` | 9 | `storefront_templates` `stores` | ✓ | `/` `/api/admin/settings` |
 | `tenant-content` | 3 | — | ✓ | `/` `/api/v1/storefront` |
 | `tenant-contract` | 3 | — | ✓ | — |
-| `tenant` | 13 | `stores` | ✓ | `/kebijakan-privasi` `/pengiriman` `/syarat-ketentuan` `/install` `/api/install` `/api/admin/settings` |
+| `tenant` | 14 | `stores` | ✓ | `/kebijakan-privasi` `/pengiriman` `/syarat-ketentuan` `/install` `/api/install` `/api/admin/settings` |
 | `thanks-whatsapp` | 6 | — | ✓ | `/thanks` |
 | `traffic-source` | 3 | — | ✓ | — |
 | `ui-variants` | 4 | — | ✓ | `/thanks` |

@@ -9,7 +9,7 @@ import {
   resolveEmbedAllowedOrigins,
 } from "../../../lib/embed-security.ts";
 import { parseHeadlessAllowedOrigins } from "../../../lib/headless-api.ts";
-import { isAcceptedSiteProtocol, LOCALE_PATTERN, THEME_COLOR_PATTERN } from "../../../lib/tenant.ts";
+import { isAcceptedSiteProtocol, LOCALE_PATTERN, SUPPORT_EMAIL_PATTERN, THEME_COLOR_PATTERN } from "../../../lib/tenant.ts";
 import { getEnvValue, getRuntimeEnv, maskSecretValue } from "../../../lib/env.ts";
 import {
   addStorefrontTemplate,
@@ -67,6 +67,8 @@ type SettingsPayload = {
   admin_name?: string;
   thanks_whatsapp_redirect?: boolean;
   support_whatsapp?: string;
+  support_email?: string;
+  business_address?: string;
   embed_allowed_origins?: unknown;
   headless_allowed_origins?: unknown;
   payment_fee_bearer?: "buyer" | "seller";
@@ -95,6 +97,8 @@ type SettingsRow = {
   store_id: number;
   store_name: string;
   support_whatsapp: string | null;
+  support_email?: string | null;
+  business_address?: string | null;
   site_url?: string | null;
   description?: string | null;
   tagline?: string | null;
@@ -162,6 +166,8 @@ async function getSettingsRow(database: D1Database) {
         s.id AS store_id,
         s.name AS store_name,
         s.support_whatsapp,
+        s.support_email,
+        s.business_address,
         s.site_url,
         s.description,
         s.tagline,
@@ -204,6 +210,8 @@ async function getSettingsRow(database: D1Database) {
         s.id AS store_id,
         s.name AS store_name,
         s.support_whatsapp,
+        NULL AS support_email,
+        NULL AS business_address,
         s.site_url,
         s.description,
         s.tagline,
@@ -285,6 +293,8 @@ export const GET: APIRoute = async ({ locals }) => {
         store: {
           name: row.store_name,
           support_whatsapp: row.support_whatsapp ?? "",
+          support_email: row.support_email ?? "",
+          business_address: row.business_address ?? "",
           site_url: row.site_url ?? "",
           description: row.description ?? "",
           tagline: row.tagline ?? "",
@@ -763,13 +773,21 @@ export const PUT: APIRoute = async ({ request, locals }) => {
         );
       }
 
+      // Public contact for the storefront's legal pages. The address is free
+      // text; the email is checked for shape only, never sent to.
+      const supportEmail = clean(body.support_email, 160).toLowerCase();
+      if (supportEmail && !SUPPORT_EMAIL_PATTERN.test(supportEmail)) {
+        return jsonError("Email customer service tidak valid. Contoh: cs@tokosaya.com", 400);
+      }
+      const businessAddress = clean(body.business_address, 300);
+
       await db
         .prepare(
           `UPDATE stores
               SET name = ?, site_url = ?, description = ?,
                   tagline = ?, logo = ?, storefront_template = ?,
                   theme_color = ?, locale = ?, admin_name = ?,
-                  thanks_whatsapp_redirect = ?
+                  thanks_whatsapp_redirect = ?, support_email = ?, business_address = ?
             WHERE id = ?`,
         )
         .bind(
@@ -783,6 +801,8 @@ export const PUT: APIRoute = async ({ request, locals }) => {
           localeValue || null,
           clean(body.admin_name, 120) || null,
           body.thanks_whatsapp_redirect === true ? 1 : 0,
+          supportEmail || null,
+          businessAddress || null,
           current.store_id,
         )
         .run();

@@ -141,6 +141,8 @@ function siteOrigin(value: string): string {
  */
 export const THEME_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 export const LOCALE_PATTERN = /^[a-z]{2}(?:-[A-Z]{2})?$/;
+/** Shape only: one @, a dot in the domain, no spaces. Nothing is sent to it. */
+export const SUPPORT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function themeColor(value: string): string {
   return THEME_COLOR_PATTERN.test(value) ? value : defaults.themeColor;

@@ -111,8 +111,9 @@ centred (owner decision 2026-10-31): the QRIS code alone
 the print, payload identical, checked to decode from the rendered page), a pulsing "scan me" corner frame outside the
 code, signal waves leaving the card (three rings, 4.2s, scale 1 to 1.55, behind the
 opaque card so the code is never covered), "CMS GRATIS. / Server GRATIS." with a
-brand-blue highlighter drawn under each GRATIS in turn on a 7s cycle, and the
-merchant's name. The QR stays the focal point: everything that moves moves out
+brand-blue highlighter drawn under each GRATIS in turn on a 7s cycle, "Kopi
+developernya yang belum. Boleh dong ditraktir? Hehehe.", the quote "Satu kopi,
+satu bug minggat." (pepatah developer), and the merchant's name. The QR stays the focal point: everything that moves moves out
 from it or sits below it. Not a plea: no
 "seikhlasnya", no "dukung". The image is lazy, so a phone never fetches it;
 motion stops under `prefers-reduced-motion` (`admin.css`).

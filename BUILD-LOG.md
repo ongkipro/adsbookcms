@@ -7911,3 +7911,14 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   icon; "Ads" in brand blue and "Book" in ink at 18px bold; "CMS" as a tracked
   12px tag after a hairline. Its accessible name is "AdsBookCMS".
 
+### Entry 220: Clearer glass login card on phones
+
+- The phone card is clear glass instead of 85% white:
+  - A 62%→48% white gradient.
+  - `blur(28px) saturate(1.7)`.
+  - A white border with an inset top highlight, 1.75rem radius.
+- Labels are slate-900 and the CMS tag slate-800, both checked against #8C8C8C
+  (the darkest the blurred poster makes the card): 5.3:1 and 4.7:1.
+- Fields stay 92% white, so typed text never sits on the image.
+- Verification: the seven-size no-scroll check passes; no console errors.
+

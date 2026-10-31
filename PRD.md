@@ -1,6 +1,6 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (A42 REQ-270; other sections retain their recorded evidence)
+> Verified against disk: 2026-10-31 @ `7a8f26e` + fix/ui-actions-audit (A46, REQ-249 amendment; other sections retain their recorded evidence)
 
 ## A43 — Resolve kecamatan to Mengantar areas without calling Mengantar
 

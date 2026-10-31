@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (A-444; other sections retain their recorded evidence)
+> Verified against disk: 2026-10-31 @ `7a8f26e` + fix/ui-actions-audit (A-444; other sections retain their recorded evidence)
 
 ## A21 — A landing page may become the product page
 

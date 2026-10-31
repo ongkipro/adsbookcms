@@ -26,6 +26,8 @@ shadows: { buy-bar: "0 -8px 24px rgba(17,17,17,0.08)" }   # the only one
 motion: { duration-base: 200ms, easing: ease-out }
 ---
 
+> Verified against disk: 2026-10-31 @ `7a8f26e` + fix/ui-actions-audit (frontmatter values; subordinate to DESIGN-SYSTEM.md)
+
 ## Rationale
 
 The storefront was warm neutrals plus a gold accent. That reads as a brand, and

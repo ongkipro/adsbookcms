@@ -72,8 +72,8 @@ const CHANGELOG_RELEASES: ChangelogRelease[] = [
         description: "Kebijakan Privasi, Pengiriman & Retur, Syarat & Ketentuan, dan Kontak ditulis ulang untuk toko apa pun dan memakai nama toko, domain, WhatsApp, serta email dan alamat usaha baru di Pengaturan › Store. Kalimat yang datanya belum diisi tidak ditampilkan.",
       },
       {
-        title: "Ikon dan halaman masuk baru",
-        description: "Ikon AdsBookCMS baru untuk tab browser dan layar utama iOS (toko yang sudah memasang ikonnya sendiri tetap memakainya). Halaman masuk admin menampilkan alur Iklan › Pesanan › Kirim yang bergerak.",
+        title: "Ikon, halaman masuk, dan menu akun baru",
+        description: "Ikon AdsBookCMS baru untuk tab browser dan layar utama iOS (toko yang sudah memasang ikonnya sendiri tetap memakainya). Halaman masuk admin menampilkan alur Iklan › Pesanan › Kirim yang bergerak. Tombol akun di kanan atas kini membuka menu: profil, pengaturan toko, storefront, catatan rilis, dan Keluar.",
       },
     ],
   },

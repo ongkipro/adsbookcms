@@ -25,9 +25,21 @@ import {
 } from "@/components/ui/sheet";
 import { Toaster } from "@/components/ui/sonner";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowUpRight,
+  ChevronDown,
   ChevronRight,
   History,
+  Settings,
+  Store,
   LogOut,
   Menu,
   Search,
@@ -59,6 +71,8 @@ interface AdminShellProps {
   currentPath: string;
   siteUrl: string;
   adminRole: AdminRole;
+  /** Shown in the account menu's header; the session's own username. */
+  adminUsername?: string;
   mustChangePassword?: boolean;
   sidebarDefaultOpen?: boolean;
 }
@@ -73,6 +87,7 @@ export function AdminShell({
   currentPath,
   siteUrl,
   adminRole,
+  adminUsername = "",
   mustChangePassword = false,
   sidebarDefaultOpen = true,
 }: AdminShellProps) {
@@ -258,21 +273,76 @@ export function AdminShell({
               {!mustChangePassword && (adminRole === "owner" || adminRole === "admin") && (
                 <OperationalStatusIcon active={activeMenu === "status"} />
               )}
-              {/* Profile and role in one control: the role used to be a separate pill. */}
-              <a
-                href="/admin/profile"
-                aria-current={activeMenu === "profile" ? "page" : undefined}
-                className={`ml-1 flex h-9 shrink-0 items-center gap-2 rounded-full pl-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 lg:pr-3 ${
-                  activeMenu === "profile" ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                }`}
-                aria-label={`Buka profil & integrasi admin (${roleLabel})`}
-                title="Profil & Integrasi"
-              >
-                <span className="grid size-8 place-items-center rounded-full bg-slate-900 text-white" aria-hidden="true">
-                  <UserRound className="size-4" />
-                </span>
-                {!mustChangePassword && <span className="hidden text-sm font-medium lg:inline">{roleLabel}</span>}
-              </a>
+              {/* The account menu: who is signed in, their profile, the store's
+                  settings (roles that have them), the storefront, the release
+                  notes, and Keluar - which used to sit at the foot of the sidebar. */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className={`ml-1 flex h-9 shrink-0 items-center gap-2 rounded-full pl-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 lg:pr-2.5 data-[state=open]:bg-slate-100 ${
+                    activeMenu === "profile" ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  }`}
+                  aria-label={`Menu akun (${roleLabel})`}
+                >
+                  <span className="grid size-8 place-items-center rounded-full bg-slate-900 text-white" aria-hidden="true">
+                    <UserRound className="size-4" />
+                  </span>
+                  {!mustChangePassword && <span className="hidden text-sm font-medium lg:inline">{roleLabel}</span>}
+                  <ChevronDown className="hidden size-3.5 text-slate-400 lg:block" aria-hidden="true" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={8} className="w-60">
+                  <DropdownMenuLabel className="flex items-center gap-2.5 py-2">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-slate-900 text-white" aria-hidden="true">
+                      <UserRound className="size-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-slate-900">{adminUsername || roleLabel}</span>
+                      <span className="block truncate text-xs font-normal text-slate-500">{roleLabel} · {siteName || adminName}</span>
+                    </span>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild>
+                      <a href={profileNavItem.href}>
+                        <UserRound aria-hidden="true" />
+                        {mustChangePassword ? "Keamanan akun" : "Profil & keamanan"}
+                      </a>
+                    </DropdownMenuItem>
+                    {!mustChangePassword && allItems.some((item) => item.id === "settings") && (
+                      <DropdownMenuItem asChild>
+                        <a href="/admin/settings/store">
+                          <Settings aria-hidden="true" />
+                          Pengaturan toko
+                        </a>
+                      </DropdownMenuItem>
+                    )}
+                    {!mustChangePassword && (
+                      <DropdownMenuItem asChild>
+                        <a href="/" target="_blank" rel="noopener noreferrer">
+                          <Store aria-hidden="true" />
+                          Lihat storefront
+                          <ArrowUpRight className="ml-auto text-slate-400" aria-hidden="true" />
+                        </a>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onSelect={() => setChangelogOpen(true)}>
+                      <History aria-hidden="true" />
+                      Catatan rilis
+                      <span className="ml-auto font-mono text-xs text-slate-400">v{CMS_VERSION.version}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  {/* The layout's data-logout-form handler does the request and
+                      relabels the button; the item keeps the menu open meanwhile. */}
+                  <form method="POST" action="/api/admin/logout" data-logout-form>
+                    <DropdownMenuItem asChild variant="destructive" onSelect={(event) => event.preventDefault()}>
+                      <button type="submit" className="w-full">
+                        <LogOut aria-hidden="true" />
+                        Keluar
+                      </button>
+                    </DropdownMenuItem>
+                  </form>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
 

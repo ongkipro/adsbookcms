@@ -7712,3 +7712,32 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   `RELEASE.md` §7. `0072` (multi-warehouse) needs the row count checked on any
   install with more than one `warehouses` row first.
 
+### Entry 211: Account menu in the top bar; sidebar product card
+
+- The top-bar account control was a link to `/admin/profile`. It now opens a
+  shadcn dropdown with:
+  - The session's username and role, plus the store.
+  - Profil & keamanan.
+  - Pengaturan toko (roles that have settings).
+  - Lihat storefront (until now only in the bar at 1280px and up).
+  - Catatan rilis.
+  - Keluar.
+- Keluar reuses the layout's `data-logout-form` handler, and the item keeps the
+  menu open while it runs. `AdminLayout` passes `adminUsername`.
+- Sidebar footer:
+  - Keluar is gone from the sidebar; the mobile Menu sheet keeps its own.
+  - The version card is the product icon, "AdsBookCMS · Catatan rilis" and a
+    blue version pill.
+  - The collapsed rail shows the product icon.
+  - Within the admin contracts: 12px type floor, no decorative motion.
+- The 1.8.0 changelog names the account menu.
+- Verification:
+  - `npm test` 1106 pass; `npm run check` 0 errors; `npm run build` complete.
+  - Headless Chromium on `dev:local`:
+    - At 1280px: the menu lists the five items under the user header.
+    - Catatan rilis opens the modal.
+    - Keluar lands on `/hello`, and `/admin/dashboard` then redirects there.
+    - At 900px: the rail icon opens the changelog.
+    - At 390px: the Menu sheet still has Keluar.
+    - No console errors.
+

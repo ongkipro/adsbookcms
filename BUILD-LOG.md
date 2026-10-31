@@ -7808,3 +7808,27 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
     payload; the phone fetches no QRIS; no console errors.
   - `npm test`, `npm run check` and `npm run build` pass.
 
+### Entry 215: Login page fits one screen
+
+- `/hello` is exactly one viewport tall on phone and desktop. Each column is
+  `100dvh`, and the page itself never scrolls.
+  - The form column centres the form and pins a short footer: "Lupa password?
+    Minta owner mereset di Pengaturan › Akses Pengguna." and the version.
+    Self-service reset stays out of scope per PRD-ADMIN-LOGIN.
+  - The brand column spaces logo, tip jar and a compact "Operator Workspace"
+    caption. The 36px heading that competed with the tip jar is gone.
+  - The QR scales as `clamp(8.5rem, 24vh, 14rem)`.
+- Header:
+  - A store chip "Admin · <store>" and "Masuk ke dashboard".
+  - On a phone, the product icon and the whole header are centred.
+- Fields have placeholders ("Username Anda", "Masukkan password") and a
+  brand-blue focus ring; the button is brand blue and reads "Masuk".
+- Phones no longer get a floating card on grey; the form sits on white.
+- Verification:
+  - Headless Chromium at 1440x900, 1280x800, 1366x768, 1024x768, 390x844,
+    375x667 and 360x640.
+  - At every size: no page scroll, no clipped column, button and footer in
+    view, no console errors.
+  - The QR decodes from the 1366x768 render.
+  - `npm test`, `npm run check` and `npm run build` pass.
+

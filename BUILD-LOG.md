@@ -7924,3 +7924,12 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
 - Fields stay 92% white, so typed text never sits on the image.
 - Verification: the seven-size no-scroll check passes; no console errors.
 
+### Entry 221: Login tip-jar copy
+
+- The body reads "Kopi developernya yang belum. Boleh dong ditraktir?
+  Hehehe." (owner).
+- A short quote follows as a `figure`: "Satu kopi, satu bug minggat." —
+  pepatah developer.
+- Verification: the seven-size no-scroll check and the QR decode after the
+  change.
+

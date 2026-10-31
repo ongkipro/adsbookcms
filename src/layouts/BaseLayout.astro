@@ -85,7 +85,9 @@ const hasGoogleTag = Boolean(
   adsConfig.googleAdsConversionId
 );
 const canonical = canonicalProp ?? new URL(Astro.url.pathname, publicSiteUrl).toString();
-const imageUrl = new URL(image, publicSiteUrl).toString();
+// A store with no logo and a page with no image share the store's own icon,
+// never the page itself (an empty URL resolves to the page).
+const imageUrl = new URL(image || '/favicon-192.png', publicSiteUrl).toString();
 const preloadImageUrls =
   typeof preloadImages === 'string' || (typeof preloadImages === 'object' && preloadImages !== null && !Array.isArray(preloadImages))
     ? [preloadImages as PreloadImageItem]

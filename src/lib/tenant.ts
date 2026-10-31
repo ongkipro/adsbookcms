@@ -37,8 +37,15 @@ export interface StoreIdentityRow {
   admin_name?: string | null;
 }
 
-/** The logo a store has until it uploads its own: the storefront then draws a text wordmark. */
-export const DEFAULT_TENANT_LOGO = "/images/adsbook-mark.webp";
+/**
+ * No logo until the store uploads its own: the storefront then draws a text
+ * wordmark, the admin the store's initial, and share images fall back to the
+ * store's own icon (/favicon-192.png). The product's old placeholder wordmark
+ * (/images/adsbook-mark.webp, "BELUM DIKONFIGURASI") was deleted on
+ * 2026-10-31; a store row or env that still names it reads as no logo.
+ */
+export const DEFAULT_TENANT_LOGO = "";
+export const LEGACY_PLACEHOLDER_LOGO = "/images/adsbook-mark.webp";
 
 /**
  * Product defaults for an install that has not been configured yet. A real
@@ -183,7 +190,9 @@ export function resolveTenantConfig(
     description:
       pick(row?.description, "PUBLIC_SITE_DESCRIPTION", defaults.description) ||
       `Belanja online di ${name}.`,
-    logo: pick(row?.logo, "PUBLIC_SITE_LOGO", defaults.logo),
+    logo: ((value) => (value === LEGACY_PLACEHOLDER_LOGO ? DEFAULT_TENANT_LOGO : value))(
+      pick(row?.logo, "PUBLIC_SITE_LOGO", defaults.logo),
+    ),
     brandMark: imagePath(getEnvValue("PUBLIC_SITE_BRAND_MARK")),
     noindex: siteNoindex(),
     tagline,

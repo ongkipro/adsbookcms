@@ -338,7 +338,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `storefront-template` | 9 | `storefront_templates` `stores` | ✓ | `/` `/api/admin/settings` |
 | `tenant-content` | 3 | — | ✓ | `/` `/api/v1/storefront` |
 | `tenant-contract` | 3 | — | ✓ | — |
-| `tenant` | 14 | `stores` | ✓ | `/kebijakan-privasi` `/pengiriman` `/syarat-ketentuan` `/install` `/api/install` `/api/admin/settings` |
+| `tenant` | 15 | `stores` | ✓ | `/kebijakan-privasi` `/pengiriman` `/syarat-ketentuan` `/install` `/api/install` `/api/admin/settings` |
 | `thanks-whatsapp` | 6 | — | ✓ | `/thanks` |
 | `traffic-source` | 3 | — | ✓ | — |
 | `ui-variants` | 4 | — | ✓ | `/thanks` |

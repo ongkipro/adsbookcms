@@ -240,3 +240,9 @@ test("saving the store profile no longer writes the support WhatsApp number (PRD
   assert.doesNotMatch(statement, /support_whatsapp/);
   assert.doesNotMatch(update.slice(0, update.indexOf("UPDATE stores")), /Nomor WhatsApp harus/);
 });
+
+test("a store with no logo, or the deleted placeholder wordmark, resolves to no logo", () => {
+  assert.equal(resolveTenantConfig({ name: "Toko", logo: "/images/adsbook-mark.webp" }).logo, "");
+  assert.equal(resolveTenantConfig({ name: "Toko", logo: null }).logo, "");
+  assert.equal(resolveTenantConfig({ name: "Toko", logo: "/images/logo-toko.png" }).logo, "/images/logo-toko.png");
+});

@@ -19,7 +19,9 @@ const { phones: csPhones, autoRedirect: thanksWhatsappRedirect } = await getThan
 // This store's own logo. It used to be a hardcoded `/images/logo.webp` — the
 // demo store's wordmark — so every install's confirmation page carried another
 // merchant's brand at the moment the customer trusts it most.
-const storeLogo = Astro.locals.tenant.logo;
+// The image slot's first paint until the script sets the product photo; an
+// empty src would request this page again.
+const storeLogo = Astro.locals.tenant.logo || '/favicon-192.png';
 const productCatalog = products.map((item) => ({
   slug: item.slug,
   productName: item.productName,

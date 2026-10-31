@@ -15,9 +15,9 @@ function runtimePresentation(productId: string): Product {
     seoTitle: "Merchant SEO title",
     seoDescription: "Merchant SEO description",
     price: 1,
-    image: "/images/adsbook-mark.webp",
-    heroImage: "/images/adsbook-mark.webp",
-    images: ["/images/adsbook-mark.webp"],
+    image: "/images/adsbook-icon.svg",
+    heroImage: "/images/adsbook-icon.svg",
+    images: ["/images/adsbook-icon.svg"],
     tag: "Merchant tag",
     category: "Presentation category",
     relatedCategories: ["Merchant category"],
@@ -160,7 +160,7 @@ test("missing D1 product image is never replaced with an AdsBookCMS asset", () =
   );
 
   assert.deepEqual(products, []);
-  assert.doesNotMatch(JSON.stringify(products), /adsbook-mark\.webp/);
+  assert.doesNotMatch(JSON.stringify(products), /adsbook-(mark\.webp|icon\.svg)/);
 });
 
 test("a product's own brand reaches the feed; a product without one falls back to the store", () => {

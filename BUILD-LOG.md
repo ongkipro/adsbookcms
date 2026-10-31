@@ -7756,3 +7756,27 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
 - Verification: rendered at each size and opened; `/hello` and the sidebar
   card rendered on `dev:local`; `npm test` and `npm run build` pass.
 
+### Entry 213: Old placeholder wordmark removed
+
+- Deleted `public/images/adsbook-mark.webp`, the grey "AdsBookCMS / BELUM
+  DIKONFIGURASI" wordmark that served as the default logo.
+- `DEFAULT_TENANT_LOGO` is now empty: no logo until the store uploads one.
+  - The storefront draws its text wordmark.
+  - The admin shows the store's initial.
+  - Share images (`BaseLayout`) and the /thanks image slot fall back to the
+    store's own icon `/favicon-192.png`, never an empty URL that resolves to
+    the page.
+  - A store row or env still naming the old path reads as no logo
+    (`LEGACY_PLACEHOLDER_LOGO`), so nothing points at a missing file.
+- Composed landing-page rows carry no placeholder image; the home list never
+  drew one.
+- The logo field's placeholder and help text no longer promise a product logo.
+- `UPDATE-PATH-OWNERSHIP.md` no longer lists the file.
+- Test fixtures:
+  - The never-leak catalogue test now uses the current product icon and
+    refuses both.
+  - Two fixtures use a neutral sample path.
+- `tenant.test.ts` covers the legacy path.
+- Verification: `npm test`, `npm run check`, `npm run build`, `docs:check`;
+  `dev:local` rendered the header, the home `og:image` and /hello.
+

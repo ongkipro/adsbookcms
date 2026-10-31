@@ -1,6 +1,6 @@
 # Google Ads Conversion Signal & Merchant Center Setup Guide
 
-> Verified against disk: 2026-10-09 @ `bf63396` + google-ads-owner working tree
+> Verified against disk: 2026-10-31 @ `83534ef` + feat/payment-copy-ux working tree
 
 > **Product:** AdsBookCMS (single) — one installer, one Worker, one store.
 > **Repository role:** product. Examples below name `permatamall.shop`, the first install, which lives in its own repository (`ongkipro/permatamall`); substitute your own install's domain.
@@ -137,6 +137,28 @@ the Meta legs deduplicate on. For GA4, trigger the Google tag on
 5. Name the feed after your own store.
 6. Feed URL: `https://<your-domain>/feed/google-catalog.xml` (served by `src/pages/feed/google-catalog.xml.ts`). A Meta catalog feed is served in parallel at `/feed/meta-catalog.xml`.
 7. Fetch frequency: **Daily**.
+
+#### What each item carries, and where it comes from
+
+| Attribute | Source |
+| --- | --- |
+| `g:id` | Product ID (`catalogProductIdOrNull`; a row before the five-digit scheme is left out, not guessed) |
+| `g:price` / `g:sale_price` | The **cheapest** variant: `compare_price` as `price` and the variant price as `sale_price` when it is higher, otherwise the variant price alone. The same "from" price the product page and the cards show, so Merchant Center finds no price mismatch |
+| `g:description` | **Deskripsi produk** from the admin product form, then landing copy, then a sentence built from the product's own name, brand, category and variant names |
+| `g:brand` | **Merek** from the admin product form; the store name when empty |
+| `g:product_type`, `g:google_product_category` | The taxonomy engine below, from **Kategori** in the admin form |
+
+Fill **Kategori**, **Merek** and **Deskripsi produk** for every product before
+submitting the feed: without them every item reads "Umum", carries the store's
+name as its brand, and describes itself from its title.
+
+#### Shipping and returns are account settings
+
+The feed emits no `g:shipping` and no return policy: rates depend on the buyer's
+district and the courier, which the feed cannot state per item. Set them in
+Merchant Center under *UI label* **Settings → Shipping and returns** before
+free listings or Shopping ads go live; an account without them gets item
+warnings for missing shipping.
 
 #### Automatic taxonomy engine
 

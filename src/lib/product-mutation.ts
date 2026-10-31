@@ -12,6 +12,8 @@ export type ProductMutationPayload = {
   title?: unknown;
   slug?: unknown;
   category?: unknown;
+  brand?: unknown;
+  description?: unknown;
   is_active?: unknown;
   image_url?: unknown;
   variants?: unknown;
@@ -86,6 +88,9 @@ type ParsedProduct = {
   title: string;
   slug: string;
   category: string;
+  /** Undefined when the request did not send it: an update keeps the stored value. */
+  brand?: string | null;
+  description?: string | null;
   image_url: string | null;
   is_active: boolean;
   variants: ParsedVariant[];
@@ -161,6 +166,16 @@ export function parseProductMutationPayload(
   const title = capitalizeTitle(rawTitle);
   const slug = normalizeSlug(clean(body.slug, 200));
   const category = clean(body.category, 120) || "Umum";
+  // `products.brand` / `products.description` (0051) feed Google and Meta and
+  // the product page. Google caps brand at 70 and description at 5000; over a
+  // cap the item is disapproved, so the cap is applied here, at the boundary.
+  const brand = body.brand === undefined ? undefined : clean(body.brand, 70) || null;
+  const description =
+    body.description === undefined
+      ? undefined
+      : (typeof body.description === "string"
+          ? body.description.replace(/\r\n?/g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, 5000)
+          : "") || null;
   const imageUrl = clean(body.image_url, 500);
   if (
     imageUrl &&
@@ -290,6 +305,8 @@ export function parseProductMutationPayload(
     title,
     slug,
     category,
+    ...(brand !== undefined ? { brand } : {}),
+    ...(description !== undefined ? { description } : {}),
     image_url: imageUrl || null,
     is_active: isActive,
     variants,

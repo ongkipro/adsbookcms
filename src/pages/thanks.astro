@@ -3,9 +3,14 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import MetaThanksTracker from '../components/storefront/tracking/MetaThanksTracker.astro';
 import { getStorefrontProducts } from '../lib/catalog';
 import { getThanksWhatsappSettings } from '../lib/public-store';
-import { cn } from '../lib/cn';
-import { buttonVariants } from '../lib/ui-variants';
 import Icon from '../components/storefront/shared/Icon.astro';
+import { SELLER_BANK_OPTIONS } from '../lib/payment-brand';
+import {
+  ORDER_STATUS_LABELS,
+  PAYMENT_CHANNEL_LABELS,
+  PAYMENT_STATUS_LABELS,
+  paymentChannelLabel,
+} from '../lib/payment-display';
 
 if (
   Astro.url.searchParams.has('order_id') ||
@@ -22,6 +27,13 @@ const { phones: csPhones, autoRedirect: thanksWhatsappRedirect } = await getThan
 // The image slot's first paint until the script sets the product photo; an
 // empty src would request this page again.
 const storeLogo = Astro.locals.tenant.logo || '/favicon-192.png';
+// The inline script cannot import, so it gets the buyer-facing words as data:
+// every channel this store can hand out, and the two status vocabularies.
+const channelLabels = Object.fromEntries([
+  ...Object.entries(PAYMENT_CHANNEL_LABELS),
+  ...SELLER_BANK_OPTIONS.map(({ code }) => [code, paymentChannelLabel(code, { manualTransfer: true })]),
+]);
+const statusLabels = { payment: PAYMENT_STATUS_LABELS, order: ORDER_STATUS_LABELS };
 const productCatalog = products.map((item) => ({
   slug: item.slug,
   productName: item.productName,
@@ -103,7 +115,10 @@ const productCatalog = products.map((item) => ({
         class="mx-auto mb-4 grid size-16 place-items-center rounded-full bg-[#121212] text-white"
         data-motion="success-icon"
       >
-        <Icon name="lucide:circle-check" class="size-9" aria-hidden="true" />
+        <!-- An unpaid online order is not a success yet: it gets the clock and
+             the words "selesaikan pembayaran", never the check mark. -->
+        <span id="hero-icon-done"><Icon name="lucide:circle-check" class="size-9" aria-hidden="true" /></span>
+        <span id="hero-icon-pending" hidden><Icon name="lucide:clock" class="size-9" aria-hidden="true" /></span>
       </div>
       <h1
         id="thanks-title"
@@ -156,7 +171,7 @@ const productCatalog = products.map((item) => ({
         <div class="min-w-0 flex-1">
           <h3
             id="product-name"
-            class="truncate text-[19px] font-semibold leading-tight tracking-[-0.03em] text-[#111111]"
+            class="line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.02em] text-[#111111]"
           >
             —
           </h3>
@@ -184,6 +199,14 @@ const productCatalog = products.map((item) => ({
         </div>
         <div class="flex justify-between gap-3 px-4 py-3 text-[13px]">
           <span class="text-[#555555]">Ongkos kirim</span><span id="shipping-cost" class="font-normal text-[#111111]"
+            >—</span
+          >
+        </div>
+        <!-- Without this row the lines above did not add up to the total: the
+             COD service fee or the payment admin fee was in the total and
+             nowhere else (65.000 − 16.000 + 15.000 shown beside 70.500). -->
+        <div id="fee-row" class="flex justify-between gap-3 px-4 py-3 text-[13px]" hidden>
+          <span id="fee-label" class="text-[#555555]">Biaya admin</span><span id="fee-display" class="font-normal text-[#111111]"
             >—</span
           >
         </div>
@@ -220,6 +243,7 @@ const productCatalog = products.map((item) => ({
         <div class="grid grid-cols-[112px_1fr] gap-3 py-3">
           <span class="text-[#555555]">WhatsApp</span><span
             id="customer-phone"
+            data-format="phone"
             class="text-right font-normal text-[#111111]">—</span
           >
         </div>
@@ -302,7 +326,7 @@ const productCatalog = products.map((item) => ({
             <span class="text-[#555555]">Total tagihan</span><strong id="payment-billed-total" class="text-right font-semibold text-[#111111]">-</strong>
           </div>
           <div id="payment-va-row" class="flex justify-between gap-3 px-3 py-2.5 text-[13px]" hidden>
-            <span class="text-[#555555]">Virtual Account</span><strong id="payment-va" class="break-all text-right font-mono font-bold text-[#111111]"></strong>
+            <span class="text-[#555555]">Virtual Account</span><strong id="payment-va" data-format="account" class="text-right font-mono font-bold tabular-nums text-[#111111]"></strong>
           </div>
           <div id="payment-code-row" class="flex justify-between gap-3 px-3 py-2.5 text-[13px]" hidden>
             <span class="text-[#555555]">Kode pembayaran</span><strong id="payment-code" class="break-all text-right font-mono font-bold text-[#111111]"></strong>
@@ -335,7 +359,7 @@ const productCatalog = products.map((item) => ({
           </div>
           <div class="grid grid-cols-[18px_1fr] gap-2.5">
             <span class="mt-[11px] size-1.5 rounded-full bg-[#121212]"></span><p>
-              Pastikan nomor WhatsApp <span id="note-phone" class="font-normal text-[#111111]">—</span> tetap
+              Pastikan nomor WhatsApp <span id="note-phone" data-format="phone" class="font-normal text-[#111111]">—</span> tetap
               aktif untuk konfirmasi admin atau kurir.
             </p>
           </div>
@@ -377,10 +401,10 @@ const productCatalog = products.map((item) => ({
         href="/payment"
         title={`Lihat instruksi pembayaran pesanan ${Astro.locals.tenant.name}`}
         hidden
-        class="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-none bg-[#121212] px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-white transition-colors hover:bg-[#333333]"
+        class="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-none bg-[#121212] px-4 py-3 text-[12px] font-semibold text-white transition-colors hover:bg-[#333333]"
       >
-        <Icon name="lucide:qr-code" class="size-4" aria-hidden="true" />
-        <span>Lihat Instruksi Pembayaran</span>
+        <Icon name="lucide:wallet" class="size-4" aria-hidden="true" />
+        <span id="payment-page-label">Lihat Instruksi Pembayaran</span>
       </a>
       <a
         id="wa-confirm"
@@ -390,7 +414,7 @@ const productCatalog = products.map((item) => ({
         title={`Konfirmasi pesanan ${Astro.locals.tenant.name} melalui WhatsApp`}
         data-auto-redirect={thanksWhatsappRedirect ? '1' : '0'}
         data-store-name={Astro.locals.tenant.name}
-        class={cn('mt-4 flex w-full', buttonVariants({ variant: 'primary', size: 'lg' }))}
+        class="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-none border border-[#111111] bg-[#111111] px-4 py-3 text-[12px] font-semibold text-white transition-colors hover:bg-[#333333] data-[tone=secondary]:bg-white data-[tone=secondary]:text-[#111111] data-[tone=secondary]:hover:bg-[#F5F5F5]"
       >
         <Icon name="lucide:message-circle" class="size-5" aria-hidden="true" />
         <span id="wa-label">Konfirmasi via WhatsApp</span>
@@ -402,7 +426,7 @@ const productCatalog = products.map((item) => ({
     </section>
 
     <footer class="border-t border-[#E5E5E5] px-5 py-5 text-center text-xs text-[#767676]">
-      Safe Checkout · Quality Guaranteed
+      Terima kasih telah berbelanja di {Astro.locals.tenant.name}.
     </footer>
     </div>
   </main>
@@ -481,7 +505,7 @@ const productCatalog = products.map((item) => ({
     }
   </style>
 
-  <script is:inline define:vars={{ csPhones, productCatalog, storeLogo }}>
+  <script is:inline define:vars={{ csPhones, productCatalog, storeLogo, channelLabels, statusLabels }}>
     const fmt = (n) =>
       `Rp${Math.round(Number(n || 0))
         .toLocaleString('id-ID')
@@ -557,6 +581,14 @@ const productCatalog = products.map((item) => ({
     const discount = Math.max(0, (comparePrice - productPrice) * quantity);
     const isCod = paymentMethod === 'cod';
     const isOnlinePayment = !isCod && !leadOnly;
+    // A person checks a manual transfer; the provider confirms a VA or QRIS.
+    // Only the first ever needs a proof of payment sent to the store.
+    const isManualTransfer =
+      paymentMethod === 'manual_transfer' || ['1', 'true'].includes(pick('payment_manual_transfer', '').toLowerCase());
+    const channelName =
+      channelLabels[paymentChannel.toUpperCase()] || paymentChannel || (paymentMethod === 'qris' ? 'QRIS' : 'Pembayaran online');
+    const paymentWords = (status) => statusLabels.payment[String(status).toLowerCase()] || String(status).replace(/_/g, ' ');
+    const orderWords = (status) => statusLabels.order[String(status).toLowerCase()] || String(status).replace(/_/g, ' ');
     const isPaid = ['paid', 'settled', 'success'].includes(paymentStatus);
     const area = [district, city, province, postalCode].filter(Boolean).join(', ') || '-';
     const setPaymentDetail = (rowId, valueId, value) => {
@@ -580,7 +612,8 @@ const productCatalog = products.map((item) => ({
     document.getElementById('variant-label').textContent = variantLabel;
     document.getElementById('quantity-badge').textContent = `Qty ${quantity}`;
     const headlineEl = document.getElementById('product-headline');
-    if (productHeadline) headlineEl.textContent = productHeadline;
+    if (productHeadline && productHeadline.trim().toLowerCase() !== productName.trim().toLowerCase())
+      headlineEl.textContent = productHeadline;
     else headlineEl.hidden = true;
     const productImageElement = document.getElementById('product-image');
     if (productImage) {
@@ -597,6 +630,14 @@ const productCatalog = products.map((item) => ({
       : shippingCost > 0
         ? fmt(shippingCost)
         : 'Dikonfirmasi admin';
+    // Whatever the total carries beyond product and shipping is a fee the buyer
+    // pays; it gets its own line so the summary adds up.
+    const feeAmount = Math.round((totalPayment || 0) - productTotal - shippingCost);
+    if (!leadOnly && shippingCost > 0 && feeAmount > 0) {
+      document.getElementById('fee-row').hidden = false;
+      document.getElementById('fee-label').textContent = isCod ? 'Biaya layanan COD' : 'Biaya admin pembayaran';
+      document.getElementById('fee-display').textContent = fmt(feeAmount);
+    }
     if (discount > 0) document.getElementById('discount-display').textContent = `-${fmt(discount)}`;
     else {
       document.getElementById('discount-row')?.remove();
@@ -638,7 +679,7 @@ const productCatalog = products.map((item) => ({
         'Pembayaran sudah terkonfirmasi. Pesanan Anda segera diperiksa untuk proses pengiriman.';
       document.getElementById('payment-title').textContent = 'Total pembayaran';
       const paidBadge = document.getElementById('payment-badge');
-      paidBadge.textContent = paymentMethod === 'qris' ? 'QRIS · Lunas' : 'Pembayaran · Lunas';
+      paidBadge.textContent = `${paymentMethod === 'qris' ? 'QRIS' : channelName} · Lunas`;
       // Swap only the three colour classes; the shape and layout stay as the
       // server rendered them.
       paidBadge.classList.remove('border-[#E5E5E5]', 'bg-white', 'text-[#555555]');
@@ -655,7 +696,7 @@ const productCatalog = products.map((item) => ({
       document.getElementById('note-title').textContent = 'Pembayaran terkonfirmasi';
       document.getElementById('note-badge').textContent = 'Lunas';
       document.getElementById('payment-details').hidden = false;
-      document.getElementById('payment-channel').textContent = paymentChannel || paymentMethod.toUpperCase();
+      document.getElementById('payment-channel').textContent = channelName;
       document.getElementById('payment-amount').textContent = fmt(paymentAmount || totalPayment);
       document.getElementById('payment-admin-fee').textContent = fmt(paymentAdminFee);
       document.getElementById('payment-billed-total').textContent = fmt(totalPayment);
@@ -666,27 +707,34 @@ const productCatalog = products.map((item) => ({
       document.getElementById('cta-copy').textContent =
         'Hubungi admin jika ada pertanyaan tentang pembayaran atau pengiriman.';
       document.getElementById('wa-label').textContent = 'Hubungi Admin';
+      document.getElementById('wa-confirm').dataset.tone = 'secondary';
     } else if (isOnlinePayment) {
-      document.getElementById('payment-title').textContent = 'Total pembayaran online';
-      document.getElementById('payment-badge').textContent =
-        paymentMethod === 'qris' ? 'QRIS · Pembayaran Online' : 'Pembayaran Online';
+      // Not paid yet: this is a to-do page, not a success page.
+      document.getElementById('hero-icon-done').hidden = true;
+      document.getElementById('hero-icon-pending').hidden = false;
+      document.getElementById('thanks-title').textContent = 'Selesaikan pembayaran';
+      document.getElementById('thanks-subtitle').textContent = isManualTransfer
+        ? 'Pesanan sudah tercatat. Transfer sesuai total, lalu kirim bukti transfer ke admin agar segera diproses.'
+        : 'Pesanan sudah tercatat. Bayar sebelum batas waktu; status berubah otomatis setelah pembayaran diterima.';
+      document.getElementById('payment-title').textContent = 'Total yang harus dibayar';
+      document.getElementById('payment-badge').textContent = `${channelName} · Belum dibayar`;
       document.getElementById('total-label').textContent = 'Total pembayaran';
       document.getElementById('total-note').textContent = 'Bayar sesuai nominal agar mudah diverifikasi';
       document.getElementById('status-title').textContent = 'Status pembayaran';
       document.getElementById('step-one-title').textContent = 'Pesanan dibuat';
       document.getElementById('step-one-copy').textContent = 'Data order berhasil masuk.';
-      document.getElementById('step-two-title').textContent = paymentUrl
-        ? 'Menunggu pembayaran'
-        : 'Konfirmasi pembayaran';
-      document.getElementById('step-two-copy').textContent = paymentUrl
-        ? 'Lanjutkan pembayaran melalui tombol di bawah.'
-        : 'Jika sudah membayar, kirim bukti pembayaran ke admin.';
-      document.getElementById('step-three-title').textContent = 'Verifikasi pembayaran';
-      document.getElementById('step-three-copy').textContent = 'Admin memproses pesanan setelah pembayaran valid.';
-      document.getElementById('note-title').textContent = 'Catatan pembayaran online';
+      document.getElementById('step-two-title').textContent = 'Menunggu pembayaran';
+      document.getElementById('step-two-copy').textContent = isManualTransfer
+        ? 'Setelah transfer, kirim bukti pembayaran ke admin.'
+        : 'Bayar sesuai instruksi; konfirmasi berjalan otomatis.';
+      document.getElementById('step-three-title').textContent = 'Pesanan diproses';
+      document.getElementById('step-three-copy').textContent = isManualTransfer
+        ? 'Admin memproses pesanan setelah transfer dicek.'
+        : 'Pesanan masuk antrean proses setelah pembayaran lunas.';
+      document.getElementById('note-title').textContent = 'Detail pembayaran';
       document.getElementById('note-badge').textContent = 'Penting';
       document.getElementById('payment-details').hidden = false;
-      document.getElementById('payment-channel').textContent = paymentChannel || paymentMethod.toUpperCase();
+      document.getElementById('payment-channel').textContent = channelName;
       document.getElementById('payment-amount').textContent = fmt(paymentAmount || totalPayment);
       document.getElementById('payment-admin-fee').textContent = fmt(paymentAdminFee);
       document.getElementById('payment-billed-total').textContent = fmt(totalPayment);
@@ -721,13 +769,20 @@ const productCatalog = products.map((item) => ({
       }
       document.getElementById('note-list').innerHTML = `
         <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-[#121212]"></span><p>Bayar sesuai total tagihan: <span class="font-bold text-[#111111]">${fmt(totalPayment || productTotal || productPrice || 0)}</span>.</p></div>
-        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-[#121212]"></span><p>Simpan bukti pembayaran untuk dikirim ke admin.</p></div>
-        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-[#121212]"></span><p>Pesanan diproses setelah pembayaran berhasil diverifikasi.</p></div>`;
-      document.getElementById('cta-title').textContent = paymentUrl ? 'Selesaikan pembayaran' : 'Konfirmasi pembayaran';
-      document.getElementById('cta-copy').textContent = paymentUrl
-        ? 'Lanjutkan pembayaran terlebih dahulu, lalu konfirmasi ke admin jika diperlukan.'
-        : 'Kirim bukti pembayaran ke admin agar pesanan segera diverifikasi dan diproses.';
-      document.getElementById('wa-label').textContent = 'Kirim Bukti Pembayaran';
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-[#121212]"></span><p>${isManualTransfer
+          ? 'Simpan bukti transfer, lalu kirim ke admin lewat tombol WhatsApp di bawah.'
+          : 'Tidak perlu kirim bukti: status berubah otomatis setelah pembayaran diterima.'}</p></div>
+        <div class="grid grid-cols-[18px_1fr] gap-2.5"><span class="mt-[11px] size-1.5 rounded-full bg-[#121212]"></span><p>Pesanan diproses setelah pembayaran ${isManualTransfer ? 'dicek admin' : 'lunas'}.</p></div>`;
+      document.getElementById('cta-title').textContent = 'Selesaikan pembayaran';
+      document.getElementById('cta-copy').textContent = isManualTransfer
+        ? 'Buka rekening tujuan untuk menyalin nomornya, lalu kirim bukti transfer ke admin.'
+        : 'Buka instruksi pembayaran untuk menyalin nomor atau memindai kode, lalu bayar dari aplikasi bank Anda.';
+      document.getElementById('payment-page-label').textContent = isManualTransfer
+        ? 'Lihat Rekening Tujuan'
+        : 'Lihat Instruksi Pembayaran';
+      document.getElementById('wa-label').textContent = isManualTransfer ? 'Kirim Bukti Transfer' : 'Tanya Admin';
+      // A VA or QRIS buyer's next step is paying, not messaging the store.
+      if (!isManualTransfer) document.getElementById('wa-confirm').dataset.tone = 'secondary';
       if (paymentUrl) {
         const paymentLink = document.getElementById('payment-link');
         paymentLink.hidden = false;
@@ -772,12 +827,13 @@ const productCatalog = products.map((item) => ({
         .then(async (res) => {
           const data = await res.json().catch(() => ({}));
           if (!res.ok || data?.success === false) return;
-          if (data?.payment_status && !isCod)
-            document.getElementById('step-two-copy').textContent =
-              `Status pembayaran: ${String(data.payment_status).replace(/_/g, ' ')}`;
+          // Only when it says something the step title does not already say.
+          const paymentNow = data?.payment_status ? paymentWords(data.payment_status) : '';
+          if (paymentNow && !isCod && paymentNow !== document.getElementById('step-two-title').textContent)
+            document.getElementById('step-two-copy').textContent = `Status pembayaran: ${paymentNow}`;
           if (data?.status)
             document.getElementById('step-three-copy').textContent =
-              `Status order: ${String(data.status).replace(/_/g, ' ')}`;
+              `Status pesanan: ${orderWords(data.status)}`;
 
           // A buyer who arrived on the fragment locator alone — a lost tab, or
           // a `sessionStorage` write that never landed — has no local copy of
@@ -912,6 +968,20 @@ const productCatalog = products.map((item) => ({
         });
       }
     }
+  </script>
+
+  <script>
+    /* Phone and account numbers in the shape a buyer reads them. The inline
+       script above fills the raw values; this one cannot run before it
+       (module scripts are deferred) and, unlike it, can import. */
+    import { formatWhatsappDisplay, groupAccountNumber } from '../lib/payment-display';
+
+    document.querySelectorAll<HTMLElement>('[data-format="phone"]').forEach((node) => {
+      node.textContent = formatWhatsappDisplay(node.textContent);
+    });
+    document.querySelectorAll<HTMLElement>('[data-format="account"]').forEach((node) => {
+      node.textContent = groupAccountNumber(node.textContent);
+    });
   </script>
 
   <script>

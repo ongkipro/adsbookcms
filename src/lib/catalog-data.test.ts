@@ -197,3 +197,36 @@ test("a product's price is its cheapest variant, whatever order D1 returns them 
   assert.equal(product.price, 120000);
   assert.equal(product.comparePrice, 150000);
 });
+
+test("the feed and the product page agree on price, and the merchant's own description leads", () => {
+  const [product] = mergeStorefrontCatalog(
+    [{ id: 14321, title: "Sabun Cair", slug: "sabun-cair", category: "Rumah", brand: "Bersih", description: "Sabun cair 1 liter, aroma lemon.", image_url: "/images/a.jpg", is_active: 1 }],
+    [
+      // The large size was entered first; the cheaper one is the "from" price.
+      { id: 2, product_id: 14321, title: "1 L", price: 120000, compare_price: 150000 },
+      { id: 3, product_id: 14321, title: "250 ml", price: 97500, compare_price: 110000 },
+    ],
+  );
+  assert.equal(product.price, 97500);
+  const xml = generateGoogleCatalogXml([product], "https://toko.example", "Toko Contoh");
+  assert.match(xml, /<g:price>110000 IDR<\/g:price>/);
+  assert.match(xml, /<g:sale_price>97500 IDR<\/g:sale_price>/);
+  assert.doesNotMatch(xml, /120000 IDR/);
+  assert.match(xml, /<g:description>Sabun cair 1 liter, aroma lemon\.<\/g:description>/);
+  assert.match(xml, /<g:brand>Bersih<\/g:brand>/);
+  assert.equal(product.seoDescription, "Sabun cair 1 liter, aroma lemon.");
+});
+
+test("a product with no description describes itself from its own fields, never the page", () => {
+  const [product] = mergeStorefrontCatalog(
+    [{ id: 14322, title: "Lampu Taman", slug: "lampu-taman", category: "Outdoor", image_url: "/images/b.jpg", is_active: 1 }],
+    [
+      { id: 4, product_id: 14322, title: "Putih", price: 45000 },
+      { id: 5, product_id: 14322, title: "Kuning", price: 47000 },
+    ],
+  );
+  assert.equal(product.description, "Lampu Taman, kategori Outdoor. Tersedia 2 pilihan: Putih, Kuning.");
+  assert.match(product.seoDescription, /^Lampu Taman, kategori Outdoor\. .*Mulai Rp45\.000\.$/);
+  assert.ok(product.seoDescription.length <= 155);
+  assert.doesNotMatch(product.description, /katalog toko/);
+});

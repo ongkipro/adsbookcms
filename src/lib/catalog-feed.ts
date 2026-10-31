@@ -18,6 +18,8 @@ export type CatalogProduct = {
   brand?: string;
   headline?: string;
   description?: string;
+  /** `products.description` as the merchant wrote it; preferred for the feed. */
+  catalogDescription?: string;
   seoDescription?: string;
   heroImage: string;
   variants: CatalogProductVariant[];
@@ -85,8 +87,8 @@ export function catalogProductIdOrNull(productId: number | string): string | nul
 
 /**
  * The content id for a page where no variant has been chosen yet — a product
- * detail page or a landing page. The feed is product-level, while the first
- * variant remains the default price shown by the storefront.
+ * detail page or a landing page. The feed is product-level and priced at the
+ * cheapest variant, the same "from" price the storefront shows.
  *
  * Returns `undefined` rather than a guess when the product has no variants.
  * A `content_ids` that matches nothing in the catalog is worse than none: it
@@ -163,7 +165,11 @@ function buildCatalogXml(
     const heroImage = feedImagePath(product.heroImage);
     const imageLink = heroImage.startsWith("http") ? heroImage : `${origin}${heroImage}`;
 
-    const variant = product.variants[0];
+    // The cheapest variant: the "from" price the product page and every card
+    // already show. `variants[0]` was whichever was entered first, so a product
+    // whose large size came first was listed at a price its page never showed
+    // — a price mismatch Merchant Center disapproves.
+    const variant = product.variants.reduce((low, candidate) => (candidate.price < low.price ? candidate : low));
     // One row that predates the five-digit scheme must not take the catalog
     // down. The strict identity rule still governs what gets published — an
     // unpublishable row is left out — but the feed is an aggregate, and
@@ -177,7 +183,10 @@ function buildCatalogXml(
     const salePriceXml = hasSale
       ? `\n      <g:sale_price>${escapeXml(`${variant.price} IDR`)}</g:sale_price>`
       : "";
-    const itemDescription = product.seoDescription || product.headline || product.description || siteDescription;
+    // The merchant's own description first: it is product facts. The SEO
+    // description is a 155-character page summary, and a generated one.
+    const itemDescription =
+      product.catalogDescription || product.description || product.seoDescription || product.headline || siteDescription;
 
     itemsXml += `
     <item>

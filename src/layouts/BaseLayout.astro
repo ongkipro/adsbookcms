@@ -35,6 +35,10 @@ interface Props {
   hideHeader?: boolean;
   hideFooter?: boolean;
   noindex?: boolean;
+  /** With `noindex`: still let crawlers follow this page's links (an HTML sitemap). */
+  follow?: boolean;
+  /** `og:type`; a product page says `product`. */
+  ogType?: string;
   breadcrumbs?: JsonLdProps['breadcrumbs'];
   product?: JsonLdProps['product'];
   faqs?: JsonLdProps['faqs'];
@@ -51,6 +55,8 @@ const {
   hideHeader = false,
   hideFooter = false,
   noindex: noindexProp = false,
+  follow = false,
+  ogType = 'website',
   breadcrumbs,
   product,
   faqs,
@@ -143,11 +149,11 @@ const preloadImageUrls =
       description={description}
       canonical={canonical}
       noindex={noindex}
-      nofollow={noindex}
+      nofollow={noindex && !follow}
       openGraph={{
         basic: {
           title,
-          type: 'website',
+          type: ogType,
           image: imageUrl,
           url: canonical,
         },
@@ -173,7 +179,6 @@ const preloadImageUrls =
           { name: 'theme-color', content: Astro.locals.tenant.themeColor },
           { name: 'author', content: Astro.locals.tenant.name },
           { name: 'publisher', content: Astro.locals.tenant.name },
-          { property: 'article:publisher', content: publicSiteUrl },
         ],
         link: [
           { rel: 'icon', href: '/favicon.png', type: 'image/png' },

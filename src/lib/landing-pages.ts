@@ -850,7 +850,7 @@ export const RESERVED_LANDING_SLUGS: ReadonlySet<string> = new Set([
   "404", "admin", "api", "assets", "contoh-landing", "disclaimer", "embed",
   "feed", "form-full", "form-hybrid", "form-middle", "full-form", "geoipform",
   "hello", "hybrid-form", "install", "kebijakan-cookie", "kebijakan-privasi",
-  "kontak", "landing", "landing-page", "media", "middle-form", "payment",
+  "kontak", "landing", "landing-page", "llms", "media", "middle-form", "payment",
   "pengiriman", "produk", "robots", "sitemap", "solusi-terbaru",
   "syarat-ketentuan", "tentang", "testimoni", "thanks",
 ]);
@@ -1154,6 +1154,8 @@ export type PublicLandingPage = {
   isProductPage: boolean;
   /** List thumbnail: the page's own first image, else its product's photo. */
   image: string | null;
+  /** `landing_pages.updated_at`, the sitemap's honest `lastmod`; null when unset. */
+  updatedAt: string | null;
 };
 
 /**
@@ -1196,7 +1198,7 @@ export async function listPublicLandingPages(
 ): Promise<PublicLandingPage[]> {
   const result = await getDatabase(locals)
     .prepare(
-      `SELECT lp.slug, lp.title, lp.meta_description, lp.is_product_page,
+      `SELECT lp.slug, lp.title, lp.meta_description, lp.is_product_page, lp.updated_at,
               p.slug AS product_slug, p.image_url AS product_image,
               (SELECT ls.content_config FROM landing_sections ls
                 WHERE ls.landing_page_id = lp.id AND ls.type = 'image'
@@ -1218,6 +1220,7 @@ export async function listPublicLandingPages(
       title: string;
       meta_description: string | null;
       is_product_page: number;
+      updated_at: string | null;
       product_slug: string | null;
       product_image: string | null;
       first_image_config: string | null;
@@ -1239,5 +1242,6 @@ export async function listPublicLandingPages(
       nativeImage: nativeLandingPages.find((entry) => entry.slug === row.slug)?.image,
       productImage: row.product_image,
     }),
+    updatedAt: row.updated_at || null,
   }));
 }

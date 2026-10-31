@@ -15,6 +15,7 @@ import { getRuntimeEnv } from '../../lib/env';
 import { resolveFormModeContext } from '../../lib/form-mode';
 import '../../styles/form-hybrid.css';
 import { defaultCatalogContentId } from '../../lib/catalog-feed';
+import { buildProductJsonLd } from '../../lib/json-ld';
 
 export const prerender = false;
 
@@ -84,58 +85,30 @@ const productImages = product.images && product.images.length > 0 ? product.imag
 const canonical = `${Astro.locals.tenant.siteUrl}/produk/${product.slug}`;
 const productTitle = product.seoTitle;
 const productDescription = product.seoDescription;
-const productSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'Product',
-  name: product.productName,
-  image: [new URL(product.heroImage, Astro.locals.tenant.siteUrl).toString()],
-  description: product.description,
-  sku: product.productId,
-  brand: {
-    '@type': 'Brand',
-    name: product.brand || Astro.locals.tenant.name,
-  },
-  offers: {
-    '@type': 'AggregateOffer',
-    priceCurrency: 'IDR',
-    lowPrice: String(displayPrice),
-    highPrice: String(Math.max(...product.variants.map((v) => v.price), displayPrice)),
-    offerCount: String(product.variants.length),
-    offers: product.variants.map((v) => ({
-      '@type': 'Offer',
-      price: String(v.price),
-      priceCurrency: 'IDR',
-      availability: 'https://schema.org/InStock',
-      url: canonical,
+// One builder for every Product JSON-LD (lib/json-ld.ts). This page and the
+// landing route used to hand-write their own, and disagreed: an AggregateOffer
+// here, the store's name as brand there.
+const productSchema = buildProductJsonLd({
+  siteUrl: Astro.locals.tenant.siteUrl,
+  organization: { name: Astro.locals.tenant.name },
+  product: {
+    name: product.productName,
+    description: product.description,
+    image: productImages,
+    url: canonical,
+    sku: product.productId,
+    category: product.category,
+    ...(product.brand ? { brand: product.brand } : {}),
+    ...(hasAggregateRating ? { ratingValue: Number(formattedRating), reviewCount } : {}),
+    reviews: product.reviews.map((review) => ({ name: review.name, rating: review.rating, comment: review.comment })),
+    offers: product.variants.map((variant) => ({
+      price: variant.price,
+      availability: 'InStock',
+      name: variant.label,
+      ...(variant.sku ? { sku: variant.sku } : {}),
     })),
   },
-  ...(hasAggregateRating
-    ? {
-        aggregateRating: {
-          '@type': 'AggregateRating',
-          ratingValue: formattedRating,
-          reviewCount: String(reviewCount),
-        },
-      }
-    : {}),
-  ...(product.reviews.length > 0
-    ? {
-        review: product.reviews.map((review) => ({
-          '@type': 'Review',
-          author: {
-            '@type': 'Person',
-            name: review.name,
-          },
-          reviewRating: {
-            '@type': 'Rating',
-            ratingValue: String(review.rating),
-            bestRating: '5',
-          },
-          reviewBody: review.comment,
-        })),
-      }
-    : {}),
-};
+});
 
 const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c');
 ---
@@ -146,6 +119,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
   image={product.heroImage}
   preloadImages={product.heroImage}
   canonical={canonical}
+  ogType="product"
   hideHeader={false}
   hideFooter={false}
   breadcrumbs={[

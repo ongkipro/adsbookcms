@@ -62,9 +62,12 @@ const discountPercentage = hasDiscount
       )}
     </div>
 
-    <div class="flex flex-1 flex-col px-0.5 pt-2.5">
-      <h2 class="line-clamp-2 min-h-10 text-sm leading-5 text-[#111111]">{product.productName}</h2>
-      <p class="mt-1 flex flex-wrap items-baseline gap-x-1.5 leading-5">
+    <!-- The price sits right under the title (one or two lines, clamped),
+         as in the Shopify theme; the cards still line up because the grid
+         stretches each one to its row and this block fills the rest. -->
+    <div class="flex flex-1 flex-col px-0.5 pt-2">
+      <h2 class="line-clamp-2 text-sm leading-5 text-[#111111]" title={product.productName}>{product.productName}</h2>
+      <p class="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 leading-5">
         {hasRange && <span class="text-xs text-[#555555]">Mulai</span>}
         <span class="text-[15px] font-bold text-[#111111]">{formatPrice(product.price)}</span>
         {hasDiscount && <span class="text-xs text-[#767676] line-through">{formatPrice(comparePrice)}</span>}

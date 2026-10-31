@@ -175,7 +175,7 @@ and gave every store the same boutique accent.
 - Tagline: `text-xs text-[#555555]` on `#F3F3F3`, one line above the header — `SiteHeader.astro`
 - Page `h1`: `text-2xl font-bold tracking-[-0.02em]` — `PageIntro.astro`; PDP `h1` `text-xl`
 - Section heading: `text-xl font-bold tracking-[-0.02em]` (home), `text-base font-bold` (PDP sections)
-- Card title: `text-sm leading-5`, two lines reserved (`min-h-10`) so prices align across a row
+- Card title: `text-sm leading-5`, at most two lines (`line-clamp-2`), the price directly under it (`mt-0.5`), no reserved height: a one-line title's price sits higher than its neighbour's, as in the Shopify theme, while the card frames still align (grid stretch, `h-full flex-col`)
 - Card price: `text-[15px] font-bold`; "Mulai" in `text-xs` only when variants differ in price
 - PDP price: `text-[26px] font-bold`
 - Meta and helper text: `text-xs` / `text-[13px]`, never below 12px

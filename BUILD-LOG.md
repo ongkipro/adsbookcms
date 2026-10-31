@@ -7885,3 +7885,22 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - The seven-size no-scroll check passes.
   - No console errors.
 
+### Entry 219: Phone login over the owner's poster, glass card
+
+- Source: the owner's poster from a Drive link (PNG 941x1672, 2.3 MB),
+  downloaded to the scratchpad and opened. It is saved as
+  `public/images/login-bg-mobile.webp`: quality 76, 149 KB, full size.
+- Below 1024px:
+  - The poster is the form column's CSS background, so a desktop never
+    fetches it.
+  - The form sits at the bottom in a glass card (85% white, `blur(20px)
+    saturate(1.4)`, a white border, 1.5rem radius, a soft shadow), leaving the
+    poster's title and face in view on a 390x844 phone.
+  - Card text is checked against #D9D9D9 (subtitle 5.4:1, title 12.6:1). The
+    version under the card is white with a text shadow.
+- The poster ships with the product, so every install's phone login shows it.
+- Verification:
+  - Headless Chromium: the seven-size no-scroll check passes.
+  - 390x844 fetches the poster and 1366x768 does not.
+  - No console errors.
+

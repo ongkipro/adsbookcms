@@ -96,7 +96,12 @@ Login (`/hello`): one viewport, never scrolled, on phone and desktop. The
 form column holds everything an operator needs on any screen: the product
 icon and "AdsBookCMS", "Masuk ke dashboard", one line naming what the store's
 admin is for, the form (brand-blue focus and button), and a pinned footer
-with the version; centred on a phone. The desktop brand column
+with the version; centred on a phone. On a phone the owner's poster
+(`public/images/login-bg-mobile.webp`, 941x1672, 149 KB, a CSS background
+inside the phone query so a desktop never downloads it) fills the screen and
+the form sits at the bottom in a glass card: 85% white, `blur(20px)`, a light
+border, `rounded-3xl`, so the poster's title stays in view. Its text is measured
+against #D9D9D9, the darkest the blurred poster can make the card. The desktop brand column
 (`bg-slate-950`, a dot grid fading to the edges) holds only the joke tip jar,
 centred (owner decision 2026-10-31): the QRIS code alone
 (`public/images/qris-dukung-adsbookcms.svg`, rebuilt as vector modules from

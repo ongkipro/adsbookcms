@@ -1,6 +1,6 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-10-31 @ `1b10ce1` + `feat/storefront-shopify-color` working tree (storefront §1.1 Shopify-theme palette, §3 PDP order, login panel §1.3; §2, §7.4 as rewritten for compact-market v2)
+> Verified against disk: 2026-10-31 @ `4aacb40` + `feat/storefront-breadcrumb` working tree (storefront §1.1 Shopify-theme palette, §3 PDP order, login panel §1.3; §2, §7.4 as rewritten for compact-market v2)
 >
 > **The public palette is neutral plus one overridable accent (ADR-019, as
 > amended 2026-08-23).** Colour tokens below that describe the retired gold
@@ -180,6 +180,7 @@ and gave every store the same boutique accent.
 - Card price: `text-[15px] font-bold`; "Mulai" in `text-xs` only when variants differ in price
 - PDP price: `text-[26px] font-bold`
 - Meta and helper text: `text-xs` / `text-[13px]`, never below 12px
+- Breadcrumb: `text-[13px]`, one line, never truncated. A long trail scrolls sideways (scrollbar hidden) and opens scrolled to its end, so the current page (`font-semibold`, `aria-current="page"`) reads whole; the left edge fades only while part of the trail is out of view. Chevron (`m9 18 6-6-6-6`, `#B3B3B3`) separates; a `/` home crumb is a house icon whose label stays its accessible name. `<ol>` of `<li>`
 - No eyebrow above a heading. `PageIntro` still accepts `badge` and does not draw it.
 
 Mobile input font-size is force-set to `1rem` to stop iOS zoom — `src/styles/foundation.css` (all viewports ≤639px, shared because every surface has inputs) and again for admin at ≤1023px (`src/layouts/AdminLayout.astro:66-73`).
@@ -372,9 +373,7 @@ The storefront ships two compiled templates, enumerated in `src/lib/tenant-contr
    - `compact` → `max-w-[480px] shadow-[0_0_40px_rgba(15,23,42,0.08)]`
    - `wide` → `max-w-none`
    Both sit inside `flex min-h-screen w-full justify-center` (`:182`) on a `bg-white` panel (`:185`).
-3. `src/components/storefront/shared/Breadcrumb.astro:20` — reads `Astro.locals.tenant.storefrontTemplate` **directly** rather than taking a prop: `max-w-6xl lg:px-6` for wide, `max-w-[480px]` for compact.
-
-Because Breadcrumb re-derives the branch instead of inheriting it, a page that passes an explicit `contentWidth` diverges from its own breadcrumb. Two pages do exactly that: `src/pages/produk/index.astro:16` and `src/pages/produk/[slug].astro:111` both hard-code `contentWidth="compact"`.
+3. `src/components/storefront/shared/Breadcrumb.astro` sets no width of its own: it fills the column it sits in (`px-4`), so it can no longer diverge from the page's `contentWidth`.
 
 Inner content repeats `max-w-[480px]` independently rather than inheriting the shell — `CompactMarketHome.astro:45`, `SiteHeader.astro:17`, `SiteFooter.astro:14`, `produk/index.astro:30`, `PageIntro.astro:23`, `form-hybrid.css`, `EmbedLayout.astro:26`.
 

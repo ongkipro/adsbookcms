@@ -7667,3 +7667,24 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - Not checked: server-side refusal of a malformed email (the browser's
     `type=email` stopped it first), and real devices.
 
+### Entry 209: Breadcrumb on one line, never cut
+
+- `Breadcrumb.astro`:
+  - Chevrons replace `/`.
+  - The home crumb is a house icon (labelled "Beranda").
+  - The current page is semibold with `aria-current`, in an `<ol>`.
+- A long trail no longer truncates the current page (`max-w-[58%] truncate`).
+  It stays on one line, scrolls sideways with the scrollbar hidden, opens
+  scrolled to its end, and fades its left edge only while something is out of
+  view.
+- DESIGN-SYSTEM §5 corrected: the breadcrumb sets no width and no longer reads
+  the retired template.
+- Verification:
+  - `npm test` 1106 pass; `npm run check` 0 errors; `npm run build`
+    complete.
+  - Headless Chromium on `dev:local` at 320, 390 and 1280 px, PDP and
+    `/kebijakan-privasi`: one line at every width; the current page fully
+    visible; no ellipsis.
+  - At 320 px the PDP trail overflows, opens at its end, and fades.
+  - No console errors.
+

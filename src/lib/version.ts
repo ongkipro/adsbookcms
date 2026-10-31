@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.7.14",
+  version: "1.8.0",
+  // 1.8.0: Analitik and UTM, one-tap WhatsApp follow-up, WhatsApp rotator, multi-warehouse, Mengantar pickup/drop-off and safe push, COD-to-transfer switch, ops API + CLI, Shopify-theme storefront, adaptive legal pages (migrations 0067-0078).
   // 1.7.14: the Kelola plugin settings page can send orders older than the 24 h retry window ("Kirim order lama").
   // 1.7.13: "Transfer Diterima" on a manual-transfer order marks it paid and sends its Meta Purchase from the server.
   // 1.7.12: a native landing page can declare canonicalSlug and leaves the sitemap; legal page titles name the store once.
@@ -45,8 +46,8 @@ export const CMS_VERSION: CmsVersionInfo = {
   // 1.5.1: browser Meta events ordered behind the single pixel init.
   // 1.5.0: migrations 0056-0061, GA4 ecommerce payload, variant id over SKU,
   // mobile order button, deploy builds before upload (BUILD-LOG 2026-10-11).
-  releaseTag: "2026.10-plugins",
+  releaseTag: "2026.10-ops",
   coreEngine: "Astro 7 SSR + Cloudflare Workers",
   schemaVersion: 79,
-  lastUpdated: "2026-10-21",
+  lastUpdated: "2026-10-31",
 };

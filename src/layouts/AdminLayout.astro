@@ -51,6 +51,7 @@ const sidebarDefaultOpen = Astro.cookies.get('sidebar_state')?.value !== 'false'
       currentPath={currentPath}
       siteUrl={Astro.locals.tenant.siteUrl}
       adminRole={adminRole}
+      adminUsername={Astro.locals.admin?.username ?? ''}
       mustChangePassword={mustChangePassword}
       sidebarDefaultOpen={sidebarDefaultOpen}
     >

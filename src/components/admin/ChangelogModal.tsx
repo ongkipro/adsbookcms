@@ -29,10 +29,59 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
+    version: "1.8.0",
+    date: "31 Oktober 2026",
+    releaseTag: "2026.10-ops",
+    isLatest: true,
+    highlight: "Analitik lengkap, follow-up WhatsApp satu ketuk, multi-gudang, dan tampilan toko baru ala tema Shopify.",
+    changes: [
+      {
+        title: "Analitik: landing page, produk, lokasi, waktu beli, dan UTM",
+        description: "Menu Analitik kini punya enam laporan: Ringkasan, Landing page, Produk, Lokasi, Waktu beli, dan UTM (per source, medium, campaign, sampai content). Setiap baris bisa dibuka ke daftar order dengan periode yang sama. Iklan & tracking › Link UTM membuat link iklan bertag UTM yang konsisten.",
+      },
+      {
+        title: "Follow-up WhatsApp satu ketuk",
+        description: "Chip tahap follow-up (Welcome sampai FU 4) di daftar dan detail order membuka WhatsApp dengan pesan siap kirim dan langsung mencatat tahapnya. Salah ketuk bisa dibatalkan dari notifikasi, dengan alasan koreksi. Daftar order tampil lebih ringkas.",
+      },
+      {
+        title: "Beberapa nomor WhatsApp CS",
+        description: "Pengaturan › Nomor WhatsApp menyimpan lebih dari satu nomor CS. Pembeli COD di halaman terima kasih dibagi rata ke nomor yang aktif, dan bisa diarahkan otomatis ke chat setelah order.",
+      },
+      {
+        title: "Multi-gudang dan pickup Mengantar",
+        description: "Gudang tambahan bisa melayani provinsinya sendiri; bila ongkir dari gudang itu gagal, otomatis memakai gudang utama. Saat push ke Mengantar, pilih drop-off atau jadwal pickup (tanggal, jam, kendaraan). Paket drop-off punya antrean sendiri di Pengiriman: Perlu Drop-off.",
+      },
+      {
+        title: "Push Mengantar yang aman dari paket ganda",
+        description: "Bila hasil push tidak pasti (koneksi putus, atau Mengantar sudah menerima tetapi gagal tersimpan), order dikunci dan tidak bisa dipush ulang. Paket yang sudah diterima Mengantar cukup ditautkan dari detail order; owner atau admin melepas kunci hanya setelah memeriksa dashboard Mengantar.",
+      },
+      {
+        title: "Ganti COD ke transfer atau VA dari detail order",
+        description: "Order COD yang belum dikirim bisa dialihkan ke pembayaran transfer atau virtual account dari detail order. Bila instruksi pembayaran dibuat ulang, pembeli yang terlanjur membayar instruksi lama tetap tercatat lunas.",
+      },
+      {
+        title: "Status operasional dan API operasional",
+        description: "Ikon status di samping lonceng (owner dan admin) merangkum apakah ada yang perlu ditangani atau setup yang belum selesai, beserta waktu pembayaran dan Create Order terakhir serta antrean tertua. API operasional /api/ops/v1 dan CLI adsbook membaca order dengan API key ber-scope.",
+      },
+      {
+        title: "Tampilan toko ala tema Shopify",
+        description: "Tombol beli dan pilihan hitam, abu netral, label diskon biru. Header tidak lagi melekat: baris Official Store, logo toko (atau nama toko bila logo belum diunggah), dan ikon produk. Harga langsung di bawah judul kartu, breadcrumb satu baris dengan ikon, dan catatan ongkir serta tombol pesan ganda di halaman produk dihapus.",
+      },
+      {
+        title: "Halaman kebijakan mengikuti pengaturan toko",
+        description: "Kebijakan Privasi, Pengiriman & Retur, Syarat & Ketentuan, dan Kontak ditulis ulang untuk toko apa pun dan memakai nama toko, domain, WhatsApp, serta email dan alamat usaha baru di Pengaturan › Store. Kalimat yang datanya belum diisi tidak ditampilkan.",
+      },
+      {
+        title: "Ikon, halaman masuk, dan menu akun baru",
+        description: "Ikon AdsBookCMS baru untuk tab browser dan layar utama iOS (toko yang sudah memasang ikonnya sendiri tetap memakainya). Halaman masuk admin menampilkan alur Iklan › Pesanan › Kirim yang bergerak. Tombol akun di kanan atas kini membuka menu: profil, pengaturan toko, storefront, catatan rilis, dan Keluar.",
+      },
+    ],
+  },
+  {
     version: "1.7.14",
     date: "29 Oktober 2026",
     releaseTag: "2026.10-plugins",
-    isLatest: true,
+    isLatest: false,
     highlight: "Order lama yang belum pernah masuk Kelola kini bisa dikirim sekali klik.",
     changes: [
       {

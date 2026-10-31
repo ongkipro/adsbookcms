@@ -7667,3 +7667,116 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - Not checked: server-side refusal of a malformed email (the browser's
     `type=email` stopped it first), and real devices.
 
+### Entry 209: Breadcrumb on one line, never cut
+
+- `Breadcrumb.astro`:
+  - Chevrons replace `/`.
+  - The home crumb is a house icon (labelled "Beranda").
+  - The current page is semibold with `aria-current`, in an `<ol>`.
+- A long trail no longer truncates the current page (`max-w-[58%] truncate`).
+  It stays on one line, scrolls sideways with the scrollbar hidden, opens
+  scrolled to its end, and fades its left edge only while something is out of
+  view.
+- DESIGN-SYSTEM §5 corrected: the breadcrumb sets no width and no longer reads
+  the retired template.
+- Verification:
+  - `npm test` 1106 pass; `npm run check` 0 errors; `npm run build`
+    complete.
+  - Headless Chromium on `dev:local` at 320, 390 and 1280 px, PDP and
+    `/kebijakan-privasi`: one line at every width; the current page fully
+    visible; no ellipsis.
+  - At 320 px the PDP trail overflows, opens at its end, and fades.
+  - No console errors.
+
+### Entry 210: Release 1.8.0 (`2026.10-ops`)
+
+- `version.ts` and `package.json` are at 1.8.0, release tag `2026.10-ops`,
+  `lastUpdated` 2026-10-31, schema 79. This is the first release carrying
+  migrations `0067`–`0078`; 1.7.14 shipped schema 67.
+- The admin "What's new" modal has a 1.8.0 entry written from the merged PRs
+  #102–#118:
+  - Analitik and UTM.
+  - One-tap WhatsApp follow-up.
+  - The WhatsApp number rotator.
+  - Multi-warehouse.
+  - Mengantar pickup/drop-off and the unknown-outcome lock.
+  - The COD-to-transfer switch.
+  - Operational status, the ops API and the CLI.
+  - The Shopify-theme storefront.
+  - Adaptive legal pages.
+  - The product icon.
+- The status-icon and payment sentences were checked against
+  `OperationalStatus.tsx` and the attempts change before writing.
+- `RELEASE.md` §3 notes `0078`; the §4 registry is at 1.8.0.
+- Nothing is deployed by this repository. An install takes 1.8.0 through
+  `RELEASE.md` §7. `0072` (multi-warehouse) needs the row count checked on any
+  install with more than one `warehouses` row first.
+
+### Entry 211: Account menu in the top bar; sidebar product card
+
+- The top-bar account control was a link to `/admin/profile`. It now opens a
+  shadcn dropdown with:
+  - The session's username and role, plus the store.
+  - Profil & keamanan.
+  - Pengaturan toko (roles that have settings).
+  - Lihat storefront (until now only in the bar at 1280px and up).
+  - Catatan rilis.
+  - Keluar.
+- Keluar reuses the layout's `data-logout-form` handler, and the item keeps the
+  menu open while it runs. `AdminLayout` passes `adminUsername`.
+- Sidebar footer:
+  - Keluar is gone from the sidebar; the mobile Menu sheet keeps its own.
+  - The version card is the product icon, "AdsBookCMS · Catatan rilis" and a
+    blue version pill.
+  - The collapsed rail shows the product icon.
+  - Within the admin contracts: 12px type floor, no decorative motion.
+- The 1.8.0 changelog names the account menu.
+- Verification:
+  - `npm test` 1106 pass; `npm run check` 0 errors; `npm run build` complete.
+  - Headless Chromium on `dev:local`:
+    - At 1280px: the menu lists the five items under the user header.
+    - Catatan rilis opens the modal.
+    - Keluar lands on `/hello`, and `/admin/dashboard` then redirects there.
+    - At 900px: the rail icon opens the changelog.
+    - At 390px: the Menu sheet still has Keluar.
+    - No console errors.
+
+### Entry 212: Flat product icon and favicons
+
+- The gradient squircle with a line-icon book is replaced by a flat mark, one
+  `#2563EB` rounded square:
+  - A solid white open book: the order book, with a gap at the spine so it
+    reads as a book at 16px.
+  - An up-right arrow cut into the right page: the ad becoming a sale.
+- Chosen over two drafts (an order sheet with a flow arrow, too generic; three
+  joined nodes, no "book") by comparing them at 160/64/32/16px and in a dark tab.
+- Written to `images/adsbook-icon.svg` and the merchant-replaceable defaults:
+  `images/logo.svg`, `favicon.png` (32), `favicon.ico` (16+32, the 16 rendered
+  on its own) and `favicon-192.png` (full-bleed).
+- Verification: rendered at each size and opened; `/hello` and the sidebar
+  card rendered on `dev:local`; `npm test` and `npm run build` pass.
+
+### Entry 213: Old placeholder wordmark removed
+
+- Deleted `public/images/adsbook-mark.webp`, the grey "AdsBookCMS / BELUM
+  DIKONFIGURASI" wordmark that served as the default logo.
+- `DEFAULT_TENANT_LOGO` is now empty: no logo until the store uploads one.
+  - The storefront draws its text wordmark.
+  - The admin shows the store's initial.
+  - Share images (`BaseLayout`) and the /thanks image slot fall back to the
+    store's own icon `/favicon-192.png`, never an empty URL that resolves to
+    the page.
+  - A store row or env still naming the old path reads as no logo
+    (`LEGACY_PLACEHOLDER_LOGO`), so nothing points at a missing file.
+- Composed landing-page rows carry no placeholder image; the home list never
+  drew one.
+- The logo field's placeholder and help text no longer promise a product logo.
+- `UPDATE-PATH-OWNERSHIP.md` no longer lists the file.
+- Test fixtures:
+  - The never-leak catalogue test now uses the current product icon and
+    refuses both.
+  - Two fixtures use a neutral sample path.
+- `tenant.test.ts` covers the legacy path.
+- Verification: `npm test`, `npm run check`, `npm run build`, `docs:check`;
+  `dev:local` rendered the header, the home `og:image` and /hello.
+

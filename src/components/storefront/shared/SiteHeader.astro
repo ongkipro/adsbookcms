@@ -8,7 +8,9 @@ import Icon from './Icon.astro';
 // fades at both ends closes it.
 const path = Astro.url.pathname;
 // The list is the current page; a product under it is the current location
-// ("true"), so a screen reader does not announce the link as this page.
+// ("true"), so a screen reader does not announce the link as this page. No
+// drawn state: a filled circle behind one icon read as a frame (owner,
+// 2026-10-31); the icon stays bare and only dims on hover.
 const catalogCurrent = path === '/produk' ? 'page' : path.startsWith('/produk/') ? 'true' : undefined;
 ---
 
@@ -35,7 +37,7 @@ const catalogCurrent = path === '/produk' ? 'page' : path.startsWith('/produk/')
         aria-current={catalogCurrent}
         aria-label="Produk"
         title="Produk"
-        class="inline-flex size-11 items-center justify-center rounded-full text-[#111111] transition-colors hover:bg-[#F3F3F3] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] aria-[current=page]:bg-[#F3F3F3] aria-[current=true]:bg-[#F3F3F3]"
+        class="inline-flex size-11 items-center justify-center rounded-full text-[#111111] transition-opacity hover:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
       >
         <Icon name="lucide:package" class="h-[22px] w-[22px]" aria-hidden="true" />
       </a>

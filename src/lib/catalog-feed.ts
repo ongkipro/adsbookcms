@@ -20,6 +20,8 @@ export type CatalogProduct = {
   description?: string;
   /** `products.description` as the merchant wrote it; preferred for the feed. */
   catalogDescription?: string;
+  googleCategoryId?: number;
+  googleCategoryPath?: string;
   seoDescription?: string;
   heroImage: string;
   variants: CatalogProductVariant[];
@@ -160,7 +162,19 @@ function buildCatalogXml(
   for (const product of products) {
     if (!product.variants || product.variants.length === 0) continue;
 
-    const taxonomy = getAdTaxonomy(product.category, product.productName, product.description || product.headline);
+    // A category the merchant chose from Google's taxonomy is sent exactly;
+    // the keyword engine is only the fallback for a product without one. Meta
+    // takes `google_product_category` or `fb_product_category`, not both, so a
+    // chosen id also drops the engine's Meta guess.
+    const guessed = getAdTaxonomy(product.category, product.productName, product.description || product.headline);
+    const taxonomy = product.googleCategoryId
+      ? {
+          ...guessed,
+          googleCategoryId: product.googleCategoryId,
+          metaCategoryName: undefined,
+          productType: product.googleCategoryPath || guessed.productType,
+        }
+      : guessed;
     const productLink = `${origin}/produk/${product.slug}`;
     const heroImage = feedImagePath(product.heroImage);
     const imageLink = heroImage.startsWith("http") ? heroImage : `${origin}${heroImage}`;
@@ -286,8 +300,9 @@ export function generateMetaCatalogXml(
     channelSuffix: "Meta Commerce Catalog",
     titleMax: 200,
     descriptionMax: 9999,
-    // Meta reads its own taxonomy first and falls back to Google's, so both go
-    // out, in that order.
+    // Meta's own category when the keyword engine guessed one, and Google's id.
+    // A merchant-chosen Google id clears the Meta guess upstream: Meta's help
+    // centre asks for one of the two fields, not both.
     categoryXml: (taxonomy) =>
       (taxonomy.metaCategoryName
         ? `\n      <g:fb_product_category>${escapeXml(taxonomy.metaCategoryName)}</g:fb_product_category>`

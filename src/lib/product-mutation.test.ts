@@ -281,3 +281,22 @@ test("brand and description are capped at the feed limits, and an update without
   assert.equal("brand" in untouched.value, false);
   assert.equal("description" in untouched.value, false);
 });
+
+test("a Google category is an id with its path, null clears it, and absent keeps it", () => {
+  const variants = [{ sku: "SKU-1", title: "250 ml", price: 10000, weight_grams: 300, stock: 0 }];
+  const base = { id: 1, title: "Sabun", slug: "sabun", variants, is_active: false };
+  const set = parseProductMutationPayload({ ...base, google_category_id: "2503", google_category_path: "Health & Beauty > Personal Care > Cosmetics > Bath & Body > Bar Soap" }, true);
+  assert.ok("value" in set);
+  assert.equal(set.value.google_category_id, 2503);
+  assert.match(set.value.google_category_path ?? "", /Bar Soap$/);
+  const cleared = parseProductMutationPayload({ ...base, google_category_id: null }, true);
+  assert.ok("value" in cleared);
+  assert.equal(cleared.value.google_category_id, null);
+  assert.equal(cleared.value.google_category_path, null);
+  const kept = parseProductMutationPayload(base, true);
+  assert.ok("value" in kept);
+  assert.equal("google_category_id" in kept.value, false);
+  for (const bad of [{ google_category_id: "abc", google_category_path: "x" }, { google_category_id: 2503, google_category_path: "" }, { google_category_id: -1, google_category_path: "x" }]) {
+    assert.ok("error" in parseProductMutationPayload({ ...base, ...bad }, true));
+  }
+});

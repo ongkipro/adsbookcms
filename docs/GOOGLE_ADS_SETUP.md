@@ -146,9 +146,11 @@ the Meta legs deduplicate on. For GA4, trigger the Google tag on
 | `g:price` / `g:sale_price` | The **cheapest** variant: `compare_price` as `price` and the variant price as `sale_price` when it is higher, otherwise the variant price alone. The same "from" price the product page and the cards show, so Merchant Center finds no price mismatch |
 | `g:description` | **Deskripsi produk** from the admin product form, then landing copy, then a sentence built from the product's own name, brand, category and variant names |
 | `g:brand` | **Merek** from the admin product form; the store name when empty |
-| `g:product_type`, `g:google_product_category` | The taxonomy engine below, from **Kategori** in the admin form |
+| `g:google_product_category` | **Kategori Google** picked in the admin product form from Google's own taxonomy, sent as its id. With none, the taxonomy engine below guesses |
+| `g:product_type` | The chosen Google category's path; otherwise the engine's `Umum > <category>` style path |
+| `fb_product_category` (Meta feed) | Only the engine's guess, and only for a product without a chosen Google category: Meta asks for one of the two category fields, not both |
 
-Fill **Kategori**, **Merek** and **Deskripsi produk** for every product before
+Fill **Kategori Google**, **Merek** and **Deskripsi produk** for every product before
 submitting the feed: without them every item reads "Umum", carries the store's
 name as its brand, and describes itself from its title.
 
@@ -160,7 +162,18 @@ Merchant Center under *UI label* **Settings → Shipping and returns** before
 free listings or Shopping ads go live; an account without them gets item
 warnings for missing shipping.
 
-#### Automatic taxonomy engine
+#### The taxonomy list
+
+`public/data/google-product-taxonomy.json` is Google's
+`taxonomy-with-ids.en-US.txt`, converted by `scripts/generate-google-taxonomy.mjs`
+(version recorded in the file; 5,595 categories at 2021-09-21). Google
+publishes it with ids in US English only; the admin picker accepts Indonesian
+shop words through an alias list in `src/lib/google-taxonomy.ts`, and an id
+typed directly. It is a static asset rather than a D1 table: identical for every
+install, and seeding it would cost every install thousands of writes. Rerun the
+script when Google releases a new version.
+
+#### Automatic taxonomy engine (fallback)
 
 `src/lib/ad-taxonomy.ts` derives the Google Product Category (GPC) id and path, the Meta product category path, and an internal product-type path from the product's category, title, and description — no manual mapping by the merchant.
 

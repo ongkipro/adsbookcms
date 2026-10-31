@@ -7989,3 +7989,52 @@ and an audit of the feeds and structured data.
   /payment, /thanks (COD, unpaid VA, manual, paid) and the admin product form
   rendered in a browser; feed, sitemap, robots, llms.txt and product JSON-LD
   read from a running local store.
+
+### Entry 224: 1.8.2 — Google categories from Google's list, product form, login wordmark
+
+- The variant ID sat in a grey box inside the input grid, a different height
+  and shape from every field beside it, and the remove action was a red link
+  under the grid. Each variant is now a card whose header carries its number,
+  its ID as an outline badge ("Baru" before the first save) and a ghost
+  "Hapus" button. Fields sit on two rows: name and SKU, then price, compare
+  price and weight. Prices take an `Rp` addon and weight a `gram` addon
+  (`InputGroup`), and the compare-price hint shows the saving.
+- The photo field was a native file input styled through `file:` classes. It
+  is now a dashed drop zone (drag-and-drop or click) with the preview, an
+  uploading spinner, and shadcn `Button`s for "Pilih/Ganti foto" and "Hapus
+  foto"; the native input stays in the DOM, visually hidden, for keyboard and
+  screen readers. The hint states the size advice the feeds need (1:1, at
+  least 800×800 px) and fixes the "ototmatis" typo.
+- Verification: `admin-islands-render` and `admin-controls` pass; the edit
+  page rendered at 1366 and 390 px with no horizontal overflow and no console
+  error; a PNG uploaded through the hidden input came back as a WebP URL.
+- **Google product category, exact.** A product had a free-text category, and
+  the feeds sent whatever `ad-taxonomy.ts` guessed from it — often nothing, or
+  a neighbouring category. The form now picks from Google's own taxonomy
+  (`public/data/google-product-taxonomy.json`, 5,595 rows, built from Google's
+  file by `scripts/generate-google-taxonomy.mjs`), searchable in Indonesian
+  through an alias list and by id (`src/lib/google-taxonomy.ts`). Migration
+  `0079` stores the id and path on the product; both feeds send the id as
+  `google_product_category` and the path as `product_type`, and the Meta feed
+  drops the engine's `fb_product_category` guess for such a product, since
+  Meta asks for one of the two. The engine stays the fallback. Google
+  publishes no id-ID list (that URL answers 404). The list ships as a static
+  asset, not a D1 table: identical for every install, and seeding ~5,600 rows
+  would cost every install writes.
+- The store-facing category label follows the first Google pick and stays
+  editable; brand shows the store name as its default.
+- **Login.** The AdsBookCMS wordmark on `/hello` links to the store's homepage,
+  on phones and desktops, with a visible focus ring.
+- **Automatic, then manual.** The form picks a Google category by itself from
+  the product's name and store label (`suggestGoogleCategories`: the keyword
+  engine's confident rule first, then a taxonomy search, with Indonesian
+  phrases such as "minyak kemiri" and "pasta gigi" mapped before single
+  words), marks it "Otomatis", and re-picks while the name changes. The other
+  suggestions are one-click chips (`Button` `size="sm"`); a pick or a clear
+  in the combobox makes it "Manual" and it is never overwritten. A saved
+  category loads as manual.
+- **robots.txt.** AI training crawlers are no longer named with `Allow: /`.
+  Cloudflare's managed robots.txt, on for the fleet's zones, already prepends a
+  `Disallow: /` group for each of them, so the file stated both. Search
+  engines and AI answer agents stay named; training crawlers fall to `*`,
+  which still allows them where the zone has no managed file.

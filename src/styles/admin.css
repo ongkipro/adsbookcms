@@ -367,6 +367,13 @@
 .admin-login-card :where(input, select, textarea) { font-size: 1rem; line-height: 1.5rem; }
 .login-wordmark { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
 @media (min-width: 1024px) { .login-wordmark { justify-content: flex-start; } }
+.login-wordmark-link {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.25rem 0.375rem; margin: -0.25rem -0.375rem; border-radius: 0.5rem;
+  text-decoration: none; transition: background-color 150ms;
+}
+.login-wordmark-link:hover { background-color: rgb(241 245 249 / 0.7); }
+.login-wordmark-link:focus-visible { outline: 2px solid #2563EB; outline-offset: 2px; }
 .login-wordmark-name { font-size: 1.125rem; line-height: 1; font-weight: 700; letter-spacing: -0.02em; color: rgb(15 23 42); }
 .login-wordmark-tag {
   padding-left: 0.5rem; border-left: 1px solid rgb(203 213 225);

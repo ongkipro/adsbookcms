@@ -8,6 +8,8 @@ export interface CatalogProductRow {
   category?: string | null;
   brand?: string | null;
   description?: string | null;
+  google_category_id?: number | null;
+  google_category_path?: string | null;
   image_url?: string | null;
   is_active?: number | null;
   created_at?: string | null;
@@ -196,6 +198,12 @@ export function mergeStorefrontCatalog(
         // The product's own description, kept apart from `description` (which
         // may be landing copy) so the feeds can prefer the merchant's facts.
         ...(ownDescription ? { catalogDescription: ownDescription } : {}),
+        ...(Number.isSafeInteger(product.google_category_id) && Number(product.google_category_id) > 0
+          ? {
+              googleCategoryId: Number(product.google_category_id),
+              googleCategoryPath: product.google_category_path?.trim() || "",
+            }
+          : {}),
         benefits: presentation?.benefits || details.benefits,
         keyPoints: presentation?.keyPoints || details.keyPoints,
         idealFor: presentation?.idealFor || details.idealFor,

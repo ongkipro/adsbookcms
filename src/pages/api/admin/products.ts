@@ -23,6 +23,8 @@ type DbProductRow = {
   category: string | null;
   brand: string | null;
   description: string | null;
+  google_category_id: number | null;
+  google_category_path: string | null;
   image_url: string | null;
   is_active: number | boolean | null;
   created_at: string;
@@ -48,7 +50,7 @@ async function loadProducts(
     ? await database
         .prepare(
           `
-        SELECT id, store_id, title, slug, category, brand, description, is_active, image_url, created_at
+        SELECT id, store_id, title, slug, category, brand, description, google_category_id, google_category_path, is_active, image_url, created_at
         FROM products
         WHERE id = ?
         LIMIT 1
@@ -59,7 +61,7 @@ async function loadProducts(
     : await database
         .prepare(
           `
-        SELECT id, store_id, title, slug, category, brand, description, is_active, image_url, created_at
+        SELECT id, store_id, title, slug, category, brand, description, google_category_id, google_category_path, is_active, image_url, created_at
         FROM products
         ORDER BY created_at DESC, id DESC
         LIMIT ?
@@ -102,6 +104,8 @@ async function loadProducts(
     category: product.category ?? "Umum",
     brand: product.brand ?? "",
     description: product.description ?? "",
+    google_category_id: product.google_category_id ?? null,
+    google_category_path: product.google_category_path ?? "",
     image_url: product.image_url,
     is_active: Boolean(product.is_active),
     created_at: product.created_at,
@@ -208,9 +212,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
         .prepare(
           `
         INSERT INTO products (
-          id, store_id, title, slug, category, brand, description, is_active, image_url, created_at
+          id, store_id, title, slug, category, brand, description,
+          google_category_id, google_category_path, is_active, image_url, created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
         )
         .bind(
@@ -221,6 +226,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
           parsed.value.category,
           parsed.value.brand ?? null,
           parsed.value.description ?? null,
+          parsed.value.google_category_id ?? null,
+          parsed.value.google_category_path ?? null,
           parsed.value.is_active ? 1 : 0,
           parsed.value.image_url,
           createdAt,
@@ -396,7 +403,9 @@ export const PATCH: APIRoute = async ({ request, locals }) => {
         UPDATE products
         SET title = ?, slug = ?, category = ?, is_active = ?, image_url = ?,
             brand = CASE WHEN ? THEN ? ELSE brand END,
-            description = CASE WHEN ? THEN ? ELSE description END
+            description = CASE WHEN ? THEN ? ELSE description END,
+            google_category_id = CASE WHEN ? THEN ? ELSE google_category_id END,
+            google_category_path = CASE WHEN ? THEN ? ELSE google_category_path END
         WHERE id = ?
       `,
         )
@@ -410,6 +419,10 @@ export const PATCH: APIRoute = async ({ request, locals }) => {
           parsed.value.brand ?? null,
           parsed.value.description !== undefined ? 1 : 0,
           parsed.value.description ?? null,
+          parsed.value.google_category_id !== undefined ? 1 : 0,
+          parsed.value.google_category_id ?? null,
+          parsed.value.google_category_id !== undefined ? 1 : 0,
+          parsed.value.google_category_path ?? null,
           parsed.value.id,
         ),
       ...parsed.value.variants.map((variant) => {

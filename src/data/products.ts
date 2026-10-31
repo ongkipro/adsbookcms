@@ -42,6 +42,9 @@ export type Product = {
   description: string;
   /** `products.description` as the merchant wrote it; absent when unset. Feeds prefer it. */
   catalogDescription?: string;
+  /** Google product taxonomy id chosen in admin; the feeds send it verbatim. */
+  googleCategoryId?: number;
+  googleCategoryPath?: string;
   benefits: string[];
   keyPoints: string[];
   idealFor: string[];

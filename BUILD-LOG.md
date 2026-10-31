@@ -7312,3 +7312,125 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   (headless Chromium, `dev:local`): dialog at 390 and 1440 px fits the
   viewport; three ready orders pushed as a 14.00 car pickup got three resi,
   one schedule row, and left no ready order. Not run against live Mengantar.
+### Entry 200: Quieter admin topbar; dropdown pickup fields; truck pickup
+
+- Topbar (Paduka): the bell, status and profile were framed, shadowed tiles
+  beside a separate "Owner" pill. They are now borderless icon buttons from
+  one `topbar-styles.ts` definition, the status keeps its tone on the icon
+  only, the role joins the profile control (avatar + role), the search pill
+  loses its border, and badges are smaller with a white ring.
+- Pickup fields are dropdowns (`FilterSelect`, a Radix menu that works inside
+  the push dialog): seven bookable days ("Hari ini, 31 Okt", "Besok, 1 Nov",
+  "Sen, 2 Nov") and only the hours still bookable. The shipping page's
+  warehouse dropdown shows warehouse names (the Base UI Select had no `items`
+  and showed the id); its labels match the other fields.
+- Pickup vehicle: Motor (default), Mobil, Truk (`volumeTruck`).
+- Spacing: an island is `astro-island { display: contents }`, so Tailwind v4
+  `space-y-*` margins never reached it and the next card touched it
+  (Pengaturan › Headless API). `admin.css` makes an island directly inside a
+  `space-y-*` stack a block.
+- Link UTM: the destination is a searchable combobox (name, kind, path shown
+  once chosen), sources are one-tap buttons, the medium is the shared
+  dropdown, and the link with its four tags sits in a right-hand panel that
+  stays in view on wide screens and lists what is still missing until ready.
+- Verification: `npm test` 1083 pass / 0 fail, `npm run check` 0 errors /
+  0 hints, `npm run build` complete. Browser (headless Chromium, `dev:local`):
+  topbar 64 px at 1440/1024 and 60 px at 390 with no overflow; shipping form
+  picks "Gudang Dummy Jakarta" by name; dialog offers Motor | Mobil | Truk;
+  24 px between the developer page island and the API docs card.
+### Entry 201: Analitik tables made consistent and compact
+
+- Paduka asked for tidier Analitik tables (Landing page, Produk, Lokasi,
+  Waktu beli, UTM). An audit in a browser found four table styles on five
+  screens, a verbose "· Perlu perhatian" on every flagged RTS, a progress bar
+  per closing rate, Landing's RTS and channel columns pushed past the edge by
+  a `<details>` column, Lokasi drawn as a grid that repeated its labels on
+  every row (and a long city name that overran into the next cell and could
+  not be clicked), and phone cards of about 250 px per row (Produk 2,694 px).
+- One table anatomy in `InsightsReport.tsx`: a bordered shell that scrolls
+  sideways, upper-case muted headers, right-aligned tabular figures, the name
+  column pinned (slate-50 like admin.css's thead and row hover). Under `md`
+  each row is one compact list item: name and headline figure, then one line
+  of small figures. Drill names (Lokasi, UTM) wrap and keep their text at the
+  top of the phone touch floor.
+- RTS is a figure, red with a dot above the 20% review line, the reason on
+  hover and for screen readers. Closing is a figure. Landing sorts from its
+  headers (a select remains on phones), its channels read as one short line,
+  and the lead follow-up split rides on the Lead cell's title. Produk gains
+  delivered and returned units; a single variant is named inline. Lokasi is a
+  real table with delivered/returned columns and the incomplete-address row
+  inside it. Waktu beli is compact: "–" for an empty hour, hour and day
+  totals, the busiest hour in the summary.
+- Heights at 390 px: Landing 1,698→882, Produk 2,694→1,232, Lokasi
+  1,305→972, UTM 1,671→1,015. No numbers changed (`insights.ts` untouched).
+- Numbered 199 because the open `feat/compact-wa-follow-up` branch carries
+  Entry 198; renumber whichever merges second.
+- Verification: `npm test` 1077 pass / 0 fail (the UTM screen joins the
+  island loading/empty render test), `npm run check` 0 errors / 0 hints,
+  `npm run build` complete. Headless Chromium on a seeded `dev:local` store
+  at 1440 and 390 px: every screen and both drills, horizontal overflow 0, no
+  page errors.
+### Entry 202: Audit fixes H-1 (late payment on a replaced instruction) and M-1 (unknown push outcome)
+
+- From `docs/AUDIT-2026-10-31.md` (branch `audit/repo-review-2026-10-31`).
+- **H-1.** Regenerating an expired QRIS/VA instruction rewrote the order's
+  `payment_transactions` row and erased the old provider `trx_id`; a buyer who
+  paid the old one could reach `paid` by no path. Migration `0076` (schema 77)
+  adds `payment_transaction_attempts`: the old instruction is kept in the same
+  batch that rewrites the row, and that rewrite now runs only while the row is
+  failed or expired, so two simultaneous retries cannot both win. The hourly
+  Advice run also asks about superseded instructions inside its 24-hour
+  recheck window; a paid one goes back on its row (`adoptPaymentAttemptStatements`)
+  and the existing guarded settle statements apply. Manual confirmation accepts
+  a superseded reference with its amount.
+- **M-1.** A timeout, dropped connection, provider 5xx, or unreadable 2xx on
+  `POST /order` was treated as a rejection and the order was pushable again at
+  once, risking a second parcel and a second COD collection. These are now
+  `MengantarOutcomeUnknownError`; the order is marked `DISPATCH_UNKNOWN:` and
+  refused by eligibility, the dispatcher and the D1 claim until an owner or
+  admin, having checked Mengantar, releases it from the order page. A pickup
+  slot failure before `POST /order` stays a plain failure.
+- Tests: `payment-attempts.test.ts` (3, real functions on the full migration
+  chain: regenerate keeps TRX-1, Advice settles it, manual confirm by the old
+  reference, a racing second regeneration does not overwrite), 3 new
+  `mengantar-dispatch` tests (five unknown shapes, a clear refusal stays
+  retryable, a pickup slot failure is not unknown). Mutation-checked: removing
+  the supersede step, the unknown marker, or the re-push block each fails them.
+- Not done: a buyer who pays both the old and the new instruction is still not
+  detected (the second payment's row is already `paid`); RELEASE.md's migration
+  notes (stale since 0066, audit M-10) do not yet describe 0067–0076.
+- Verification: `npm test` 1090 pass / 0 fail, `npm run check` 0 errors /
+  0 hints (548 files).
+### Entry 203: Analitik and mobile polish; browser Purchase gated on server state
+
+- **Tracking (audit 2026-10-31 tracking H-1, L-2, L-6).** `/thanks` opened in
+  a fresh tab had empty `sessionStorage` and defaulted to COD, so unpaid
+  QRIS/VA and cancelled orders fired a Purchase to the Pixel, Google Ads and
+  GTM, and Google got no `transaction_id`. `MetaThanksTracker` now takes the
+  method and state from `/api/order-status` (void → nothing, unpaid prepaid →
+  nothing) and uses the server's `INV-` number as `transaction_id`;
+  `isMetaPurchaseOrderEligible` accepts `settled` and `success` as paid.
+  `meta-purchase-dedup.test.ts` runs the real tracker for a fresh tab
+  (mutation-checked). TRACKING_SPECS §2, §15 item 8 and §16.1 corrected.
+- **Analitik.** `--chart-1` was the shadcn default grey (13% contrast), so the
+  trend line and the purchase-time heatmap were barely visible; the chart
+  tokens are now blue-led (light and dark). Phones fold every filter but the
+  period behind "Filter (n)"; the two-line period/disclaimer block is one
+  line that still names Asia/Jakarta; KPI figures no longer break mid-number;
+  empty totals read "–".
+- **Order list on phones.** The card was ~640 px: a framed RTS block with bar
+  and guidance, a grey info grid, a "WhatsApp CRM" label, a full-width
+  "pilih untuk aksi bulk" box and a separate actions row. It is now ~346 px:
+  checkbox, invoice, actions in one header; a compact RTS pill on the date
+  line; customer, goods/total and delivery/courier as plain lines; the chips.
+  Filters other than search fold behind "Filter (n)". Page height for 12
+  orders 8,809 → 4,909 px; first card at 751 px (was 929).
+- **Products on phones.** Product names wrap to two lines instead of
+  truncating beside the status badge and toggle.
+- **Mobile sweep.** 30 admin pages at 390 px: HTTP 200, no horizontal
+  overflow, no clipped control, no page error (headless Chromium).
+- **Docs.** RELEASE.md migration notes 0067–0076 (0071 and 0075 read/write
+  every order on first request) and schema 77 (audit M-10); the open audit
+  findings are rows in UNIMPLEMENTED_SPECS §1.
+- Verification: `npm test` 1091 pass / 0 fail, `npm run check` 0 errors /
+  0 hints, `npm run build` complete.

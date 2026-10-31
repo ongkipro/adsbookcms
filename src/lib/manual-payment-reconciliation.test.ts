@@ -118,6 +118,13 @@ class ReconciliationDatabase {
         "utf8",
       ).replaceAll("--> statement-breakpoint", ""),
     );
+    // Superseded instructions (audit 2026-10-31 H-1).
+    this.sqlite.exec(
+      readFileSync(
+        new URL("../db/migrations/0076_payment_transaction_attempts.sql", import.meta.url),
+        "utf8",
+      ).replaceAll("--> statement-breakpoint", ""),
+    );
     // Confirming a payment records an operator notification. Without the real
     // table that write fails open, so the call site would prove nothing.
     this.sqlite.exec(

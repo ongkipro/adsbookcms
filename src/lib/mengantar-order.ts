@@ -28,7 +28,7 @@ export type MengantarPickupPayload =
   | { type: "dropOff" }
   | { type: "scheduledPickup"; timeId: string; volume: MengantarPickupVolume };
 
-export const MENGANTAR_PICKUP_VOLUMES = ["volumeMotor", "volumeMobil"] as const;
+export const MENGANTAR_PICKUP_VOLUMES = ["volumeMotor", "volumeMobil", "volumeTruck"] as const;
 export type MengantarPickupVolume = (typeof MENGANTAR_PICKUP_VOLUMES)[number];
 /** Provider slots: one hour each, 9:00 to 18:00 WIB (`POST /time` `time`). */
 export const MENGANTAR_PICKUP_HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18] as const;
@@ -67,6 +67,27 @@ export function defaultPickupSlot(now = Date.now()) {
   const hours = availablePickupHours(today, now);
   if (hours.length) return { date: today, hour: hours[0] as number };
   return { date: jakartaDate(now + 24 * 60 * 60 * 1000), hour: MENGANTAR_PICKUP_HOURS[0] as number };
+}
+
+/**
+ * The pickup dates offered in the dropdown: from the earliest bookable day,
+ * `count` days, labelled "Hari ini, 31 Okt" / "Besok, 1 Nov" / "Sen, 2 Nov" (short
+ * enough for a half-width dropdown on a phone).
+ */
+export function pickupDayOptions(now = Date.now(), count = 7) {
+  const first = defaultPickupSlot(now).date;
+  const today = jakartaDate(now);
+  const tomorrow = jakartaDate(now + 24 * 60 * 60 * 1000);
+  const label = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", weekday: "short", day: "numeric", month: "short" });
+  const dayMonth = new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short" });
+  return Array.from({ length: count }, (_, index) => {
+    const instant = new Date(`${first}T12:00:00+07:00`).getTime() + index * 24 * 60 * 60 * 1000;
+    const value = jakartaDate(instant);
+    return {
+      value,
+      label: value === today ? `Hari ini, ${dayMonth.format(instant)}` : value === tomorrow ? `Besok, ${dayMonth.format(instant)}` : label.format(instant),
+    };
+  });
 }
 
 /**

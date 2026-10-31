@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync, type StatementSync } from "node:sqlite";
 import test from "node:test";
-import { dispatchOrderToMengantar } from "./mengantar-dispatch.ts";
+import { dispatchOrderToMengantar, releaseUnknownMengantarDispatch } from "./mengantar-dispatch.ts";
 
 type QueryValue = null | number | string | Uint8Array;
 
@@ -416,4 +416,80 @@ test("an existing provider slot is reused, and drop-off stays the default", asyn
   await dispatchOrderToMengantar(asD1(plain), locals, 1);
   assert.deepEqual(JSON.parse(calls.find((call) => call.path.endsWith("/order"))!.body).pickup, { type: "dropOff", address_id: "pickup-1" });
   assert.equal(calls.some((call) => call.path.endsWith("/time")), false);
+});
+
+// Audit 2026-10-31 M-1: an unknown outcome must not read as a plain failure,
+// or the next click pushes a second parcel.
+test("a timeout or unreadable answer to POST /order blocks the order until an operator releases it", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const stored = (database: DispatchDatabase) =>
+    database.sqlite.prepare("SELECT provider_dispatch_error, provider_dispatch_claimed_at, shipping_status FROM orders WHERE id = 1").get() as Record<string, string | null>;
+
+  for (const answer of [
+    async () => { throw new TypeError("fetch failed"); },
+    async () => { const error = new Error("aborted"); error.name = "AbortError"; throw error; },
+    async () => new Response("<html>gateway</html>", { status: 200 }),
+    async () => new Response(JSON.stringify({ success: true, data: [] }), { status: 200 }),
+    async () => new Response(JSON.stringify({ message: "upstream" }), { status: 502 }),
+  ]) {
+    const database = new DispatchDatabase();
+    let orderCalls = 0;
+    globalThis.fetch = async (input) => {
+      if (String(input).endsWith("/order")) orderCalls += 1;
+      return answer();
+    };
+    const first = await dispatchOrderToMengantar(asD1(database), locals, 1);
+    assert.equal(first.status, "outcome_unknown");
+    assert.match(String(stored(database).provider_dispatch_error), /^DISPATCH_UNKNOWN: /);
+    assert.equal(stored(database).shipping_status, "pending");
+    // The next push, single or bulk, does not reach Mengantar.
+    assert.equal((await dispatchOrderToMengantar(asD1(database), locals, 1)).status, "outcome_unknown");
+    assert.equal(orderCalls, 1, "no second POST /order");
+
+    // Released after the operator checked Mengantar: the push goes through.
+    assert.equal(await releaseUnknownMengantarDispatch(asD1(database), 1), true);
+    globalThis.fetch = async () => acceptedResponse();
+    assert.equal((await dispatchOrderToMengantar(asD1(database), locals, 1)).status, "dispatched");
+    assert.equal(await releaseUnknownMengantarDispatch(asD1(database), 1), false, "nothing left to release");
+  }
+});
+
+test("a clear refusal stays a plain failure that may be pushed again", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const database = new DispatchDatabase();
+  let orderCalls = 0;
+  globalThis.fetch = async () => {
+    orderCalls += 1;
+    return new Response(JSON.stringify({ success: false, message: "Alamat tidak valid" }), { status: 400 });
+  };
+  const first = await dispatchOrderToMengantar(asD1(database), locals, 1);
+  assert.equal(first.status, "failed");
+  assert.equal(first.error, "Alamat tidak valid");
+  assert.equal((await dispatchOrderToMengantar(asD1(database), locals, 1)).status, "failed");
+  assert.equal(orderCalls, 2, "a refused order is offered again");
+});
+
+test("a pickup slot that cannot be booked fails before any shipment exists, so it is not unknown", async (context) => {
+  const originalFetch = globalThis.fetch;
+  context.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const database = new DispatchDatabase();
+  globalThis.fetch = async (input) => {
+    if (String(input).includes("/time")) throw new TypeError("fetch failed");
+    return acceptedResponse();
+  };
+  const outcome = await dispatchOrderToMengantar(asD1(database), locals, 1, {
+    choice: { type: "scheduledPickup", date: "2026-11-02", hour: 13, volume: "volumeMotor" },
+    timeIds: new Map(),
+  });
+  assert.equal(outcome.status, "failed");
+  const row = database.sqlite.prepare("SELECT provider_dispatch_error FROM orders WHERE id = 1").get() as { provider_dispatch_error: string };
+  assert.doesNotMatch(row.provider_dispatch_error, /^DISPATCH_UNKNOWN/);
 });

@@ -193,7 +193,8 @@ An explicit Push action in Order Management is the provider boundary. Selection 
 - Each `/order` request is awaited before the next begins. Parallel calls and guessed fixed delays are prohibited.
 - Every selected order returns an independent `success`, `unpaid`, `skipped`, or `failed` result with an actionable reason.
 - Accepted siblings remain committed when another order fails.
-- Provider rejection or transport failure clears the dispatch claim, preserves the provider error, and leaves the order `pending` in Order Management for correction and retry.
+- A clear provider rejection (4xx, `success:false`) clears the dispatch claim, preserves the provider error, and leaves the order `pending` in Order Management for correction and retry.
+- An **unknown** outcome of `POST /order` — timeout, dropped connection, provider 5xx, or a 2xx whose body or shipment id cannot be read (`MengantarOutcomeUnknownError`) — may mean the shipment exists. The order is marked `DISPATCH_UNKNOWN: …`, refused by every push (eligibility, the dispatcher's early check, and the D1 claim), and shown on the order page with instructions; an owner or admin releases it (`release-dispatch-unknown`) only after finding no shipment at Mengantar. A failure before `POST /order` (a pickup slot that cannot be booked) is a plain failure. Audit 2026-10-31 M-1; a lookup by order number would let this resolve itself, but no such provider endpoint is confirmed.
 - A stale dispatch claim becomes retryable after the same bounded lease used by the dispatcher.
 
 ### D. Provider-accepted Shipping projection
@@ -237,7 +238,7 @@ Observed client fields for `/address` include:
 
 ### Pickup or drop-off at push (PRD A46)
 
-`POST /order` carries `pickup.type`: `dropOff` (the default, and the only value sent before A46) or `scheduledPickup`, which also needs `time_id` (a `/time` slot `_id`) and `volume` (`volumeMotor`, `volumeMobil`; the provider also lists `volumeTruck`, not offered). The push dialog collects date, hour and vehicle; the dispatch resolves one slot per pickup address per request (an existing matching slot from `GET /time`, else `POST /time`), sends it with every order of that address, and links each accepted order to a local `pickup_schedules` row keyed by warehouse and provider slot id, so the shipping page does not list it as needing pickup.
+`POST /order` carries `pickup.type`: `dropOff` (the default, and the only value sent before A46) or `scheduledPickup`, which also needs `time_id` (a `/time` slot `_id`) and `volume` (`volumeMotor` by default, `volumeMobil`, `volumeTruck`). The push dialog collects date, hour and vehicle; the dispatch resolves one slot per pickup address per request (an existing matching slot from `GET /time`, else `POST /time`), sends it with every order of that address, and links each accepted order to a local `pickup_schedules` row keyed by warehouse and provider slot id, so the shipping page does not list it as needing pickup.
 
 Still **[verifikasi]** (open in the documentation repository's checklist): the exact server-accepted spelling of `scheduledPickup`/`dropOff` beyond `dropOff` (which live dispatch has used), the `GET /time` slot field names, and the error shape of a rejected pickup time. Confirm with one approved live order before relying on scheduled pickup in production.
 

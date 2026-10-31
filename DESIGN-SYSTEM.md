@@ -47,7 +47,7 @@ replacing the v2 blue accent.
 | `#F3F3F3` | Soft surface — tagline line, search well, info notes, review cards, footer, the canvas outside the column on wide screens, section separators (`border-t-8`) |
 | `#E5E5E5` | Outline of pill controls at rest (chips, search, secondary buttons) |
 | `#EDEDED` | The one hairline: under the sticky header and above the sticky buy bar |
-| `#121212` / `#333333` | Accent — primary buy action ("Pesan sekarang", sticky bar, checkout submit, thanks/payment actions), selected variant border; same value as `--sf-accent` / `--sf-accent-strong`. A store re-brands through those tokens (ADR-019) |
+| `#121212` / `#333333` | Accent — primary buy action (sticky bar "Pesan sekarang", checkout submit, thanks/payment actions), selected variant border; same value as `--sf-accent` / `--sf-accent-strong`. A store re-brands through those tokens (ADR-019) |
 | `#F3F3F3` (`--sf-accent-soft`) | A filled field and the selected variant card; an empty field is white (`--sf-field-empty`) |
 | `#334FB4` | Discount pill only (`-25%`, `rounded-full` like Dawn's badge), white text, 7.2:1 |
 | `#D92D20` | Checkout errors only (`form-hybrid.css`), never a sale |
@@ -210,9 +210,10 @@ Sections (in order):
 - `/produk`: breadcrumb → title with product count → grid.
 - PDP: breadcrumb → photo → offer (name, rating/sold if real, price with
   "Mulai" when variants differ, compare price, short copy, "N pilihan: …",
-  "Pesan sekarang"; no shipping-cost note — the form shows the cost) → "Tentang produk" (only content that
-  exists) → reviews (only if real) → order form. The sticky buy bar shows name,
-  price and the same action between the photo and the form.
+  no inline buy button and no shipping-cost note — the form is the action and
+  shows the cost) → "Tentang produk" (only content that exists) → reviews (only
+  if real) → order form. The sticky buy bar (name, price, "Pesan sekarang") is
+  the one jump to the form, shown between the photo and the form.
 
 Shape rules:
 - One soft radius vocabulary: `rounded-xl` for images and cards,

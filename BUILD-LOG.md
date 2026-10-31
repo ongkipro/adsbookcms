@@ -7907,4 +7907,7 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   store line were removed (owner). The version stays in the footer.
 - The heading became the product icon and "AdsBookCMS" (owner), replacing
   "Masuk ke dashboard".
+- The heading is now a small wordmark (owner: "kecil aja, yang keren"): a 28px
+  icon; "Ads" in brand blue and "Book" in ink at 18px bold; "CMS" as a tracked
+  12px tag after a hairline. Its accessible name is "AdsBookCMS".
 

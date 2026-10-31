@@ -210,9 +210,13 @@ if (database && !bootstrapAdminPassword) {
       <div class="admin-login-form-wrapper">
         <div class="admin-login-card">
           <div class="admin-login-header text-center lg:text-left">
-            <h1 id="loginTitle" class="flex items-center justify-center gap-3 text-2xl font-semibold tracking-tight text-slate-950 lg:justify-start">
-              <img src="/images/adsbook-icon.svg" alt="" width="40" height="40" class="size-10 shrink-0" />
-              AdsBookCMS
+            <!-- The wordmark: "Ads" in the brand blue, "Book" in ink - the two
+                 halves of the name - and "CMS" as a small tracked tag after a
+                 hairline. One accessible name, "AdsBookCMS". -->
+            <h1 id="loginTitle" aria-label="AdsBookCMS" class="login-wordmark">
+              <img src="/images/adsbook-icon.svg" alt="" width="28" height="28" class="size-7 shrink-0" />
+              <span aria-hidden="true" class="login-wordmark-name"><span class="text-[#2563EB]">Ads</span>Book</span>
+              <span aria-hidden="true" class="login-wordmark-tag">CMS</span>
             </h1>
           </div>
           <div class="admin-login-form-content">

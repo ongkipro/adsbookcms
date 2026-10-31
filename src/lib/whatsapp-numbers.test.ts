@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { pickThanksWhatsapp } from "./thanks-whatsapp.ts";
@@ -14,10 +14,20 @@ import {
   WhatsappNumberError,
 } from "./whatsapp-numbers.ts";
 
+// By suffix, never by number (RELEASE.md): an install with its own migrations
+// renumbers the product's above them, and a fixed number would miss the file.
+const migrationUrl = (suffix: string) => {
+  const dir = new URL("../db/migrations/", import.meta.url);
+  const name = readdirSync(dir).find((file) => file.endsWith(suffix));
+  if (!name) throw new Error(`no migration ends with ${suffix}`);
+  return new URL(name, dir);
+};
+
+
 type SqlValue = null | number | string;
 
 const MIGRATION = readFileSync(
-  new URL("../db/migrations/0067_whatsapp_numbers.sql", import.meta.url),
+  migrationUrl("_whatsapp_numbers.sql"),
   "utf8",
 ).replace(/--> statement-breakpoint/g, "");
 

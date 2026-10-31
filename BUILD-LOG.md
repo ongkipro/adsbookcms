@@ -7933,3 +7933,18 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
 - Verification: the seven-size no-scroll check and the QR decode after the
   change.
 - The quote is credited "by ongki.pro" (owner), replacing "pepatah developer".
+
+### Entry 222: Tests find product migrations by suffix
+
+- Found while updating zvarashop to 1.8.0. Its own catalogue migrations hold
+  0067-0079, so the product's 0067-0078 are renumbered 0080-0091 there.
+  `whatsapp-numbers.test.ts` and `manual-payment-reconciliation.test.ts`
+  opened `0067_whatsapp_numbers.sql` and `0076_payment_transaction_attempts.sql`
+  by number and failed with ENOENT (14 tests), against the rule in RELEASE.md.
+- Both now resolve the file by suffix.
+- A guard in `schema-version.test.ts` fails when any test names a product
+  migration from 0067 on by number (fixture names in `deploy-preflight.test.ts`
+  excepted). It was checked against the unfixed files: it names both.
+- Verification: `npm test`, `npm run check`, `npm run build` and
+  `docs:check` pass.
+

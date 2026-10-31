@@ -7903,4 +7903,6 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - Headless Chromium: the seven-size no-scroll check passes.
   - 390x844 fetches the poster and 1366x768 does not.
   - No console errors.
+- Above the form only "Masuk ke dashboard" remains; the AdsBookCMS row and the
+  store line were removed (owner). The version stays in the footer.
 

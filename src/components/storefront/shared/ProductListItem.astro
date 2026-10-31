@@ -34,6 +34,9 @@ const hasDiscount = comparePrice > product.price;
 // "Mulai" only when the variants really differ in price; a card that says
 // "from" over one price is hedging for nothing.
 const hasRange = new Set(product.variants.map((variant) => variant.price).filter((price) => typeof price === 'number')).size > 1;
+// The price sits right under the title (one or two lines, clamped), as in
+// the Shopify theme; the cards still line up because the grid stretches each
+// one to its row and the text block fills the rest.
 const discountPercentage = hasDiscount
   ? Math.round((1 - product.price / comparePrice) * 100)
   : 0;
@@ -62,9 +65,6 @@ const discountPercentage = hasDiscount
       )}
     </div>
 
-    <!-- The price sits right under the title (one or two lines, clamped),
-         as in the Shopify theme; the cards still line up because the grid
-         stretches each one to its row and this block fills the rest. -->
     <div class="flex flex-1 flex-col px-0.5 pt-2">
       <h2 class="line-clamp-2 text-sm leading-5 text-[#111111]" title={product.productName}>{product.productName}</h2>
       <p class="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 leading-5">

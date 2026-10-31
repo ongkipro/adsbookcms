@@ -46,7 +46,8 @@ replacing the v2 blue accent.
 | `#767676` | Tertiary text, struck-through compare price |
 | `#F3F3F3` | Soft surface — tagline line, search well, info notes, review cards, footer, the canvas outside the column on wide screens, section separators (`border-t-8`) |
 | `#E5E5E5` | Outline of pill controls at rest (chips, search, secondary buttons) |
-| `#EDEDED` | The one hairline: under the sticky header and above the sticky buy bar |
+| `#EDEDED` | The hairline above the sticky buy bar |
+| `#E5E5E5` faded | The rule under the header: a 1px `linear-gradient` from transparent to `#E5E5E5` at 20%/80% and back, so it fades out at both edges |
 | `#121212` / `#333333` | Accent — primary buy action (sticky bar "Pesan sekarang", checkout submit, thanks/payment actions), selected variant border; same value as `--sf-accent` / `--sf-accent-strong`. A store re-brands through those tokens (ADR-019) |
 | `#F3F3F3` (`--sf-accent-soft`) | A filled field and the selected variant card; an empty field is white (`--sf-field-empty`) |
 | `#334FB4` | Discount pill only (`-25%`, `rounded-full` like Dawn's badge), white text, 7.2:1 |
@@ -171,8 +172,8 @@ voice — 9–10px uppercase labels tracked 0.12–0.2em — is retired: it made
 category and variant counts unreadable on a phone ("RUMAH TANGG… 2 VARIAN")
 and gave every store the same boutique accent.
 
-- Wordmark: `text-[17px] font-bold tracking-[-0.01em]`, the tenant's own name — `SiteBrand.astro`
-- Tagline: `text-xs text-[#555555]` on `#F3F3F3`, one line above the header — `SiteHeader.astro`
+- Wordmark: `text-[15px] font-bold uppercase tracking-[0.08em]`, the tenant's own name, one line — `SiteBrand.astro`. Shown only while the store has no uploaded logo (`tenant.logo` is `DEFAULT_TENANT_LOGO`); an uploaded logo replaces it, 32px tall, at most 168px wide, sized inline. No monogram tile.
+- Announcement line: "Official Store" with a solid blue (`#1D6FEB`) badge-check, `text-xs font-semibold` on `#F3F3F3`, above the header — `SiteHeader.astro`. The tagline is no longer drawn there.
 - Page `h1`: `text-2xl font-bold tracking-[-0.02em]` — `PageIntro.astro`; PDP `h1` `text-xl`
 - Section heading: `text-xl font-bold tracking-[-0.02em]` (home), `text-base font-bold` (PDP sections)
 - Card title: `text-sm leading-5`, at most two lines (`line-clamp-2`), the price directly under it (`mt-0.5`), no reserved height: a one-line title's price sits higher than its neighbour's, as in the Shopify theme, while the card frames still align (grid stretch, `h-full flex-col`)
@@ -204,7 +205,7 @@ cards in the form) and filled space with generic attributes ("Fokus Produk",
 "Ketersediaan: seluruh varian tersedia").
 
 Sections (in order):
-- Home: tagline line → sticky header (brand, "Produk") → swipeable hero card →
+- Home: "Official Store" line (blue badge-check) → header (text wordmark, or the uploaded logo; a package icon to `/produk`), not sticky, closed by a rule that fades at both ends → swipeable hero card →
   catalogue (heading, search, category chips, 2-column grid) → landing pages →
   footer.
 - `/produk`: breadcrumb → title with product count → grid.
@@ -219,9 +220,9 @@ Shape rules:
 - One soft radius vocabulary: `rounded-xl` for images and cards,
   `rounded-2xl` for grouped surfaces (hero, review cards, empty states, the
   landing-page list), `rounded-full` for chips, search, and buttons,
-  `rounded-md` for the discount pill.
+  and the discount pill (Dawn's badge).
 - Separation is whitespace and surface, not lines. Between PDP sections a
-  `border-t-8 border-[#F3F3F3]` band; the only hairlines are under the sticky
+  `border-t-8 border-[#F3F3F3]` band; the only hairlines are the faded rule under the
   header and above the sticky bar.
 - No shadow except the sticky buy bar's upward drop.
 - The column stays 480px on every screen (`BaseLayout`); wider than `sm` it
@@ -229,9 +230,11 @@ Shape rules:
 - The checkout form (`form-hybrid.css`, §4) keeps its own geometry; this
   direction does not restyle it.
 
-Claims: no seal, rating, sold count, or "verified" mark appears unless the
-store's data carries it. The removed "Official Store" check was a
-verification nobody had performed.
+Claims: no rating, sold count, or "verified buyer" mark appears unless the
+store's data carries it. The "Official Store" line is the exception by owner
+decision (2026-10-31): it states that the store's own site is its official
+store, which every install is by definition; it is not a platform
+verification.
 
 Interaction: the hero is a native `scroll-snap` track (swipe, dots jump to a
 slide, never autoplays). Images are `draggable=false`; a vertical touch swipe

@@ -32,7 +32,7 @@ const gallery = images.filter((image) => image.trim());
 {gallery.length > 0 && (
   <div class="w-full" data-gallery>
     {gallery.map((imgUrl, idx) => (
-      <div class="relative w-full bg-[#F4F4F5]">
+      <div class="relative w-full bg-[#F3F3F3]">
         <img
           src={imgUrl}
           alt={idx === 0 ? `Foto ${productName}` : `${productName} foto ${idx + 1}`}
@@ -45,7 +45,7 @@ const gallery = images.filter((image) => image.trim());
           draggable={false}
         />
         {idx === 0 && discountPercentage > 0 && (
-          <span class="pointer-events-none absolute left-3 top-3 z-10 rounded-md bg-[#D92D20] px-2 py-0.5 text-xs font-bold leading-5 text-white">
+          <span class="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-[#334FB4] px-2 py-0.5 text-xs font-bold leading-5 text-white">
             -{discountPercentage}%
           </span>
         )}

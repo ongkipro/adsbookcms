@@ -1,6 +1,6 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-10-31 @ `cb45a2e` + `feat/storefront-compact-v2` working tree (storefront §1.1, §2, §3, §7.4 rewritten for the compact-market v2 direction)
+> Verified against disk: 2026-10-31 @ `1b10ce1` + `feat/storefront-shopify-color` working tree (storefront §1.1 Shopify-theme palette, §3 PDP order, login panel §1.3; §2, §7.4 as rewritten for compact-market v2)
 >
 > **The public palette is neutral plus one overridable accent (ADR-019, as
 > amended 2026-08-23).** Colour tokens below that describe the retired gold
@@ -33,23 +33,28 @@ properties.
 
 ### 1.1 Storefront palette (`compact-market`)
 
-Neutral ink on white, one interactive accent, one sale colour. Set 2026-10-31
-by the v2 direction (§3).
+Neutral ink on white, ink as the interactive accent, one sale colour: the
+Shopify theme (Dawn) palette, read from the Dawn demo store's home and product
+page on 2026-10-31 (ink `rgb(18,18,18)`, ink at 75% for body copy, `#F3F3F3`
+secondary surface, solid ink "Buy it now", blue "Sale" badge). Set 2026-10-31,
+replacing the v2 blue accent.
 
 | Hex | Role |
 | --- | --- |
 | `#111111` | Primary ink — text, selected chip fill, monogram tile |
 | `#555555` | Secondary text |
 | `#767676` | Tertiary text, struck-through compare price |
-| `#F4F4F5` | Soft surface — tagline line, search well, info notes, review cards, footer, the canvas outside the column on wide screens, section separators (`border-t-8`) |
-| `#E4E4E7` | Outline of pill controls at rest (chips, search, secondary buttons) |
+| `#F3F3F3` | Soft surface — tagline line, search well, info notes, review cards, footer, the canvas outside the column on wide screens, section separators (`border-t-8`) |
+| `#E5E5E5` | Outline of pill controls at rest (chips, search, secondary buttons) |
 | `#EDEDED` | The one hairline: under the sticky header and above the sticky buy bar |
-| `#2C6ECB` / `#1F5199` | Accent — primary buy action ("Pesan sekarang"), same value as `--sf-accent` / `--sf-accent-strong` |
-| `#D92D20` | Discount pill only (`-25%`), white text, 4.8:1 |
+| `#121212` / `#333333` | Accent — primary buy action ("Pesan sekarang", sticky bar, checkout submit, thanks/payment actions), selected variant border; same value as `--sf-accent` / `--sf-accent-strong`. A store re-brands through those tokens (ADR-019) |
+| `#F3F3F3` (`--sf-accent-soft`) | A filled field and the selected variant card; an empty field is white (`--sf-field-empty`) |
+| `#334FB4` | Discount pill only (`-25%`, `rounded-full` like Dawn's badge), white text, 7.2:1 |
+| `#D92D20` | Checkout errors only (`form-hybrid.css`), never a sale |
 | `#15803D` | Benefit check and "Pembeli terverifikasi", both data-backed |
 
 White is the column ground. The compare price is the only struck text; the
-discount pill is the only red, and it renders only when a compare price exists.
+discount pill is the only blue, and it renders only when a compare price exists.
 
 Named in `src/lib/ui-variants.ts`:
 
@@ -85,6 +90,21 @@ Admin colour **is** tokenised. `.admin-shell` redefines the shadcn variables in 
 - Accent is a single JS constant: `export const ADMIN_ACCENT = "#2563eb"`, injected as `--admin-accent` inline on `<body>` and consumed by `src/styles/admin.css` for primary, focus, and input states.
 - Shell background and table chrome are scoped in `src/styles/admin.css`, matched by `bg-[#f6f7f9]` on the body class (`src/layouts/AdminLayout.astro`).
 - Admin login is a plain colour stage owned by the product. Its only image is the runtime store/product identity mark inside the form card; it carries no decorative or merchant-specific background imagery (LOGIN-18).
+
+Login brand panel (`/hello`, desktop only): `bg-slate-950` with a dot-grid
+ornament (`.login-brand-grid`, slate-400 at 22%, masked to fade at the edges,
+drifting over 24s) and the operator loop drawn as Iklan → Pesanan → Kirim
+(`.login-flow`): a blue-400 pulse crosses the line in 3.2s of a 4s cycle and
+each node's border lights as it passes. All of it is `aria-hidden` and stops
+under `prefers-reduced-motion` (`admin.css`).
+
+Product icon: an open book (Lucide `book-open`, white, stroke 2.1 on a 24 grid)
+on an iOS-style squircle, `#4C8DFF` → `#1D4ED8` with a white sheen on the top
+half — `public/images/adsbook-icon.svg`, the login brand tile. The same artwork
+is the shipped default of the merchant-replaceable tab icons: `images/logo.svg`,
+`favicon.ico` (16+32), `favicon.png` (32) and `favicon-192.png` (full-bleed
+square; iOS applies its own mask). Static, not animated: only Firefox animates a
+favicon and an apple-touch icon must be PNG.
 
 ### 1.4 Base shadcn tokens
 
@@ -152,7 +172,7 @@ category and variant counts unreadable on a phone ("RUMAH TANGG… 2 VARIAN")
 and gave every store the same boutique accent.
 
 - Wordmark: `text-[17px] font-bold tracking-[-0.01em]`, the tenant's own name — `SiteBrand.astro`
-- Tagline: `text-xs text-[#555555]` on `#F4F4F5`, one line above the header — `SiteHeader.astro`
+- Tagline: `text-xs text-[#555555]` on `#F3F3F3`, one line above the header — `SiteHeader.astro`
 - Page `h1`: `text-2xl font-bold tracking-[-0.02em]` — `PageIntro.astro`; PDP `h1` `text-xl`
 - Section heading: `text-xl font-bold tracking-[-0.02em]` (home), `text-base font-bold` (PDP sections)
 - Card title: `text-sm leading-5`, two lines reserved (`min-h-10`) so prices align across a row
@@ -190,7 +210,7 @@ Sections (in order):
 - `/produk`: breadcrumb → title with product count → grid.
 - PDP: breadcrumb → photo → offer (name, rating/sold if real, price with
   "Mulai" when variants differ, compare price, short copy, "N pilihan: …",
-  shipping-cost note, "Pesan sekarang") → "Tentang produk" (only content that
+  "Pesan sekarang"; no shipping-cost note — the form shows the cost) → "Tentang produk" (only content that
   exists) → reviews (only if real) → order form. The sticky buy bar shows name,
   price and the same action between the photo and the form.
 
@@ -200,11 +220,11 @@ Shape rules:
   landing-page list), `rounded-full` for chips, search, and buttons,
   `rounded-md` for the discount pill.
 - Separation is whitespace and surface, not lines. Between PDP sections a
-  `border-t-8 border-[#F4F4F5]` band; the only hairlines are under the sticky
+  `border-t-8 border-[#F3F3F3]` band; the only hairlines are under the sticky
   header and above the sticky bar.
 - No shadow except the sticky buy bar's upward drop.
 - The column stays 480px on every screen (`BaseLayout`); wider than `sm` it
-  sits on the `#F4F4F5` canvas with a 1px `#EDEDED` edge.
+  sits on the `#F3F3F3` canvas with a 1px `#EDEDED` edge.
 - The checkout form (`form-hybrid.css`, §4) keeps its own geometry; this
   direction does not restyle it.
 
@@ -588,7 +608,7 @@ island and is now scriptless Astro (§7.4).
 stacked. No scroll container, no thumbnails, no arrows, no counter, **no
 script**.
 
-- Wrapper `w-full`, one `relative w-full bg-[#F4F4F5]` frame per photo
+- Wrapper `w-full`, one `relative w-full bg-[#F3F3F3]` frame per photo
 - Image `block aspect-square w-full object-cover`, `draggable={false}`
 - First photo `loading="eager"`, `decoding="sync"`, `fetchpriority="high"` — it
   is the page's LCP element; the rest are lazy and async

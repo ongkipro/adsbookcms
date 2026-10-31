@@ -7591,3 +7591,37 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
     when shown, and the brand box is 21/21 px.
   - Not checked: real devices, a live Mengantar or AutoLaris call, a WhatsApp
     send.
+
+### Entry 207: Shopify-theme storefront palette, login panel motion, product icon
+
+- Storefront colour follows the Shopify theme (Dawn). Dawn's home and product
+  pages were captured on 2026-10-31 as the reference (not committed: third-party
+  screenshots).
+  - The buy actions use ink `#121212` instead of blue `#2C6ECB`, including the
+    `--sf-accent` tokens (ADR-019), the sticky bar and the thanks/payment
+    actions.
+  - The neutral surface is `#F3F3F3`.
+  - A filled field and the selected variant card are grey; an empty field is
+    white.
+  - The discount pill is Dawn's sale blue `#334FB4` (7.2:1), in `rounded-full`.
+  - Checkout errors stay `#D92D20`.
+- Removed the PDP note "Ongkir dihitung otomatis…"; the order form already
+  carries the shipping cost.
+- `/hello` brand panel:
+  - A dot-grid ornament.
+  - The operator loop Iklan → Pesanan → Kirim, drawn with a pulse that lights
+    each node as it passes (4s cycle, measured at 0, 1.6 and 3.2s).
+  - All of it `aria-hidden`, and still under `prefers-reduced-motion`.
+- Product icon: an open book on an iOS-style blue squircle
+  (`images/adsbook-icon.svg`, the login tile). The same artwork is the new
+  shipped default of the merchant-replaceable tab icons (`logo.svg`,
+  `favicon.ico/png`, `favicon-192.png` full-bleed). The admin pages gain an
+  apple-touch icon. The unused `favicon-admin.svg` was deleted.
+- Verification:
+  - `npm test` 1104 pass; `npm run check` 0 errors; `npm run build` complete;
+    `docs:check` passed.
+  - Headless Chromium on `dev:local` at 390 and 1280 px: home, `/produk`, PDP,
+    order form and `/hello`. No console errors; the note is absent; the node
+    lights are measured; under reduced motion the animations are off.
+  - Not checked: real devices, an iOS home-screen install.
+

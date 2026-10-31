@@ -10,13 +10,13 @@ colors:
   ink:            "#111111"   # primary text, solid buttons, inverse surfaces
   ink-secondary:  "#555555"   # body copy, 7.4:1 on white
   ink-muted:      "#767676"   # captions, 4.6:1 on white - the floor
-  canvas:         "#F4F4F5"   # page behind the column, soft surfaces, section bands
+  canvas:         "#F3F3F3"   # page behind the column, soft surfaces, section bands
   surface:        "#FFFFFF"   # the 480px reading column, cards
-  raised:         "#F4F4F5"   # media wells, search well, notes, review cards
+  raised:         "#F3F3F3"   # media wells, search well, notes, review cards
   border:         "#EDEDED"   # the only hairline: sticky header and buy bar
-  outline:        "#E4E4E7"   # pill controls at rest
-  accent:         "#2C6ECB"   # the buy action, = --sf-accent
-  sale:           "#D92D20"   # discount pill only
+  outline:        "#E5E5E5"   # pill controls at rest
+  accent:         "#121212"   # the buy action (ink, Shopify theme), = --sf-accent
+  sale:           "#334FB4"   # discount pill only; #D92D20 is checkout errors
   on-ink:         "#FFFFFF"   # text on ink
   focus:          "#2563EB"   # focus ring only - see accessibility notes
 typography: { display: "Inter 700", body: "Inter 400", emphasis: "Inter 600" }
@@ -26,7 +26,7 @@ shadows: { buy-bar: "0 -8px 24px rgba(17,17,17,0.08)" }   # the only one
 motion: { duration-base: 200ms, easing: ease-out }
 ---
 
-> Verified against disk: 2026-10-31 @ `7a8f26e` + fix/ui-actions-audit (frontmatter values; subordinate to DESIGN-SYSTEM.md)
+> Verified against disk: 2026-10-31 @ `1b10ce1` + feat/storefront-shopify-color (frontmatter values; subordinate to DESIGN-SYSTEM.md)
 
 ## Rationale
 

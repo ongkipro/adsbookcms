@@ -1,19 +1,30 @@
 <!--
-  The product favicon, used by every admin page and the login screen.
-
-  It previously spelled out the reference store's name in two 62px words, so
-  every install shipped a browser tab wearing someone else's brand — the same
-  defect as the login-screen artwork, on a surface nobody thought to look at.
-  It was also 960x240, which a square favicon slot letterboxes into an
-  illegible sliver.
-
-  Now: the emblem only, square, no wording. A merchant who wants their own mark
-  replaces this file; nothing here claims to be theirs in the meantime.
+  The default tab icon for admin pages and the login screen: the AdsBookCMS
+  product icon (same artwork as images/adsbook-icon.svg). A merchant who wants
+  their own mark replaces this file and the favicons (INSTALLATION.md); an
+  install update never overwrites a replaced copy (UPDATE-PATH-OWNERSHIP.md).
+  No wording, square, nothing that claims to be a store's brand.
 -->
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect width="256" height="256" fill="#111111"/>
-  <rect x="32" y="32" width="192" height="192" fill="none" stroke="#C5A880" stroke-width="8"/>
-  <rect x="80" y="80" width="96" height="24" fill="#C5A880"/>
-  <rect x="80" y="116" width="96" height="24" fill="#F8F7F4"/>
-  <rect x="80" y="152" width="56" height="24" fill="#C5A880"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4C8DFF"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="squircle">
+      <path d="M512 0C230 0 120 0 60 60S0 230 0 512s0 392 60 452 170 60 452 60 392 0 452-60 60-170 60-452 0-392-60-452S794 0 512 0Z"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#squircle)">
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <rect width="1024" height="1024" fill="url(#sheen)"/>
+  </g>
+  <g transform="translate(212 212) scale(25)" fill="none" stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 7v14"/>
+    <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>
+  </g>
 </svg>

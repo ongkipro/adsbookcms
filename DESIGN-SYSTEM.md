@@ -96,7 +96,7 @@ Login (`/hello`): one viewport, never scrolled, on phone and desktop. The
 form column holds everything an operator needs on any screen: the product
 icon and "AdsBookCMS", "Masuk ke dashboard", one line naming what the store's
 admin is for, the form (brand-blue focus and button), and a pinned footer
-with the reset path and version; centred on a phone. The desktop brand column
+with the version; centred on a phone. The desktop brand column
 (`bg-slate-950`, a dot grid fading to the edges) holds only the joke tip jar,
 centred (owner decision 2026-10-31): the QRIS code alone
 (`public/images/qris-dukung-adsbookcms.webp`, its own quiet zone, checked to

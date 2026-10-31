@@ -7848,4 +7848,5 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
     clipping, no console errors.
   - The QR decodes from the 1366x768 render.
   - `npm test`, `npm run check` and `npm run build` pass.
+- The footer keeps only the version; the reset hint is removed (owner).
 

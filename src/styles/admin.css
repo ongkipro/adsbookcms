@@ -371,7 +371,7 @@
   width: 100%; max-width: 24rem; margin-inline: auto; padding-top: 1rem;
   font-size: 0.75rem; line-height: 1.125rem; color: rgb(100 116 139);
 }
-@media (min-width: 1024px) { .admin-login-foot { justify-content: space-between; text-align: left; } }
+@media (min-width: 1024px) { .admin-login-foot { justify-content: flex-start; text-align: left; } }
 
 @media (min-width: 1024px) {
   .admin-login-stage { display: grid; grid-template-columns: minmax(400px, 1fr) minmax(400px, 1fr); }

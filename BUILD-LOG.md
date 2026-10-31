@@ -7741,3 +7741,18 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
     - At 390px: the Menu sheet still has Keluar.
     - No console errors.
 
+### Entry 212: Flat product icon and favicons
+
+- The gradient squircle with a line-icon book is replaced by a flat mark, one
+  `#2563EB` rounded square:
+  - A solid white open book: the order book, with a gap at the spine so it
+    reads as a book at 16px.
+  - An up-right arrow cut into the right page: the ad becoming a sale.
+- Chosen over two drafts (an order sheet with a flow arrow, too generic; three
+  joined nodes, no "book") by comparing them at 160/64/32/16px and in a dark tab.
+- Written to `images/adsbook-icon.svg` and the merchant-replaceable defaults:
+  `images/logo.svg`, `favicon.png` (32), `favicon.ico` (16+32, the 16 rendered
+  on its own) and `favicon-192.png` (full-bleed).
+- Verification: rendered at each size and opened; `/hello` and the sidebar
+  card rendered on `dev:local`; `npm test` and `npm run build` pass.
+

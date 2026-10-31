@@ -99,13 +99,16 @@ drifting over 24s) and the operator loop drawn as Iklan → Pesanan → Kirim
 each node's border lights as it passes. All of it is `aria-hidden` and stops
 under `prefers-reduced-motion` (`admin.css`).
 
-Product icon: an open book (Lucide `book-open`, white, stroke 2.1 on a 24 grid)
-on an iOS-style squircle, `#4C8DFF` → `#1D4ED8` with a white sheen on the top
-half — `public/images/adsbook-icon.svg`, the login brand tile. The same artwork
-is the shipped default of the merchant-replaceable tab icons: `images/logo.svg`,
-`favicon.ico` (16+32), `favicon.png` (32) and `favicon-192.png` (full-bleed
-square; iOS applies its own mask). Static, not animated: only Firefox animates a
-favicon and an apple-touch icon must be PNG.
+Product icon, flat (2026-10-31, replacing the gradient squircle): an open book
+in solid white — the store's order book, with a gap at the spine so it reads as
+a book down to 16px — whose right page carries an up-right arrow cut out in the
+tile colour, an ad turning into a sale. One flat `#2563EB` rounded square
+(`rx` 232/1024), no gradient, no sheen. `public/images/adsbook-icon.svg` is the
+login tile and sidebar card. The same artwork is the shipped default of the
+merchant-replaceable tab icons: `images/logo.svg`, `favicon.ico` (16+32),
+`favicon.png` (32) and `favicon-192.png` (full-bleed square; iOS applies its
+own mask). Static, not animated: only Firefox animates a favicon and an
+apple-touch icon must be PNG.
 
 ### 1.4 Base shadcn tokens
 

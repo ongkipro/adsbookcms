@@ -290,8 +290,8 @@ installer can do for the operator:
 - **The store's own mark.** The logo is set in `/admin` (Settings → Store), but
   the browser-tab and home-screen icons are files: replace `public/favicon.ico`,
   `public/favicon.png`, `public/favicon-192.png` and `public/images/logo.svg` in
-  the install repo, or every tab shows the AdsBookCMS product icon (an open book
-  on a blue squircle).
+  the install repo, or every tab shows the AdsBookCMS product icon (a flat blue
+  tile with an open book and an up-right arrow).
 - **An alert webhook** (`OPS_ALERT_WEBHOOK_URL`, OBSERVABILITY.md §5), or a
   stalled conversion queue reaches no one.
 

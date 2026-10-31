@@ -6,7 +6,7 @@ import {
   MengantarClient,
   selectProviderShippingAdvance,
 } from "../../../lib/mengantar-client";
-import { resolveMengantarPickupSlot } from "../../../lib/mengantar-order";
+import { pickMengantarTimeId, resolveMengantarPickupSlot } from "../../../lib/mengantar-order";
 import { getMengantarDispatchEligibility } from "../../../lib/payment-dispatch-policy";
 import { getProviderConfig } from "../../../lib/provider-config";
 import {
@@ -556,7 +556,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
     new Date(pickupSlot.scheduledAt).getTime() < minimumPickupTime
   ) {
     return jsonError(
-      "Slot pickup 09.00–18.00 WIB harus dimulai minimal 90 menit dari sekarang.",
+      "Jam pickup 09.00–18.00 WIB, minimal 90 menit dari sekarang.",
       400,
     );
   }
@@ -623,10 +623,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
         date: pickupSlot.date,
         time: pickupSlot.time,
       });
-      const first = Array.isArray(providerSchedule.data)
-        ? providerSchedule.data[0]
-        : undefined;
-      providerReference = String(first?._id || "").trim();
+      providerReference = pickMengantarTimeId(providerSchedule.data, pickupSlot);
       if (!providerReference) {
         return jsonError(
           "Mengantar tidak mengembalikan referensi jadwal; D1 tidak diubah.",

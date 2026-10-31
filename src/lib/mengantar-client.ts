@@ -47,8 +47,11 @@ export type MengantarPickupAddress = {
 export type MengantarPickupTimeInput = {
   addressId: string; // _id pickup address from GET /address
   date: string; // Format mm-dd-yyyy (e.g. 08-07-2026)
-  time: string; // Slot 9:00 - 18:00
+  time: string; // One-hour slot "9:00" … "18:00" (Mengantar docs, POST /time)
 };
+
+/** A pickup slot as `/time` answers it. */
+export type MengantarPickupTime = { _id: string; date: string; time: string };
 
 type MengantarApiResponse<T> = {
   success?: boolean;
@@ -520,9 +523,10 @@ export class MengantarClient {
     const formData = new URLSearchParams();
     formData.append('address_id', input.addressId);
     formData.append('date', input.date); // mm-dd-yyyy
-    formData.append('time', input.time); // 9:00 - 18:00
+    formData.append('time', input.time); // "13:00"
 
-    return await this.requestJson<Array<{ _id: string; date: string; time: string }>>('/time', {
+    // POST answers one slot object, GET an array (Mengantar docs); read with pickMengantarTimeId.
+    return await this.requestJson<MengantarPickupTime | MengantarPickupTime[]>('/time', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -536,7 +540,7 @@ export class MengantarClient {
    */
   async getPickupTimes(addressId: string) {
     const query = new URLSearchParams({ address: addressId });
-    return await this.requestJson<Array<{ _id: string; date: string; time: string }>>(`/time?${query.toString()}`);
+    return await this.requestJson<MengantarPickupTime[]>(`/time?${query.toString()}`);
   }
 
   /**

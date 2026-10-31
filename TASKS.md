@@ -4211,6 +4211,22 @@ report query.
 **v1.1 — native landing pages** (PRD A45 Q5). The CLI works in an install's
 own repository; nothing here builds, deploys or writes to a live store.
 
+**A46 — pickup or drop-off at push** (PRD A46)
+
+- [x] **A-445** — Push dialog (drop-off | pickup: date, hour, motor/mobil) on the
+  order list (row, selection, "Push semua yang siap") and the order page;
+  `parseMengantarPickupChoice`, `scheduledPickup` payload with `time_id` and
+  `volume`, one slot per pickup address per request, accepted orders linked to
+  `pickup_schedules`. -> REQ: REQ-271, REQ-273 · **Done locally 2026-10-31.**
+  Tests: choice parsing and refusals, slot reuse vs booking, payload shape,
+  schedule link (mutation-checked: a misspelt type and a 30-minute lead each
+  fail). Browser against the local stand-in: three ready orders pushed as a
+  14.00 car pickup, one schedule row, three resi. Not yet run against live
+  Mengantar (needs Paduka's approval for one order).
+- [x] **A-446** — `/time` slot per hour and either response shape: the shipping
+  page sends date and hour through the shared picker; `resolveMengantarPickupSlot`
+  no longer sends `"9:00 - 18:00"`. -> REQ: REQ-272 · **Done locally 2026-10-31.**
+
 - [ ] **A-440** — Update manifest names the native landing page paths:
   install-owned `src/pages/<slug>.astro`, `src/styles/landing-pages/<slug>.css`,
   `src/components/storefront/landing-pages/<slug>/` per registered slug;

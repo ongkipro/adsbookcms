@@ -8,6 +8,7 @@ import { isValidWa62 } from '../../../../lib/validation';
 import { getMengantarDispatchEligibility } from '../../../../lib/payment-dispatch-policy';
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from '../../../../lib/payment-fee-policy';
 import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch';
+import { parseMengantarPickupChoice } from '../../../../lib/mengantar-order';
 import {
   adminPaymentSwitchView,
   parsePaymentSwitchTarget,
@@ -53,6 +54,8 @@ type OrderUpdatePayload = {
   action?: 'dispatch-order' | 'refresh-scoring' | 'push-kelola' | 'switch-payment';
   /** `switch-payment`: the prepaid method (src/lib/payment-switch.ts). */
   switch_payment?: unknown;
+  /** `dispatch-order`: drop-off or a scheduled pickup (PRD A46); absent means drop-off. */
+  pickup?: unknown;
   payment_status?: string;
   shipping_status?: string;
   cnote_no?: string;
@@ -693,6 +696,10 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     const resolvedPaymentStatus = nextPaymentStatus ?? current.payment_status;
     const resolvedShippingStatus = nextShippingStatus ?? current.shipping_status;
 
+    // Refused before anything is written: a bad slot must not half-apply an edit.
+    const pickupChoice = action === 'dispatch-order' ? parseMengantarPickupChoice(body.pickup) : null;
+    if (pickupChoice && !pickupChoice.ok) return jsonError(pickupChoice.reason, 400);
+
     if (action === 'dispatch-order') {
       const resolvedCustomerName = nextCustomerName ?? current.customer_name;
       const resolvedCustomerPhone = nextCustomerPhone ?? current.customer_phone;
@@ -824,7 +831,10 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
 
     let dispatchOutcome: Awaited<ReturnType<typeof dispatchOrderToMengantar>> | undefined;
     if (action === 'dispatch-order') {
-      dispatchOutcome = await dispatchOrderToMengantar(db, locals, current.id);
+      dispatchOutcome = await dispatchOrderToMengantar(db, locals, current.id, {
+        choice: pickupChoice?.ok ? pickupChoice.choice : { type: 'dropOff' },
+        timeIds: new Map(),
+      });
       if (!['dispatched', 'unpaid', 'already_dispatched'].includes(dispatchOutcome.status)) {
         return jsonError(
           dispatchOutcome.error || 'Mengantar belum menerima shipment.',
@@ -849,6 +859,8 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
                 : ''
           }`,
       data: {
+        // The push dialog shows it per order (PRD A46).
+        ...(dispatchOutcome ? { dispatch_status: dispatchOutcome.status } : {}),
         id: updated.id,
         order_number: updated.order_number,
         customer_name: updated.customer_name,

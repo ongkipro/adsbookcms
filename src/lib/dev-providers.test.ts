@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { startDevProviders } from "../../scripts/dev-providers.ts";
 import { MengantarClient } from "./mengantar-client.ts";
 import { AutoLarisClient } from "./autolaris-client.ts";
-import { parseMengantarDispatchResponse } from "./mengantar-order.ts";
+import { parseMengantarDispatchResponse, pickMengantarTimeId } from "./mengantar-order.ts";
 
 /**
  * The local stand-ins are only useful while the product's own clients can read
@@ -35,7 +35,24 @@ test("the dev providers satisfy the real Mengantar and AutoLaris clients", async
   });
   assert.match(pickupId, /^dev-pickup-/);
 
-  const dispatched = parseMengantarDispatchResponse(await mengantar.createShipment({ any: "payload" }));
+  const dispatched = parseMengantarDispatchResponse(
+    await mengantar.createShipment({ courier: "JNE", pickup: { type: "dropOff", address_id: pickupId }, orders: [] }),
+  );
+
+  // PRD A46: a slot is booked as one object, listed back as an array, and a
+  // scheduled pickup needs that slot's id.
+  const slot = { date: "11-02-2026", time: "13:00" };
+  const timeId = pickMengantarTimeId((await mengantar.schedulePickupTime({ addressId: pickupId, ...slot })).data, slot);
+  assert.match(timeId, /^dev-time-/);
+  assert.equal(pickMengantarTimeId((await mengantar.getPickupTimes(pickupId)).data, slot), timeId);
+  await assert.rejects(mengantar.schedulePickupTime({ addressId: pickupId, date: "11-02-2026", time: "9:00 - 18:00" }));
+  const pickedUp = parseMengantarDispatchResponse(
+    await mengantar.createShipment({ courier: "JNE", pickup: { type: "scheduledPickup", volume: "volumeMotor", address_id: pickupId, time_id: timeId }, orders: [] }),
+  );
+  assert.ok(pickedUp.providerOrderId);
+  await assert.rejects(
+    mengantar.createShipment({ courier: "JNE", pickup: { type: "scheduledPickup", volume: "volumeMotor", address_id: pickupId, time_id: "unknown" }, orders: [] }),
+  );
   assert.ok(dispatched.providerOrderId && dispatched.cnoteNo);
   assert.equal((await mengantar.getOrderByTrackingId(String(dispatched.cnoteNo))).cnote_no, dispatched.cnoteNo);
 

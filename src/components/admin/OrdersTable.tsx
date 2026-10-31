@@ -3,6 +3,8 @@ import { useConfirm } from "./useConfirm";
 import { paymentInstructionHint } from "../../lib/order-instruction-hint";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
 import { CrmActionGroup } from "./CrmActionGroup";
+import { MengantarPushDialog, type MengantarPushResult } from "./MengantarPushDialog";
+import type { MengantarPickupChoice } from "../../lib/mengantar-order";
 import type { OrderFollowUp } from "../../lib/order-follow-up";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -635,6 +637,7 @@ export function OrdersTable({
   const [requestVersion, setRequestVersion] = useState(0);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [dispatching, setDispatching] = useState(false);
+  const [pushIds, setPushIds] = useState<string[] | null>(null);
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [bulkStatusTarget, setBulkStatusTarget] = useState("");
   const [statusCounts, setStatusCounts] = useState<StatusCounts>({
@@ -921,44 +924,36 @@ export function OrdersTable({
     }
   };
 
-  const dispatchOrders = async (orderIds: string[]) => {
-    if (orderIds.length === 0) return;
-    const singleOrderId = orderIds.length === 1 ? orderIds[0] : null;
-    if (singleOrderId) setUpdatingOrderId(singleOrderId);
-    else setDispatching(true);
+  // Every push opens the dialog first: drop-off or a scheduled pickup (PRD A46).
+  const dispatchOrders = (orderIds: string[]) => {
+    if (orderIds.length) setPushIds(orderIds);
+  };
+  const submitPush = async (pickup: MengantarPickupChoice) => {
+    const orderIds = pushIds ?? [];
+    setDispatching(true);
     setUpdateNotice("");
     try {
       const response = await fetch("/api/admin/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "dispatch-orders", orderIds }),
+        body: JSON.stringify({ action: "dispatch-orders", orderIds, pickup }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.success) {
         throw new Error(payload.error || "Gagal push order ke Mengantar.");
       }
-      const summary = payload.data?.summary as
-        | { failed?: number; unpaid?: number; skipped?: number }
-        | undefined;
-      const partial = Boolean(
-        summary &&
-          (Number(summary.failed) > 0 ||
-            Number(summary.unpaid) > 0 ||
-            Number(summary.skipped) > 0),
-      );
-      setUpdateNotice(payload.message || (partial ? "Push selesai dengan kendala." : "Push berhasil."));
-      setSelectedOrderIds([]);
-      setRequestVersion((v) => v + 1);
-    } catch (error) {
-      setUpdateNotice(
-        error instanceof Error
-          ? error.message
-          : "Gagal push order ke Mengantar.",
-      );
+      const message = payload.message || "Push selesai.";
+      setUpdateNotice(message);
+      return { message, results: (payload.data?.results ?? []) as MengantarPushResult[] };
     } finally {
-      setUpdatingOrderId("");
       setDispatching(false);
     }
+  };
+  const closePush = (open: boolean) => {
+    if (open) return;
+    setPushIds(null);
+    setSelectedOrderIds([]);
+    setRequestVersion((v) => v + 1);
   };
   const deleteOrders = async (orderIds: string[]) => {
     if (orderIds.length === 0) return;
@@ -1088,6 +1083,12 @@ export function OrdersTable({
   return (
     <div className="space-y-5">
       {confirmDialog}
+      <MengantarPushDialog
+        open={pushIds !== null}
+        onOpenChange={closePush}
+        orderLabels={(pushIds ?? []).map((id) => ({ id, label: orders.find((order) => order.id === id)?.orderNumber ?? `#${id}` }))}
+        submit={submitPush}
+      />
       {loadError && (
         <div
           className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-800 sm:flex-row sm:items-center sm:justify-between"
@@ -1241,7 +1242,7 @@ export function OrdersTable({
             {selectedDispatchIds.length > 0 && (
               <Button
                 type="button"
-                onClick={() => void dispatchOrders(selectedDispatchIds)}
+                onClick={() => dispatchOrders(selectedDispatchIds)}
                 disabled={dispatching || bulkUpdating || updatingOrderId !== ""}
                 className="w-full sm:w-auto"
               >
@@ -1359,6 +1360,14 @@ export function OrdersTable({
               ? "Memperbarui…"
               : `Menampilkan ${firstVisibleOrder}–${lastVisibleOrder} dari ${pagination.totalItems} order`}
           </p>
+          {/* lazy: the ready orders of this page and filter (≤ 20), not every page; the
+              endpoint takes 50 a call. Upgrade: a server-side "all ready" query. */}
+          {visibleDispatchableIds.length > 0 && selectedOrderIds.length === 0 && (
+            <Button type="button" variant="outline" className="mt-3" disabled={dispatching} onClick={() => dispatchOrders(visibleDispatchableIds)}>
+              <Truck aria-hidden="true" />
+              Push semua yang siap ({visibleDispatchableIds.length}) ke Mengantar
+            </Button>
+          )}
           {updateNotice && (
             <p className="mt-2 text-xs font-semibold text-slate-600" role="status">
               {updateNotice}
@@ -1482,7 +1491,7 @@ export function OrdersTable({
                     order={order}
                     updatingOrderId={updatingOrderId}
                     dispatching={dispatching}
-                    onDispatch={(id) => void dispatchOrders([id])}
+                    onDispatch={(id) => dispatchOrders([id])}
                     onDelete={(id) => void deleteOrders([id])}
                     onShippingStatusChange={(id, status) => void handleShippingStatusChange(id, status)}
                     onRefreshScoring={(id) => void handleRefreshScoring(id)}
@@ -1643,7 +1652,7 @@ export function OrdersTable({
                         order={order}
                         updatingOrderId={updatingOrderId}
                         dispatching={dispatching}
-                        onDispatch={(id) => void dispatchOrders([id])}
+                        onDispatch={(id) => dispatchOrders([id])}
                         onDelete={(id) => void deleteOrders([id])}
                         onShippingStatusChange={(id, status) => void handleShippingStatusChange(id, status)}
                         onRefreshScoring={(id) => void handleRefreshScoring(id)}

@@ -7,6 +7,8 @@ import { type SyntheticEvent, useCallback, useEffect, useMemo, useRef, useState 
 import { buildWaUrl, defaultCrmTemplates, renderCrmMessage } from "../../lib/crm-template";
 import { CrmActionGroup } from "./CrmActionGroup";
 import { PaymentSwitchDialog } from "./PaymentSwitchDialog";
+import { MengantarPushDialog } from "./MengantarPushDialog";
+import type { MengantarPickupChoice } from "@/lib/mengantar-order";
 import { CRM_STEPS } from "./CrmActionButton";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -819,6 +821,8 @@ export function OrderDetail({ invoice }: { invoice: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
+  const pushAccepted = useRef(false);
   const [notice, setNotice] = useState("");
   const [copiedTarget, setCopiedTarget] = useState("");
   const [crmTemplates, setCrmTemplates] = useState({ ...defaultCrmTemplates });
@@ -1056,34 +1060,39 @@ export function OrderDetail({ invoice }: { invoice: string }) {
     }
   };
 
-  const pushToMengantar = async () => {
-    if (!order) return;
+  // The push opens the dialog first: drop-off or a scheduled pickup (PRD A46).
+  const pushToMengantar = () => {
+    if (order) setPushOpen(true);
+  };
+  const submitPush = async (pickup: MengantarPickupChoice) => {
+    if (!order) throw new Error("Order belum dimuat.");
     setSaving(true);
-    setNotice("Mengirim order ke Mengantar…");
     try {
-      const response = await fetch(
-        `/api/admin/orders/${encodeURIComponent(String(order.id))}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "dispatch-order" }),
-        }
-      );
+      const response = await fetch(`/api/admin/orders/${encodeURIComponent(String(order.id))}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "dispatch-order", pickup }),
+      });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.success) {
         throw new Error(payload.error || "Order gagal dikirim ke Mengantar.");
       }
       setOrder((current) => (current ? { ...current, ...payload.data } : current));
-      setNotice(payload.message || "Shipment diterima Mengantar.");
-      toast.success(payload.message || "Shipment diterima Mengantar.");
-      window.location.assign(`/admin/shipping?order=${encodeURIComponent(order.order_number)}`);
-    } catch (reason) {
-      const message = reason instanceof Error ? reason.message : "Pesanan gagal dikonfirmasi.";
+      pushAccepted.current = true;
+      const message = payload.message || "Shipment diterima Mengantar.";
       setNotice(message);
-      toast.error(message);
+      return {
+        message,
+        results: [{ orderId: order.id, status: payload.data?.dispatch_status || "dispatched", cnoteNo: payload.data?.cnote_no || undefined }],
+      };
     } finally {
       setSaving(false);
     }
+  };
+  const closePush = (open: boolean) => {
+    if (open) return;
+    setPushOpen(false);
+    if (pushAccepted.current && order) window.location.assign(`/admin/shipping?order=${encodeURIComponent(order.order_number)}`);
   };
 
   const deleteOrder = async () => {
@@ -1282,6 +1291,12 @@ export function OrderDetail({ invoice }: { invoice: string }) {
   return (
     <div className="space-y-6 pb-16">
       {confirmDialog}
+      <MengantarPushDialog
+        open={pushOpen}
+        onOpenChange={closePush}
+        orderLabels={[{ id: order.id, label: order.order_number }]}
+        submit={submitPush}
+      />
       {/* Top Navigation & Action Header */}
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -1612,7 +1627,7 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 <div className="pt-2">
                   <Button
                     type="button"
-                    onClick={() => void pushToMengantar()}
+                    onClick={pushToMengantar}
                     disabled={saving || !canConfirm}
                     className="w-full"
                   >

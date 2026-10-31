@@ -1,6 +1,6 @@
 # Mengantar Integration — Technical Contract and Gap Register
 
-> Verified against disk: 2026-10-30 @ `cbcadbf` + fix/warehouse-primary-fallback working tree (§3 warehouse origin; other sections retain their recorded evidence)
+> Verified against disk: 2026-10-31 @ `93d78a8` + feat/mengantar-pickup working tree (§5 C and §6 pickup; other sections retain their recorded evidence)
 
 This document is the technical source of truth for AdsBookCMS behavior at the Mengantar boundary. It separates repository-observed transport code, locally verified application behavior, operator-gated live mutations, and provider contracts that remain unknown.
 
@@ -17,7 +17,7 @@ Normative product behavior lives in `PRD.md` (`REQ-40`–`REQ-46`). Earlier revi
 - The store resolves its Mengantar API key and HTTP(S) base URL from D1 first, then from server environment fallback (`getProviderConfig`).
 - Public browser code never receives the API key.
 - JSON order creation uses `Content-Type: application/json`.
-- Pickup address and time mutations use `Content-Type: application/x-www-form-urlencoded`.
+- Pickup address and time mutations use `Content-Type: application/x-www-form-urlencoded`. **[verifikasi]** The Mengantar documentation repository (`~/Projects/mengantar-documentation`, `docs/01-api-reference.md` §4.1) shows `POST /time` as JSON; neither encoding has a recorded live response.
 - **Every** request made through `MengantarClient.requestJson()` sets `x-client-source: directCall` unless the caller has already supplied that header (`src/lib/mengantar-client.ts`). This is shipped, live behavior asserted by `src/lib/mengantar-client.test.ts`. Do not remove or rename it without confirming the provider's expected integrator classification first — the header is part of the active integration contract, not a proposal.
 - Requests are bounded by an `AbortController` timeout configured on the client instance.
 
@@ -233,7 +233,13 @@ Observed client fields for `/address` include:
 - `PICKUP_AUTOFILL` provider area identity;
 - optional existing address identity for update.
 
-Observed client fields for `/time` include `address_id`, `date` in `MM-DD-YYYY`, and a provider time value.
+`/time` fields (Mengantar docs, mirrored in `~/Projects/mengantar-documentation`): `address_id`, `date` in `mm-dd-yyyy`, and `time`, **one hour** from `9:00` to `18:00` (`"13:00"`). The `"9:00 - 18:00"` range this repository used to send was never a provider value; it came with the fork and no evidence supported it (fixed 2026-10-31, PRD A46). `POST /time` answers **one slot object** in `data`; `GET /time?address=` answers an array. `pickMengantarTimeId` reads either shape; the shipping page's former `data[0]` read always came back empty for the object.
+
+### Pickup or drop-off at push (PRD A46)
+
+`POST /order` carries `pickup.type`: `dropOff` (the default, and the only value sent before A46) or `scheduledPickup`, which also needs `time_id` (a `/time` slot `_id`) and `volume` (`volumeMotor`, `volumeMobil`; the provider also lists `volumeTruck`, not offered). The push dialog collects date, hour and vehicle; the dispatch resolves one slot per pickup address per request (an existing matching slot from `GET /time`, else `POST /time`), sends it with every order of that address, and links each accepted order to a local `pickup_schedules` row keyed by warehouse and provider slot id, so the shipping page does not list it as needing pickup.
+
+Still **[verifikasi]** (open in the documentation repository's checklist): the exact server-accepted spelling of `scheduledPickup`/`dropOff` beyond `dropOff` (which live dispatch has used), the `GET /time` slot field names, and the error shape of a rejected pickup time. Confirm with one approved live order before relying on scheduled pickup in production.
 
 ### Pickup scheduling constraint — enforced in code
 

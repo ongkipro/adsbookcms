@@ -4,6 +4,7 @@ import { parseCrmTemplates } from '../../../../lib/crm-template.ts';
 import { getRuntimeEnv } from '../../../../lib/env.ts';
 import { readOrderFollowUpsFor, type OrderFollowUp } from '../../../../lib/order-follow-up.ts';
 import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch.ts';
+import { parseMengantarPickupChoice } from '../../../../lib/mengantar-order.ts';
 import {
   runMengantarOrderQueue,
   summarizeMengantarDispatchResults,
@@ -111,6 +112,8 @@ type OrderMutation = {
   orderIds?: Array<number | string>;
   order_ids?: string[];
   status?: string;
+  /** `dispatch-orders`: drop-off or a scheduled pickup for the batch (PRD A46). */
+  pickup?: unknown;
 };
 
 export type BulkStatusUpdate = {
@@ -543,11 +546,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
   if (orderIds.length === 0 || orderIds.length > 50) {
     return jsonError('Pilih 1 sampai 50 order untuk dikirim ke Mengantar.', 400);
   }
+  const pickupChoice = parseMengantarPickupChoice(body.pickup);
+  if (!pickupChoice.ok) return jsonError(pickupChoice.reason, 400);
 
   const db = database as D1Database;
+  // One slot per pickup address for the whole batch (PRD A46).
+  const pickup = { choice: pickupChoice.choice, timeIds: new Map<string, string>() };
   const results = await runMengantarOrderQueue(
     orderIds,
-    (orderId) => dispatchOrderToMengantar(db, locals, orderId),
+    (orderId) => dispatchOrderToMengantar(db, locals, orderId, pickup),
   );
   const dispatchSummary = summarizeMengantarDispatchResults(results);
   return jsonOk({

@@ -169,16 +169,11 @@ if (database && !bootstrapAdminPassword) {
   <body class="admin-login-page bg-slate-50 text-slate-900 antialiased selection:bg-blue-200 selection:text-blue-900">
     <main class="admin-login-stage" aria-labelledby="loginTitle">
       <!-- Left Brand Panel (Desktop) -->
-      <div class="admin-login-brand relative isolate hidden overflow-hidden lg:flex flex-col justify-between bg-slate-950 p-10 text-white xl:p-14">
+      <div class="admin-login-brand relative isolate hidden overflow-hidden lg:flex flex-col justify-center bg-slate-950 p-10 text-white xl:p-14">
         <!-- Ornament: a dot grid that fades toward the edges. Decorative only. -->
         <div class="login-brand-grid" aria-hidden="true"></div>
-        <div class="flex items-center gap-3">
-          <img src="/images/adsbook-icon.svg" alt="" width="40" height="40" class="h-10 w-10" />
-          <span class="text-xl font-semibold tracking-tight">AdsBookCMS</span>
-        </div>
-
-        <!-- A tip jar for the product's author, centred: the CMS and its
-             hosting are free, and this QRIS is how a store says thanks. The
+        <!-- A joke more than a tip jar, centred and alone in the panel: the CMS
+             and its hosting are free, the developer's coffee is not. The
              image is the code alone, cropped from the merchant's QRIS print with
              its own white quiet zone and checked to decode before it was
              committed; the corner frame pulses outside the code so it
@@ -198,17 +193,11 @@ if (database && !bootstrapAdminPassword) {
             />
           </div>
           <div class="login-qris-copy">
-            <p class="login-qris-kicker">Dukung AdsBookCMS</p>
-            <h2 id="loginQrisTitle" class="login-qris-title"><span>CMS‑nya gratis.</span> <span>Server‑nya juga gratis.</span></h2>
-            <p class="login-qris-body">Yang belum gratis cuma kopi developernya. Tau kan QRIS ini buat apa? Hehehe.</p>
-            <p class="login-qris-note">Seikhlasnya, scan pakai e-wallet atau m-banking apa saja.<span class="block">QRIS a.n. ONGKI COLLECTION</span></p>
+            <h2 id="loginQrisTitle" class="login-qris-title">CMS gratis. Server gratis.</h2>
+            <p class="login-qris-body">Satu-satunya yang nggak gratis cuma kopi developernya. Hehehe.</p>
+            <p class="login-qris-note">QRIS a.n. ONGKI COLLECTION</p>
           </div>
         </section>
-
-        <div class="login-brand-foot">
-          <p class="text-base font-semibold text-white">Operator Workspace</p>
-          <p class="mt-1 text-sm text-slate-400">Konten, pesanan, dan pengiriman <span class="text-slate-200">{Astro.locals.tenant.adminName}</span> dalam satu tempat.</p>
-        </div>
       </div>
 
       <!-- Right Form Panel -->
@@ -217,16 +206,12 @@ if (database && !bootstrapAdminPassword) {
       <div class="admin-login-form-wrapper">
         <div class="admin-login-card">
           <div class="admin-login-header text-center lg:text-left">
-            <div class="mb-5 flex items-center justify-center gap-2.5 lg:hidden">
+            <div class="mb-6 flex items-center justify-center gap-2.5 lg:justify-start">
               <img src="/images/adsbook-icon.svg" alt="" width="36" height="36" class="size-9" />
-              <span class="text-base font-semibold text-slate-900">AdsBookCMS</span>
+              <span class="text-base font-semibold tracking-tight text-slate-900">AdsBookCMS</span>
             </div>
-            <p class="login-store-chip">
-              <span class="size-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
-              <span class="truncate">Admin · {Astro.locals.tenant.adminName}</span>
-            </p>
-            <h1 id="loginTitle" class="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Masuk ke dashboard</h1>
-            <p class="mt-1.5 text-sm text-slate-500">Gunakan username dan password operator Anda.</p>
+            <h1 id="loginTitle" class="text-2xl font-semibold tracking-tight text-slate-950">Masuk ke dashboard</h1>
+            <p class="mt-1.5 text-sm text-slate-500">Kelola konten, pesanan, dan pengiriman <span class="text-slate-700">{Astro.locals.tenant.adminName}</span>.</p>
           </div>
           <div class="admin-login-form-content">
         {errorMessage && (

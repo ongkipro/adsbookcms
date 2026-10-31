@@ -7832,3 +7832,20 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - The QR decodes from the 1366x768 render.
   - `npm test`, `npm run check` and `npm run build` pass.
 
+### Entry 216: Login cleaned up
+
+- The desktop brand column holds only the tip jar.
+  - The logo row and the "Operator Workspace" caption are gone.
+  - The QR card's blue glow became a plain hairline.
+- The form column carries the brand on every screen: icon and "AdsBookCMS",
+  "Masuk ke dashboard", then "Kelola konten, pesanan, dan pengiriman <store>."
+  This replaces the green-dot store chip, which read as a fake online status.
+- Copy is a joke, not a plea (owner): "CMS gratis. Server gratis. /
+  Satu-satunya yang nggak gratis cuma kopi developernya. Hehehe." and the
+  merchant's name. "Seikhlasnya" and "Dukung AdsBookCMS" are removed.
+- Verification:
+  - Headless Chromium at the seven sizes of Entry 215: no scroll, no
+    clipping, no console errors.
+  - The QR decodes from the 1366x768 render.
+  - `npm test`, `npm run check` and `npm run build` pass.
+

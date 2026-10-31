@@ -366,17 +366,11 @@
 .admin-login-card :where(button) { min-width: 44px; }
 .admin-login-card :where(input, select, textarea) { font-size: 1rem; line-height: 1.5rem; }
 .admin-login-card .admin-input-flat:focus-visible { border-color: #2563EB; box-shadow: 0 0 0 3px rgb(37 99 235 / 0.18); }
-.login-store-chip {
-  display: inline-flex; max-width: 100%; align-items: center; gap: 0.5rem; border-radius: 999px;
-  border: 1px solid rgb(226 232 240); background: rgb(248 250 252); padding: 0.25rem 0.75rem;
-  font-size: 0.75rem; font-weight: 500; color: rgb(71 85 105);
-}
 .admin-login-foot {
   display: flex; flex-wrap: wrap; justify-content: center; text-align: center; gap: 0.25rem 1rem;
   width: 100%; max-width: 24rem; margin-inline: auto; padding-top: 1rem;
   font-size: 0.75rem; line-height: 1.125rem; color: rgb(100 116 139);
 }
-.login-brand-foot { max-width: 28rem; }
 @media (min-width: 1024px) { .admin-login-foot { justify-content: space-between; text-align: left; } }
 
 @media (min-width: 1024px) {
@@ -414,7 +408,7 @@
 .login-qris-frame { position: relative; flex-shrink: 0; padding: 0.875rem; }
 .login-qris-image {
   display: block; width: clamp(8.5rem, 24vh, 14rem); height: auto; border-radius: 1rem; background: #fff; image-rendering: pixelated;
-  box-shadow: 0 24px 60px -24px rgb(37 99 235 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.08);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
 }
 /* "Scan me" corners around the card, never over the code. */
 .login-qris-corner {
@@ -436,11 +430,9 @@
   50% { opacity: 1; transform: scale(1.025); }
 }
 .login-qris-copy { min-width: 0; }
-.login-qris-kicker { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgb(147 197 253); }
-.login-qris-title { margin-top: 0.5rem; font-size: 1.5rem; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; color: #fff; }
-.login-qris-title span { display: block; }
+.login-qris-title { margin-top: 0; font-size: 1.5rem; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; color: #fff; }
 .login-qris-body { margin-top: 0.75rem; font-size: 0.9375rem; line-height: 1.6; color: rgb(203 213 225); }
-.login-qris-note { margin-top: 0.75rem; font-size: 0.8125rem; color: rgb(148 163 184); }
+.login-qris-note { margin-top: 0.5rem; font-size: 0.75rem; color: rgb(148 163 184); }
 @media (max-width: 1279px) {
   .login-qris { gap: 1rem; }
 }

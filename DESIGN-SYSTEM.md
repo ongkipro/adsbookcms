@@ -92,17 +92,18 @@ Admin colour **is** tokenised. `.admin-shell` redefines the shadcn variables in 
 - Shell background and table chrome are scoped in `src/styles/admin.css`, matched by `bg-[#f6f7f9]` on the body class (`src/layouts/AdminLayout.astro`).
 - Admin login is a plain colour stage owned by the product. Its only image is the runtime store/product identity mark inside the form card; it carries no decorative or merchant-specific background imagery (LOGIN-18).
 
-Login brand panel (`/hello`, desktop only): `bg-slate-950` with a dot-grid
-ornament (`.login-brand-grid`, slate-400 at 22%, masked to fade at the edges,
-drifting over 24s). Centred in it, the product author's tip jar
-(`.login-qris`, owner decision 2026-10-31): the QRIS code alone
-(`public/images/qris-dukung-adsbookcms.webp`, cropped from the merchant's
-print with its own white quiet zone, checked to decode from the rendered page
-at 1024 and 1280px), a "scan me" corner frame pulsing outside the code, and the
-copy "CMS-nya gratis. Server-nya juga gratis." with the merchant's name under
-it. The image is lazy, so a phone never fetches it. The frame stops under
-`prefers-reduced-motion`; the Iklan › Pesanan › Kirim flow it replaced is gone
-(`admin.css`).
+Login (`/hello`): one viewport, never scrolled, on phone and desktop. The
+form column holds everything an operator needs on any screen: the product
+icon and "AdsBookCMS", "Masuk ke dashboard", one line naming what the store's
+admin is for, the form (brand-blue focus and button), and a pinned footer
+with the reset path and version; centred on a phone. The desktop brand column
+(`bg-slate-950`, a dot grid fading to the edges) holds only the joke tip jar,
+centred (owner decision 2026-10-31): the QRIS code alone
+(`public/images/qris-dukung-adsbookcms.webp`, its own quiet zone, checked to
+decode from the rendered page), a pulsing "scan me" corner frame outside the
+code, "CMS gratis. Server gratis." and the merchant's name. Not a plea: no
+"seikhlasnya", no "dukung". The image is lazy, so a phone never fetches it;
+motion stops under `prefers-reduced-motion` (`admin.css`).
 
 Product icon, flat (2026-10-31, replacing the gradient squircle): an open book
 in solid white — the store's order book, with a gap at the spine so it reads as

@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { jsonError, jsonOk } from '../../../../lib/api.ts';
 import { parseCrmTemplates } from '../../../../lib/crm-template.ts';
 import { getRuntimeEnv } from '../../../../lib/env.ts';
+import { readOrderFollowUpsFor, type OrderFollowUp } from '../../../../lib/order-follow-up.ts';
 import { dispatchOrderToMengantar } from '../../../../lib/mengantar-dispatch.ts';
 import {
   runMengantarOrderQueue,
@@ -392,8 +393,17 @@ export const GET: APIRoute = async ({ url, locals }) => {
       }
     }
 
+    // The chips' state for the whole page in one read (REQ-249). A failed
+    // read leaves it out, and each panel then reads its own order.
+    let followUps: Map<number, OrderFollowUp[]> | null = null;
+    try {
+      followUps = await readOrderFollowUpsFor(db, rows.map((row) => Number(row.id)));
+    } catch (error) {
+      console.error('admin-orders-follow-up-read-failed', error instanceof Error ? error.name : 'unknown');
+    }
+
     return jsonOk({
-      data: ((rowResult.results ?? []) as OrderRow[]).map((row) => {
+      data: rows.map((row) => {
         const dispatch = getMengantarDispatchEligibility({
           paymentMethod: row.payment_method,
           paymentStatus: row.payment_status,
@@ -441,6 +451,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
           source_slug: row.source_slug,
           source_label: row.source_slug ? sourceLabels.get(row.source_slug)?.label ?? row.source_slug : null,
           created_at: row.created_at,
+          follow_ups: followUps ? followUps.get(Number(row.id)) ?? [] : null,
         };
       }),
       ...(withSourceOptions ? { source_options: sourceFilterOptions(facets, sourceLabels) } : {}),

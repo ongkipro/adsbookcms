@@ -26,6 +26,26 @@ export async function readOrderFollowUps(db: D1Database, orderId: number) {
   return result.results ?? [];
 }
 
+/**
+ * Every step record for a page of orders in one statement, keyed by order
+ * id. The order list shows each order's chips at once; one read per order
+ * put twenty parallel requests on every list load.
+ */
+export async function readOrderFollowUpsFor(db: D1Database, orderIds: readonly number[]) {
+  const byOrder = new Map<number, OrderFollowUp[]>();
+  const ids = [...new Set(orderIds)].filter((id) => Number.isSafeInteger(id) && id > 0).slice(0, 100);
+  if (!ids.length) return byOrder;
+  const result = await db.prepare(`SELECT order_id, step, completed, note, updated_at, updated_by, revision
+    FROM order_follow_ups WHERE order_id IN (${ids.map(() => '?').join(', ')}) ORDER BY order_id, step`)
+    .bind(...ids).all<OrderFollowUp & { order_id: number }>();
+  for (const { order_id, ...row } of result.results ?? []) {
+    const list = byOrder.get(Number(order_id)) ?? [];
+    list.push(row);
+    byOrder.set(Number(order_id), list);
+  }
+  return byOrder;
+}
+
 export async function saveOrderFollowUp(db: D1Database, orderId: number, input: NonNullable<ReturnType<typeof parseOrderFollowUp>>, actor: string) {
   // One conditional statement: no read-then-write race between operators.
   const result = await db.prepare(`INSERT INTO order_follow_ups

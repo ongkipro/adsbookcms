@@ -5,6 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { splitMigrationStatements } from './schema-version.ts';
 import { canAccessAdminRoute } from './auth.ts';
 import { GET, PUT } from '../pages/api/admin/orders/[id]/follow-up.ts';
+import { readOrderFollowUpsFor } from './order-follow-up.ts';
 
 function fixture() {
   const sqlite = new DatabaseSync(':memory:');
@@ -82,4 +83,22 @@ test('follow-up read/write failures return errors rather than false completion',
     const result = await (method === 'GET' ? GET : PUT)({ params:{id:'1'},locals:{admin:{role:'owner',username:'test'},runtimeEnv:{OMS_DB:{prepare(){throw new Error('db down');}}}},request:new Request('https://store.test/',{method,...(method==='PUT'?{body:JSON.stringify(input)}:{})}) } as never);
     assert.equal(result.status,500);
   }
+});
+
+test('the order list reads a whole page of follow-up records in one statement, keyed by order', async t => {
+  const { sqlite, db, call } = fixture(); t.after(() => sqlite.close());
+  sqlite.exec(`INSERT INTO orders (id,store_id,order_number,customer_name,customer_phone,address,province,city,district,total_amount,payment_method,shipping_status,created_at)
+    VALUES (3,1,'TEST-3','Test','080000000000','Test','P','C','D',100,'cod','pending','2026-01-01')`);
+  assert.equal((await call('PUT', 'owner', input)).status, 200);
+  assert.equal((await call('PUT', 'owner', { ...input, step: '2' })).status, 200);
+  assert.equal((await call('PUT', 'owner', input, '3')).status, 200);
+  let statements = 0;
+  const counting = { prepare: (sql: string) => { statements++; return db.prepare(sql); } } as unknown as D1Database;
+  const byOrder = await readOrderFollowUpsFor(counting, [1, 3, 99, 1]);
+  assert.equal(statements, 1);
+  assert.deepEqual(byOrder.get(1)?.map(row => row.step), ['2', 'welcome']);
+  assert.deepEqual(byOrder.get(3)?.map(row => [row.step, row.completed, row.updated_by]), [['welcome', 1, 'operator-a']]);
+  assert.equal(byOrder.has(99), false, 'an order with no record is absent, not an empty claim');
+  assert.equal((await readOrderFollowUpsFor(counting, [])).size, 0);
+  assert.equal(statements, 1, 'no ids, no read');
 });

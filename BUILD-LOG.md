@@ -7250,3 +7250,38 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   without declared columns before review.
 - Verification: `npm test` 1076 pass / 0 fail, `npm run check` 0 errors
   (544 files), `npm run docs:check` passed, `npm run build` complete.
+### Entry 198: Order list and follow-up made compact (REQ-249 amended)
+
+- Paduka asked for an easy, short WhatsApp follow-up and a simpler order list.
+  The old panel stacked ten steps (status, two buttons, a hint each) behind a
+  toggle, plus a ten-button copy grid on the order page: about 1,000 px.
+- Follow-up: `CrmActionGroup` is ten chips, two rows of five, no toggle and
+  no text. A chip is the step's WhatsApp link (the template from Pengaturan ›
+  CRM); tapping it opens WhatsApp and records the step done (server time,
+  session operator, no dialog). Chips are WhatsApp green (#25D366, dark green
+  text: white on it is about 2:1) and grey once sent. The toast offers
+  Batalkan, which opens the existing correction (reason required). PRD
+  REQ-249 amended 2026-10-31. The order page's copy grid is removed.
+- One read per page: `readOrderFollowUpsFor` reads a page of orders' records
+  in one statement; the order list API and the server-rendered first page
+  carry them, and a panel reads its own order only without them (the order
+  page, or a failed list read) and only once it is on screen. Showing chips on
+  every row had put twenty parallel reads on each list load, and `wrangler
+  dev` dropped its connection under them.
+- Order list: the invoice cell carries the payment method with a dot (green
+  paid, orange inside the payment window, red expired or failed, words on
+  hover; none for COD) and the traffic source as plain small text. The
+  delivery column shows a pending prepaid order's payment state instead of
+  "Menunggu konfirmasi", from the same rule as the dot. Method labels match
+  the order page (Virtual Account, Transfer bank manual).
+- Order page: status, risk, source and page-path badges share the `Badge`
+  primitive and dot. The payment switch states why it is unavailable on any
+  COD order that is not void, and its dialog links to Pembayaran › Rekening
+  bank when no store account is active (manual transfer is offered only then).
+- Tests: `order-follow-up.test.ts` (one statement for a page, keyed by order).
+  Browser (headless Chromium, `dev:local` over Tailscale): chips 2×5 at 390
+  and 1440 px with no clipped label; tapping opens WhatsApp and records the
+  step, Batalkan clears it across a reload; no per-order reads on the list;
+  the three dot colours and matching delivery labels; no overflow.
+- Verification: `npm test` 1077 pass / 0 fail, `npm run check` 0 errors /
+  0 hints (544 files), `npm run build` complete.

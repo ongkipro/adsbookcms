@@ -1209,12 +1209,12 @@ export function OrderDetail({ invoice }: { invoice: string }) {
   const waNumber = safePhone.replace(/\D/g, "").replace(/^0/, "62");
   const riskValue = String(order.receiver_risk_label || "").toUpperCase();
   const risk = riskValue.includes("HIGH")
-    ? { label: "Risiko tinggi", style: "bg-rose-100 text-rose-800 border-rose-200" }
+    ? { label: "Risiko tinggi", style: "bg-rose-50 text-rose-800 border-rose-200", dot: "bg-rose-500" }
     : riskValue.includes("MEDIUM")
-    ? { label: "Risiko sedang", style: "bg-amber-100 text-amber-800 border-amber-200" }
+    ? { label: "Risiko sedang", style: "bg-amber-50 text-amber-900 border-amber-200", dot: "bg-amber-500" }
     : riskValue.includes("LOW")
-    ? { label: "Risiko rendah", style: "bg-emerald-100 text-emerald-800 border-emerald-200" }
-    : { label: "Belum dinilai", style: "bg-slate-100 text-slate-700 border-slate-200" };
+    ? { label: "Risiko rendah", style: "bg-emerald-50 text-emerald-800 border-emerald-200", dot: "bg-emerald-500" }
+    : { label: "Belum dinilai", style: "bg-slate-50 text-slate-700 border-slate-200", dot: "bg-slate-400" };
 
   const paymentStatus = String(order.payment_status || "unpaid").toLowerCase();
   const paymentPaid = ["paid", "settled", "success"].includes(paymentStatus);
@@ -1319,15 +1319,16 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 <span className={`size-1.5 shrink-0 rounded-full ${shippingStatusDots[order.shipping_status] || "bg-slate-400"}`} aria-hidden="true" />
                 {shippingLabels[order.shipping_status] || order.shipping_status}
               </Badge>
-              <Badge variant="outline" className={`text-xs font-medium ${risk.style}`}>
+              <Badge variant="outline" className={`gap-1.5 text-xs font-medium ${risk.style}`}>
+                <span className={`size-1.5 shrink-0 rounded-full ${risk.dot}`} aria-hidden="true" />
                 {risk.label}
               </Badge>
               <TrafficSourceBadge adClickIds={order.ad_click_ids} />
               {order.source_page_path && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full border bg-violet-50 text-violet-700 border-violet-200">
-                  <span className="size-1.5 rounded-full bg-current opacity-80 shrink-0" />
+                <Badge variant="outline" className="max-w-full gap-1.5 truncate border-violet-200 bg-violet-50 text-xs font-medium text-violet-700" title={order.source_page_path}>
+                  <span className="size-1.5 shrink-0 rounded-full bg-current opacity-80" aria-hidden="true" />
                   {order.source_page_path}
-                </span>
+                </Badge>
               )}
             </div>
 
@@ -1667,8 +1668,8 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                   totalAmount={order.payment_switch.total_amount}
                   onSwitched={() => setReloadKey((value) => value + 1)}
                 />
-              ) : order.payment_switch?.reason && order.shipping_status === "pending" && !isVoidOrder(order) ? (
-                <p className="text-slate-500">Ganti ke transfer/VA belum bisa: {order.payment_switch.reason}</p>
+              ) : order.payment_switch?.reason && !isVoidOrder(order) ? (
+                <p className="text-slate-500">Ganti ke transfer/VA tidak tersedia: {order.payment_switch.reason}</p>
               ) : null}
               {order.payment_link && (
                 <Button
@@ -1867,39 +1868,6 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 crmUrls={allCrmUrls}
                 orderId={order.id}
               />
-              <div className="mt-4 border-t border-slate-100 pt-4">
-                <p className="mb-2 text-xs text-slate-500">
-                  Salin pesan CRM
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {CRM_STEPS.map((step) => {
-                    const target = `crm-${step.key}`;
-                    const copied = copiedTarget === target;
-                    return (
-                      <button
-                        key={step.key}
-                        type="button"
-                        onClick={() =>
-                          void copyToClipboard(
-                            allCrmMessages[step.key] || "",
-                            target,
-                            `Template ${step.fullLabel}`,
-                          )
-                        }
-                        className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800"
-                        title={`Salin ${step.title}`}
-                      >
-                        {copied ? (
-                          <Check className="size-3.5 text-emerald-600" />
-                        ) : (
-                          <Copy className="size-3.5" />
-                        )}
-                        {copied ? "Tersalin" : step.fullLabel}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

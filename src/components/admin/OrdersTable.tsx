@@ -2,8 +2,8 @@ import { formatIdr } from "@/lib/format-idr";
 import { useConfirm } from "./useConfirm";
 import { paymentInstructionHint } from "../../lib/order-instruction-hint";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
-import { SourceSlugChip } from "./SourceSlugChip";
 import { CrmActionGroup } from "./CrmActionGroup";
+import type { OrderFollowUp } from "../../lib/order-follow-up";
 import { useEffect, useMemo, useState } from "react";
 import {
   buildWaUrl,
@@ -114,6 +114,8 @@ export type OrderItem = {
   adClickIds?: string | null;
   sourcePath?: string | null;
   sourceLabel?: string | null;
+  /** The page's follow-up records, read with the list; null when that read failed. */
+  followUps?: OrderFollowUp[] | null;
 };
 
 type OrderRow = {
@@ -145,6 +147,7 @@ type OrderRow = {
   receiver_delivery_rate: number | null;
   receiver_risk_label: string | null;
   created_at: string;
+  follow_ups?: OrderFollowUp[] | null;
   dispatch_eligible?: boolean;
   dispatch_reason?: string;
   provider_dispatch_error?: string | null;
@@ -218,6 +221,7 @@ const mapOrder = (row: OrderRow): OrderItem => ({
       : Number(row.receiver_delivery_rate),
   receiverRiskLabel: toRiskLevel(row.receiver_risk_label),
   createdAt: row.created_at,
+  followUps: row.follow_ups ?? null,
   dispatchEligible: Boolean(row.dispatch_eligible),
   dispatchReason: row.dispatch_reason || "",
   providerDispatchError: row.provider_dispatch_error || null,
@@ -392,17 +396,6 @@ function OrderActionMenu({
     </DropdownMenu>
   );
 }
-const paymentLabels: Record<string, string> = {
-  unpaid: "Belum dibayar",
-  pending: "Menunggu pembayaran",
-  paid: "Lunas",
-  settled: "Lunas",
-  success: "Lunas",
-  expired: "Kedaluwarsa",
-  failed: "Gagal",
-  refunded: "Dikembalikan",
-};
-
 // The filter menus list the statuses an operator filters by, labelled once.
 const SHIPPING_FILTER_OPTIONS: FilterOption<string>[] = [
   { value: "all", label: "Semua status" },
@@ -429,7 +422,8 @@ const SOURCE_FILTER_OPTIONS: FilterOption<string>[] = [
 
 const paymentMethodLabels: Record<string, string> = {
   cod: "COD",
-  bank_transfer: "Transfer bank",
+  manual_transfer: "Transfer bank manual",
+  bank_transfer: "Virtual Account",
   qris: "QRIS",
   invoice: "Pembayaran online",
 };
@@ -528,45 +522,64 @@ function RiskBadge({
  * were indistinguishable in the list, and an operator would tell a buyer to
  * pay a VA that no longer exists.
  */
-function InstructionHint({ order }: { order: { paymentStatus?: string; paymentInstructionStatus?: string } }) {
+/**
+ * A prepaid order's payment state: paid, still inside its payment window,
+ * expired or failed (the order's own status, or its latest instruction), or
+ * refunded. COD has none: it is paid on delivery. The dot beside the method
+ * and the delivery column read this one rule.
+ */
+function prepaidPaymentState(order: { paymentMethod: string; paymentStatus?: string; paymentInstructionStatus?: string }) {
+  if (order.paymentMethod === "cod") return null;
+  const status = (order.paymentStatus || "").toLowerCase();
   const hint = paymentInstructionHint(order.paymentStatus, order.paymentInstructionStatus);
-  if (!hint) return null;
+  if (["paid", "settled", "success"].includes(status)) return { paid: true, dot: "bg-emerald-500", text: "text-emerald-700", label: "Sudah dibayar" };
+  if (status === "refunded") return { paid: false, dot: "bg-slate-400", text: "text-slate-600", label: "Dikembalikan" };
+  if (["failed", "expired"].includes(status) || hint) {
+    const failed = status === "failed" || hint === "failed";
+    return { paid: false, dot: "bg-rose-500", text: "text-rose-700", label: failed ? "Pembayaran gagal" : "Pembayaran kedaluwarsa" };
+  }
+  return { paid: false, dot: "bg-amber-500", text: "text-amber-700", label: "Menunggu pembayaran" };
+}
+
+/** The payment state as one dot beside the method; the words on hover. */
+function PaymentDot({ order }: { order: OrderItem }) {
+  const state = prepaidPaymentState(order);
+  if (!state) return null;
+  return <span role="img" aria-label={state.label} title={state.label} className={`size-2 shrink-0 cursor-help rounded-full ${state.dot}`} />;
+}
+
+/** The payment method under the invoice number; a red dot marks a dead instruction. */
+function OrderPaymentLine({ order, className = "" }: { order: OrderItem; className?: string }) {
   return (
-    <span className="text-xs font-semibold uppercase tracking-wide text-rose-600">
-      {hint === "expired" ? "Instruksi kedaluwarsa" : "Instruksi gagal"}
-    </span>
+    <div className={`flex min-w-0 items-center gap-1.5 text-xs font-medium text-slate-700 ${className}`}>
+      <span className="truncate">{paymentMethodLabels[order.paymentMethod] || order.paymentMethod}</span>
+      <PaymentDot order={order} />
+    </div>
   );
 }
 
-function PaymentBadge({ status }: { status: string }) {
-  const normalized = status.toLowerCase();
-  const paid = ["paid", "settled", "success"].includes(normalized);
-  const failed = ["failed", "expired"].includes(normalized);
-  const refunded = normalized === "refunded";
+/**
+ * The delivery column's status. A pending prepaid order not yet paid shows
+ * its payment state (waiting, expired, failed) instead of the shipping
+ * "Menunggu konfirmasi"; COD and paid orders read their shipping status.
+ */
+function deliveryStatus(order: OrderItem) {
+  const payment = prepaidPaymentState(order);
+  if (order.shippingStatus === "pending" && payment && !payment.paid) return { label: payment.label, tone: payment.text };
+  return { label: shippingLabels[order.shippingStatus] || order.shippingStatus, tone: "text-slate-900" };
+}
 
-  const dotColor = paid
-    ? "bg-emerald-500"
-    : failed
-      ? "bg-rose-500"
-      : refunded
-        ? "bg-purple-500"
-        : "bg-amber-500";
-
-  const badgeStyle = paid
-    ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-    : failed
-      ? "bg-rose-50 text-rose-900 border-rose-200"
-      : refunded
-        ? "bg-purple-50 text-purple-900 border-purple-200"
-        : "bg-amber-50 text-amber-900 border-amber-200";
-
+/** Where the order came from: traffic source and page, plain small text. */
+function OrderSourceLine({ order, className = "" }: { order: OrderItem; className?: string }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${badgeStyle}`}
-    >
-      <span className={`size-1.5 shrink-0 rounded-full ${dotColor}`} aria-hidden="true" />
-      {paymentLabels[normalized] || status}
-    </span>
+    <div className={`flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-slate-500 ${className}`}>
+      <TrafficSourceBadge adClickIds={order.adClickIds} plain className="shrink-0" />
+      {order.sourceLabel && (
+        <span className="min-w-0 truncate" title={order.sourcePath ? `${order.sourceLabel} — ${order.sourcePath}` : order.sourceLabel}>
+          · {order.sourceLabel}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -1030,6 +1043,7 @@ export function OrdersTable({
       <CrmActionGroup
         crmUrls={urls}
         orderId={order.id}
+        initialRows={order.followUps}
       />
     );
   };
@@ -1380,10 +1394,8 @@ export function OrdersTable({
                     <p className="mt-1 text-xs text-slate-400">
                       {formatDateTime(order.createdAt)}
                     </p>
-                    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1">
-                      <TrafficSourceBadge adClickIds={order.adClickIds} size="xs" className="shrink-0" />
-                      <SourceSlugChip label={order.sourceLabel} path={order.sourcePath} />
-                    </div>
+                    <OrderPaymentLine order={order} className="mt-2" />
+                    <OrderSourceLine order={order} className="mt-1" />
                   </div>
                   <RiskBadge
                     level={order.receiverRiskLabel}
@@ -1424,17 +1436,9 @@ export function OrdersTable({
                     </p>
                   </div>
                   <div>
-                    <p className="text-slate-500">Pembayaran</p>
-                    <div className="mt-1">
-                      <PaymentBadge status={order.paymentStatus} />
-                      <InstructionHint order={order} />
-                    </div>
-                  </div>
-                  <div>
                     <p className="text-slate-500">Pengiriman</p>
-                    <p className="mt-1 font-semibold text-slate-950">
-                      {shippingLabels[order.shippingStatus] ||
-                        order.shippingStatus}
+                    <p className={`mt-1 font-semibold ${deliveryStatus(order).tone}`}>
+                      {deliveryStatus(order).label}
                     </p>
                   </div>
                   <div>
@@ -1526,13 +1530,11 @@ export function OrdersTable({
                   </TableHead>
                   <TableHead className="w-52 px-4 py-3">Pemesan</TableHead>
                   <TableHead className="w-44 px-4 py-3">Risiko RTS</TableHead>
-                  <TableHead className="w-48 px-4 py-3">
-                    Pembayaran & pengiriman
-                  </TableHead>
+                  <TableHead className="w-48 px-4 py-3">Pengiriman</TableHead>
                   <TableHead className="w-48 px-4 py-3 text-right">
                     Produk & Total
                   </TableHead>
-                  <TableHead className="w-56 px-4 py-3">WhatsApp CRM</TableHead>
+                  <TableHead className="w-80 px-4 py-3">WhatsApp CRM</TableHead>
                   {/* The table outgrows a 1440 laptop by ~270px; the row actions stay pinned so they never scroll away. */}
                   <TableHead className="sticky right-0 z-10 w-28 bg-slate-50 px-4 py-3 text-right shadow-[-8px_0_12px_-10px_rgba(15,23,42,0.25)]">
                     Aksi
@@ -1574,13 +1576,10 @@ export function OrdersTable({
                       <p className="mt-1 text-xs text-slate-400">
                         {formatDateTime(order.createdAt)}
                       </p>
-                      {/* `w-0 min-w-full`: the row takes the column's width and never sets
-                          it, so a source chip wraps under the badge instead of
-                          widening the invoice column. */}
-                      <div className="mt-1 flex w-0 min-w-full flex-wrap items-center gap-1">
-                        <TrafficSourceBadge adClickIds={order.adClickIds} size="xs" className="shrink-0" />
-                        <SourceSlugChip label={order.sourceLabel} path={order.sourcePath} />
-                      </div>
+                      {/* `w-0 min-w-full`: these rows take the column's width and never
+                          set it, so they wrap instead of widening the invoice column. */}
+                      <OrderPaymentLine order={order} className="mt-2 w-0 min-w-full" />
+                      <OrderSourceLine order={order} className="mt-1 w-0 min-w-full" />
                     </TableCell>
                     <TableCell className="max-w-[210px] px-4 py-4">
                       <a
@@ -1605,17 +1604,8 @@ export function OrdersTable({
                       />
                     </TableCell>
                     <TableCell className="px-4 py-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <PaymentBadge status={order.paymentStatus} />
-                        <InstructionHint order={order} />
-                        <span className="text-xs font-semibold text-slate-500">
-                          {paymentMethodLabels[order.paymentMethod] ||
-                            order.paymentMethod}
-                        </span>
-                      </div>
-                      <p className="mt-2 font-semibold text-slate-900">
-                        {shippingLabels[order.shippingStatus] ||
-                          order.shippingStatus}
+                      <p className={`font-semibold ${deliveryStatus(order).tone}`}>
+                        {deliveryStatus(order).label}
                       </p>
                       <p className="mt-1 font-mono text-xs text-slate-500">
                         {order.courierCode}
@@ -1645,7 +1635,8 @@ export function OrdersTable({
                       </p>
                     </TableCell>
                     <TableCell className="px-4 py-4">
-                      {renderCrmActions(order)}
+                      {/* The sticky Aksi column covers anything wider. */}
+                      <div className="w-80 whitespace-normal">{renderCrmActions(order)}</div>
                     </TableCell>
                     <TableCell className="sticky right-0 z-10 bg-white px-4 py-4 text-right shadow-[-8px_0_12px_-10px_rgba(15,23,42,0.25)]">
                       <OrderActionMenu

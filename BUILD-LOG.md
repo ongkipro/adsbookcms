@@ -7688,3 +7688,27 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - At 320 px the PDP trail overflows, opens at its end, and fades.
   - No console errors.
 
+### Entry 210: Release 1.8.0 (`2026.10-ops`)
+
+- `version.ts` and `package.json` are at 1.8.0, release tag `2026.10-ops`,
+  `lastUpdated` 2026-10-31, schema 79. This is the first release carrying
+  migrations `0067`–`0078`; 1.7.14 shipped schema 67.
+- The admin "What's new" modal has a 1.8.0 entry written from the merged PRs
+  #102–#118:
+  - Analitik and UTM.
+  - One-tap WhatsApp follow-up.
+  - The WhatsApp number rotator.
+  - Multi-warehouse.
+  - Mengantar pickup/drop-off and the unknown-outcome lock.
+  - The COD-to-transfer switch.
+  - Operational status, the ops API and the CLI.
+  - The Shopify-theme storefront.
+  - Adaptive legal pages.
+  - The product icon.
+- The status-icon and payment sentences were checked against
+  `OperationalStatus.tsx` and the attempts change before writing.
+- `RELEASE.md` §3 notes `0078`; the §4 registry is at 1.8.0.
+- Nothing is deployed by this repository. An install takes 1.8.0 through
+  `RELEASE.md` §7. `0072` (multi-warehouse) needs the row count checked on any
+  install with more than one `warehouses` row first.
+

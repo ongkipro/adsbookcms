@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-10-31 @ `393a130` + fix/ui-actions-audit working tree (§3 migration notes to 0077, §4 registry; other sections retain their recorded evidence)
+> Verified against disk: 2026-10-31 @ `338af18` + feat/storefront-breadcrumb working tree (§3 migration notes to 0078, §4 registry at 1.8.0; other sections retain their recorded evidence)
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -190,6 +190,11 @@ Migration-specific notes:
   (`drop_off` / `pickup`), written on dispatch. One nullable column, no
   backfill: an order dispatched before it reads NULL and may still be queued
   for pickup, as before.
+- **`0078`** (storefront legal pages) adds `stores.support_email` and
+  `stores.business_address`, both nullable, edited in Pengaturan › Store and
+  read by the legal and contact pages. Additive, no backfill.
+
+`1.8.0` (2026-10-31) is the first release that carries `0067`–`0078`.
 
 ---
 
@@ -199,15 +204,15 @@ Two registries, currently in step:
 
 | Source | Field | Value |
 | --- | --- | --- |
-| `src/lib/version.ts` | `version` | `1.7.14` |
-| `src/lib/version.ts` | `releaseTag` | `2026.10-plugins` |
-| `src/lib/version.ts` | `schemaVersion` | `78` |
-| `package.json` | `version` | `1.7.14` |
+| `src/lib/version.ts` | `version` | `1.8.0` |
+| `src/lib/version.ts` | `releaseTag` | `2026.10-ops` |
+| `src/lib/version.ts` | `schemaVersion` | `79` |
+| `package.json` | `version` | `1.8.0` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration files, and the tree holds 78 (`0000`–`0077`).
+`schemaVersion` counts migration files, and the tree holds 79 (`0000`–`0078`).
 `1.5.0` (2026-10-11) is the first release that carries `0056`–`0061`;
 `1.5.12` carries `0062`–`0065`; `1.6.0` carries `0066`.
 `schema-version.test.ts` fails CI on drift; middleware enforces the same chain at

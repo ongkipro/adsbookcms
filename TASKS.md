@@ -1,6 +1,6 @@
 # Tasks: AdsBookCMS
 
-> Verified against disk: 2026-10-31 @ `7a8f26e` + fix/ui-actions-audit (A-444; other sections retain their recorded evidence)
+> Verified against disk: 2026-10-31 @ `d61afbe` (A38 cancelled; A-444; other sections retain their recorded evidence)
 
 ## A21 — A landing page may become the product page
 
@@ -3257,15 +3257,17 @@ process group; no seed, credential read or live mutation was performed.
 
 ## A38 — Dashboard: best landing pages, best sellers and recent buyers
 
-Proposed 2026-10-29. Needs A36 (slug) and A-351/A-353 (the shared queries).
+Proposed 2026-10-29. **Cancelled 2026-10-31 by the owner** (PRD A38): Every panel repeats a screen the admin already has: Pembeli terbaru is the head of `/admin/orders`, and the landing-page and product rankings are Analitik.
+The unintegrated `recentBuyers` commit `d408b32` (branch `feat/s2-a39`) was
+discarded with it.
 
-- [ ] **A-363** — Recent buyers read: `recentBuyers(db, 8)` in `src/lib/` — the 8
+- [x] **A-363** — **Cancelled 2026-10-31 with A38.** Recent buyers read: `recentBuyers(db, 8)` in `src/lib/` — the 8
   latest non-abandoned orders, then their first items in one bound query, name
   shortened to first name plus initial, no phone or address selected.
   -> REQ: REQ-211 · deps: [] · Done when: tests prove leads are excluded, an order
   with three items shows the first plus "+2", a one-word name, and that the
   returned object has no phone, address or full-name field.
-- [ ] **A-364** — `GET /api/admin/dashboard-panels` returning only the sections
+- [x] **A-364** — **Cancelled 2026-10-31 with A38.** `GET /api/admin/dashboard-panels` returning only the sections
   the role may see, from one `D1.batch`, landing and product via the A37 query
   functions with `limit = 5`. Add it to `ADMIN_API_ROUTES` and to the advertiser
   and customer-service API lists in `auth.ts`, and check the role per section in
@@ -3274,14 +3276,14 @@ Proposed 2026-10-29. Needs A36 (slug) and A-351/A-353 (the shared queries).
   tests prove owner and admin get three sections, advertiser two and customer
   service one, a section outside the role is a 403 and not an empty list, and the
   period parameter is capped at 31 days.
-- [ ] **A-365** — Draw the row: three equal panels under the trend and payment
+- [x] **A-365** — **Cancelled 2026-10-31 with A38.** Draw the row: three equal panels under the trend and payment
   mix, loaded after them, skeletons of final size, empty states, the "Lihat
   semua" links carrying the period, rows linking to the order.
   -> REQ: REQ-209, REQ-210, REQ-211, REQ-213, REQ-214 · deps: [A-364] · Done when:
   browser evidence at 390px, 1024px and 1280px shows one, two and three columns,
   equal heights, no layout shift when the row arrives, an empty store, each role,
   and the KPI cards and chart painted before the row's request is sent.
-- [ ] **A-366** — Consistency check: the dashboard panel and its Analitik screen
+- [x] **A-366** — **Cancelled 2026-10-31 with A38.** Consistency check: the dashboard panel and its Analitik screen
   agree for the same period and role.
   -> REQ: REQ-215 · deps: [A-358, A-365] · Done when: a test or a recorded manual
   comparison on a seeded store shows identical orders and revenue for the top 5
@@ -4353,6 +4355,7 @@ order.
   browser acceptance is in progress (tool restored; five-report demo smoke
   passed), and A38 panels remain open.
   A-363's recent-buyers commit `d408b32` exists in s2 but is not integrated.
+  (2026-10-31: A38 cancelled; `d408b32` discarded, nothing left to integrate.)
   Upstream `c85fe5b`/`be08fc6` (Kelola backfill / 1.7.14) also remain to be
   integrated. Upstream CI run 40884103654 is now green. Merged 2026-10-30:
   STATUS resolved, maps regenerated, BUILD-LOG local entries renumbered 186–189

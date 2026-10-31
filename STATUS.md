@@ -1,6 +1,6 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-31 @ `393a130` + fix/ui-actions-audit (local development, not deployed; headless-browser evidence on a local store). Fleet evidence remains 2026-10-24 (1.7.13 on revenleather, zvarashop, taniniaga, agritani-shop, halotanishop, permatamall, numaskin-adbook, bavenshop, beranda-tani; zanobyshop on 1.7.2); not rechecked.
+> Verified against disk: 2026-10-31 @ `d61afbe` (A38 cancelled; local development, not deployed; headless-browser evidence on a local store). Fleet evidence remains 2026-10-24 (1.7.13 on revenleather, zvarashop, taniniaga, agritani-shop, halotanishop, permatamall, numaskin-adbook, bavenshop, beranda-tani; zanobyshop on 1.7.2); not rechecked.
 
 ## 2026-10-31 — Local development (not deployed, not released)
 
@@ -67,9 +67,8 @@ Review fixes (TASKS A37, 2026-10-30): 1039/1039 tests, check 0/0/0, build; the
 the browser at 1366/390px. Demo D1 now holds follow-up rows written by that QA.
 
 Next action: finish A-357–A-360 acceptance and richer historical/source/lead/return
-fixtures. Then continue A38 panels using the
-shared query builders. Preserve existing work; s2's
-`d408b32` recent-buyers commit is not integrated. Finish A-362 measurements and
+fixtures. A38 (dashboard panels) was cancelled on 2026-10-31; its unintegrated
+`d408b32` commit was discarded. Finish A-362 measurements and
 browser proof before A-419/A-420. Local green tests are not release completion.
 
 ## 2026-10-29 — Variant weights across the fleet (A-391)

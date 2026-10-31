@@ -1,6 +1,6 @@
 # PRD — AdsBookCMS (single)
 
-> Verified against disk: 2026-10-31 @ `7a8f26e` + fix/ui-actions-audit (A46, REQ-249 amendment; other sections retain their recorded evidence)
+> Verified against disk: 2026-10-31 @ `d61afbe` (A38 cancelled; A46, REQ-249 amendment; other sections retain their recorded evidence)
 
 ## A43 — Resolve kecamatan to Mengantar areas without calling Mengantar
 
@@ -397,8 +397,8 @@ shown and what it costs.
 
 ## A38 — Dashboard: best landing pages, best sellers and recent buyers
 
-**Status:** Proposed. Adds one row to the dashboard; depends on A36 and on the
-queries A37 builds, so there is one definition of each number.
+**Status:** Cancelled 2026-10-31 by the owner. Every panel repeats a screen the admin already has: Pembeli terbaru is the head of `/admin/orders`, and the landing-page and product rankings are Analitik. Kept as a record of
+the design; not to be built without a new decision.
 
 ### Goals
 
@@ -459,7 +459,7 @@ queries A37 builds, so there is one definition of each number.
 
 ## A37 — Analytics: which landing page wins, what sells, and where
 
-**Status:** Backend verified locally on 2026-10-30; screens and A38 integration remain open. Reads what A36 records; adds no write to the visitor path.
+**Status:** Backend verified locally on 2026-10-30; screens remain open (A38, which would have reused its queries, was cancelled 2026-10-31). Reads what A36 records; adds no write to the visitor path.
 
 ### Goals
 
@@ -630,7 +630,7 @@ statement. Timings include local proxy overhead and are not production latency
 or SLAs. The preceding 90-day trend period contains no seeded orders; the smaller
 behavioral fixture separately verifies non-empty previous periods. Budgets apply
 only to this fixed fixture; larger histories/catalogues or more items need new
-measurement. A-362 must remeasure the final screens and A38 combined batches.
+measurement. A-362 must remeasure the final screens (A38's combined batches no longer apply; A38 was cancelled 2026-10-31).
 
 The existing dashboard scans `orders`; it is measured, not optimized in this
 slice. Every new order query uses indexed `created_at` bounds (source-filtered

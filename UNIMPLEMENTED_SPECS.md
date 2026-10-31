@@ -1,6 +1,6 @@
 # AdsBookCMS — Remaining Work and Blockers
 
-> Verified against disk: 2026-10-31 @ `393a130` + fix/ui-actions-audit working tree (§1 audit 2026-10-31 rows, including the UI-actions audit; other rows retain their recorded evidence)
+> Verified against disk: 2026-10-31 @ `7a8f26e` + fix/stack-review-2026-10-31 working tree (§1 audit 2026-10-31 rows, the UI-actions audit and AUD-R1; other rows retain their recorded evidence)
 
 This is the single ledger of work that is **not** done. Implemented behaviour belongs in `STATUS.md`, history in `BUILD-LOG.md`, accepted product behaviour in `PRD.md`, real architecture in `ARCHITECTURE.md`, and constraining decisions in `DECISIONS.md`.
 
@@ -27,6 +27,7 @@ All ten structural gaps in `ARCHITECTURE.md` §10 are closed. This file now owns
 | AUD-M9 | Medium | The payment-switch guard is tested only by a regex over source. M-9. | A behavioural test. |
 | AUD-M11 | Medium | `OBSERVABILITY.md` states two different cron schedules. M-11. | One schedule, matching `wrangler.jsonc`. |
 | AUD-M12 | Medium | Phone normalisers disagree; `0062…` becomes `62062…`. M-12. | One normaliser, tested on `0062`, `+62`, `62`, `08`. |
+| AUD-R1 | Medium | A buyer who pays two AutoLaris instructions for one order is not detected. Once Advice or a manual confirmation settles one of them, the other (the live instruction moved to `payment_transaction_attempts` by an adopt, or an older one) is never asked about again: `SUPERSEDED_AUTOLARIS_INQUIRY_SQL` only reads orders still waiting for money (`autolaris-payment.ts`). Stack review 2026-10-31. | Recheck every unsettled instruction of a paid order until it expires, record a second payment as a refund case visible to the operator, with a test. |
 | AUD-T-M1 | Medium | Google Ads offline upload uses `uploadClickConversions`, which since 2026-06-15 fails for a developer token that never uploaded before; every row would end `failed` on a new install (`google-ads-offline.ts:1`, `:241`). `docs/AUDIT-2026-10-31-tracking.md` M-1. | Move to the Data Manager API, verified against Google's current docs. |
 | AUD-T-L | Low | Tracking lows: GTM loads before Consent Mode defaults (L-1), AddToCart/InitiateCheckout send the variant as product name (L-3), server PageView carries `value: 1` (L-4), every page posts `/api/meta-event` without Meta configured (L-5), the Google settings form keeps a stale error (L-7). | Each fixed or declined with a reason in the tracking audit's owner document. |
 | AUD-PAY2 | Low | A buyer who pays both a replaced and a new AutoLaris instruction is not detected: the second payment's row is already `paid` (follow-on to H-1, fixed 2026-10-31). | Flag a paid attempt on an already-paid transaction for operator refund. |

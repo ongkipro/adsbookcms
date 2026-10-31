@@ -147,6 +147,32 @@ test("H-1: an operator can confirm a payment by the replaced instruction's refer
   assert.equal(confirmed.transaction.provider_transaction_id, "TRX-1");
   assert.deepEqual(read("SELECT payment_status FROM orders"), [{ payment_status: "paid" }]);
   assert.deepEqual(read("SELECT provider_transaction_id FROM payment_reconciliation_audits"), [{ provider_transaction_id: "TRX-1" }]);
+  assert.deepEqual(
+    read("SELECT previous_transaction_status FROM payment_reconciliation_audits"),
+    [{ previous_transaction_status: "pending" }],
+    "the audit keeps the row's status from before it was adopted",
+  );
+});
+
+test("H-1: a replaced instruction is not marked settled when the order changed before its money was recorded", async (context) => {
+  const { database, sqlite, read } = store();
+  const fake = provider(new Set(["TRX-1"]));
+  context.after(fake.restore);
+  await createAutoLarisPaymentForOrder(database, locals, { orderId: 1, channelCode: "QRIS" });
+
+  // The order is voided between the Advice read and the settle batch.
+  const racing = Object.create(database) as D1Database;
+  racing.batch = async (statements) => {
+    sqlite.exec("UPDATE orders SET stock_restored_at = '2026-10-31T01:00:00.000Z'");
+    return database.batch(statements);
+  };
+  assert.deepEqual((await reconcileAutoLarisPaymentStatuses(racing, locals)).paidOrderIds, []);
+  assert.deepEqual(read("SELECT payment_status FROM orders"), [{ payment_status: "pending" }]);
+  assert.deepEqual(
+    read("SELECT settled_at FROM payment_transaction_attempts WHERE provider_transaction_id = 'TRX-1'"),
+    [{ settled_at: null }],
+    "no money was recorded, so the attempt is not settled",
+  );
 });
 
 test("H-1: of two simultaneous regenerations, the second does not overwrite the first", async (context) => {

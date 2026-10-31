@@ -55,7 +55,7 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
         id="catalog-search"
         placeholder="Cari produk"
         aria-label="Cari produk"
-        class="min-h-11 w-full rounded-full border border-[#E4E4E7] bg-[#F4F4F5] py-2.5 pl-11 pr-4 text-base text-[#111111] transition-colors placeholder:text-[#767676] focus:border-[#111111] focus:bg-white focus:outline-none"
+        class="min-h-11 w-full rounded-full border border-[#E4E4E7] bg-[#F4F4F5] py-2.5 pl-11 pr-4 text-base text-[#111111] transition-colors placeholder:text-[#555555] focus:border-[#111111] focus:bg-white focus:outline-none"
       />
       <Icon
         name="lucide:search"
@@ -146,6 +146,7 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
     const totalCountEl = document.getElementById('product-total-count');
 
     const emptyEl = document.getElementById('catalog-empty');
+    const statusEl = document.getElementById('catalog-status');
     const chips = document.querySelectorAll<HTMLButtonElement>('.catalog-chip');
     let currentSearch = '';
     let currentCategory = '';
@@ -173,6 +174,8 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
       });
 
       emptyEl?.classList.toggle('hidden', cards.length === 0 || matchedCount > 0);
+      // "Menampilkan 0 dari 0" beside the empty message says nothing more.
+      statusEl?.toggleAttribute('hidden', matchedCount === 0);
       if (visibleCountEl) visibleCountEl.textContent = String(currentlyShown);
       if (totalCountEl) totalCountEl.textContent = String(matchedCount);
 

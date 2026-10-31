@@ -9,7 +9,9 @@ import Icon from './Icon.astro';
 // catalogue is one tap away from anywhere.
 const tagline = Astro.locals.tenant.tagline?.trim();
 const path = Astro.url.pathname;
-const onCatalog = path === '/produk' || path.startsWith('/produk/');
+// The list is the current page; a product under it is the current location
+// ("true"), so a screen reader does not announce the link as this page.
+const catalogCurrent = path === '/produk' ? 'page' : path.startsWith('/produk/') ? 'true' : undefined;
 ---
 
 {tagline && (
@@ -22,8 +24,8 @@ const onCatalog = path === '/produk' || path.startsWith('/produk/');
     <nav aria-label="Navigasi utama" class="flex items-center">
       <a
         href="/produk"
-        aria-current={onCatalog ? 'page' : undefined}
-        class="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[#111111] transition-colors hover:bg-[#F4F4F5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] aria-[current=page]:bg-[#F4F4F5]"
+        aria-current={catalogCurrent}
+        class="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[#111111] transition-colors hover:bg-[#F4F4F5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] aria-[current=page]:bg-[#F4F4F5] aria-[current=true]:bg-[#F4F4F5]"
       >
         <Icon name="lucide:shopping-bag" class="h-[18px] w-[18px]" aria-hidden="true" />
         Produk

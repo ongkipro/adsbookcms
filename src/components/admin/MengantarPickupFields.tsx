@@ -1,4 +1,5 @@
 import { CalendarDays, Clock } from "lucide-react";
+import { useEffect } from "react";
 import { availablePickupHours, pickupDayOptions } from "@/lib/mengantar-order";
 import { FilterSelect } from "./filter-bar";
 
@@ -21,26 +22,34 @@ export function MengantarPickupFields({
   idPrefix: string;
 }) {
   const days = pickupDayOptions();
-  const hours = availablePickupHours(date) as readonly number[];
   const changeDate = (next: string) => {
     const open = availablePickupHours(next) as readonly number[];
     onChange({ date: next, hour: open.includes(hour) ? hour : (open[0] ?? hour) });
   };
+  // A dialog left open past an hour (or a day) shows the first open choice;
+  // the state follows it, so what is sent is what is on screen.
+  const shownDate = days.some((day) => day.value === date) ? date : (days[0]?.value ?? date);
+  const shownHours = availablePickupHours(shownDate) as readonly number[];
+  const shownHour = shownHours.includes(hour) ? hour : (shownHours[0] ?? hour);
+  useEffect(() => {
+    if (shownDate !== date || shownHour !== hour) onChange({ date: shownDate, hour: shownHour });
+  }, [shownDate, shownHour, date, hour, onChange]);
+  const hours = shownHours;
   const hourOptions = hours.map((value) => ({ value: String(value), label: `${String(value).padStart(2, "0")}.00 WIB` }));
   return (
     <div className="grid min-w-0 grid-cols-2 gap-3">
       <div className="flex min-w-0 flex-col gap-1.5">
         <label htmlFor={`${idPrefix}-date`} className="text-sm font-medium">Tanggal pickup</label>
-        <FilterSelect id={`${idPrefix}-date`} icon={CalendarDays} value={date} options={days} onValueChange={changeDate} />
+        <FilterSelect id={`${idPrefix}-date`} icon={CalendarDays} value={shownDate} options={days} onValueChange={changeDate} />
       </div>
       <div className="flex min-w-0 flex-col gap-1.5">
         <label htmlFor={`${idPrefix}-hour`} className="text-sm font-medium">Jam pickup</label>
         <FilterSelect
           id={`${idPrefix}-hour`}
           icon={Clock}
-          value={String(hours.includes(hour) ? hour : (hours[0] ?? hour))}
+          value={String(shownHour)}
           options={hourOptions.length ? hourOptions : [{ value: String(hour), label: "Tidak ada jam" }]}
-          onValueChange={(value) => onChange({ date, hour: Number(value) })}
+          onValueChange={(value) => onChange({ date: shownDate, hour: Number(value) })}
           disabled={!hourOptions.length}
         />
       </div>

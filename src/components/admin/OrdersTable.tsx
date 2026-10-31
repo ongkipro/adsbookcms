@@ -6,14 +6,15 @@ import { CrmActionGroup } from "./CrmActionGroup";
 import { MengantarPushDialog, type MengantarPushResult } from "./MengantarPushDialog";
 import type { MengantarPickupChoice } from "../../lib/mengantar-order";
 import type { OrderFollowUp } from "../../lib/order-follow-up";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildWaUrl,
   defaultCrmTemplates,
   renderCrmMessage,
   type CrmOrderItem,
 } from "../../lib/crm-template";
-import { ADMIN_CUSTOM_DATE_FILTER, adminDateSelectionFromQuery } from "../../lib/admin-date-filter";
+import { initialOrderListFilters, orderListQuery } from "../../lib/admin-orders-initial";
+import { providerDispatchErrorText } from "../../lib/payment-dispatch-policy";
 import { SOURCE_SLUG_NONE_FILTER, SOURCE_SLUG_NONE_LABEL } from "../../lib/source-slug";
 import {
   AdminDateRangeFilter,
@@ -182,7 +183,7 @@ const toRiskLevel = (value: string | null | undefined): RiskLevel => {
   return "UNKNOWN";
 };
 
-const mapOrder = (row: OrderRow): OrderItem => ({
+export const mapOrder = (row: OrderRow): OrderItem => ({
   id: String(row.id),
   orderNumber: row.order_number,
   customerName: row.customer_name,
@@ -547,6 +548,7 @@ function prepaidPaymentState(order: { paymentMethod: string; paymentStatus?: str
   const hint = paymentInstructionHint(order.paymentStatus, order.paymentInstructionStatus);
   if (["paid", "settled", "success"].includes(status)) return { paid: true, dot: "bg-emerald-500", text: "text-emerald-700", label: "Sudah dibayar" };
   if (status === "refunded") return { paid: false, dot: "bg-slate-400", text: "text-slate-600", label: "Dikembalikan" };
+  if (status === "cancelled") return { paid: false, dot: "bg-slate-400", text: "text-slate-600", label: "Pembayaran dibatalkan" };
   if (["failed", "expired"].includes(status) || hint) {
     const failed = status === "failed" || hint === "failed";
     return { paid: false, dot: "bg-rose-500", text: "text-rose-700", label: failed ? "Pembayaran gagal" : "Pembayaran kedaluwarsa" };
@@ -606,23 +608,17 @@ export function OrdersTable({
   // the hydrating client agree (a mismatch is React error #418).
   initialQuery?: string;
 }) {
-  const [initialParams] = useState(() => new URLSearchParams(initialQuery));
+  const [initialFilters] = useState(() => initialOrderListFilters(new URLSearchParams(initialQuery)));
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [orders, setOrders] = useState<OrderItem[]>(initialOrders || []);
-  const [searchTerm, setSearchTerm] = useState(() => initialParams.get("search") || "");
-  const [shippingFilter, setShippingFilter] = useState(
-    () => initialParams.get("status") || initialParams.get("shipping_status") || "all",
-  );
+  const [searchTerm, setSearchTerm] = useState(initialFilters.search);
+  const [shippingFilter, setShippingFilter] = useState(initialFilters.shippingFilter);
   const [paymentFilter, setPaymentFilter] = useState("all");
-  const [dateSelection, setDateSelection] = useState<AdminDateSelection>(
-    () => adminDateSelectionFromQuery(initialParams),
-  );
+  const [dateSelection, setDateSelection] = useState<AdminDateSelection>(initialFilters.dateSelection);
   const [sourceFilter, setSourceFilter] = useState("all");
   // The landing page filter (PRD A36). Opened from Analitik with
   // `?source_slug=`, so it starts from the URL.
-  const [sourceSlugFilter, setSourceSlugFilter] = useState(
-    () => initialParams.get("source_slug") || "all",
-  );
+  const [sourceSlugFilter, setSourceSlugFilter] = useState(initialFilters.sourceSlugFilter);
   const [sourceSlugOptions, setSourceSlugOptions] = useState<FilterOption<string>[] | null>(null);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<OrdersPagination>({
@@ -671,22 +667,11 @@ export function OrdersTable({
       setRefreshing(true);
       setLoadError("");
       try {
-        const query = new URLSearchParams({ page: String(page), limit: "20" });
-        const search = searchTerm.trim();
-        if (search) query.set("search", search);
-        if (shippingFilter !== "all")
-          query.set("shipping_status", shippingFilter);
-        if (paymentFilter !== "all") query.set("payment_status", paymentFilter);
-        if (dateSelection.filter !== "all") {
-          query.set("date_filter", dateSelection.filter);
-          if (dateSelection.filter === ADMIN_CUSTOM_DATE_FILTER) {
-            query.set("date_start", dateSelection.start);
-            query.set("date_end", dateSelection.end);
-          }
-        }
-        if (sourceFilter !== "all") query.set("source", sourceFilter);
-        if (sourceSlugFilter !== "all") query.set("source_slug", sourceSlugFilter);
-        if (!sourceSlugOptions) query.set("source_options", "1");
+        const query = orderListQuery(
+          { search: searchTerm, shippingFilter, paymentFilter, dateSelection, sourceFilter, sourceSlugFilter },
+          page,
+          !sourceSlugOptions,
+        );
         const response = await fetch(`/api/admin/orders?${query}`, {
           headers: { Accept: "application/json" },
           signal: controller.signal,
@@ -953,11 +938,17 @@ export function OrdersTable({
   };
 
   // Every push opens the dialog first: drop-off or a scheduled pickup (PRD A46).
+  // Whether this dialog sent anything: closing it after Batal keeps the selection.
+  const pushSent = useRef(false);
   const dispatchOrders = (orderIds: string[]) => {
-    if (orderIds.length) setPushIds(orderIds);
+    if (!orderIds.length) return;
+    pushSent.current = false;
+    setPushIds(orderIds);
   };
   const submitPush = async (pickup: MengantarPickupChoice) => {
     const orderIds = pushIds ?? [];
+    // Set before the request: a failed answer may still have pushed some.
+    pushSent.current = true;
     setDispatching(true);
     setUpdateNotice("");
     try {
@@ -980,6 +971,7 @@ export function OrdersTable({
   const closePush = (open: boolean) => {
     if (open) return;
     setPushIds(null);
+    if (!pushSent.current) return;
     setSelectedOrderIds([]);
     setRequestVersion((v) => v + 1);
   };
@@ -1492,7 +1484,7 @@ export function OrdersTable({
 
                 {order.providerDispatchError && (
                   <p className="mt-2 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs text-rose-800">
-                    <span className="font-semibold">Kendala push:</span> {order.providerDispatchError}
+                    <span className="font-semibold">Kendala push:</span> {providerDispatchErrorText(order.providerDispatchError)}
                   </p>
                 )}
                 <div className="mt-3">{renderCrmActions(order)}</div>
@@ -1623,7 +1615,7 @@ export function OrdersTable({
                       </p>
                       {order.providerDispatchError && (
                         <p className="mt-1 text-xs text-rose-600 font-semibold max-w-[200px] leading-tight">
-                          Error: {order.providerDispatchError}
+                          Error: {providerDispatchErrorText(order.providerDispatchError)}
                         </p>
                       )}
                     </TableCell>

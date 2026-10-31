@@ -22,7 +22,9 @@ const INITIAL_COUNT = 10;
     <PageIntro
       badge="Semua Produk"
       title="Semua produk"
-      description={`${products.length} produk dari ${Astro.locals.tenant.name}. Pilih untuk melihat varian dan memesan.`}
+      description={products.length > 0
+        ? `${products.length} produk dari ${Astro.locals.tenant.name}. Pilih untuk melihat varian dan memesan.`
+        : `Produk ${Astro.locals.tenant.name} akan tampil di sini.`}
       breadcrumbs={[{ label: 'Beranda', href: '/' }, { label: 'Produk' }]}
     />
 

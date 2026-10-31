@@ -1,6 +1,6 @@
 import { formatIdr } from "@/lib/format-idr";
 import { isVoidOrder } from "@/lib/order-lifecycle";
-import { isDispatchOutcomeUnknown } from "@/lib/payment-dispatch-policy";
+import { acceptedShipmentId, isDispatchOutcomeUnknown } from "@/lib/payment-dispatch-policy";
 import { useConfirm } from "./useConfirm";
 import { calculateCodCustomerTotal, calculateCodFeeBreakdown } from "@/lib/payment-fee-policy";
 import { TrafficSourceBadge } from "./TrafficSourceBadge";
@@ -817,7 +817,14 @@ function EditCustomerDialog({
   );
 }
 
-export function OrderDetail({ invoice }: { invoice: string }) {
+export function OrderDetail({
+  invoice,
+  mayReleaseDispatch = false,
+}: {
+  invoice: string;
+  // Owner and admin only; the API refuses anyone else (403).
+  mayReleaseDispatch?: boolean;
+}) {
   const { confirm, dialog: confirmDialog } = useConfirm();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1001,7 +1008,13 @@ export function OrderDetail({ invoice }: { invoice: string }) {
       if (!response.ok || !payload.success) {
         throw new Error(payload.error || "Konfirmasi transfer gagal disimpan.");
       }
-      setOrder((current) => (current ? { ...current, ...payload.data } : current));
+      // A paid order has nothing left to pay: the FU chips must stop sending
+      // the payment link, as the server stops issuing one (buyerPaymentPath).
+      setOrder((current) =>
+        current
+          ? { ...current, ...payload.data, crm: current.crm && { ...current.crm, epayment_link: null } }
+          : current,
+      );
       setNotice(payload.message || "Transfer dikonfirmasi.");
       toast.success(payload.message || "Transfer dikonfirmasi.");
     } catch (reason) {
@@ -1598,10 +1611,18 @@ export function OrderDetail({ invoice }: { invoice: string }) {
                 // Audit 2026-10-31 M-1: Mengantar may have created the shipment.
                 <div role="status" className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
                   <p className="font-semibold">Hasil push ke Mengantar belum pasti</p>
-                  <p className="leading-relaxed">Koneksi terputus atau respons tidak terbaca, jadi paket mungkin sudah dibuat. Cari {order.order_number} di dashboard Mengantar. Push ulang hanya kalau paketnya memang belum ada, supaya tidak terkirim dua kali.</p>
-                  <Button type="button" variant="outline" className="self-start" disabled={saving} onClick={() => void releaseUnknownDispatch()}>
-                    Sudah dicek, izinkan push ulang
-                  </Button>
+                  {acceptedShipmentId(order.provider_dispatch_error) ? (
+                    <p className="leading-relaxed">Mengantar sudah menerima paket ini (ID {acceptedShipmentId(order.provider_dispatch_error)}), tetapi hasilnya gagal disimpan di sini. Jangan push ulang; cocokkan resinya dari dashboard Mengantar.</p>
+                  ) : (
+                    <p className="leading-relaxed">Koneksi terputus atau respons tidak terbaca, jadi paket mungkin sudah dibuat. Cari {order.order_number} di dashboard Mengantar. Push ulang hanya kalau paketnya memang belum ada, supaya tidak terkirim dua kali.</p>
+                  )}
+                  {mayReleaseDispatch ? (
+                    <Button type="button" variant="outline" className="self-start" disabled={saving} onClick={() => void releaseUnknownDispatch()}>
+                      Sudah dicek, izinkan push ulang
+                    </Button>
+                  ) : (
+                    <p className="leading-relaxed">Setelah dicek, owner atau admin yang dapat mengizinkan push ulang.</p>
+                  )}
                 </div>
               ) : order.provider_dispatch_error ? (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">

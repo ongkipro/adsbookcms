@@ -51,3 +51,12 @@ test("audit M5: a drop-off shipment never needs a pickup; one dispatched before 
   assert.equal(matchesShippingQueue({ ...waybilled, handover: "pickup" }, "needs_pickup"), true);
   assert.equal(matchesShippingQueue({ ...waybilled, handover: null }, "needs_pickup"), true);
 });
+
+test("a drop-off parcel with a waybill waits in its own queue, never under pickup", () => {
+  const dropOff = { shippingStatus: "processing", cnoteNo: "RESI-9", providerOrderId: "MG-9", pickupScheduleId: null, handover: "drop_off" };
+  assert.equal(matchesShippingQueue(dropOff, "needs_drop_off"), true);
+  assert.equal(matchesShippingQueue(dropOff, "needs_pickup"), false);
+  assert.equal(matchesShippingQueue({ ...dropOff, cnoteNo: null }, "needs_drop_off"), false, "no waybill yet");
+  assert.equal(matchesShippingQueue({ ...dropOff, shippingStatus: "shipped" }, "needs_drop_off"), false, "already handed over");
+  assert.equal(matchesShippingQueue({ ...dropOff, handover: "pickup" }, "needs_drop_off"), false);
+});

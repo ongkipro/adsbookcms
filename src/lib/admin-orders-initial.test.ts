@@ -7,7 +7,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { initialOrderListWhere } from "./admin-orders-initial.ts";
+import { initialOrderListFilters, orderListQuery } from "./admin-orders-initial.ts";
 import { persistOrder } from "./order-persistence.ts";
 import { splitMigrationStatements } from "./schema-version.ts";
 import { SOURCE_SLUG_NONE_FILTER } from "./source-slug.ts";
@@ -23,7 +23,7 @@ const extensionResolver = registerHooks({
     }
   },
 });
-const { GET: listRoute } = await import("../pages/api/admin/orders/index.ts");
+const { GET: listRoute, ORDER_LIST_PREFETCH_HEADER } = await import("../pages/api/admin/orders/index.ts");
 extensionResolver.deregister();
 
 type Value = null | number | string;
@@ -111,43 +111,58 @@ async function seed() {
   return { sqlite, d1 };
 }
 
-/** The request OrdersTable makes on first load, from the page's query. */
-function islandRequest(pageQuery: URLSearchParams) {
-  const query = new URLSearchParams({ page: "1", limit: "20" });
-  const search = (pageQuery.get("search") || "").trim();
-  if (search) query.set("search", search);
-  const status = pageQuery.get("status") || pageQuery.get("shipping_status") || "all";
-  if (status !== "all") query.set("shipping_status", status);
-  const slug = pageQuery.get("source_slug") || "all";
-  if (slug !== "all") query.set("source_slug", slug);
-  return query;
+/** What `/admin/orders` server-renders for a link: the list route, asked the island's first question. */
+async function firstRows(d1: D1Database, link: string, tenant?: { siteUrl: string }) {
+  const pageQuery = new URL(`https://admin.preview.test/admin/orders${link}`).searchParams;
+  const url = new URL(`https://admin.preview.test/api/admin/orders?${orderListQuery(initialOrderListFilters(pageQuery), 1, false)}`);
+  const request = new Request(url, { headers: { [ORDER_LIST_PREFETCH_HEADER]: "1" } });
+  const response = await listRoute({ url, request, locals: { runtimeEnv: { OMS_DB: d1 }, tenant } } as never);
+  const payload = (await response.json()) as {
+    success: boolean;
+    data: Array<{ id: number; customer_name: string; shipping_status: string; order_details_link: string | null }>;
+  };
+  assert.equal(payload.success, true);
+  return payload.data;
 }
 
-for (const link of [
-  "",
-  "?source_slug=promo-a",
-  `?source_slug=${SOURCE_SLUG_NONE_FILTER}`,
-  "?source_slug=unknown-page",
-  "?search=Budi",
-  "?status=processing",
-  "?shipping_status=cancelled",
-  "?search=budi&status=processing&source_slug=promo-b",
-]) {
-  test(`the server's first rows match the list API for /admin/orders${link || " (no filter)"}`, async () => {
-    const { sqlite, d1 } = await seed();
-    const pageQuery = new URL(`https://toko.test/admin/orders${link}`).searchParams;
-    const where = initialOrderListWhere(pageQuery);
-    const server = (
-      sqlite.prepare(`SELECT id FROM orders WHERE ${where.sql} ORDER BY orders.id DESC LIMIT 20`).all(...where.params) as Array<{ id: number }>
-    ).map((row) => Number(row.id));
-
-    const url = new URL(`https://toko.test/api/admin/orders?${islandRequest(pageQuery)}`);
-    const response = await listRoute({ url, request: new Request(url), locals: { runtimeEnv: { OMS_DB: d1 } } } as never);
-    const payload = (await response.json()) as { success: boolean; data: Array<{ id: number }> };
-    assert.equal(payload.success, true);
-    const api = payload.data.map((row) => Number(row.id));
-
-    assert.deepEqual(server, api);
-    if (link) assert.ok(server.length < 4, "a filtered link never paints every order");
+for (const [link, expected] of [
+  ["", ["Rina Wati", "Budi Hartono", "Siti Rahayu", "Budi Santoso"]],
+  ["?source_slug=promo-a", ["Siti Rahayu", "Budi Santoso"]],
+  [`?source_slug=${SOURCE_SLUG_NONE_FILTER}`, ["Rina Wati"]],
+  ["?source_slug=unknown-page", []],
+  ["?search=Budi", ["Budi Hartono", "Budi Santoso"]],
+  ["?status=processing", ["Budi Hartono", "Siti Rahayu"]],
+  ["?shipping_status=cancelled", ["Rina Wati"]],
+  ["?search=budi&status=processing&source_slug=promo-b", ["Budi Hartono"]],
+] as const) {
+  test(`/admin/orders${link || " (no filter)"} paints the rows its filters select`, async () => {
+    const { d1 } = await seed();
+    assert.deepEqual((await firstRows(d1, link)).map((row) => row.customer_name), expected);
   });
 }
+
+test("a void order with shipping still pending is listed as cancelled, never under Menunggu", async () => {
+  const { sqlite, d1 } = await seed();
+  sqlite.prepare("UPDATE orders SET stock_restored_at = '2026-10-31T00:00:00.000Z' WHERE customer_name = 'Budi Santoso'").run();
+  assert.deepEqual((await firstRows(d1, "?status=pending")).map((row) => row.customer_name), []);
+  const cancelled = await firstRows(d1, "?status=cancelled");
+  assert.deepEqual(cancelled.map((row) => row.customer_name), ["Rina Wati", "Budi Santoso"]);
+});
+
+test("a drill-down's date range reaches the first paint", async () => {
+  const { sqlite, d1 } = await seed();
+  sqlite.prepare("UPDATE orders SET created_at = '2020-01-01T00:00:00.000Z' WHERE customer_name <> 'Siti Rahayu'").run();
+  const today = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+  const link = `?date_filter=custom&date_start=${today}&date_end=${today}`;
+  sqlite.prepare("UPDATE orders SET created_at = ? WHERE customer_name = 'Siti Rahayu'").run(new Date().toISOString());
+  assert.deepEqual((await firstRows(d1, link)).map((row) => row.customer_name), ["Siti Rahayu"]);
+});
+
+test("a link sent to a buyer starts with the store's site, not the host the admin is open on", async () => {
+  const { sqlite, d1 } = await seed();
+  sqlite.prepare("UPDATE orders SET public_status_token = 'tok' WHERE customer_name = 'Siti Rahayu'").run();
+  const [configured] = await firstRows(d1, "?search=Siti", { siteUrl: "https://toko.test" });
+  assert.match(String(configured.order_details_link), /^https:\/\/toko\.test\/thanks#/);
+  const [unconfigured] = await firstRows(d1, "?search=Siti", { siteUrl: "https://example.com" });
+  assert.match(String(unconfigured.order_details_link), /^https:\/\/admin\.preview\.test\/thanks#/, "an unset site URL falls back to the request");
+});

@@ -12,6 +12,7 @@ import {
   resolveAcceptedMengantarShipment,
   type MengantarPickupChoice,
   type MengantarPickupPayload,
+  sameMengantarSlot,
 } from "./mengantar-order.ts";
 import { getProviderConfig } from "./provider-config.ts";
 import {
@@ -81,7 +82,7 @@ async function resolvePickupTimeId(
   try {
     const existing = await client.getPickupTimes(addressId);
     const rows = Array.isArray(existing.data) ? existing.data : [];
-    timeId = String(rows.find((row) => row.date === slot.date && row.time === slot.time)?._id || "").trim();
+    timeId = String(rows.find((row) => sameMengantarSlot(row, slot))?._id || "").trim();
   } catch (error) {
     // A failed listing is not a refusal; creating the slot still decides.
     console.error("mengantar-pickup-time-list", error instanceof Error ? error.message : "unknown");
@@ -412,6 +413,9 @@ export async function dispatchOrderToMengantar(
   let pickupPayload: MengantarPickupPayload = { type: "dropOff" };
   // From the moment POST /order leaves, a shipment may exist at Mengantar.
   let shipmentRequested = false;
+  // Once its answer is read, the shipment certainly exists: a local failure
+  // after that point must never let the order be pushed a second time.
+  let shipmentAccepted = "";
   try {
     leaseToken = await acquireMengantarLease(database);
     const client = new MengantarClient(config.apiKey, config.baseUrl);
@@ -448,6 +452,7 @@ export async function dispatchOrderToMengantar(
       // A success response without a readable shipment id: it may well exist.
       throw new MengantarOutcomeUnknownError(error instanceof Error ? error.message : String(error));
     }
+    shipmentAccepted = dispatched.providerOrderId || "unknown";
     const acceptedAt = new Date().toISOString();
     const accepted = resolveAcceptedMengantarShipment(
       order.payment_method,
@@ -543,7 +548,7 @@ export async function dispatchOrderToMengantar(
           cnoteNo: current.cnote_no || undefined,
         };
       }
-      return { status: "failed", error: conflictMessage };
+      throw new Error(`${conflictMessage} (${accepted.providerOrderId})`);
     }
     if (pickupPayload.type === "scheduledPickup" && pickup.choice.type === "scheduledPickup" && order.warehouse_id) {
       // The shipment is the provider's now; a failed local link only leaves
@@ -565,8 +570,12 @@ export async function dispatchOrderToMengantar(
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (shipmentRequested && error instanceof MengantarOutcomeUnknownError) {
-      await recordDispatchUnknown(database, order.id, message);
+    if (shipmentAccepted || (shipmentRequested && error instanceof MengantarOutcomeUnknownError)) {
+      await recordDispatchUnknown(
+        database,
+        order.id,
+        shipmentAccepted ? `Mengantar menerima ${shipmentAccepted}: ${message}` : message,
+      );
       return { status: "outcome_unknown", error: UNKNOWN_OUTCOME_MESSAGE };
     }
     if (error instanceof MengantarPosCodIneligibleError) {

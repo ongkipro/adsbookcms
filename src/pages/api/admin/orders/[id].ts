@@ -12,6 +12,7 @@ import { parseMengantarPickupChoice } from '../../../../lib/mengantar-order';
 import { CRM_BANK_ACCOUNTS_SQL, CRM_STORE_SQL, crmStoreContext, formatBankAccount } from '../../../../lib/crm-template.ts';
 import {
   adminPaymentSwitchView,
+  buyerLinkOrigin,
   buyerOrderLinks,
   parsePaymentSwitchTarget,
   PaymentSwitchError,
@@ -369,7 +370,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
           bank_accounts:
             formatBankAccount(order.seller_bank_name, order.seller_account_number, order.seller_account_holder) ||
             crm.bank_accounts,
-          ...buyerOrderLinks(url?.origin ?? locals.tenant?.siteUrl ?? "", order),
+          ...buyerOrderLinks(buyerLinkOrigin(locals.tenant?.siteUrl, url?.origin ?? ""), order),
         },
         // Absent unless the Kelola plugin is active; OrderDetail then shows no panel.
         kelola: await activeKelolaConfig(db, locals).then((config) =>

@@ -60,6 +60,30 @@ export const DISPATCH_UNKNOWN_PREFIX = "DISPATCH_UNKNOWN:";
 export const isDispatchOutcomeUnknown = (error: string | null | undefined) =>
   Boolean(error?.startsWith(DISPATCH_UNKNOWN_PREFIX));
 
+/**
+ * `provider_dispatch_error` as an operator reads it. The two internal markers
+ * (a claim in flight, an unknown outcome) are words, not codes; a provider's
+ * own refusal is shown as given.
+ */
+/**
+ * The Mengantar id of a shipment that was accepted but could not be recorded
+ * locally (`recordDispatchUnknown` writes `Mengantar menerima <id>: …`). Such an order
+ * must not be pushed again, whatever its connection looked like.
+ */
+export function acceptedShipmentId(error: string | null | undefined) {
+  if (!isDispatchOutcomeUnknown(error)) return null;
+  const match = /^Mengantar menerima (\S+): /.exec(String(error).slice(DISPATCH_UNKNOWN_PREFIX.length).trim());
+  return match && match[1] !== "unknown" ? match[1] : null;
+}
+
+export function providerDispatchErrorText(error: string | null | undefined) {
+  if (!error) return null;
+  if (error === "DISPATCHING") return "Sedang dikirim ke Mengantar.";
+  if (acceptedShipmentId(error)) return `Mengantar sudah menerima paket (ID ${acceptedShipmentId(error)}); hasilnya belum tersimpan. Jangan push ulang.`;
+  if (isDispatchOutcomeUnknown(error)) return "Hasil push belum pasti. Cek di Mengantar dulu sebelum push ulang.";
+  return error;
+}
+
 export function getMengantarDispatchEligibility(
   input: MengantarDispatchEligibilityInput,
 ): MengantarDispatchEligibility {

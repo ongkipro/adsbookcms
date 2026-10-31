@@ -269,7 +269,7 @@ export type PaymentTransactionAttempt = {
  * first). After this the row says what the buyer actually paid, so every
  * existing settle statement, guarded on `provider_transaction_id`, applies.
  * `status` becomes `expired`: the instruction is past its window; settling
- * moves it to `paid`.
+ * moves it to `paid`. Close the batch with `markPaymentAttemptSettledStatement`.
  */
 export function adoptPaymentAttemptStatements(database: D1Database, attempt: PaymentTransactionAttempt, now: string) {
   return [
@@ -294,10 +294,29 @@ export function adoptPaymentAttemptStatements(database: D1Database, attempt: Pay
         now,
         attempt.payment_transaction_id,
       ),
-    database
-      .prepare(`UPDATE payment_transaction_attempts SET settled_at = ? WHERE id = ? AND settled_at IS NULL`)
-      .bind(now, attempt.id),
   ];
+}
+
+/**
+ * Marks a superseded instruction settled, last in the batch that adopted it,
+ * and only once its row is `paid` under that instruction's own provider id.
+ * Run unconditionally, a settle that matched nothing (the order changed
+ * mid-run) would hide the attempt from every later recheck while no money had
+ * been recorded for it.
+ */
+export function markPaymentAttemptSettledStatement(database: D1Database, attemptId: number, now: string) {
+  return database
+    .prepare(
+      `UPDATE payment_transaction_attempts SET settled_at = ?
+      WHERE id = ? AND settled_at IS NULL
+        AND EXISTS (
+          SELECT 1 FROM payment_transactions pt
+          WHERE pt.id = payment_transaction_attempts.payment_transaction_id
+            AND pt.provider_transaction_id = payment_transaction_attempts.provider_transaction_id
+            AND pt.status = 'paid'
+        )`,
+    )
+    .bind(now, attemptId);
 }
 
 /** Hourly: a pending instruction past its expiry becomes `expired` for every reader. */
@@ -607,6 +626,7 @@ export async function reconcileAutoLarisPaymentStatuses(
               )`,
           )
           .bind(row.order_id, row.transaction_id),
+        ...(row.attempt ? [markPaymentAttemptSettledStatement(database, row.attempt.id, paidAt)] : []),
       ]);
       if (Number(settled[adopt.length]?.meta?.changes || 0) < 1) continue;
 

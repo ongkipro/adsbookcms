@@ -150,7 +150,7 @@ The [Modules](#modules) section is the same book read from the other side.
 | `/admin/landing-pages` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/index.astro` | — | — | — |
 | `/admin/landing-pages/[id]/edit` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/[id]/edit.astro` | — | — | — |
 | `/admin/landing-pages/new` | GET | admin session | owner, admin, advertiser | `src/pages/admin/landing-pages/new.astro` | — | — | — |
-| `/admin/orders` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/index.astro` | `admin-orders-initial` `env` `order-follow-up` | `order_follow_ups` `order_items` `orders` `payment_transactions` `product_variants` `products` `stores` | `admin-orders-initial.test.ts` `env.test.ts` `order-follow-up.test.ts` |
+| `/admin/orders` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/index.astro` | `admin-orders-initial` | — | `admin-orders-initial.test.ts` |
 | `/admin/orders/[invoice]` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/[invoice].astro` | — | — | — |
 | `/admin/orders/abandoned` | GET | admin session | owner, admin, customer_service | `src/pages/admin/orders/abandoned.astro` | — | — | — |
 | `/admin/payments` | GET | admin session | owner, admin | `src/pages/admin/payments.astro` | `autolaris-client` `payment-fee-policy` | — | `autolaris-client.test.ts` `payment-fee-policy.test.ts` |
@@ -228,7 +228,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `ad-taxonomy` | 4 | — | ✓ | `/admin/ads/google` |
 | `admin-credentials` | 12 | `admin_credentials` | ✓ | `/hello` `/api/admin/access` `/api/admin/profile` |
 | `admin-date-filter` | 26 | — | ✓ | `/api/admin/orders` `/api/admin/shipping` |
-| `admin-orders-initial` | 1 | — | ✓ | `/admin/orders` |
+| `admin-orders-initial` | 3 | — | ✓ | `/admin/orders` |
 | `admin-session` | 6 | `admin_credentials` `admin_sessions` | ✓ | `/[slug]` `/hello` `/api/admin/access` `/api/admin/logout` `/api/admin/profile` |
 | `adsbook-cli` | 4 | — | **none** | — |
 | `ai-content-instructions` | 2 | — | ✓ | `/api/admin/content` |
@@ -236,7 +236,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `auth-secret` | 1 | `install_secrets` | ✓ | `/[slug]` `/hello` `/api/install` `/api/admin/logout` |
 | `auth` | 13 | — | ✓ | `/hello` `/api/install` `/admin/dashboard` `/api/admin/access` `/api/admin/logout` `/api/admin/profile` |
 | `autolaris-client` | 20 | — | ✓ | `/api/order-status` `/api/payment-methods` `/admin/payments` `/api/admin/settings` |
-| `autolaris-payment` | 21 | `autolaris_callbacks` `order_items` `orders` `payment_transaction_attempts` `payment_transactions` `product_variants` `products` `stores` `warehouses` | ✓ | `/api/meta-event` `/api/order-status` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` `/api/admin/orders/[id]` |
+| `autolaris-payment` | 22 | `autolaris_callbacks` `order_items` `orders` `payment_transaction_attempts` `payment_transactions` `product_variants` `products` `stores` `warehouses` | ✓ | `/api/meta-event` `/api/order-status` `/api/submit-order` `/api/v1/checkout` `/api/v1/tracking/events` `/api/admin/orders/[id]` |
 | `bundled-migrations` | 1 | — | **none** | — |
 | `capi-outbox` | 18 | `capi_event_outbox` | ✓ | `/api/meta-event` `/api/v1/tracking/events` `/api/admin/ads` |
 | `catalog-data` | 4 | — | ✓ | `/api/admin/products` |
@@ -256,7 +256,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `edge-cache` | 10 | — | ✓ | — |
 | `embed-markup` | 5 | — | ✓ | `/embed/form` |
 | `embed-security` | 6 | — | ✓ | `/api/admin/settings` |
-| `env` | 4 | — | ✓ | `/` `/produk/[slug]` `/[slug]` `/hybrid-form` `/assets/[...key]` `/media/[...key]` `/hello` `/api/form-config` `/api/geo-province` `/api/install` `/api/locations` `/api/meta-event` `/api/ops/v1/orders` `/api/ops/v1/orders/[number]` `/api/order-status` `/api/payment-methods` `/api/record-abandoned-order` `/api/shipping-rates` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/geo/shipping-rates` `/api/v1/orders/status` `/api/v1/storefront` `/api/v1/tracking/events` `/api/webhooks/autolaris` `/admin/check` `/admin/dashboard` `/admin/orders` `/admin/products` `/admin/settings/plugins/kelola` `/admin/status` `/api/admin/abandoned-orders` `/api/admin/access` `/api/admin/ads` `/api/admin/analytics` `/api/admin/check` `/api/admin/content` `/api/admin/expeditions` `/api/admin/health` `/api/admin/health/check` `/api/admin/health/status` `/api/admin/logout` `/api/admin/media` `/api/admin/notifications` `/api/admin/ongkir` `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/orders/[id]/follow-up` `/api/admin/orders/retention` `/api/admin/payment-reconciliation` `/api/admin/plugins` `/api/admin/plugins/kelola` `/api/admin/products` `/api/admin/profile` `/api/admin/rules` `/api/admin/seller-bank-accounts` `/api/admin/settings` `/api/admin/settings/developer` `/api/admin/shipping` `/api/admin/upload-r2` `/api/admin/warehouses` `/api/admin/whatsapp-numbers` |
+| `env` | 4 | — | ✓ | `/` `/produk/[slug]` `/[slug]` `/hybrid-form` `/assets/[...key]` `/media/[...key]` `/hello` `/api/form-config` `/api/geo-province` `/api/install` `/api/locations` `/api/meta-event` `/api/ops/v1/orders` `/api/ops/v1/orders/[number]` `/api/order-status` `/api/payment-methods` `/api/record-abandoned-order` `/api/shipping-rates` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/geo/shipping-rates` `/api/v1/orders/status` `/api/v1/storefront` `/api/v1/tracking/events` `/api/webhooks/autolaris` `/admin/check` `/admin/dashboard` `/admin/products` `/admin/settings/plugins/kelola` `/admin/status` `/api/admin/abandoned-orders` `/api/admin/access` `/api/admin/ads` `/api/admin/analytics` `/api/admin/check` `/api/admin/content` `/api/admin/expeditions` `/api/admin/health` `/api/admin/health/check` `/api/admin/health/status` `/api/admin/logout` `/api/admin/media` `/api/admin/notifications` `/api/admin/ongkir` `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/orders/[id]/follow-up` `/api/admin/orders/retention` `/api/admin/payment-reconciliation` `/api/admin/plugins` `/api/admin/plugins/kelola` `/api/admin/products` `/api/admin/profile` `/api/admin/rules` `/api/admin/seller-bank-accounts` `/api/admin/settings` `/api/admin/settings/developer` `/api/admin/shipping` `/api/admin/upload-r2` `/api/admin/warehouses` `/api/admin/whatsapp-numbers` |
 | `excluded-area` | 1 | — | ✓ | `/api/submit-middle-order` |
 | `form-config` | 6 | — | ✓ | `/embed/form` `/full-form` `/hybrid-form` `/middle-form` `/api/form-config` |
 | `form-mode` | 8 | `stores` | ✓ | `/produk/[slug]` `/geoipform` `/hybrid-form` `/api/form-config` `/api/geo-province` `/api/submit-middle-order` `/api/submit-order` `/api/v1/checkout` `/api/v1/storefront` `/api/admin/abandoned-orders` |
@@ -285,7 +285,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `mengantar-areas` | 6 | `mengantar_areas` | ✓ | `/api/locations` |
 | `mengantar-client` | 21 | — | ✓ | `/api/locations` `/api/submit-order` `/api/admin/ongkir` `/api/admin/orders/[id]` `/api/admin/settings` `/api/admin/shipping` `/api/admin/warehouses` |
 | `mengantar-dispatch` | 4 | `courier_rules` `order_items` `orders` `pickup_schedules` `product_variants` `products` `provider_dispatch_locks` `warehouses` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` |
-| `mengantar-order` | 23 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
+| `mengantar-order` | 24 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `meta-capi` | 7 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` `/admin/ads/meta` `/api/admin/ads` |
 | `meta-event-contract` | 4 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
 | `meta-identity` | 7 | — | ✓ | `/api/meta-event` `/api/v1/tracking/events` |
@@ -299,7 +299,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `ops-api` | 6 | — | ✓ | `/api/ops/v1/openapi.json` `/api/ops/v1/orders` `/api/ops/v1/orders/[number]` |
 | `ops-openapi` | 1 | — | ✓ | `/api/ops/v1/openapi.json` |
 | `ops-order` | 8 | `order_items` `orders` `payment_transactions` `product_variants` `products` | **none** | `/api/ops/v1/orders` `/api/ops/v1/orders/[number]` |
-| `order-follow-up` | 7 | `order_follow_ups` `orders` | ✓ | `/admin/orders` `/api/admin/orders` `/api/admin/orders/[id]/follow-up` |
+| `order-follow-up` | 7 | `order_follow_ups` `orders` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]/follow-up` |
 | `order-instruction-hint` | 2 | — | ✓ | — |
 | `order-lifecycle` | 13 | `order_items` `orders` `payment_reconciliation_audits` `payment_transactions` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `order-metrics` | 6 | — | **none** | `/api/admin/analytics` `/api/admin/orders/[id]/follow-up` |
@@ -308,9 +308,9 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `order-status` | 4 | `order_items` `orders` `payment_transactions` | ✓ | `/api/order-status` `/api/v1/orders/status` |
 | `paid-order-purchase` | 3 | `order_items` `orders` `product_variants` `products` | ✓ | `/api/admin/orders/[id]` `/api/admin/payment-reconciliation` |
 | `payment-brand` | 6 | — | ✓ | `/payment` `/api/payment-methods` |
-| `payment-dispatch-policy` | 7 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
+| `payment-dispatch-policy` | 9 | — | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` `/api/admin/shipping` |
 | `payment-fee-policy` | 11 | — | ✓ | `/api/payment-methods` `/admin/payments` `/api/admin/orders/[id]` |
-| `payment-switch` | 9 | `order_items` `orders` `seller_bank_accounts` `stores` `warehouses` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` |
+| `payment-switch` | 10 | `order_items` `orders` `seller_bank_accounts` `stores` `warehouses` | ✓ | `/api/admin/orders` `/api/admin/orders/[id]` |
 | `product-mutation` | 10 | `order_items` `product_variants` `products` `storefront_content` | ✓ | `/api/admin/products` |
 | `provider-config` | 6 | `stores` | ✓ | `/api/locations` `/api/payment-methods` `/api/submit-order` `/api/v1/checkout` `/api/admin/ongkir` `/api/admin/settings` `/api/admin/shipping` `/api/admin/warehouses` |
 | `province` | 12 | — | ✓ | `/api/submit-middle-order` `/api/v1/checkout` `/api/admin/expeditions` |
@@ -340,7 +340,7 @@ is either transitive (imported by another lib) or dead, and only reading tells w
 | `tenant` | 12 | `stores` | ✓ | `/kebijakan-privasi` `/pengiriman` `/syarat-ketentuan` `/install` `/api/install` `/api/admin/settings` |
 | `thanks-whatsapp` | 6 | — | ✓ | `/thanks` |
 | `traffic-source` | 3 | — | ✓ | — |
-| `ui-variants` | 5 | — | ✓ | `/thanks` |
+| `ui-variants` | 4 | — | ✓ | `/thanks` |
 | `utils` | 0 | — | **none** | — |
 | `utm-link` | 9 | — | ✓ | — |
 | `validation` | 7 | — | ✓ | `/api/record-abandoned-order` `/api/submit-middle-order` `/api/submit-order` `/api/admin/orders/[id]` |

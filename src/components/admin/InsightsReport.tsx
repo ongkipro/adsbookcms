@@ -237,7 +237,7 @@ function LandingView({ data, query, mayReadOrders }: { data: Landing; query: str
   </TableHead>;
   return <section className="flex min-w-0 flex-col gap-3">
     <p className="text-xs text-muted-foreground">Omset = nilai pesanan aktif, belum tentu dibayar. Closing = pesanan / (pesanan + lead). RTS merah = retur di atas 20%. Urutkan dengan mengetuk judul kolom.</p>
-    <FilterBar className="md:hidden"><FilterField label="Urutkan" htmlFor="landing-sort" size="lg"><FilterSelect id="landing-sort" icon={ArrowDownUp} value={sort} options={[{ value: 'label' as LandingSort, label: 'Nama halaman' }, ...landingColumns.map(([value, label]) => ({ value: value as LandingSort, label }))]} onValueChange={setSort} /></FilterField><Button variant="outline" onClick={() => setDescending(!descending)}>{descending ? 'Terbesar dulu' : 'Terkecil dulu'}</Button></FilterBar>
+    <FilterBar className="md:hidden"><FilterField label="Urutkan" htmlFor="landing-sort" size="lg"><FilterSelect id="landing-sort" icon={ArrowDownUp} value={sort} options={[{ value: 'label' as LandingSort, label: 'Nama halaman' }, ...landingColumns.map(([value, label]) => ({ value: value as LandingSort, label }))]} onValueChange={(key) => { setSort(key); setDescending(key !== 'label'); }} /></FilterField><Button variant="outline" onClick={() => setDescending(!descending)}>{descending ? 'Terbesar dulu' : 'Terkecil dulu'}</Button></FilterBar>
     <ReportTable label="Peringkat landing page">
       <TableHeader><TableRow>{sortHead('label', 'Halaman', false)}{landingColumns.map(([key, label]) => sortHead(key, label))}<TableHead className={headCell}>Kanal pesanan</TableHead></TableRow></TableHeader>
       <TableBody>{rows.map((row) => <TableRow key={row.slug ?? SOURCE_SLUG_NONE_FILTER}>

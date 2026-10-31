@@ -16,6 +16,8 @@ const link = asset.refine((value) => /^(?:https?:\/\/|\/(?![/\\])|#)/i.test(valu
 
 const sectionHeadingSchema = z
   .object({
+    // Accepted so stored content still parses; compact v2 renders no eyebrow
+    // and the AI shape no longer asks for one.
     eyebrow: shortText,
     title: shortText,
     description: bodyText,

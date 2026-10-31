@@ -93,7 +93,7 @@ Admin colour **is** tokenised. `.admin-shell` redefines the shadcn variables in 
 - Admin login is a plain colour stage owned by the product. Its only image is the runtime store/product identity mark inside the form card; it carries no decorative or merchant-specific background imagery (LOGIN-18).
 
 Login (`/hello`): one viewport, never scrolled, on phone and desktop. The
-form column holds everything an operator needs on any screen: "Masuk ke dashboard"
+form column holds everything an operator needs on any screen: the product icon and "AdsBookCMS" as the `h1`
 (owner: nothing else above the form), the form (brand-blue focus and button), and a pinned footer
 with the version; centred on a phone. On a phone the owner's poster
 (`public/images/login-bg-mobile.webp`, 941x1672, 149 KB, a CSS background

@@ -210,7 +210,10 @@ if (database && !bootstrapAdminPassword) {
       <div class="admin-login-form-wrapper">
         <div class="admin-login-card">
           <div class="admin-login-header text-center lg:text-left">
-            <h1 id="loginTitle" class="text-2xl font-semibold tracking-tight text-slate-950">Masuk ke dashboard</h1>
+            <h1 id="loginTitle" class="flex items-center justify-center gap-3 text-2xl font-semibold tracking-tight text-slate-950 lg:justify-start">
+              <img src="/images/adsbook-icon.svg" alt="" width="40" height="40" class="size-10 shrink-0" />
+              AdsBookCMS
+            </h1>
           </div>
           <div class="admin-login-form-content">
         {errorMessage && (

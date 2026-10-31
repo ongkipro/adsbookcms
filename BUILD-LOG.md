@@ -7905,4 +7905,6 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - No console errors.
 - Above the form only "Masuk ke dashboard" remains; the AdsBookCMS row and the
   store line were removed (owner). The version stays in the footer.
+- The heading became the product icon and "AdsBookCMS" (owner), replacing
+  "Masuk ke dashboard".
 

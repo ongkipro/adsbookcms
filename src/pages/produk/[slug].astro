@@ -227,22 +227,10 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
           <span class="text-[#555555]">{product.variants.length} pilihan:</span> {product.variants.map((v) => v.label).join(', ')}
         </p>
       )}
-
-      <p class="mt-4 flex items-start gap-2 rounded-xl bg-[#F4F4F5] px-3 py-2.5 text-[13px] leading-5 text-[#555555]">
-        <Icon name="lucide:truck" class="mt-0.5 h-4 w-4 shrink-0 text-[#111111]" aria-hidden="true" />
-        <span>Ongkir dihitung otomatis setelah alamat diisi, sebelum pesanan dikirim.</span>
-      </p>
-
-      <a
-        href="#form-pemesanan"
-        class="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[#2c6ecb] px-6 text-[15px] font-semibold text-white transition-colors hover:bg-[#1f5199] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2c6ecb]"
-      >
-        Pesan sekarang
-      </a>
     </section>
 
     {(product.description || product.benefits?.length || product.keyPoints?.length || product.idealFor?.length) && (
-      <section class="border-t-8 border-[#F4F4F5] px-4 py-6">
+      <section class="border-t-8 border-[#F3F3F3] px-4 py-6">
         <h2 class="text-base font-bold text-[#111111]">Tentang produk</h2>
         {product.description && product.description !== product.subheadline && (
           <p class="mt-2 text-sm leading-6 text-[#555555]">{product.description}</p>
@@ -281,7 +269,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
             <h3 class="text-sm font-semibold text-[#111111]">Cocok untuk</h3>
             <ul class="mt-2 flex flex-wrap gap-2">
               {product.idealFor.map((item) => (
-                <li class="rounded-full bg-[#F4F4F5] px-3 py-1.5 text-[13px] text-[#111111]">{item}</li>
+                <li class="rounded-full bg-[#F3F3F3] px-3 py-1.5 text-[13px] text-[#111111]">{item}</li>
               ))}
             </ul>
           </div>
@@ -291,7 +279,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
 
     {
       (hasAggregateRating || product.reviews.length > 0) && (
-        <section class="border-t-8 border-[#F4F4F5] px-4 py-6">
+        <section class="border-t-8 border-[#F3F3F3] px-4 py-6">
           <div class="flex items-baseline justify-between gap-3">
             <h2 class="text-base font-bold text-[#111111]">Ulasan pembeli</h2>
             {hasAggregateRating && (
@@ -302,7 +290,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
           {product.reviews.length > 0 && (
             <ul class="mt-4 space-y-4">
               {product.reviews.map((review) => (
-                <li class="rounded-2xl bg-[#F4F4F5] p-4">
+                <li class="rounded-2xl bg-[#F3F3F3] p-4">
                   <div class="flex items-center gap-3">
                     <span
                       class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold uppercase text-[#111111]"
@@ -334,7 +322,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
     }
 
     <!-- Direct order form -->
-    <section id="form-pemesanan" class="scroll-mt-16 border-t-8 border-[#F4F4F5] px-2 pb-2 pt-4">
+    <section id="form-pemesanan" class="scroll-mt-2 border-t-8 border-[#F3F3F3] px-2 pb-2 pt-4">
       <GeoIpResolvedForm mode={formContext.mode} province={formContext.province} productSlug={product.slug} embedded={true} />
     </section>
 
@@ -352,7 +340,7 @@ const productSchemaJson = JSON.stringify(productSchema).replace(/</g, '\\u003c')
       </div>
       <a
         href="#form-pemesanan"
-        class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[#2c6ecb] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#1f5199] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2c6ecb]"
+        class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[#121212] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#333333] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#121212]"
       >
         Pesan sekarang
       </a>

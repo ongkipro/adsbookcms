@@ -37,7 +37,7 @@ const { products, heading } = Astro.props;
 const categories = [...new Set(products.map((product) => product.category).filter(Boolean))];
 const showChips = categories.length > 1;
 const chipClass =
-  'catalog-chip inline-flex min-h-10 shrink-0 items-center rounded-full border border-[#E4E4E7] bg-white px-3.5 text-sm text-[#111111] transition-colors hover:border-[#111111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] aria-pressed:border-[#111111] aria-pressed:bg-[#111111] aria-pressed:text-white';
+  'catalog-chip inline-flex min-h-10 shrink-0 items-center rounded-full border border-[#E5E5E5] bg-white px-3.5 text-sm text-[#111111] transition-colors hover:border-[#111111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] aria-pressed:border-[#111111] aria-pressed:bg-[#111111] aria-pressed:text-white';
 
 const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
 ---
@@ -55,7 +55,7 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
         id="catalog-search"
         placeholder="Cari produk"
         aria-label="Cari produk"
-        class="min-h-11 w-full rounded-full border border-[#E4E4E7] bg-[#F4F4F5] py-2.5 pl-11 pr-4 text-base text-[#111111] transition-colors placeholder:text-[#555555] focus:border-[#111111] focus:bg-white focus:outline-none"
+        class="min-h-11 w-full rounded-full border border-[#E5E5E5] bg-[#F3F3F3] py-2.5 pl-11 pr-4 text-base text-[#111111] transition-colors placeholder:text-[#555555] focus:border-[#111111] focus:bg-white focus:outline-none"
       />
       <Icon
         name="lucide:search"
@@ -75,7 +75,7 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
 
   {
     products.length === 0 && (
-      <div class="rounded-2xl bg-[#F4F4F5] px-5 py-10 text-center">
+      <div class="rounded-2xl bg-[#F3F3F3] px-5 py-10 text-center">
         <p class="text-sm font-semibold text-[#111111]">Katalog sedang disiapkan</p>
         <p class="mx-auto mt-1 max-w-[26rem] text-sm leading-6 text-[#555555]">
           Produk akan tampil di sini setelah diterbitkan.
@@ -84,7 +84,7 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
     )
   }
 
-  <p id="catalog-empty" class="hidden rounded-2xl bg-[#F4F4F5] px-5 py-8 text-center text-sm text-[#555555]">
+  <p id="catalog-empty" class="hidden rounded-2xl bg-[#F3F3F3] px-5 py-8 text-center text-sm text-[#555555]">
     Produk tidak ditemukan. Coba kata lain atau pilih kategori Semua.
   </p>
 
@@ -127,7 +127,7 @@ const formatPrice = (val: number) => `Rp${val.toLocaleString('id-ID')}`;
         <button
           type="button"
           id="load-more-btn"
-          class="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-[#E4E4E7] bg-white px-6 text-sm font-semibold text-[#111111] transition-colors hover:border-[#111111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
+          class="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-[#E5E5E5] bg-white px-6 text-sm font-semibold text-[#111111] transition-colors hover:border-[#111111] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
         >
           <span>Lihat produk lainnya</span>
           <Icon name="lucide:chevron-down" class="h-4 w-4" aria-hidden="true" />

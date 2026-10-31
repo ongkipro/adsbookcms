@@ -2,34 +2,49 @@
 import SiteBrand from './SiteBrand.astro';
 import Icon from './Icon.astro';
 
-// One bar, not three (DESIGN-SYSTEM §3). The "Official Store" seal that used
-// to sit above it was a verification claim nobody had verified, and the dark
-// announcement strip repeated the tagline in 10px capitals. The tagline now
-// rides in one quiet line; the header stays put while the buyer scrolls so the
-// catalogue is one tap away from anywhere.
-const tagline = Astro.locals.tenant.tagline?.trim();
+// One announcement line and one bar (DESIGN-SYSTEM §3). The line carries the
+// store's "Official Store" badge; the bar the wordmark (or uploaded logo) and
+// one icon to the catalogue. It scrolls away with the page; a hairline that
+// fades at both ends closes it.
 const path = Astro.url.pathname;
 // The list is the current page; a product under it is the current location
-// ("true"), so a screen reader does not announce the link as this page.
+// ("true"), so a screen reader does not announce the link as this page. No
+// drawn state: a filled circle behind one icon read as a frame (owner,
+// 2026-10-31); the icon stays bare and only dims on hover.
 const catalogCurrent = path === '/produk' ? 'page' : path.startsWith('/produk/') ? 'true' : undefined;
 ---
 
-{tagline && (
-  <p class="bg-[#F4F4F5] px-4 py-1.5 text-center text-xs leading-5 text-[#555555]">{tagline}</p>
-)}
+<!-- Announcement bar: the store's own site is its official store (owner
+     decision 2026-10-31, reversing the v2 removal). A solid blue badge-check,
+     drawn inline: the icon subset is for line icons. -->
+<p class="flex items-center justify-center gap-1.5 bg-[#F3F3F3] px-4 py-1.5 text-xs font-semibold leading-5 text-[#111111]">
+  <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" aria-hidden="true">
+    <path fill="#1D6FEB" d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/>
+    <path fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m8.5 12.2 2.4 2.4 4.6-4.9"/>
+  </svg>
+  Official Store
+</p>
 
-<header class="sticky top-0 z-30 border-b border-[#EDEDED] bg-white/95 backdrop-blur">
+<!-- Not sticky: the column is short-form commerce and the PDP's own sticky buy
+     bar is the action that follows the reader. The rule under the bar fades
+     out toward both edges instead of cutting the column. -->
+<header class="relative bg-white">
   <div class="flex h-14 items-center justify-between gap-3 pl-3 pr-1.5">
     <SiteBrand href="/" />
     <nav aria-label="Navigasi utama" class="flex items-center">
       <a
         href="/produk"
         aria-current={catalogCurrent}
-        class="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[#111111] transition-colors hover:bg-[#F4F4F5] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] aria-[current=page]:bg-[#F4F4F5] aria-[current=true]:bg-[#F4F4F5]"
+        aria-label="Produk"
+        title="Produk"
+        class="inline-flex size-11 items-center justify-center rounded-full text-[#111111] transition-opacity hover:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
       >
-        <Icon name="lucide:shopping-bag" class="h-[18px] w-[18px]" aria-hidden="true" />
-        Produk
+        <Icon name="lucide:package" class="h-[22px] w-[22px]" aria-hidden="true" />
       </a>
     </nav>
   </div>
+  <div
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,#E5E5E5_20%,#E5E5E5_80%,transparent)]"
+  ></div>
 </header>

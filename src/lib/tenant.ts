@@ -37,6 +37,9 @@ export interface StoreIdentityRow {
   admin_name?: string | null;
 }
 
+/** The logo a store has until it uploads its own: the storefront then draws a text wordmark. */
+export const DEFAULT_TENANT_LOGO = "/images/adsbook-mark.webp";
+
 /**
  * Product defaults for an install that has not been configured yet. A real
  * install supplies these from its `stores` row, or failing that from
@@ -62,7 +65,7 @@ const defaults = {
   // A neutral product mark, never a store's. An install that has not set its
   // own logo must announce that it is unconfigured, not wear someone else's
   // brand — /images/logo.webp belongs to whichever store supplied it.
-  logo: "/images/adsbook-mark.webp",
+  logo: DEFAULT_TENANT_LOGO,
   tagline: "",
   themeColor: "#111111",
   locale: "id-ID",
@@ -138,6 +141,8 @@ function siteOrigin(value: string): string {
  */
 export const THEME_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 export const LOCALE_PATTERN = /^[a-z]{2}(?:-[A-Z]{2})?$/;
+/** Shape only: one @, a dot in the domain, no spaces. Nothing is sent to it. */
+export const SUPPORT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function themeColor(value: string): string {
   return THEME_COLOR_PATTERN.test(value) ? value : defaults.themeColor;

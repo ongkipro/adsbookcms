@@ -159,6 +159,7 @@ if (database && !bootstrapAdminPassword) {
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="icon" type="image/svg+xml" href="/images/logo.svg" />
+    <link rel="apple-touch-icon" href="/favicon-192.png" />
     <!-- LOGIN-18: no third-party asset. This page loaded a Google Fonts
          stylesheet for a family it never applied, which told Google the address
          of every operator opening the admin and bought nothing back. -->
@@ -166,12 +167,31 @@ if (database && !bootstrapAdminPassword) {
   <body class="admin-login-page bg-slate-50 text-slate-900 antialiased selection:bg-blue-200 selection:text-blue-900">
     <main class="admin-login-stage" aria-labelledby="loginTitle">
       <!-- Left Brand Panel (Desktop) -->
-      <div class="admin-login-brand hidden lg:flex flex-col justify-between bg-slate-950 p-10 text-white xl:p-14">
+      <div class="admin-login-brand relative isolate hidden overflow-hidden lg:flex flex-col justify-between bg-slate-950 p-10 text-white xl:p-14">
+        <!-- Ornament: a dot grid that fades toward the edges. Decorative only. -->
+        <div class="login-brand-grid" aria-hidden="true"></div>
         <div class="flex items-center gap-3">
-          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 text-white" aria-hidden="true"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M3 15h6"/><path d="M3 18h6"/><path d="M3 12h6"/></svg>
-          </div>
+          <img src="/images/adsbook-icon.svg" alt="" width="40" height="40" class="h-10 w-10" />
           <span class="text-xl font-semibold tracking-tight">AdsBookCMS</span>
+        </div>
+
+        <!-- The loop the operator runs, drawn as it moves: an ad brings an
+             order, the order ships. A pulse travels the line and each stage
+             lights as it passes. Still under prefers-reduced-motion. -->
+        <div class="login-flow" aria-hidden="true">
+          <div class="login-flow-track"><span class="login-flow-pulse"></span></div>
+          <div class="login-flow-node" style="--node-delay: 0s">
+            <span class="login-flow-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></span>
+            <span class="login-flow-label">Iklan</span>
+          </div>
+          <div class="login-flow-node" style="--node-delay: 1.6s">
+            <span class="login-flow-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
+            <span class="login-flow-label">Pesanan</span>
+          </div>
+          <div class="login-flow-node" style="--node-delay: 3.2s">
+            <span class="login-flow-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
+            <span class="login-flow-label">Kirim</span>
+          </div>
         </div>
 
         <div class="max-w-md">
@@ -187,9 +207,7 @@ if (database && !bootstrapAdminPassword) {
         <div class="admin-login-card m-auto w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-xl lg:my-auto lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
           <!-- Header -->
           <div class="admin-login-header pb-8">
-            <div class="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 lg:hidden">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="h-7 w-7 text-white" aria-hidden="true"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M3 15h6"/><path d="M3 18h6"/><path d="M3 12h6"/></svg>
-            </div>
+            <img src="/images/adsbook-icon.svg" alt="" width="48" height="48" class="mb-6 h-12 w-12 lg:hidden" />
             <h1 id="loginTitle" class="text-2xl font-semibold tracking-tight text-slate-950">
               <span class="lg:hidden">AdsBookCMS</span>
               <span class="hidden lg:inline">Masuk ke sistem</span>

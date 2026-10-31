@@ -33,6 +33,33 @@ export async function getStoreSupportWhatsapp(
 }
 
 /**
+ * The store's public contact for its legal and contact pages: the first CS
+ * WhatsApp in international form with a leading +, and the optional email and
+ * business address from Pengaturan → Store (migration 0078). Empty strings for
+ * anything unset or unreadable; the pages then drop the sentence that needs it.
+ */
+export async function getStorePublicContact(locals?: App.Locals): Promise<{
+  whatsapp: string;
+  email: string;
+  address: string;
+}> {
+  const whatsapp = await getStoreSupportWhatsapp(locals);
+  const contact = { whatsapp: whatsapp ? `+${whatsapp}` : "", email: "", address: "" };
+  const database = getRuntimeEnv(locals)?.OMS_DB;
+  if (!database || typeof database !== "object") return contact;
+  try {
+    const row = await (database as D1Database)
+      .prepare("SELECT support_email, business_address FROM stores ORDER BY id LIMIT 1")
+      .first<{ support_email: string | null; business_address: string | null }>();
+    contact.email = row?.support_email?.trim() || "";
+    contact.address = row?.business_address?.trim() || "";
+  } catch (error) {
+    console.error("storefront-public-contact-load", error instanceof Error ? error.message : "unknown");
+  }
+  return contact;
+}
+
+/**
  * What /thanks needs for its WhatsApp hand-off: the support numbers the
  * rotator picks from (PRD A35, `activeThanksNumbers`) and whether the operator
  * turned the automatic redirect on (migration 0060). Any failure reads as

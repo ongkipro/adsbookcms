@@ -34,6 +34,9 @@ const hasDiscount = comparePrice > product.price;
 // "Mulai" only when the variants really differ in price; a card that says
 // "from" over one price is hedging for nothing.
 const hasRange = new Set(product.variants.map((variant) => variant.price).filter((price) => typeof price === 'number')).size > 1;
+// The price sits right under the title (one or two lines, clamped), as in
+// the Shopify theme; the cards still line up because the grid stretches each
+// one to its row and the text block fills the rest.
 const discountPercentage = hasDiscount
   ? Math.round((1 - product.price / comparePrice) * 100)
   : 0;
@@ -44,7 +47,7 @@ const discountPercentage = hasDiscount
     href={`/produk/${product.slug}`}
     class="flex h-full flex-col rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]"
   >
-    <div class="relative aspect-square overflow-hidden rounded-xl bg-[#F4F4F5]">
+    <div class="relative aspect-square overflow-hidden rounded-xl bg-[#F3F3F3]">
       <img
         src={cardImageSrc(product.heroImage)}
         alt={`Foto produk ${product.productName}`}
@@ -56,15 +59,15 @@ const discountPercentage = hasDiscount
         decoding="async"
       />
       {discountPercentage > 0 && (
-        <span class="absolute left-2 top-2 rounded-md bg-[#D92D20] px-1.5 py-0.5 text-[11px] font-bold leading-4 text-white">
+        <span class="absolute left-2 top-2 rounded-full bg-[#334FB4] px-1.5 py-0.5 text-[11px] font-bold leading-4 text-white">
           -{discountPercentage}%
         </span>
       )}
     </div>
 
-    <div class="flex flex-1 flex-col px-0.5 pt-2.5">
-      <h2 class="line-clamp-2 min-h-10 text-sm leading-5 text-[#111111]">{product.productName}</h2>
-      <p class="mt-1 flex flex-wrap items-baseline gap-x-1.5 leading-5">
+    <div class="flex flex-1 flex-col px-0.5 pt-2">
+      <h2 class="line-clamp-2 text-sm leading-5 text-[#111111]" title={product.productName}>{product.productName}</h2>
+      <p class="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 leading-5">
         {hasRange && <span class="text-xs text-[#555555]">Mulai</span>}
         <span class="text-[15px] font-bold text-[#111111]">{formatPrice(product.price)}</span>
         {hasDiscount && <span class="text-xs text-[#767676] line-through">{formatPrice(comparePrice)}</span>}

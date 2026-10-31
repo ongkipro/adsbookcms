@@ -7591,3 +7591,79 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
     when shown, and the brand box is 21/21 px.
   - Not checked: real devices, a live Mengantar or AutoLaris call, a WhatsApp
     send.
+
+### Entry 207: Shopify-theme storefront palette, login panel motion, product icon
+
+- Storefront colour follows the Shopify theme (Dawn). Dawn's home and product
+  pages were captured on 2026-10-31 as the reference (not committed: third-party
+  screenshots).
+  - The buy actions use ink `#121212` instead of blue `#2C6ECB`, including the
+    `--sf-accent` tokens (ADR-019), the sticky bar and the thanks/payment
+    actions.
+  - The neutral surface is `#F3F3F3`.
+  - A filled field and the selected variant card are grey; an empty field is
+    white.
+  - The discount pill is Dawn's sale blue `#334FB4` (7.2:1), in `rounded-full`.
+  - Checkout errors stay `#D92D20`.
+- Removed the PDP note "Ongkir dihitung otomatis…"; the order form already
+  carries the shipping cost.
+- `/hello` brand panel:
+  - A dot-grid ornament.
+  - The operator loop Iklan → Pesanan → Kirim, drawn with a pulse that lights
+    each node as it passes (4s cycle, measured at 0, 1.6 and 3.2s).
+  - All of it `aria-hidden`, and still under `prefers-reduced-motion`.
+- Product icon: an open book on an iOS-style blue squircle
+  (`images/adsbook-icon.svg`, the login tile). The same artwork is the new
+  shipped default of the merchant-replaceable tab icons (`logo.svg`,
+  `favicon.ico/png`, `favicon-192.png` full-bleed). The admin pages gain an
+  apple-touch icon. The unused `favicon-admin.svg` was deleted.
+- Verification:
+  - `npm test` 1104 pass; `npm run check` 0 errors; `npm run build` complete;
+    `docs:check` passed.
+  - Headless Chromium on `dev:local` at 390 and 1280 px: home, `/produk`, PDP,
+    order form and `/hello`. No console errors; the note is absent; the node
+    lights are measured; under reduced motion the animations are off.
+  - Not checked: real devices, an iOS home-screen install.
+
+### Entry 208: Adaptive legal pages from store settings; header, brand and card refinements
+
+- Legal pages: Kebijakan Privasi, Pengiriman & Retur, Syarat & Ketentuan and
+  Kontak (`src/data/legal.ts`).
+  - Rewritten as generic copy for any store. No city, courier, payment
+    method, return window, delivery time or legal regime is named.
+  - Filled from settings: store name, the site's host, the first CS
+    WhatsApp, and the new support email and business address.
+  - A paragraph whose value is unset is dropped. Privacy, shipping and terms
+    close with "Hubungi Kami" built from the channels that exist, or a pointer
+    to `/kontak`.
+  - Links in paragraphs (a bracketed label followed by an internal path,
+    an email, `+62…`) are parsed by
+    `src/lib/legal-links.ts`; external targets are refused.
+  - `LegalPage` is one reading column, with no box per section.
+- Settings: migration `0078_store_public_contact` (schema 79) adds
+  `stores.support_email` and `stores.business_address`, edited in
+  Pengaturan → Store. The email is checked for shape (`SUPPORT_EMAIL_PATTERN`)
+  and the address is free text; both are optional. The tagline help text no
+  longer says it shows in the header.
+- Header and brand:
+  - The "Official Store" line uses a blue badge-check (owner decision).
+  - The brand is the uploaded logo, or a text wordmark when there is none. The
+    logo is sized inline, because utility sizing rendered it 0x0.
+  - A bare package icon to `/produk`.
+  - The header is not sticky; its rule fades at both edges.
+- Product cards: the price sits under a title clamped to two lines, with no
+  reserved height. The PDP inline "Pesan sekarang" button and the shipping
+  note are gone.
+- Verification:
+  - `npm test` 1106 pass; `npm run check` 0 errors; `npm run build`
+    complete; `docs:check` passed.
+  - Headless Chromium on `dev:local` at 390 px:
+    - Email and address saved through the admin form, with the other fields
+      unchanged.
+    - The four pages render them with no placeholder left.
+    - The links are `wa.me`, `mailto:` and internal pages.
+    - The header logo and text variants were measured.
+    - No console errors.
+  - Not checked: server-side refusal of a malformed email (the browser's
+    `type=email` stopped it first), and real devices.
+

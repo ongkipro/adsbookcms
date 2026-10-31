@@ -369,3 +369,61 @@
 [class*="space-y-"] > astro-island {
   display: block;
 }
+
+/* Login brand panel (desktop): a dot-grid ornament and the ad → order → ship
+   loop drawn in motion. Everything here is aria-hidden decoration; the panel
+   reads the same without it. */
+.login-brand-grid {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(rgb(148 163 184 / 0.22) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 35% 45%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 75% 65% at 35% 45%, #000 20%, transparent 75%);
+  animation: login-grid-drift 24s linear infinite;
+}
+@keyframes login-grid-drift { to { background-position: 22px 22px; } }
+
+.login-flow {
+  position: relative; display: grid; grid-template-columns: repeat(3, 1fr);
+  max-width: 26rem; padding-block: 0.5rem;
+}
+.login-flow-track {
+  position: absolute; left: calc(100% / 6); right: calc(100% / 6); top: calc(0.5rem + 1.75rem);
+  height: 2px; border-radius: 999px; background: rgb(51 65 85);
+}
+.login-flow-pulse {
+  position: absolute; top: 50%; left: 0; width: 3.5rem; height: 2px; translate: -50% -50%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgb(96 165 250), transparent);
+  box-shadow: 0 0 12px rgb(59 130 246 / 0.6);
+  animation: login-flow-travel 4s linear infinite;
+}
+/* Crosses the line in the first 80% (3.2s), fades out at the last node, rests. */
+@keyframes login-flow-travel {
+  0% { left: 0; opacity: 0; }
+  4% { opacity: 1; }
+  80% { left: 100%; opacity: 1; }
+  88%, 100% { left: 100%; opacity: 0; }
+}
+
+.login-flow-node { position: relative; display: grid; justify-items: center; gap: 0.75rem; }
+.login-flow-icon {
+  display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: 1rem;
+  border: 1px solid rgb(51 65 85); background: rgb(15 23 42); color: rgb(203 213 225);
+  animation: login-flow-light 4s ease-in-out infinite;
+  /* The light peaks at 6% (0.24s) of its cycle; shifting by that lands the
+     peak when the pulse is over the node: 0s, 1.6s and 3.2s. */
+  animation-delay: calc(var(--node-delay, 0s) - 0.24s);
+}
+.login-flow-icon svg { width: 1.5rem; height: 1.5rem; }
+.login-flow-label { font-size: 0.8125rem; font-weight: 500; color: rgb(148 163 184); }
+@keyframes login-flow-light {
+  0%, 32%, 100% { border-color: rgb(51 65 85); color: rgb(203 213 225); box-shadow: none; }
+  6%, 14% { border-color: rgb(96 165 250); color: #fff; box-shadow: 0 0 0 4px rgb(59 130 246 / 0.18), 0 0 24px rgb(59 130 246 / 0.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-brand-grid, .login-flow-pulse, .login-flow-icon { animation: none; }
+  .login-flow-pulse { display: none; }
+}
+

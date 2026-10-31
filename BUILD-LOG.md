@@ -7917,8 +7917,10 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - A 62%→48% white gradient.
   - `blur(28px) saturate(1.7)`.
   - A white border with an inset top highlight, 1.75rem radius.
-- Labels are slate-900 and the CMS tag slate-800, both checked against #8C8C8C
-  (the darkest the blurred poster makes the card): 5.3:1 and 4.7:1.
+- Labels and the CMS tag are slate-900, checked against #8C8C8C (the darkest
+  the blurred poster makes the card): 5.3:1. A first cut used slate-800 for the
+  tag, which measures 4.35:1 and fails AA; the 4.7:1 first written here was
+  wrong.
 - Fields stay 92% white, so typed text never sits on the image.
 - Verification: the seven-size no-scroll check passes; no console errors.
 

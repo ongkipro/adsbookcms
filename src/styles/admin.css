@@ -407,7 +407,7 @@
 .login-qris { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; max-width: 24rem; margin-inline: auto; text-align: center; }
 .login-qris-frame { position: relative; flex-shrink: 0; padding: 0.875rem; }
 .login-qris-image {
-  display: block; width: clamp(8.5rem, 24vh, 14rem); height: auto; border-radius: 1rem; background: #fff; image-rendering: pixelated;
+  display: block; width: clamp(11rem, 34vh, 18rem); height: auto; border-radius: 1rem; background: #fff;
   box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
 }
 /* "Scan me" corners around the card, never over the code. */

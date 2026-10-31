@@ -99,8 +99,8 @@ admin is for, the form (brand-blue focus and button), and a pinned footer
 with the version; centred on a phone. The desktop brand column
 (`bg-slate-950`, a dot grid fading to the edges) holds only the joke tip jar,
 centred (owner decision 2026-10-31): the QRIS code alone
-(`public/images/qris-dukung-adsbookcms.webp`, its own quiet zone, checked to
-decode from the rendered page), a pulsing "scan me" corner frame outside the
+(`public/images/qris-dukung-adsbookcms.svg`, rebuilt as vector modules from
+the print, payload identical, checked to decode from the rendered page), a pulsing "scan me" corner frame outside the
 code, signal waves leaving the card (three rings, 4.2s, scale 1 to 1.55, behind the
 opaque card so the code is never covered), "CMS GRATIS. / Server GRATIS." with a
 brand-blue highlighter drawn under each GRATIS in turn on a 7s cycle, and the

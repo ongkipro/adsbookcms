@@ -7865,3 +7865,23 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
   - The seven-size no-scroll check still passes.
   - No console errors.
 
+### Entry 218: Login QR rebuilt in vector, shown larger
+
+- The QR asset was a 507px crop resized to 560px. That is a non-integer scale,
+  so module edges were uneven.
+- It is now rebuilt from the owner's Drive print:
+  - The first finder column is a 67px dark run, so the module is 9.57px.
+    That gives 53 modules, which is version 9.
+  - Each module is sampled at its centre.
+  - All three finder patterns and both timing patterns match.
+- Written as one SVG path with `crispEdges` (9.9 KB), replacing
+  `qris-dukung-adsbookcms.webp`. The pattern and mask are the print's own, and
+  the decoded payload is byte-identical to the print's.
+- Displayed at `clamp(11rem, 34vh, 18rem)`: 288px at 1280 and 1440, 261px at
+  768px tall.
+- Verification:
+  - Decodes from the 1024x768, 1366x768 and 1280x900 renders and from an
+    animation frame.
+  - The seven-size no-scroll check passes.
+  - No console errors.
+

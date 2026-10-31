@@ -175,27 +175,36 @@ if (database && !bootstrapAdminPassword) {
           <span class="text-xl font-semibold tracking-tight">AdsBookCMS</span>
         </div>
 
-        <!-- The loop the operator runs, drawn as it moves: an ad brings an
-             order, the order ships. A pulse travels the line and each stage
-             lights as it passes. Still under prefers-reduced-motion. -->
-        <div class="login-flow" aria-hidden="true">
-          <div class="login-flow-track"><span class="login-flow-pulse"></span></div>
-          <div class="login-flow-node" style="--node-delay: 0s">
-            <span class="login-flow-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></span>
-            <span class="login-flow-label">Iklan</span>
+        <!-- A tip jar for the product's author, centred: the CMS and its
+             hosting are free, and this QRIS is how a store says thanks. The
+             image is the code alone, cropped from the merchant's QRIS print with
+             its own white quiet zone and checked to decode before it was
+             committed; the corner frame pulses outside the code so it
+             never gets in a phone's way, and stops under reduced motion.
+             Lazy: the panel is desktop-only, and a phone never fetches it. -->
+        <section class="login-qris" aria-labelledby="loginQrisTitle">
+          <div class="login-qris-frame">
+            <span class="login-qris-corner" aria-hidden="true"></span>
+            <img
+              src="/images/qris-dukung-adsbookcms.webp"
+              alt="QRIS ONGKI COLLECTION untuk mendukung AdsBookCMS"
+              width="560"
+              height="560"
+              loading="lazy"
+              decoding="async"
+              class="login-qris-image"
+            />
           </div>
-          <div class="login-flow-node" style="--node-delay: 1.6s">
-            <span class="login-flow-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span>
-            <span class="login-flow-label">Pesanan</span>
+          <div class="login-qris-copy">
+            <p class="login-qris-kicker">Dukung AdsBookCMS</p>
+            <h2 id="loginQrisTitle" class="login-qris-title"><span>CMS‑nya gratis.</span> <span>Server‑nya juga gratis.</span></h2>
+            <p class="login-qris-body">Yang belum gratis cuma kopi developernya. Tau kan QRIS ini buat apa? Hehehe.</p>
+            <p class="login-qris-note">Seikhlasnya, scan pakai e-wallet atau m-banking apa saja.<span class="block">QRIS a.n. ONGKI COLLECTION</span></p>
           </div>
-          <div class="login-flow-node" style="--node-delay: 3.2s">
-            <span class="login-flow-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
-            <span class="login-flow-label">Kirim</span>
-          </div>
-        </div>
+        </section>
 
         <div class="max-w-md">
-          <h2 class="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Operator Workspace</h2>
+          <p class="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Operator Workspace</p>
           <p class="mt-4 leading-relaxed text-slate-400">
             Sistem manajemen konten dan operasional untuk mengelola <span class="font-normal text-slate-200">{Astro.locals.tenant.adminName}</span>.
           </p>

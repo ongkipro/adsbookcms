@@ -7780,3 +7780,31 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
 - Verification: `npm test`, `npm run check`, `npm run build`, `docs:check`;
   `dev:local` rendered the header, the home `og:image` and /hello.
 
+### Entry 214: Login tip-jar QRIS
+
+- Source: the owner's QRIS print (ONGKI COLLECTION, NMID ID1021107138476),
+  downloaded from the owner's Drive link into the scratchpad. It was checked to
+  be a JPEG, and its code was decoded with `jsqr` (scratch install, not a
+  project dependency): payload `000201010211…` (static QRIS) containing the
+  NMID and the merchant name.
+- Asset: the code alone, cropped to the detected module bounds, thresholded to
+  clean black and white, and padded with a white quiet zone. Saved as
+  `public/images/qris-dukung-adsbookcms.webp` (lossless, 560px, 2.3 KB); it
+  decodes after conversion.
+- `/hello` desktop panel:
+  - The code is centred in a white card with a pulsing "scan me" corner frame
+    outside it.
+  - "Dukung AdsBookCMS / CMS-nya gratis. Server-nya juga gratis. / Yang belum
+    gratis cuma kopi developernya. Tau kan QRIS ini buat apa? Hehehe." and the
+    merchant's name.
+  - It replaces the Iklan › Pesanan › Kirim flow.
+  - The image is lazy (phones never fetch it). The frame stops under reduced
+    motion.
+- Every install shows this on its admin login. It is the product author's,
+  not a store's.
+- Verification:
+  - Headless Chromium at 1024x768, 1280x900 and 1440x900: no panel overflow;
+    the QR decodes from the page screenshot at 1024 and 1280 with the same
+    payload; the phone fetches no QRIS; no console errors.
+  - `npm test`, `npm run check` and `npm run build` pass.
+

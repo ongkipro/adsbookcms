@@ -73,7 +73,7 @@ const CHANGELOG_RELEASES: ChangelogRelease[] = [
       },
       {
         title: "Ikon, halaman masuk, dan menu akun baru",
-        description: "Ikon AdsBookCMS baru untuk tab browser dan layar utama iOS (toko yang sudah memasang ikonnya sendiri tetap memakainya). Halaman masuk admin menampilkan alur Iklan › Pesanan › Kirim yang bergerak. Tombol akun di kanan atas kini membuka menu: profil, pengaturan toko, storefront, catatan rilis, dan Keluar.",
+        description: "Ikon AdsBookCMS baru untuk tab browser dan layar utama iOS (toko yang sudah memasang ikonnya sendiri tetap memakainya). Halaman masuk admin menampilkan QRIS untuk mendukung AdsBookCMS: CMS-nya gratis, server-nya juga gratis. Tombol akun di kanan atas kini membuka menu: profil, pengaturan toko, storefront, catatan rilis, dan Keluar.",
       },
     ],
   },

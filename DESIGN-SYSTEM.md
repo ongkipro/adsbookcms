@@ -94,10 +94,15 @@ Admin colour **is** tokenised. `.admin-shell` redefines the shadcn variables in 
 
 Login brand panel (`/hello`, desktop only): `bg-slate-950` with a dot-grid
 ornament (`.login-brand-grid`, slate-400 at 22%, masked to fade at the edges,
-drifting over 24s) and the operator loop drawn as Iklan → Pesanan → Kirim
-(`.login-flow`): a blue-400 pulse crosses the line in 3.2s of a 4s cycle and
-each node's border lights as it passes. All of it is `aria-hidden` and stops
-under `prefers-reduced-motion` (`admin.css`).
+drifting over 24s). Centred in it, the product author's tip jar
+(`.login-qris`, owner decision 2026-10-31): the QRIS code alone
+(`public/images/qris-dukung-adsbookcms.webp`, cropped from the merchant's
+print with its own white quiet zone, checked to decode from the rendered page
+at 1024 and 1280px), a "scan me" corner frame pulsing outside the code, and the
+copy "CMS-nya gratis. Server-nya juga gratis." with the merchant's name under
+it. The image is lazy, so a phone never fetches it. The frame stops under
+`prefers-reduced-motion`; the Iklan › Pesanan › Kirim flow it replaced is gone
+(`admin.css`).
 
 Product icon, flat (2026-10-31, replacing the gradient squircle): an open book
 in solid white — the store's order book, with a gap at the spine so it reads as

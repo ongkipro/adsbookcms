@@ -1,6 +1,6 @@
 # Release and Deployment — AdsBookCMS
 
-> Verified against disk: 2026-10-31 @ `122cb89` + feat/admin-topbar-polish working tree (§3 migration notes to 0076, §4 registry; other sections retain their recorded evidence)
+> Verified against disk: 2026-10-31 @ `393a130` + fix/ui-actions-audit working tree (§3 migration notes to 0077, §4 registry; other sections retain their recorded evidence)
 
 This document is the single owner of how a change reaches production. It replaces the previous `VERSION.md` runbook and the deleted `AUTO_UPDATE_DEPLOY.md`, which between them described three mutually exclusive release models, none of which matched the one workflow that exists.
 
@@ -186,6 +186,10 @@ Migration-specific notes:
 - **`0076`** (audit 2026-10-31 H-1) creates `payment_transaction_attempts`,
   which keeps a regenerated AutoLaris instruction's old provider id so a late
   payment on it can still settle. Additive; empty until a buyer regenerates.
+- **`0077`** (UI-actions audit 2026-10-31 M5) adds `orders.mengantar_handover`
+  (`drop_off` / `pickup`), written on dispatch. One nullable column, no
+  backfill: an order dispatched before it reads NULL and may still be queued
+  for pickup, as before.
 
 ---
 
@@ -197,13 +201,13 @@ Two registries, currently in step:
 | --- | --- | --- |
 | `src/lib/version.ts` | `version` | `1.7.14` |
 | `src/lib/version.ts` | `releaseTag` | `2026.10-plugins` |
-| `src/lib/version.ts` | `schemaVersion` | `77` |
+| `src/lib/version.ts` | `schemaVersion` | `78` |
 | `package.json` | `version` | `1.7.14` |
 
 `src/lib/version.ts` is what the admin sidebar renders and is the value users
 see. Keep it and `package.json` in step when bumping.
 
-`schemaVersion` counts migration files, and the tree holds 77 (`0000`–`0076`).
+`schemaVersion` counts migration files, and the tree holds 78 (`0000`–`0077`).
 `1.5.0` (2026-10-11) is the first release that carries `0056`–`0061`;
 `1.5.12` carries `0062`–`0065`; `1.6.0` carries `0066`.
 `schema-version.test.ts` fails CI on drift; middleware enforces the same chain at

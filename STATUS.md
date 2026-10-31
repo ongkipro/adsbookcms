@@ -1,6 +1,6 @@
 # STATUS — AdsBookCMS
 
-> Verified against disk: 2026-10-31 @ `7079e7b` + feat/admin-topbar-polish (local development, not deployed; headless-browser evidence on a local store). Fleet evidence remains 2026-10-24 (1.7.13 on revenleather, zvarashop, taniniaga, agritani-shop, halotanishop, permatamall, numaskin-adbook, bavenshop, beranda-tani; zanobyshop on 1.7.2); not rechecked.
+> Verified against disk: 2026-10-31 @ `393a130` + fix/ui-actions-audit (local development, not deployed; headless-browser evidence on a local store). Fleet evidence remains 2026-10-24 (1.7.13 on revenleather, zvarashop, taniniaga, agritani-shop, halotanishop, permatamall, numaskin-adbook, bavenshop, beranda-tani; zanobyshop on 1.7.2); not rechecked.
 
 ## 2026-10-31 — Local development (not deployed, not released)
 
@@ -9,17 +9,21 @@
 and pushed: `feat/compact-wa-follow-up` (one-tap WhatsApp chips, compact order
 list), `feat/mengantar-pickup` (A46 pickup or drop-off push, `/time` slot fix),
 `feat/admin-topbar-polish` (topbar, dropdown pickup fields, Link UTM polish,
-Analitik table polish merged from `feat/insights-table-polish`, audit fixes).
-Schema 77 (`0076_payment_transaction_attempts`). Package version unchanged.
+Analitik table polish merged from `feat/insights-table-polish`, audit fixes),
+`feat/storefront-compact-v2` (compact-market v2 storefront, BUILD-LOG 204),
+`fix/ui-actions-audit` (admin UI-actions audit fixes, BUILD-LOG 205).
+Schema 78 (`0077_orders_mengantar_handover`). Package version unchanged.
 
 Audit 2026-10-31 (`docs/AUDIT-2026-10-31.md`, `docs/AUDIT-2026-10-31-tracking.md`):
 fixed H-1 (late payment on a replaced AutoLaris instruction), M-1 (unknown
 Mengantar push outcome blocks re-push), tracking H-1 (fresh-tab `/thanks`
 Purchase for unpaid/cancelled orders), tracking L-2/L-6, M-10. Open findings are
-rows `AUD-*` in `UNIMPLEMENTED_SPECS.md` §1. A browser audit of every admin
-action was still running when this was written.
+rows `AUD-*` in `UNIMPLEMENTED_SPECS.md` §1. The admin UI-actions audit
+(`docs/AUDIT-2026-10-31-ui-actions.md`, 2 high / 7 medium / 8 low) is fixed on
+`fix/ui-actions-audit` except `AUD-UI-M2` (write path), `AUD-UI-TPL` and
+`AUD-UI-L8` (Welcome chip).
 
-Evidence: `npm test` 1091 pass, `npm run check` 0 errors / 0 hints, build
+Evidence: `npm test` 1096 pass on `fix/ui-actions-audit` (1091 before it), `npm run check` 0 errors / 0 hints, build
 complete; 30 admin pages at 390 px without overflow or page errors; Mengantar
 pickup push exercised only against the local stand-in. Not run against live
 Mengantar, AutoLaris, Meta or Google; nothing deployed.
@@ -1094,9 +1098,9 @@ As of the split on 2026-08-16, the fixes recorded below live in this repository.
 
 | Gate | Result |
 | --- | --- |
-| `npm test` | **1091 / 1091 passing** (2026-10-31, `feat/admin-topbar-polish`; not released) |
+| `npm test` | **1096 / 1096 passing** (2026-10-31, `fix/ui-actions-audit`; not released) |
 | `npm run check` | 0 errors · 0 warnings · 0 hints |
-| `npm run build` | Cloudflare server bundle complete; 77 bundled migrations, `0000`–`0076` (2026-10-31, `feat/admin-topbar-polish`) |
+| `npm run build` | Cloudflare server bundle complete; 78 bundled migrations, `0000`–`0077` (2026-10-31, `fix/ui-actions-audit`) |
 | PageSpeed Insights, mobile, official API (2026-08-24) | taniniaga 96 · carukesi 95 · permatamall 94 · zanobyshop 92 · skincarebpom 89 · zvara 85 — CLS 0.00 on every store |
 | Lighthouse accessibility, `/payment` & `/thanks` (2026-08-24) | 100, zero failed audits, on both pages on every install |
 | Browser smoke | A fresh isolated install exposed all ten default couriers through `/api/admin/expeditions`. `/admin/orders/abandoned` rendered its shadcn Card/Badge/Button/Dialog composition at 390, 768, and 1280 CSS px with zero overflow, no stuck busy state, no failed request, and no console error. A populated lead opened the conversion Dialog, focused the invalid address, and returned focus after `Escape`. A separate isolated owner session on `/admin/balance` rendered pending and locked AutoLaris rows, blocked blank manual-confirmation submission with focused inline errors, and an already-confirmed payment redirected `/payment` to `/thanks` with zero console errors. No live provider request, deployment, or remote D1 mutation occurred. |

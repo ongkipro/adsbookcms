@@ -44,3 +44,10 @@ test("shipping queues reserve delivered for completed shipments", () => {
   assert.equal(matchesShippingQueue(shipment, "delivered"), true);
   assert.equal(matchesShippingQueue(shipment, "all"), true);
 });
+
+test("audit M5: a drop-off shipment never needs a pickup; one dispatched before the column still may", () => {
+  const waybilled = { shippingStatus: "processing", cnoteNo: "JNE1", providerOrderId: "P1", pickupScheduleId: null };
+  assert.equal(matchesShippingQueue({ ...waybilled, handover: "drop_off" }, "needs_pickup"), false);
+  assert.equal(matchesShippingQueue({ ...waybilled, handover: "pickup" }, "needs_pickup"), true);
+  assert.equal(matchesShippingQueue({ ...waybilled, handover: null }, "needs_pickup"), true);
+});

@@ -406,18 +406,18 @@ test("the order summary follows every filter, and the chips follow all but statu
   } as never);
   assert.equal(response.status, 200);
 
-  const [, , summaryStatement, , chipStatement] = captured;
+  const [, , summaryStatement, , , chipStatement] = captured;
 
   // The cards used to answer for the whole store regardless of the filter, so
   // a one-day range showed that day's rows beside an all-time total.
   assert.match(summaryStatement.sql, /BETWEEN \? AND \?/);
   assert.ok(summaryStatement.args.includes("2026-08-18"));
-  assert.match(summaryStatement.sql, /shipping_status = \?/);
+  assert.match(summaryStatement.sql, /shipping_status END\) = \?/);
 
   // The chips are the control for picking a status, so they must stay scoped
   // to everything except that status — otherwise choosing one zeroes the rest.
   assert.match(chipStatement.sql, /BETWEEN \? AND \?/);
   assert.ok(chipStatement.args.includes("2026-08-18"));
-  assert.doesNotMatch(chipStatement.sql, /shipping_status = \?/);
+  assert.doesNotMatch(chipStatement.sql, /shipping_status END\) = \?/);
   assert.ok(!chipStatement.args.includes("pending"));
 });

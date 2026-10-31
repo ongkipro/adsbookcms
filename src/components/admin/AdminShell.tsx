@@ -250,9 +250,10 @@ export function AdminShell({
                 Lihat storefront <ArrowUpRight className="size-3.5" aria-hidden="true" />
               </a>}
               {!mustChangePassword && <span className="mx-1 hidden h-5 w-px bg-slate-200 xl:block" aria-hidden="true" />}
-              {/* A first-run session may only rotate its password; the bell
-                  hides itself for roles the endpoint refuses. */}
-              {!mustChangePassword && <NotificationBell />}
+              {/* A first-run session may only rotate its password. Advertiser
+                  may not read notifications; asking logged a 403 on every page
+                  (audit 2026-10-31 L1). */}
+              {!mustChangePassword && adminRole !== "advertiser" && <NotificationBell />}
               {/* Owner and admin only: the other roles send no status request (A39). */}
               {!mustChangePassword && (adminRole === "owner" || adminRole === "admin") && (
                 <OperationalStatusIcon active={activeMenu === "status"} />

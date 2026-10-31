@@ -25,6 +25,7 @@ test('source drill-down keeps the period and encodes missing or hostile source n
   const hostile = new URL(insightsOrderLink('x&status=paid', ''), 'https://local.test');
   assert.equal(hostile.searchParams.get('source_slug'), 'x&status=paid');
   assert.equal(hostile.searchParams.has('status'), false);
+  assert.equal(hostile.searchParams.get('date_filter'), 'this_month', 'the report default is named, not left to the list default');
 });
 
 test('ranking sort is numeric, reversible and leaves source data unchanged', () => {

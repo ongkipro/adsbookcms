@@ -91,13 +91,6 @@ type PaymentDetails = {
   failed_reason: string | null;
 };
 
-type SellerBankAccount = {
-  bank_code: string;
-  account_holder: string;
-  account_number: string;
-  is_active: number | boolean;
-};
-
 type Order = {
   id: number | string;
   order_number: string;
@@ -126,6 +119,14 @@ type Order = {
   payment_switch?: { available: boolean; reason: string | null; total_amount: number } | null;
   /** The buyer's /payment page for an unpaid prepaid order (fragment locator). */
   payment_link?: string | null;
+  /** Follow-up context served with the order (templates, store, accounts, buyer links). */
+  crm?: {
+    templates?: Record<string, string>;
+    seller_name?: string;
+    bank_accounts?: string;
+    epayment_link?: string | null;
+    order_details_link?: string | null;
+  };
   payment_status: string;
   shipping_status: string;
   /** Set once the order is void; see `isVoidOrder`. */
@@ -826,9 +827,6 @@ export function OrderDetail({ invoice }: { invoice: string }) {
   const pushAccepted = useRef(false);
   const [notice, setNotice] = useState("");
   const [copiedTarget, setCopiedTarget] = useState("");
-  const [crmTemplates, setCrmTemplates] = useState({ ...defaultCrmTemplates });
-  const [crmSellerName, setCrmSellerName] = useState("");
-  const [crmBankAccounts, setCrmBankAccounts] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -859,60 +857,14 @@ export function OrderDetail({ invoice }: { invoice: string }) {
     return () => controller.abort();
   }, [invoice, reloadKey]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetch("/api/admin/settings", {
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.success) return;
-        if (payload.data?.crm_templates) {
-          setCrmTemplates((current) => ({
-            ...current,
-            ...payload.data.crm_templates,
-          }));
-        }
-        setCrmSellerName(String(payload.data?.store?.name || "").trim());
-      })
-      .catch(() => undefined);
-
-    void fetch("/api/admin/seller-bank-accounts", {
-      headers: { Accept: "application/json" },
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.success || !Array.isArray(payload.data)) return;
-        const accounts = payload.data as SellerBankAccount[];
-        setCrmBankAccounts(
-          accounts
-            .filter((account) => Boolean(account.is_active))
-            .map((account) =>
-              [
-                account.bank_code,
-                account.account_number,
-                account.account_holder ? `a.n. ${account.account_holder}` : "",
-              ]
-                .filter(Boolean)
-                .join(" ")
-            )
-            .filter(Boolean)
-            .join(", ")
-        );
-      })
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, []);
-
   const allCrmMessages = useMemo<Record<string, string>>(() => {
     if (!order) return {};
+    const crm = order.crm;
     const safePhone = String(order.customer_phone || "").trim();
     const items = Array.isArray(order.items) ? order.items : [];
     const messages: Record<string, string> = {};
     for (const step of CRM_STEPS) {
-      messages[step.key] = renderCrmMessage(crmTemplates[step.key] || "", {
+      messages[step.key] = renderCrmMessage(crm?.templates?.[step.key] || defaultCrmTemplates[step.key] || "", {
         customerName: order.customer_name || "Pelanggan",
         customerPhone: safePhone,
         address: order.address || undefined,
@@ -942,14 +894,14 @@ export function OrderDetail({ invoice }: { invoice: string }) {
         totalAmount: order.total_amount || 0,
         courierCode: order.courier_code || "",
         cnoteNo: order.cnote_no || undefined,
-        sellerName: crmSellerName,
-        bankAccounts: crmBankAccounts,
-        epaymentLink: "",
-        orderDetailsLink: `/admin/orders/${encodeURIComponent(order.order_number)}`,
+        sellerName: crm?.seller_name || "",
+        bankAccounts: crm?.bank_accounts || "",
+        epaymentLink: crm?.epayment_link || "",
+        orderDetailsLink: crm?.order_details_link || "",
       });
     }
     return messages;
-  }, [order, crmTemplates, crmSellerName, crmBankAccounts]);
+  }, [order]);
 
   const allCrmUrls = useMemo<Record<string, string>>(() => {
     if (!order) return {};

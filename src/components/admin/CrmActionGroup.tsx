@@ -122,7 +122,7 @@ export function CrmActionGroup({ orderId, crmUrls, initialRows }: {
     {error ? <div role="alert" className="flex flex-wrap items-center gap-2 text-xs">{error}<Button variant="outline" size="sm" onClick={refresh}>Coba lagi</Button></div> :
       <div role="group" aria-label="Tahap follow-up" aria-busy={!rows} className="grid grid-cols-5 gap-1">
         {CRM_STEPS.map(step => {
-          const done = rows?.find(entry => entry.step === step.key)?.completed;
+          const done = Boolean(rows?.find(entry => entry.step === step.key)?.completed);
           const url = crmUrls[step.key];
           const title = `${step.title}${done ? ' · sudah dilakukan' : ''}`;
           // Done reads as grey, not an icon: a check does not fit a fifth of the column.

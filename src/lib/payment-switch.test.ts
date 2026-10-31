@@ -5,6 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { splitMigrationStatements } from './schema-version.ts';
 import {
   adminPaymentSwitchView,
+  buyerOrderLinks,
   parsePaymentSwitchTarget,
   paymentSwitchBlockReason,
   PaymentSwitchError,
@@ -162,4 +163,16 @@ test('an admin re-quote cannot write its COD total over an order switched while 
   const route = readFileSync(new URL('../pages/api/admin/orders/[id].ts', import.meta.url), 'utf8');
   assert.match(route, /const quoteGuard = hasShippingSelection \? `\s*AND payment_method = \? AND total_amount = \?` : '';/);
   assert.match(route, /\.\.\.\(hasShippingSelection \? \[current\.payment_method, current\.total_amount\] : \[\]\)/);
+});
+
+test("audit H2: follow-up links are the buyer's own pages, never an admin path", () => {
+  const order = { id: 5, public_status_token: "tok/5", payment_method: "bank_transfer", payment_status: "unpaid", stock_restored_at: null };
+  assert.deepEqual(buyerOrderLinks("https://toko.test", order), {
+    order_details_link: "https://toko.test/thanks#o=5&t=tok%2F5",
+    epayment_link: "https://toko.test/payment#o=5&t=tok%2F5",
+  });
+  assert.equal(buyerOrderLinks("https://toko.test", { ...order, payment_method: "cod" }).epayment_link, null, "COD has nothing to pay online");
+  assert.equal(buyerOrderLinks("https://toko.test", { ...order, payment_status: "paid" }).epayment_link, null);
+  assert.equal(buyerOrderLinks("https://toko.test", { ...order, stock_restored_at: "2026-10-31" }).epayment_link, null, "a void order is not payable");
+  assert.deepEqual(buyerOrderLinks("https://toko.test", { ...order, public_status_token: null }), { order_details_link: null, epayment_link: null });
 });

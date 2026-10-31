@@ -327,7 +327,16 @@ function validateSections(sections: LandingSectionInput[] | undefined) {
       `Maksimal ${LANDING_SECTIONS_MAX} section per landing page.`,
     );
   }
-  for (const section of sections) validateSection(section);
+  // Name the section: "Teks section harus diisi" alone left the operator
+  // hunting through every block (audit 2026-10-31 L5).
+  sections.forEach((section, index) => {
+    try {
+      validateSection(section);
+    } catch (error) {
+      if (!(error instanceof LandingPageValidationError)) throw error;
+      throw new LandingPageValidationError(`Section ${index + 1}: ${error.message}`, error.status);
+    }
+  });
 }
 
 /**

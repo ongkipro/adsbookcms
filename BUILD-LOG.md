@@ -7477,3 +7477,66 @@ records the direction and the reasons; §1.1, §2 and §7.4 were rewritten to ma
   - CDP touch: a vertical swipe that starts on the hero scrolls the page,
     and a horizontal one changes the slide.
   - Not verified: real iOS/Android devices.
+
+### Entry 205: Admin UI-actions audit fixes (H1, H2, M1–M7, L1–L8)
+Date: 2026-10-31. Branch `fix/ui-actions-audit` on `feat/storefront-compact-v2`.
+Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
+`UNIMPLEMENTED_SPECS.md` §1 (`AUD-UI-*`).
+
+- **H1.** The orders list and detail APIs now serve the follow-up context
+  themselves: templates, store name, and bank accounts. The accounts are the
+  order's own snapshot, else the store's active accounts
+  (`crmStoreContext`). Customer service no longer depends on
+  `/api/admin/settings` or `/api/admin/seller-bank-accounts`, which it may
+  not read.
+- **H2.** `buyerOrderLinks` builds absolute buyer links. `{{order_details_link}}`
+  is `/thanks#o=&t=`. `{{epayment_link}}` is `/payment#o=&t=` while the order
+  is payable, the same rule as the admin "link pembayaran". No message
+  carries an `/admin/` path.
+- **M1.** A bulk status change asks first, naming the count and the target.
+  Voiding targets are marked as irreversible. The cancel button reads
+  "Kembali" so it is not confused with the status "Batal". The count is the
+  number of rows validated, because D1 `meta.changes` includes the 0075
+  trigger's update. The message uses the Indonesian label.
+- **M2 (partial).** The list's status, filter and chips use an effective
+  status: a pending order with `stock_restored_at` reads as cancelled. The
+  write path is unchanged (AUD-UI-M2).
+- **M3.** The chip no longer renders a stray `0`.
+- **M4.** Analitik drill-down links always name the period. The order list
+  opens on the `date_filter` its URL names (`adminDateSelectionFromQuery`).
+- **M5.** Migration `0077_orders_mengantar_handover`: dispatch records
+  `drop_off` or `pickup`. The pickup queue and the schedule endpoint skip
+  drop-offs. A pre-0077 NULL keeps the old reading. Schema 78.
+- **M6.** A content validation failure names the fields
+  (`contentValidationMessage`), not the Zod issue JSON.
+- **M7.** The Akses edit and reset forms are shadcn `Dialog`s: Escape closes
+  them, focus is trapped, and labels are bound to their inputs. Role uses
+  `FilterSelect`.
+- **Lows.**
+  - L1: no bell for advertiser.
+  - L2: sync banner names the failed invoices.
+  - L3: "sukses N%" beside the RTS label.
+  - L4: Indonesian duplicate toast.
+  - L5: "Section N:" prefix on landing validation errors.
+  - L6: combobox trigger and clear have names.
+  - L7: default FU 5 typo. Stored templates keep their own text.
+  - L8: shipping table fits at 1366 px. The row action is "Edit", the table
+    minimum is 1000 px, and the cell padding is px-3.
+- Verification:
+  - `npm test`: 1096 pass, 0 fail. One earlier full run failed the PBKDF2
+    timing test at load average about 10; it passed on rerun.
+  - `npm run check`: 0 errors, 0 hints (548 files).
+  - `npm run build`: complete.
+  - Local headless Chromium, as owner:
+    - Detail chips link `/thanks` and `/payment`, use the store name, and
+      contain no `/admin/`.
+    - Bulk confirm reads "Ubah 2 pesanan ke Batal?" with "Kembali" and
+      "Ubah ke Batal", at 1366 and 390 px.
+    - The drill URL opens on "Bulan ini".
+    - The shipping row action is inside the table at 1366 px.
+    - The Akses dialogs close on Escape and keep focus.
+  - As a temporary customer-service user (deleted afterwards): FU 2 carries
+    the store name and the payment link, with no 403.
+  - Not checked: real devices, live Mengantar dispatch of `mengantar_handover`
+    (stand-in only), and a WhatsApp send.
+

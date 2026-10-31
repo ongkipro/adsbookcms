@@ -52,6 +52,9 @@ export function withInsightsPeriod(href: string, currentPathname: string, curren
 export function insightsOrderLink(slug: string | null, query: string) {
   const url = new URL(insightsPeriodLink('/admin/orders', query), 'https://local.test');
   url.searchParams.set('source_slug', slug ?? SOURCE_SLUG_NONE_FILTER);
+  // The report's default period is implicit in its URL; the order list's is
+  // "Semua waktu", so the link names it (audit 2026-10-31 M4).
+  if (!url.searchParams.has('date_filter')) url.searchParams.set('date_filter', 'this_month');
   return url.pathname + url.search;
 }
 

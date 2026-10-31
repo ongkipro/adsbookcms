@@ -63,6 +63,7 @@ type Shipment = {
   receiverDeliveryRate: number | null;
   receiverRiskLabel: string | null;
   pickupScheduleId: number | null;
+  handover?: string | null;
   pickupScheduledAt: string | null;
   pickupStatus: string | null;
   warehouseName: string;
@@ -410,9 +411,13 @@ export function ShippingOperations() {
         orderIds: ids,
       });
       const data = payload.data;
+      // Name the failures; a bare count left the operator guessing which rows (audit 2026-10-31 L2).
+      const failures = ((data.results ?? []) as Array<{ orderNumber?: string; error?: string | null }>)
+        .filter((result) => result.error)
+        .map((result) => `${result.orderNumber ?? "?"}: ${result.error}`);
       setNotice({
         tone: data.failed > 0 ? "warning" : "success",
-        message: `Sinkronisasi selesai: ${data.updated} diperbarui, ${data.unchanged} tetap, ${data.failed} gagal dari ${data.results?.length ?? ids.length} order.`,
+        message: `Sinkronisasi selesai: ${data.updated} diperbarui, ${data.unchanged} tetap, ${data.failed} gagal dari ${data.results?.length ?? ids.length} order.${failures.length ? ` Gagal — ${failures.slice(0, 5).join("; ")}${failures.length > 5 ? `; +${failures.length - 5} lainnya` : ""}.` : ""}`,
       });
       await loadData();
     } catch (error) {
@@ -941,7 +946,7 @@ export function ShippingOperations() {
             className="hidden overflow-x-auto lg:block"
             aria-label="Tabel pengiriman desktop"
           >
-            <Table className="min-w-[1100px]">
+            <Table className="min-w-[1000px]">
               <TableHeader>
                 <TableRow className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
                   <TableHead className="w-12 px-4 py-3">
@@ -957,13 +962,13 @@ export function ShippingOperations() {
                       className="size-5 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
                     />
                   </TableHead>
-                  <TableHead className="px-4 py-3 border-r border-slate-200">
+                  <TableHead className="px-3 py-3 border-r border-slate-200">
                     Order & customer
                   </TableHead>
-                  <TableHead className="px-4 py-3">Tujuan</TableHead>
-                  <TableHead className="px-4 py-3">Kurir & resi</TableHead>
-                  <TableHead className="px-4 py-3">Status</TableHead>
-                  <TableHead className="px-4 py-3">Pickup</TableHead>
+                  <TableHead className="px-3 py-3">Tujuan</TableHead>
+                  <TableHead className="px-3 py-3">Kurir & resi</TableHead>
+                  <TableHead className="px-3 py-3">Status</TableHead>
+                  <TableHead className="px-3 py-3">Pickup</TableHead>
                   <TableHead className="px-5 py-3 text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -973,7 +978,7 @@ export function ShippingOperations() {
                   const selected = selectedOrderIds.includes(shipment.id);
                   return (
                     <TableRow key={shipment.id}>
-                      <TableCell className="px-4 py-4">
+                      <TableCell className="px-3 py-4">
                         {ready ? (
                           <Checkbox
                             checked={selected}
@@ -991,7 +996,7 @@ export function ShippingOperations() {
                           <span className="block size-4" />
                         )}
                       </TableCell>
-                      <TableCell className="px-4 py-4 border-r border-slate-200">
+                      <TableCell className="px-3 py-4 border-r border-slate-200">
                         <a
                           href={`/admin/orders/${encodeURIComponent(shipment.orderNumber)}`}
                           className="font-semibold text-slate-950 hover:text-blue-700 hover:underline"
@@ -1005,7 +1010,7 @@ export function ShippingOperations() {
                           {shipment.customerPhone}
                         </p>
                       </TableCell>
-                      <TableCell className="px-4 py-4">
+                      <TableCell className="px-3 py-4">
                         <p className="font-semibold text-slate-900">
                           {shipment.city}
                         </p>
@@ -1018,7 +1023,7 @@ export function ShippingOperations() {
                           </p>
                         )}
                       </TableCell>
-                      <TableCell className="px-4 py-4">
+                      <TableCell className="px-3 py-4">
                         <p className="font-semibold text-slate-900">
                           {shipment.courierCode || "Belum dipilih"}{" "}
                           {shipment.courierService
@@ -1039,7 +1044,7 @@ export function ShippingOperations() {
                           Ongkir {currency(shipment.shippingCost)}
                         </p>
                       </TableCell>
-                      <TableCell className="px-4 py-4 min-w-[200px]">
+                      <TableCell className="px-3 py-4 min-w-[200px]">
                         <StatusBadge status={shipment.shippingStatus} />
                         {shipment.providerOrderId && (
                           <div className="mt-2 text-xs leading-tight text-slate-500">
@@ -1062,7 +1067,7 @@ export function ShippingOperations() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="px-4 py-4">
+                      <TableCell className="px-3 py-4">
                         {shipment.pickupScheduledAt ? (
                           <>
                             <p className="font-semibold text-slate-900">
@@ -1089,11 +1094,13 @@ export function ShippingOperations() {
                               Menunggu Resi
                             </span>
                           )}
+                          {/* "Edit", not "Edit order": the longer label pushed the last column past 1366 px (audit 2026-10-31 L8). */}
                           <a
                             href={`/admin/orders/${encodeURIComponent(shipment.orderNumber)}?edit=shipping`}
-                            className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md bg-slate-900 px-3 text-xs font-medium text-slate-50 shadow-sm transition-colors hover:bg-slate-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300"
+                            aria-label={`Edit order ${shipment.orderNumber}`}
+                            className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-900 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-300"
                           >
-                            Edit order
+                            Edit
                           </a>
                         </div>
                       </TableCell>

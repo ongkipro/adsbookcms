@@ -460,7 +460,7 @@ export async function dispatchOrderToMengantar(
           provider_order_id = ?, provider_batch_id = ?, cnote_no = ?,
           provider_dispatch_error = ?, provider_dispatch_claimed_at = NULL,
           provider_dispatched_at = ?, shipping_status = ?,
-          confirmed_at = COALESCE(confirmed_at, ?)
+          confirmed_at = COALESCE(confirmed_at, ?), mengantar_handover = ?
         WHERE id = ? AND provider_order_id IS NULL
           AND provider_dispatch_claimed_at = ?
           AND shipping_status = 'pending'
@@ -480,6 +480,7 @@ export async function dispatchOrderToMengantar(
         accepted.providerDispatchedAt,
         accepted.shippingStatus,
         acceptedAt,
+        pickupPayload.type === "scheduledPickup" ? "pickup" : "drop_off",
         order.id,
         claimedAt,
         order.payment_method,

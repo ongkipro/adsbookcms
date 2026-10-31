@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { getRuntimeEnv } from "../../../lib/env";
 import {
+  contentValidationMessage,
   parseContentKey,
   validateContent,
 } from "../../../lib/storefront-content";
@@ -340,9 +341,10 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 
     return json({ success: false, error: "Unsupported content action." }, 400);
   } catch (error) {
-    const message = errorMessage(error);
+    const invalid = contentValidationMessage(error);
+    const message = invalid ?? errorMessage(error);
     const status =
-      /not found|required|must|invalid|exceeds|configured|allowed|key/i.test(
+      invalid || /not found|required|must|invalid|exceeds|configured|allowed|key/i.test(
         message,
       )
         ? 400

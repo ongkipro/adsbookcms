@@ -142,6 +142,7 @@ class DispatchDatabase {
         created_at TEXT NOT NULL
       );
     `);
+    this.sqlite.exec("ALTER TABLE orders ADD COLUMN mengantar_handover TEXT");
   }
 
   prepare(sql: string) {
@@ -385,8 +386,9 @@ test("a scheduled pickup books one provider slot per address and links each orde
   assert.deepEqual(schedules.map((row) => ({ ...row })), [
     { warehouse_id: 1, provider_reference: "time-13", shipment_count: 2, scheduled_at: "2026-11-02T06:00:00.000Z", notes: "Motor" },
   ]);
-  const linked = database.sqlite.prepare("SELECT id, pickup_schedule_id FROM orders ORDER BY id").all() as Array<{ pickup_schedule_id: number }>;
+  const linked = database.sqlite.prepare("SELECT id, pickup_schedule_id, mengantar_handover FROM orders ORDER BY id").all() as Array<{ pickup_schedule_id: number; mengantar_handover: string }>;
   assert.ok(linked.every((row) => row.pickup_schedule_id !== null));
+  assert.ok(linked.every((row) => row.mengantar_handover === "pickup"));
 });
 
 test("an existing provider slot is reused, and drop-off stays the default", async (context) => {
@@ -416,6 +418,8 @@ test("an existing provider slot is reused, and drop-off stays the default", asyn
   await dispatchOrderToMengantar(asD1(plain), locals, 1);
   assert.deepEqual(JSON.parse(calls.find((call) => call.path.endsWith("/order"))!.body).pickup, { type: "dropOff", address_id: "pickup-1" });
   assert.equal(calls.some((call) => call.path.endsWith("/time")), false);
+  // Audit 2026-10-31 M5: stored, so the shipping page does not queue it for pickup.
+  assert.equal((plain.sqlite.prepare("SELECT mengantar_handover FROM orders WHERE id = 1").get() as { mengantar_handover: string }).mengantar_handover, "drop_off");
 });
 
 // Audit 2026-10-31 M-1: an unknown outcome must not read as a plain failure,

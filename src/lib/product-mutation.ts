@@ -14,6 +14,8 @@ export type ProductMutationPayload = {
   category?: unknown;
   brand?: unknown;
   description?: unknown;
+  google_category_id?: unknown;
+  google_category_path?: unknown;
   is_active?: unknown;
   image_url?: unknown;
   variants?: unknown;
@@ -91,6 +93,9 @@ type ParsedProduct = {
   /** Undefined when the request did not send it: an update keeps the stored value. */
   brand?: string | null;
   description?: string | null;
+  /** Google product taxonomy id and path; undefined keeps the stored pair. */
+  google_category_id?: number | null;
+  google_category_path?: string | null;
   image_url: string | null;
   is_active: boolean;
   variants: ParsedVariant[];
@@ -176,6 +181,27 @@ export function parseProductMutationPayload(
       : (typeof body.description === "string"
           ? body.description.replace(/\r\n?/g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, 5000)
           : "") || null;
+  // A Google taxonomy id with its path, or null to clear both. The id is not
+  // checked against the list here: the taxonomy lives in a static asset the
+  // Worker does not load, and the field is admin-only.
+  // lazy: an id outside Google's list reaches the feed and Merchant Center
+  // flags it. Upgrade path: validate against the asset via the ASSETS binding.
+  let googleCategoryId: number | null | undefined;
+  let googleCategoryPath: string | null | undefined;
+  if (body.google_category_id !== undefined) {
+    if (body.google_category_id === null || body.google_category_id === "") {
+      googleCategoryId = null;
+      googleCategoryPath = null;
+    } else {
+      const id = parseInteger(body.google_category_id);
+      const path = clean(body.google_category_path, 750);
+      if (id === null || id <= 0 || !path) {
+        return { error: "Kategori Google tidak valid. Pilih ulang dari daftar." };
+      }
+      googleCategoryId = id;
+      googleCategoryPath = path;
+    }
+  }
   const imageUrl = clean(body.image_url, 500);
   if (
     imageUrl &&
@@ -307,6 +333,9 @@ export function parseProductMutationPayload(
     category,
     ...(brand !== undefined ? { brand } : {}),
     ...(description !== undefined ? { description } : {}),
+    ...(googleCategoryId !== undefined
+      ? { google_category_id: googleCategoryId, google_category_path: googleCategoryPath ?? null }
+      : {}),
     image_url: imageUrl || null,
     is_active: isActive,
     variants,

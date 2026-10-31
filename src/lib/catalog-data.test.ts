@@ -230,3 +230,18 @@ test("a product with no description describes itself from its own fields, never 
   assert.ok(product.seoDescription.length <= 155);
   assert.doesNotMatch(product.description, /katalog toko/);
 });
+
+test("a chosen Google category is sent exactly, and Meta gets it instead of a guess", async () => {
+  const { generateMetaCatalogXml } = await import("./catalog-feed.ts");
+  const [product] = mergeStorefrontCatalog(
+    [{ id: 14323, title: "Dompet Kulit", slug: "dompet-kulit", category: "Dompet", google_category_id: 2503, google_category_path: "Health & Beauty > Personal Care > Cosmetics > Bath & Body > Bar Soap", image_url: "/images/c.jpg", is_active: 1 }],
+    [{ id: 6, product_id: 14323, title: "Coklat", price: 150000 }],
+  );
+  const google = generateGoogleCatalogXml([product], "https://toko.example", "Toko");
+  assert.match(google, /<g:google_product_category>2503<\/g:google_product_category>/);
+  assert.match(google, /<g:product_type>Health &amp; Beauty &gt; Personal Care &gt; Cosmetics &gt; Bath &amp; Body &gt; Bar Soap<\/g:product_type>/);
+  const meta = generateMetaCatalogXml([product], "https://toko.example", "Toko");
+  assert.match(meta, /<g:google_product_category>2503<\/g:google_product_category>/);
+  // "Dompet" alone would make the keyword engine guess a Meta wallet category.
+  assert.doesNotMatch(meta, /fb_product_category/);
+});

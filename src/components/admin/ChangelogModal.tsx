@@ -29,10 +29,35 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.8.1",
+    version: "1.8.2",
     date: "31 Oktober 2026",
     releaseTag: "2026.10-ops",
     isLatest: true,
+    highlight: "Kategori Google resmi untuk setiap produk, form produk yang lebih rapi, dan logo login yang kembali ke beranda.",
+    changes: [
+      {
+        title: "Kategori Google resmi",
+        description: "Kategori Google dipilih otomatis dari nama produk (badge Otomatis), dengan saran lain yang tinggal diklik, atau cari sendiri dari taksonomi resmi Google dalam bahasa Indonesia (mis. sabun, serum wajah, cuka). ID-nya dikirim persis ke feed Google Merchant dan katalog Meta. Label kategori di toko terisi otomatis dan tetap bisa diubah. Merek kosong berarti nama toko.",
+      },
+      {
+        title: "Kartu varian yang rapi",
+        description: "Setiap varian punya kepala sendiri berisi nomor, ID varian (atau \"Baru\"), dan tombol hapus. Harga memakai awalan Rp, berat memakai gram, dan persentase hemat dari harga coret tampil otomatis.",
+      },
+      {
+        title: "Logo login ke beranda",
+        description: "Logo AdsBookCMS di halaman login kini bisa diklik untuk kembali ke beranda toko, di HP maupun desktop.",
+      },
+      {
+        title: "Upload foto tarik-lepas",
+        description: "Foto produk bisa ditarik ke kotak upload atau dipilih lewat tombol. Pratinjau, status mengunggah, serta tombol Ganti dan Hapus foto ada di satu tempat, lengkap dengan saran ukuran untuk feed Google dan Meta.",
+      },
+    ],
+  },
+  {
+    version: "1.8.1",
+    date: "31 Oktober 2026",
+    releaseTag: "2026.10-ops",
+    isLatest: false,
     highlight: "Halaman pembayaran dan terima kasih lebih jelas, feed Google lebih akurat, dan produk kini punya kategori, merek, serta deskripsi.",
     changes: [
       {

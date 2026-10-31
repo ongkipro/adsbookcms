@@ -2,42 +2,25 @@
 interface Props {
   href?: string;
   class?: string;
-  tone?: 'light' | 'dark' | 'glossy';
-  showTagline?: boolean;
 }
 
-const { href = '/', class: className = '', tone = 'dark', showTagline = false } = Astro.props;
-const isLight = tone === 'light';
-const textClass = isLight ? 'text-white' : 'text-[#111111]';
-const goldClass = 'text-[#111111]';
-
-// The wordmark used to be the reference store's name spelled out, with a
-// hardcoded monogram and tagline, while the aria-label beside
-// it resolved correctly from the tenant. So the accessible name said one store
-// and every sighted visitor read another — and every install shipped wearing
-// the reference store's brand. Same defect as LOGIN-10 and LOGIN-18, one
-// surface over.
-//
-// The two-tone treatment survives by splitting the store's own name: the first
-// word carries the weight, the remainder takes the gold. A single-word name
-// simply renders in one tone, which is the correct degradation rather than a
-// second layout.
+const { href = '/', class: className = '' } = Astro.props;
+// Always the tenant's own name. The wordmark once spelled out the reference
+// store's name on every install (LOGIN-10/18); it reads the tenant or nothing.
+// Set in the body face, not a display serif: a default storefront has to suit
+// a kitchenware shop as well as a perfume one.
 const storeName = Astro.locals.tenant.name.trim();
-const [leadWord = '', ...restWords] = storeName.split(/\s+/);
-const trailingWords = restWords.join(' ');
-const tagline = Astro.locals.tenant.tagline?.trim() ?? '';
-const monogram = (leadWord[0] ?? 'A').toUpperCase();
+const monogram = (storeName[0] ?? 'A').toUpperCase();
 const brandMark = Astro.locals.tenant.brandMark;
 ---
 
 <a
   href={href}
-  class={`group inline-flex min-h-11 items-center gap-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#111111] ${className}`}
+  class={`inline-flex min-h-11 min-w-0 items-center gap-2.5 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111] ${className}`}
   aria-label={Astro.locals.tenant.name}
   title={Astro.locals.tenant.defaultTitle}
 >
-  <!-- Elegant Monogram Luxury Emblem Icon without border.
-       The letter is drawn by CSS rather than written as a text node. As markup
+  <!-- The letter is drawn by CSS rather than written as a text node. As markup
        it was a second visible string inside the link that the accessible name
        did not contain, which is `label-content-name-mismatch` (WCAG 2.5.3) —
        `aria-hidden` keeps it out of the accessible name but not out of what an
@@ -54,41 +37,21 @@ const brandMark = Astro.locals.tenant.brandMark;
       <img
         src={brandMark}
         alt=""
-        width="26"
-        height="28"
-        class={`shrink-0 object-contain ${isLight ? 'invert' : ''}`}
+        width="32"
+        height="32"
+        class="shrink-0 object-contain"
         decoding="async"
       />
     ) : (
       <span
         aria-hidden="true"
         data-monogram={monogram}
-        class={`site-brand-monogram flex h-7 w-7 items-center justify-center bg-transparent text-[14px] font-bold tracking-widest ${goldClass} transition-colors group-hover:text-[#111111]`}
-        style="font-family: 'Cinzel', serif;"
+        class="site-brand-monogram flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#111111] text-sm font-bold text-white"
       ></span>
     )
   }
 
-  <span class="flex flex-col justify-center">
-    <span
-      class={`whitespace-nowrap text-[15px] font-bold uppercase tracking-[0.2em] leading-none ${textClass}`}
-      style="font-family: 'Cinzel', 'Playfair Display', Georgia, serif;"
-    >
-      {/* The separator is a real space, not just a margin: rendered as two
-          adjacent spans the text computed as "ZanobyShop", one word. */}
-      {leadWord}{trailingWords && <> <span class={`font-normal ${goldClass}`}>{trailingWords}</span></>}
-    </span>
-    {
-      showTagline && tagline && (
-        <span
-          class="mt-1 text-[8px] font-semibold uppercase tracking-[0.25em] text-[#767676]"
-          style="font-family: Inter, sans-serif;"
-        >
-          {tagline}
-        </span>
-      )
-    }
-  </span>
+  <span class="min-w-0 truncate text-[17px] font-bold leading-none tracking-[-0.01em] text-[#111111]">{storeName}</span>
 </a>
 
 <style>

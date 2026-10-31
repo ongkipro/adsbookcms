@@ -1,6 +1,6 @@
 # AdsBookCMS — Design System
 
-> Verified against disk: 2026-09-26 @ `01f87ed` + working tree (control contract, type anatomy, responsive)
+> Verified against disk: 2026-10-31 @ `cb45a2e` + `feat/storefront-compact-v2` working tree (storefront §1.1, §2, §3, §7.4 rewritten for the compact-market v2 direction)
 >
 > **The public palette is neutral plus one overridable accent (ADR-019, as
 > amended 2026-08-23).** Colour tokens below that describe the retired gold
@@ -33,26 +33,23 @@ properties.
 
 ### 1.1 Storefront palette (`compact-market`)
 
-Neutral ink on white, with one accent. Counts are literal occurrences of the hex
-string under `src/`, case-insensitive, measured 2026-09-09.
+Neutral ink on white, one interactive accent, one sale colour. Set 2026-10-31
+by the v2 direction (§3).
 
-| Hex | Role | Uses |
-| --- | --- | ---: |
-| `#111111` | Primary ink — body text, announcement bar, primary button fill | 78 |
-| `#555555` | Secondary text | 23 |
-| `#E5E5E5` | Hairline border — the only border colour in storefront chrome | 14 |
-| `#767676` | Tertiary / placeholder text | 14 |
-| `#F5F5F5` | Image well and inert surface fill | 4 |
-| `#2C6ECB` | Accent — `--sf-accent`, the re-brand surface | 4 |
-| `#1F5199` | Accent hover / pressed — `--sf-accent-strong` | 3 |
+| Hex | Role |
+| --- | --- |
+| `#111111` | Primary ink — text, selected chip fill, monogram tile |
+| `#555555` | Secondary text |
+| `#767676` | Tertiary text, struck-through compare price |
+| `#F4F4F5` | Soft surface — tagline line, search well, info notes, review cards, footer, the canvas outside the column on wide screens, section separators (`border-t-8`) |
+| `#E4E4E7` | Outline of pill controls at rest (chips, search, secondary buttons) |
+| `#EDEDED` | The one hairline: under the sticky header and above the sticky buy bar |
+| `#2C6ECB` / `#1F5199` | Accent — primary buy action ("Pesan sekarang"), same value as `--sf-accent` / `--sf-accent-strong` |
+| `#D92D20` | Discount pill only (`-25%`), white text, 4.8:1 |
+| `#15803D` | Benefit check and "Pembeli terverifikasi", both data-backed |
 
-White is the page ground; there is no tinted storefront canvas. The
-champagne-gold boutique palette this section used to document is gone.
-`#C5A880` survives in exactly two places, both of them prose inside a CSS header
-comment (`src/styles/landing-pages/landing.css`, `contoh-landing.css`).
-`#f8f7f4` — described here for months as the storefront canvas, with 49 uses and
-a `SiteHeader` citation — is not in the storefront at all: it survives only in
-those same landing-page stylesheets and in `src/pages/install.astro`.
+White is the column ground. The compare price is the only struck text; the
+discount pill is the only red, and it renders only when a compare price exists.
 
 Named in `src/lib/ui-variants.ts`:
 
@@ -126,7 +123,6 @@ with the split, and the document was wrong about its own subject.
 | Family | Weights imported | Import site | Applied where |
 | --- | --- | --- | --- |
 | Inter | 400, 600, 700 | `src/styles/foundation.css` | shared `body` and admin shell |
-| Cinzel | 700 | `src/styles/foundation.css` | brand type only, via inline `style` |
 
 Font faces are owned by `foundation.css`, which all three surface entries import.
 They were in `BaseLayout` once, so the 26 admin routes asked for a family whose
@@ -134,14 +130,10 @@ faces were declared nowhere they could see and rendered in `system-ui`; the
 foundation exists so that cannot recur. Plus Jakarta Sans is no longer imported;
 `EmbedLayout` intentionally inherits Inter.
 
-Cinzel is applied through three inline `style` attributes, not a class or token:
-
-- `src/components/storefront/shared/SiteBrand.astro:50` — `font-family: 'Cinzel', serif`
-- `src/components/storefront/shared/SiteBrand.astro:56` — `font-family: 'Cinzel', 'Playfair Display', Georgia, serif`
-- `src/pages/produk/[slug].astro:411` — `font-family: 'Cinzel', serif`
-
-There were four. The fourth was `home/ProofsSection.astro`, in a component that
-no longer exists.
+No display face is loaded. Cinzel set the wordmark and the review initials
+until 2026-10-31; a luxury serif in capitals did not suit a default every kind
+of merchant ships with, and it cost a font request on every public page. The
+import and the `@fontsource/cinzel` dependency are gone.
 
 `AdminLayout.astro` imports no font files at all; admin inherits Inter from `foundation.css`.
 
@@ -154,45 +146,77 @@ no longer exists.
 
 ### 2.3 Storefront type treatment
 
-The storefront voice is **small, uppercase, wide-tracked labels over large tight headlines**.
+Sentence case, Inter throughout, sizes a buyer reads without zooming. The v1
+voice — 9–10px uppercase labels tracked 0.12–0.2em — is retired: it made
+category and variant counts unreadable on a phone ("RUMAH TANGG… 2 VARIAN")
+and gave every store the same boutique accent.
 
-- Announcement bar: `text-[10px] font-medium tracking-widest uppercase` — `src/components/storefront/shared/SiteHeader.astro:6`
-- Wordmark: `text-[15px] font-bold uppercase tracking-[0.2em]` — `src/components/storefront/shared/SiteBrand.astro:29`
-- Section eyebrow: `text-[10px] font-semibold uppercase tracking-[0.15em]` — `src/components/storefront/home/ProductsSection.astro:38`
-- Section heading: `text-[26px] font-semibold leading-tight tracking-[-0.035em]` — `src/components/storefront/home/ProductsSection.astro:41`
-- Page `h1`: `text-[28px] font-extrabold leading-[1.18] tracking-[-0.02em]` — `src/components/storefront/shared/PageIntro.astro:26`
-- Footer links: `text-[10px] font-semibold tracking-widest uppercase` — `src/components/storefront/shared/SiteFooter.astro:23`
+- Wordmark: `text-[17px] font-bold tracking-[-0.01em]`, the tenant's own name — `SiteBrand.astro`
+- Tagline: `text-xs text-[#555555]` on `#F4F4F5`, one line above the header — `SiteHeader.astro`
+- Page `h1`: `text-2xl font-bold tracking-[-0.02em]` — `PageIntro.astro`; PDP `h1` `text-xl`
+- Section heading: `text-xl font-bold tracking-[-0.02em]` (home), `text-base font-bold` (PDP sections)
+- Card title: `text-sm leading-5`, two lines reserved (`min-h-10`) so prices align across a row
+- Card price: `text-[15px] font-bold`; "Mulai" in `text-xs` only when variants differ in price
+- PDP price: `text-[26px] font-bold`
+- Meta and helper text: `text-xs` / `text-[13px]`, never below 12px
+- No eyebrow above a heading. `PageIntro` still accepts `badge` and does not draw it.
 
 Mobile input font-size is force-set to `1rem` to stop iOS zoom — `src/styles/foundation.css` (all viewports ≤639px, shared because every surface has inputs) and again for admin at ≤1023px (`src/layouts/AdminLayout.astro:66-73`).
 
 ---
 
-## 3. Shape language
+## 3. Shape language and the compact-market v2 direction
 
-**Rule: the `compact-market` storefront is square. Use `rounded-none` with a 1px hairline border. Do not reach for a default rounded card.**
+### Direction — compact-market storefront (2026-10-31)
 
-This is verified, not aspirational: `rounded-none` appears **46 times** under `src/`, and it is written *explicitly* even where it is the CSS default, because the surrounding shadcn/Tailwind habit is to round. Within storefront scope (`components/home`, `components/shared`, `components/storefront`, `pages/produk`) the ratio is `rounded-none` 20 : `rounded-xl` 4 : `rounded-2xl` 2 : `rounded-sm` 1 : `rounded-lg` 1 : `rounded-3xl` 1. (`rounded-full` 15 is legitimate — dots, pills, ping indicators.)
+Surface/job: the default storefront every install ships. A buyer arriving
+from a Meta or Google ad on a phone must see what the store sells, find the
+product, read its full price, and reach the COD order form without friction —
+for any kind of merchant.
 
-Load-bearing examples:
+Why it changed: the v1 contract (square `rounded-none`, hairline borders
+everywhere, uppercase micro-labels, Cinzel wordmark) read as rigid and
+boutique. Three stacked bars (an unverified "Official Store" seal, a dark
+tagline strip, the wordmark) took ~100px before any product. The hero was a
+full-width square with no way to swipe on a phone. Cards truncated their
+category. The PDP listed the variants twice (a read-only list, then the radio
+cards in the form) and filled space with generic attributes ("Fokus Produk",
+"Ketersediaan: seluruh varian tersedia").
 
-| Surface | Reference |
-| --- | --- |
-| Product card | `src/components/storefront/shared/ProductListItem.astro:31` — `rounded-none border border-[#E5E5E5] bg-white` |
-| Product card image | `src/components/storefront/shared/ProductListItem.astro:42` |
-| Discount badge | `src/components/storefront/shared/ProductListItem.astro:47` |
-| Catalog search input | `src/components/storefront/home/ProductsSection.astro:52` — `min-h-12 … rounded-none border border-[#D8D6D0]` |
-| Home product card | `src/components/storefront/home/ProductsSection.astro:78` |
-| Primary CTA | `src/components/storefront/home/ProductsSection.astro:164` |
-| PDP gallery frame + thumbs | `src/components/storefront/ProductImageGallery.astro` |
-| Load-more button | `src/pages/produk/index.astro:49` |
-| Payment page (19 occurrences) | `src/pages/payment.astro:17` onward |
-| Thanks page | `src/pages/thanks.astro:43`, `:131` |
+Sections (in order):
+- Home: tagline line → sticky header (brand, "Produk") → swipeable hero card →
+  catalogue (heading, search, category chips, 2-column grid) → landing pages →
+  footer.
+- `/produk`: breadcrumb → title with product count → grid.
+- PDP: breadcrumb → photo → offer (name, rating/sold if real, price with
+  "Mulai" when variants differ, compare price, short copy, "N pilihan: …",
+  shipping-cost note, "Pesan sekarang") → "Tentang produk" (only content that
+  exists) → reviews (only if real) → order form. The sticky buy bar shows name,
+  price and the same action between the photo and the form.
 
-Borders carry the structure that radius and shadow would normally carry. Shadow is nearly absent from the storefront — `shadow-2xs` / `shadow-xs` only. The one real shadow is the compact-shell drop: `shadow-[0_0_40px_rgba(15,23,42,0.08)]` (`src/layouts/BaseLayout.astro:187`).
+Shape rules:
+- One soft radius vocabulary: `rounded-xl` for images and cards,
+  `rounded-2xl` for grouped surfaces (hero, review cards, empty states, the
+  landing-page list), `rounded-full` for chips, search, and buttons,
+  `rounded-md` for the discount pill.
+- Separation is whitespace and surface, not lines. Between PDP sections a
+  `border-t-8 border-[#F4F4F5]` band; the only hairlines are under the sticky
+  header and above the sticky bar.
+- No shadow except the sticky buy bar's upward drop.
+- The column stays 480px on every screen (`BaseLayout`); wider than `sm` it
+  sits on the `#F4F4F5` canvas with a 1px `#EDEDED` edge.
+- The checkout form (`form-hybrid.css`, §4) keeps its own geometry; this
+  direction does not restyle it.
 
-**Exceptions that exist and are not errors:** the admin shell is round (`0.875rem` cards, `src/styles/admin.css`), and `form-hybrid.css` predates the square rule (§4).
+Claims: no seal, rating, sold count, or "verified" mark appears unless the
+store's data carries it. The removed "Official Store" check was a
+verification nobody had performed.
 
----
+Interaction: the hero is a native `scroll-snap` track (swipe, dots jump to a
+slide, never autoplays). Images are `draggable=false`; a vertical touch swipe
+that starts on the hero scrolls the page (checked with CDP touch events,
+2026-10-31). Category chips and search filter the same card list
+client-side, with an empty state.
 
 ## 4. Form controls (checkout)
 
@@ -420,7 +444,6 @@ from the product page. Both entries scan `../lib` for that reason.
   @import "@fontsource/inter/400.css";
   @import "@fontsource/inter/600.css";
   @import "@fontsource/inter/700.css";
-  @import "@fontsource/cinzel/700.css";
   @custom-variant dark (&:is(.dark *));
   ```
 - `tw-animate-css` and `shadcn/tailwind.css` are imported by `admin.css` alone.
@@ -565,12 +588,12 @@ island and is now scriptless Astro (§7.4).
 stacked. No scroll container, no thumbnails, no arrows, no counter, **no
 script**.
 
-- Wrapper `w-full`, one `relative w-full bg-[#F5F5F5]` frame per photo
+- Wrapper `w-full`, one `relative w-full bg-[#F4F4F5]` frame per photo
 - Image `block aspect-square w-full object-cover`, `draggable={false}`
 - First photo `loading="eager"`, `decoding="sync"`, `fetchpriority="high"` — it
   is the page's LCP element; the rest are lazy and async
-- Badge and discount chips sit absolute over the first frame only, in
-  `bg-[#111111]` on white
+- One red `rounded-md` discount pill over the first frame, only when a compare
+  price exists; the category badge is gone (the breadcrumb names it)
 
 This section previously described a scroll-snap carousel with a `w-14` vertical
 thumb rail, `aspect-[3/4]` frames and a `#C5A880` active border. None of those
@@ -591,8 +614,8 @@ Current observations, not a second backlog. Any item selected for implementation
 **8.2 Two parallel colour systems remain, not three.** The storefront neutrals
 (§1.1) and Tailwind **slate**, the latter in `src/lib/ui-variants.ts` —
 `secondary`, `dark`, `ghost` and the `listItemVariants` values — and in `src/pages/thanks.astro` and `src/pages/payment.astro`. Those
-two are customer-facing pages that adopted the square shape rule but never the
-storefront palette.
+two are customer-facing pages that adopted the v1 square shape rule but never the
+storefront palette; they have not been moved to the v2 direction (§3) yet.
 
 The emerald system this entry used to describe has left the public surface
 entirely: `emerald-*` now appears **zero** times in `payment.astro` and

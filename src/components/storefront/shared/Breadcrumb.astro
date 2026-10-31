@@ -14,10 +14,10 @@ const { items } = Astro.props;
 const rail = 'max-w-[480px]';
 ---
 
-<nav aria-label="Breadcrumb" class="border-b border-[#E5E5E5] bg-white px-4 py-1">
+<nav aria-label="Breadcrumb" class="bg-white px-4 pt-2">
   <div
     class={cn(
-      'mx-auto flex min-w-0 items-center gap-1.5 overflow-hidden text-[11px] text-[#555555]',
+      'mx-auto flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-[#767676]',
       rail,
     )}
   >
@@ -29,7 +29,7 @@ const rail = 'max-w-[480px]';
           <>
             {index > 0 && <span class="shrink-0 text-[#767676]">/</span>}
             {item.href ? (
-              <a href={item.href} class="inline-flex min-h-6 shrink-0 items-center transition-colors hover:text-[#111111]">
+              <a href={item.href} class="inline-flex min-h-8 shrink-0 items-center transition-colors hover:text-[#111111]">
                 {item.label}
               </a>
             ) : (

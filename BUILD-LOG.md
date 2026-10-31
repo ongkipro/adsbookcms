@@ -7434,3 +7434,46 @@ noisy; TTFB, LCP and Speed Index are the comparable figures.
   findings are rows in UNIMPLEMENTED_SPECS §1.
 - Verification: `npm test` 1091 pass / 0 fail, `npm run check` 0 errors /
   0 hints, `npm run build` complete.
+
+### Entry 204: compact-market storefront v2 — less rigid default
+
+Date: 2026-10-31. Branch `feat/storefront-compact-v2`. DESIGN-SYSTEM.md §3
+records the direction and the reasons; §1.1, §2 and §7.4 were rewritten to match.
+
+- **Header.** Three stacked bars became one: an optional one-line tagline and
+  a sticky 56 px header (store mark, name, "Produk"). The "Official Store"
+  check seal is gone; it claimed a verification nobody had performed. The
+  wordmark is the tenant's name in Inter, not Cinzel capitals. The Cinzel
+  import and `@fontsource/cinzel` are removed, so there is one font request
+  fewer on every public page.
+- **Home.** The hero is an inset, rounded card. The caption sits under the
+  photo, so there is no gradient. It is a native `scroll-snap` track: buyers
+  can swipe it, the dots jump to a slide, and it never autoplays. The
+  catalogue has a plain heading, a pill search, category chips (shown only
+  when there is more than one category), and an empty state for a search
+  with no matches. Cards are rounded and use sentence case. "Mulai" appears
+  only when variant prices differ, and the compare price sits inline. The
+  title box always reserves two lines, so prices align across a row.
+- **Product page.** The read-only variant list that duplicated the form's
+  radio cards is gone; the offer shows "N pilihan: …" instead. The generic
+  attribute block (Kategori / Fokus Produk / Ketersediaan) is removed.
+  "Pesan sekarang" sits beside the price, together with the shipping-cost
+  note. "Tentang produk" and the reviews render only from real content. The
+  sticky bar shows the product name and price and respects the iOS safe area.
+- **Everywhere.** Sections are separated by a `#F4F4F5` band, not hairlines.
+  The footer is a two-column link list on a soft surface. On wide screens the
+  480 px column sits on a grey canvas. Breadcrumbs and PageIntro lost their
+  small capitals.
+- Not changed: the checkout form (`form-hybrid.css`), `/thanks`, `/payment`,
+  landing-page templates, tracking, and the edge-cache rules.
+- Verification:
+  - `npm test`: 1091 pass, 0 fail.
+  - `npm run check`: 0 errors, 0 hints.
+  - `npm run build`: complete.
+  - Rendered `/`, `/produk`, `/produk/madu-hutan-dummy` and `/landing-page`
+    at 390 and 1280 px: no overflow, no page errors.
+  - Playwright: chip filter (10 → 3 → 10), search empty state, hero dot →
+    slide, sticky header at `top: 0`.
+  - CDP touch: a vertical swipe that starts on the hero scrolls the page,
+    and a horizontal one changes the slide.
+  - Not verified: real iOS/Android devices.

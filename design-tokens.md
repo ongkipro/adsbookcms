@@ -1,6 +1,6 @@
 ---
 name: adsbookcms-storefront
-description: Monochrome ink on white, Dawn-clean, one 480px column
+description: Neutral ink on white, soft radius, one 480px column (compact-market v2, 2026-10-31)
 theme: { default: light, dark: out-of-scope,
          white-temperature: neutral,
          why: "The public surface is black and white so a landing page or a
@@ -10,16 +10,19 @@ colors:
   ink:            "#111111"   # primary text, solid buttons, inverse surfaces
   ink-secondary:  "#555555"   # body copy, 7.4:1 on white
   ink-muted:      "#767676"   # captions, 4.6:1 on white - the floor
-  canvas:         "#FAFAFA"   # page behind the column
+  canvas:         "#F4F4F5"   # page behind the column, soft surfaces, section bands
   surface:        "#FFFFFF"   # the 480px reading column, cards
-  raised:         "#F5F5F5"   # media wells, inactive chips
-  border:         "#E5E5E5"   # hairline, used sparingly
+  raised:         "#F4F4F5"   # media wells, search well, notes, review cards
+  border:         "#EDEDED"   # the only hairline: sticky header and buy bar
+  outline:        "#E4E4E7"   # pill controls at rest
+  accent:         "#2C6ECB"   # the buy action, = --sf-accent
+  sale:           "#D92D20"   # discount pill only
   on-ink:         "#FFFFFF"   # text on ink
   focus:          "#2563EB"   # focus ring only - see accessibility notes
 typography: { display: "Inter 700", body: "Inter 400", emphasis: "Inter 600" }
 spacing: { base: 4px }
-radius: { none: 0 }           # Shape Lock: square. Dawn is square.
-shadows: { none }             # hairlines instead
+radius: { md: 6px, xl: 12px, 2xl: 16px, full: 9999px }   # DESIGN-SYSTEM §3
+shadows: { buy-bar: "0 -8px 24px rgba(17,17,17,0.08)" }   # the only one
 motion: { duration-base: 200ms, easing: ease-out }
 ---
 
@@ -38,8 +41,9 @@ Three neutral steps carry the hierarchy — canvas behind the column, white
 surface, and a light well for media — so depth comes from the neutrals rather
 than from shadows sprinkled on flat white.
 
-Square corners and hairlines follow Dawn: borders separate, they do not frame.
-A photo does not need a box drawn around it when it already has edges.
+Square corners and hairlines were the v1 rule and read as rigid on a phone.
+Since 2026-10-31 shape is a soft radius and separation is surface and
+whitespace, not lines; DESIGN-SYSTEM.md §3 owns the rule and its reasons.
 
 ## Accessibility notes
 

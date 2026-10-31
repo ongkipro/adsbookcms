@@ -262,3 +262,22 @@ test("a variant over Mengantar's regular 50 kg limit is refused", () => {
     error: "Berat varian MERCHANT-1 maksimal 50.000 gram (batas layanan reguler Mengantar).",
   });
 });
+
+test("brand and description are capped at the feed limits, and an update without them keeps the stored values", () => {
+  const variants = [{ sku: "SKU-1", title: "250 ml", price: 10000, weight_grams: 300, stock: 0 }];
+  const created = parseProductMutationPayload(
+    { title: "Sabun", slug: "sabun", brand: "x".repeat(90), description: "a\r\n\r\n\r\n\r\nb", variants, is_active: false },
+    false,
+  );
+  assert.ok("value" in created);
+  assert.equal(created.value.brand?.length, 70);
+  assert.equal(created.value.description, "a\n\nb");
+  const cleared = parseProductMutationPayload({ id: 1, title: "Sabun", slug: "sabun", brand: "  ", description: "", variants, is_active: false }, true);
+  assert.ok("value" in cleared);
+  assert.equal(cleared.value.brand, null);
+  assert.equal(cleared.value.description, null);
+  const untouched = parseProductMutationPayload({ id: 1, title: "Sabun", slug: "sabun", variants, is_active: false }, true);
+  assert.ok("value" in untouched);
+  assert.equal("brand" in untouched.value, false);
+  assert.equal("description" in untouched.value, false);
+});

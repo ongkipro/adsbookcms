@@ -4,7 +4,7 @@
 > **Install model:** **1 installer = 1 Worker = 1 store.** Isolation comes from the deployment boundary, not from request-time tenant routing.
 > **This repository:** the product. It deploys nothing; each install deploys from its own repository against its own resources.
 > **First install:** `permatamall.shop`, in the separate `ongkipro/permatamall` repository, carrying its own catalogue in its own database. Its `cmsads-*` resource names are legacy and deliberately not renamed.
-> Verified against disk: 2026-10-31 @ `7a8f26e` + fix/ui-actions-audit (§3 tables, migration chain and payment retry; §7 quote origin; remaining sections retain their recorded evidence)
+> Verified against disk: 2026-10-31 @ `7a8f26e` + fix/ui-actions-audit (§3 tables, migration chain and payment retry; §7 quote origin; remaining sections retain their recorded evidence); feeds row re-verified 2026-10-31 @ `83534ef` + feat/payment-copy-ux
 
 This document describes what the system **actually is**. Where the intended AdsBookCMS product differs from what ships today, the gap is stated explicitly in §10 rather than written as if it were already true. Code and executable evidence win over this document; when they disagree, fix the document.
 
@@ -73,7 +73,7 @@ Runs on every request, in order: canonical host redirect (`www` → apex), ad cl
 | Content pages | `/tentang`, `/kontak`, `/testimoni`, `/sitemap`, `/disclaimer`, `/kebijakan-privasi`, `/kebijakan-cookie`, `/syarat-ketentuan`, `/pengiriman` |
 | Landing pages | `/[slug]` — catch-all resolved from D1 `landing_pages`; falls back to a `301` to `/produk/<slug>` (query string kept, cached five minutes) when the slug is a product, else 404. Supports `?preview=1` behind an admin session |
 | Checkout forms | `/hybrid-form`, `/middle-form`, `/full-form`, `/geoipform`, `/embed/form`. `/form-hybrid`, `/form-middle`, `/form-full` are query-preserving 308 redirects that **do** exist |
-| Feeds | `/sitemap.xml`, `/feed/google-catalog.xml`, `/feed/meta-catalog.xml`, `/robots.txt` (dynamic, `src/pages/robots.txt.ts`) |
+| Feeds | `/sitemap.xml` (`src/lib/sitemap.ts`), `/feed/google-catalog.xml`, `/feed/meta-catalog.xml`, `/robots.txt` (dynamic, `src/pages/robots.txt.ts`), `/llms.txt` (`src/lib/llms-txt.ts`) — for a `PUBLIC_SITE_NOINDEX` store the sitemap is empty, `/llms.txt` answers 404 and robots drops its `Sitemap:` line but keeps crawling open so `noindex` is seen; the catalog feeds are unaffected (ads still need them) |
 | Media | `/assets/[...key]` (R2 `uploads/` prefix), `/media/[...key]` (R2 `content/` prefix) |
 | Admin | `/hello` (login), `/admin/*` — see generated route map for the page inventory |
 | Public API | `/api/*` — checkout, locations, shipping rates, payment methods, order status, Meta events |

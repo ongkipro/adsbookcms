@@ -7948,3 +7948,44 @@ Findings are in `docs/AUDIT-2026-10-31-ui-actions.md`; what is left is in
 - Verification: `npm test`, `npm run check`, `npm run build` and
   `docs:check` pass.
 
+### Entry 223: 1.8.1 — payment copy, an honest /thanks, a feed Merchant Center accepts
+
+Found by a simulated buyer (COD, VA BCA, manual BCA transfer) on a local store,
+and an audit of the feeds and structured data.
+
+- **/payment.** The VA or account number had the copy button beside it, so a
+  14-digit VA broke onto two lines at phone width (`8808440911 / 0437`). The
+  number now owns its card, grouped by four (`8808 4409 1104 37`, one line at
+  360 px), and a full-width copy button sits under it: check icon, inverted
+  colours, "Nomor VA Tersalin", reset after 2.4 s. The copied value is the raw
+  number. `copyText` falls back to `execCommand` where the Clipboard API is
+  missing. The VA badge said "Verifikasi Admin"; it is "Otomatis" for VA and
+  "Dicek Admin" for a manual transfer, whose holder now has its own line.
+- **/thanks.** The summary did not add up: product − discount + shipping
+  (64.000) beside a total of 70.500 or 66.132, the fee nowhere. A fee row now
+  carries it. An unpaid VA/QRIS order was shown a success check and told to
+  "Kirim Bukti"; it is now "Selesaikan pembayaran" with the payment page as the
+  main action, and only a manual transfer asks for proof. Raw `VABCA`,
+  `pending` and `6281…` are shown as words (`src/lib/payment-display.ts`).
+- **Google feed.** It priced each item from `variants[0]`, the variant entered
+  first, while the product page shows the cheapest — a price mismatch Merchant
+  Center disapproves. It now uses the cheapest variant.
+- **Catalogue fields.** The admin form had no category (hard-coded "Umum"), no
+  brand and no description, so every feed item was "Umum" with the store as its
+  brand. It now edits all three; an update that omits them keeps the stored
+  values. Feeds prefer the merchant's description; with none, the product
+  describes itself from its own name, brand, category and variants.
+- **Structured data.** Product and landing pages use one `buildProductJsonLd`
+  (one Offer per variant, the product's brand). The Organization logo is
+  omitted when unset instead of being the homepage URL; the dead SearchAction
+  and the invalid ListItem `offers` are gone. `og:type` is `product` on a
+  product page; `article:publisher` (a Facebook page field) is gone.
+- **Sitemap and robots.** `lastmod` only when real (landing `updated_at`);
+  `/tentang` listed; a noindex store submits no URLs and robots drops its
+  `Sitemap:` line. AI search and training agents are named in robots.
+- **`/llms.txt`** maps the store for AI assistants from its own catalogue; no
+  admin, API or order-status surface. `llms` is a reserved landing slug.
+- Verification: `npm test` 1121 pass, `npm run check` 0/0/0, `npm run build`;
+  /payment, /thanks (COD, unpaid VA, manual, paid) and the admin product form
+  rendered in a browser; feed, sitemap, robots, llms.txt and product JSON-LD
+  read from a running local store.

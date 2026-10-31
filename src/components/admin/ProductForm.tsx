@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
 import { catalogProductIdOrNull } from "../../lib/catalog-feed";
 import { formatKg } from "../../lib/weight";
 import {
@@ -22,6 +23,8 @@ type ProductPayload = {
   title: string;
   slug: string;
   category: string;
+  brand: string;
+  description: string;
   image_url: string;
   is_active: boolean;
   variants: Array<{
@@ -50,6 +53,8 @@ type ProductResponse = {
   title: string;
   slug: string;
   category: string | null;
+  brand?: string | null;
+  description?: string | null;
   image_url: string | null;
   is_active: number | boolean;
   variants: ProductVariantResponse[];
@@ -78,7 +83,12 @@ export function ProductForm({ productId }: { productId?: string }) {
   const nextVariantKey = useRef(1);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const category = "Umum";
+  // Category, brand and description used to have no field at all: every
+  // product was "Umum", the feeds named the store as every product's brand, and
+  // the product page described itself from its own title.
+  const [category, setCategory] = useState("Umum");
+  const [brand, setBrand] = useState("");
+  const [description, setDescription] = useState("");
   const [active, setActive] = useState(!editing);
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -109,6 +119,9 @@ export function ProductForm({ productId }: { productId?: string }) {
       .then((product) => {
         setTitle(product.title || "");
         setSlug(product.slug || "");
+        setCategory(product.category || "Umum");
+        setBrand(product.brand || "");
+        setDescription(product.description || "");
         setImageUrl(product.image_url || "");
         setActive(product.is_active !== undefined ? Boolean(product.is_active) : true);
         setVariants(
@@ -253,7 +266,9 @@ export function ProductForm({ productId }: { productId?: string }) {
       ...(productId ? { id: productId } : {}),
       title: title.trim(),
       slug: slug.trim(),
-      category: category.trim(),
+      category: category.trim() || "Umum",
+      brand: brand.trim(),
+      description: description.trim(),
       image_url: imageUrl,
       is_active: active,
       variants: payloadVariants,
@@ -351,6 +366,52 @@ export function ProductForm({ productId }: { productId?: string }) {
               />
               <span className="mt-1 block text-xs text-slate-500">
                 Huruf kecil, angka, dan tanda hubung.
+              </span>
+            </label>
+            <label>
+              <span className="mb-1.5 block text-xs font-semibold text-slate-700">
+                Kategori
+              </span>
+              <Input
+                maxLength={120}
+                value={category}
+                placeholder="Contoh: Perawatan Rumah"
+                onChange={(event) => setCategory(event.target.value)}
+                className="admin-input-flat focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                Tampil di breadcrumb dan dipakai feed Google/Meta.
+              </span>
+            </label>
+            <label>
+              <span className="mb-1.5 block text-xs font-semibold text-slate-700">
+                Merek
+              </span>
+              <Input
+                maxLength={70}
+                value={brand}
+                placeholder="Kosongkan bila sama dengan nama toko"
+                onChange={(event) => setBrand(event.target.value)}
+                className="admin-input-flat focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                Merek pabrikan, bukan nama toko. Dipakai Google Merchant Center.
+              </span>
+            </label>
+            <label className="md:col-span-2">
+              <span className="mb-1.5 block text-xs font-semibold text-slate-700">
+                Deskripsi produk
+              </span>
+              <Textarea
+                maxLength={5000}
+                rows={5}
+                value={description}
+                placeholder="Bahan, ukuran, cara pakai, isi paket. Tulis fakta produk, bukan ajakan beli."
+                onChange={(event) => setDescription(event.target.value)}
+                className="admin-input-flat focus-visible:border-emerald-700 focus-visible:ring-emerald-700/20"
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                Tampil di halaman produk dan dikirim ke feed Google/Meta. {description.trim().length}/5000
               </span>
             </label>
             <div className="md:col-span-2">

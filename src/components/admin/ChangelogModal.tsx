@@ -29,10 +29,35 @@ interface ChangelogRelease {
 // changelog.test.ts fails when version.ts moves without a matching entry here.
 const CHANGELOG_RELEASES: ChangelogRelease[] = [
   {
-    version: "1.8.0",
+    version: "1.8.1",
     date: "31 Oktober 2026",
     releaseTag: "2026.10-ops",
     isLatest: true,
+    highlight: "Halaman pembayaran dan terima kasih lebih jelas, feed Google lebih akurat, dan produk kini punya kategori, merek, serta deskripsi.",
+    changes: [
+      {
+        title: "Salin nomor VA dan rekening lebih mudah",
+        description: "Nomor VA dan rekening tampil penuh satu baris, dikelompokkan per 4 digit. Tombol salin ada di bawah nomor dan berubah jadi \"Tersalin\" saat ditekan. Nama penerima transfer tampil di baris sendiri.",
+      },
+      {
+        title: "Halaman terima kasih yang klop",
+        description: "Ringkasan pembayaran kini menampilkan biaya admin atau biaya layanan COD, jadi totalnya pas. Order VA/QRIS yang belum dibayar diarahkan ke instruksi pembayaran; hanya transfer manual yang diminta kirim bukti.",
+      },
+      {
+        title: "Kategori, merek, dan deskripsi produk",
+        description: "Form produk kini punya kolom Kategori, Merek, dan Deskripsi. Ketiganya tampil di halaman produk dan dikirim ke feed Google dan Meta. Isi untuk setiap produk agar feed tidak lagi memakai \"Umum\" dan nama toko.",
+      },
+      {
+        title: "Feed Google dan SEO",
+        description: "Harga di feed kini mengikuti varian termurah, sama dengan halaman produk, sehingga tidak ditolak Merchant Center karena harga beda. Data terstruktur produk diseragamkan, sitemap lebih jujur, dan toko kini punya /llms.txt untuk asisten AI.",
+      },
+    ],
+  },
+  {
+    version: "1.8.0",
+    date: "31 Oktober 2026",
+    releaseTag: "2026.10-ops",
+    isLatest: false,
     highlight: "Analitik lengkap, follow-up WhatsApp satu ketuk, multi-gudang, dan tampilan toko baru ala tema Shopify.",
     changes: [
       {

@@ -22,13 +22,29 @@ const DISALLOWED = ["/admin/", "/api/", "/embed/", "/hello", "/install"];
 
 // Named so their crawl behaviour is explicit rather than inherited. Every one
 // of them needs its own copy of the disallow list.
+//
+// The AI agents are allowed the same storefront as search engines: a store
+// sells by being found, and an assistant answering "where can I buy X" can
+// only cite pages it was allowed to read. Training (GPTBot, ClaudeBot,
+// Google-Extended, Applebot-Extended, CCBot) and live retrieval (OAI-SearchBot,
+// ChatGPT-User, Claude-SearchBot, Claude-User, PerplexityBot) are listed
+// separately so a store that wants to refuse training can change one line.
+// `/llms.txt` is the map written for them.
 const NAMED_AGENTS = [
   "Googlebot",
   "Googlebot-Image",
   "Bingbot",
+  "OAI-SearchBot",
+  "ChatGPT-User",
+  "Claude-SearchBot",
+  "Claude-User",
   "PerplexityBot",
   "GPTBot",
   "ClaudeBot",
+  "Google-Extended",
+  "Applebot-Extended",
+  "CCBot",
+  "meta-externalagent",
 ];
 
 function group(agent: string) {
@@ -41,10 +57,12 @@ function group(agent: string) {
 
 export const GET: APIRoute = ({ locals }) => {
   const origin = locals.tenant.siteUrl.replace(/\/$/, "");
+  // A noindex store keeps crawling open so every page's `noindex` is seen
+  // (a Disallow would hide it), but advertises no sitemap.
   const body = [
     group("*"),
     ...NAMED_AGENTS.map(group),
-    `Sitemap: ${origin}/sitemap.xml`,
+    ...(locals.tenant.noindex ? [] : [`Sitemap: ${origin}/sitemap.xml`]),
     "",
   ].join("\n\n");
 

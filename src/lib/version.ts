@@ -8,7 +8,8 @@ export type CmsVersionInfo = {
 };
 
 export const CMS_VERSION: CmsVersionInfo = {
-  version: "1.8.0",
+  version: "1.8.1",
+  // 1.8.1: copy controls under the VA/account number on /payment; /thanks adds the fee line so its summary adds up and treats an unpaid order as a to-do; feed priced at the cheapest variant; admin edits category, brand and description; one Product JSON-LD builder; honest sitemap lastmod; /llms.txt.
   // 1.8.0: Analitik and UTM, one-tap WhatsApp follow-up, WhatsApp rotator, multi-warehouse, Mengantar pickup/drop-off and safe push, COD-to-transfer switch, ops API + CLI, Shopify-theme storefront, adaptive legal pages (migrations 0067-0078).
   // 1.7.14: the Kelola plugin settings page can send orders older than the 24 h retry window ("Kirim order lama").
   // 1.7.13: "Transfer Diterima" on a manual-transfer order marks it paid and sends its Meta Purchase from the server.
